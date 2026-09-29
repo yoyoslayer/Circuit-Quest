@@ -39,7 +39,13 @@ export class Sound {
     if(!this.context||this.isMuted)return;const c=this.context,t=this.t+at,s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=this.noiseBuffer();f.type=type;f.frequency.value=freq;
     g.gain.setValueAtTime(volume,t);g.gain.exponentialRampToValueAtTime(.001,t+duration);s.connect(f).connect(g).connect(this.out());s.start(t,Math.random()*1.5,duration+.02);
   }
-  strain(ratio:number){if(this.gain&&this.context&&this.hum){this.gain.gain.setTargetAtTime(this.isMuted?0:Math.max(0,ratio-.7)*.09,this.t,.08);this.hum.frequency.setTargetAtTime(55+ratio*90,this.t,.08);}}
+  strain(ratio:number){if(ratio>.88&&Math.random()<(ratio-.85)*.25)this.creak(ratio);if(this.gain&&this.context&&this.hum){this.gain.gain.setTargetAtTime(this.isMuted?0:Math.max(0,ratio-.7)*.09,this.t,.08);this.hum.frequency.setTargetAtTime(55+ratio*90,this.t,.08);}}
+  /** Rubbery creak of a cable near its limit. */
+  creak(ratio=1){this.noise(.09,.03+Math.min(.04,(ratio-.85)*.2),700+Math.random()*500,'bandpass');this.tone(140+Math.random()*60,.08,.02,'sawtooth');}
+  /** Glass smash: a bright burst and falling tinkles. */
+  glass(){this.noise(.3,.12,5000,'highpass');for(let i=0;i<6;i++)this.bell(1800+Math.random()*2400,.25,.025,.05+i*.06+Math.random()*.04);}
+  /** Light props (mugs, bins, paper) clatter higher and shorter than furniture. */
+  clatter(){this.noise(.06,.05,2600+Math.random()*1500,'bandpass');this.tone(600+Math.random()*400,.05,.025,'triangle');}
   /** Soft footstep; pitch varies so a walk never sounds like a metronome. */
   step(){this.noise(.07,.035,260+Math.random()*120);this.tone(80+Math.random()*20,.06,.03);}
   /** Wooden knock when the cable wraps a corner. */

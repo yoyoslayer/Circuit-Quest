@@ -6,7 +6,7 @@ import type * as T from 'three';
 import type {Game} from '../game';
 import type {Point} from '../sim/cable';
 
-export type StationId='vias';
+export type StationId='vias'|'qfn';
 export interface StationStep {text:string;done:()=>boolean;
   /** Where the world marker points for this step (defaults to the bench). */
   at?:()=>Point|undefined}

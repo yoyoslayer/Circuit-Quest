@@ -43,6 +43,7 @@ export const MOODS:Record<string,Mood>={
   playground:{key:['#ffe9c8',2.15],fill:.5,rim:.45,hemi:.7,exposure:1.02,backdrop:['#3f4a72','#2a2d4a','#181a2b','rgba(255,200,150,.2)']},
   meeting:{key:['#ffdcaa',2.1],fill:.5,rim:.5,hemi:.68,exposure:1,backdrop:['#4b4169','#2c2b4a','#191a2c','rgba(255,190,140,.22)']},
   vias:{key:['#fff0d6',2.15],fill:.5,rim:.5,hemi:.72,exposure:1.02,backdrop:['#2f5b57','#233a44','#16202b','rgba(150,255,210,.18)']},
+  qfn:{key:['#fff2e4',2.15],fill:.5,rim:.5,hemi:.72,exposure:1.02,backdrop:['#4a4878','#2e2c52','#1a1930','rgba(190,175,255,.2)']},
   lunch:{key:['#ffeccc',2.2],fill:.45,rim:.5,hemi:.72,exposure:1.02,backdrop:['#4a4466','#2b2c48','#191a2c','rgba(255,205,150,.24)']},
 };
 export function createRenderer(canvas:HTMLCanvasElement) {

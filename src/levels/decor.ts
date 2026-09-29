@@ -163,7 +163,7 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   // Floor clutter: paper drift, stacked boxes.
   for(const [x,z,ry] of [[-8.6,-1.2,.3],[7.2,3.6,-.4],[-2.6,5.1,.8],[2.2,-.8,.2],[-7.8,4.6,1.2],[6.8,-6.9,.5]])part(r,box(.3,.012,.23),toon('#fffaf0'),x,.01,z,false).rotation.y=ry;
   for(const [x,z] of [[-8.9,9.1],[7.8,9.2]]){part(r,rbox(.7,.6,.7,.05),toon('#c98f5a'),x,.3,z).rotation.y=.3;part(r,rbox(.6,.5,.6,.05),toon('#d7a56d'),x+.1,.85,z-.05).rotation.y=.8;}
-  const lightUp=()=>{const m=new T.MeshBasicMaterial({map:slide});m.color.setScalar(1.8);m.userData.outlineParameters={visible:false};screen.material=m;
+  const lightUp=()=>{const m=new T.MeshBasicMaterial({map:slide});m.color.setScalar(1.25);m.userData.outlineParameters={visible:false};screen.material=m;
     pointLamp(game.root,12.2,1.9,-9,{color:'#dfe9ff',intensity:7,distance:7});lampPool(game.root,12.2,-8.4,2.4,.25,'#dfe9ff');glow(game.root,'rgba(220,235,255,1)',4,.35).position.set(12.2,1.9,-9.6);};
   return {screen,beam,lightUp,clock:{hand,minute,face}};
 }

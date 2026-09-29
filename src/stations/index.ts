@@ -2,6 +2,8 @@
 import type {Game} from '../game';
 import type {Station,StationId} from './types';
 import {ViaCounter} from './vias/station';
+import {Waterworks} from './waterworks/station';
 export function makeStation(id:StationId,game:Game):Station{
-  switch(id){case 'vias':return new ViaCounter(game);}
+  switch(id){case 'vias':return new ViaCounter(game);
+    case 'waterworks':return new Waterworks(game);}
 }

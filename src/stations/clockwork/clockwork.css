@@ -1,0 +1,6 @@
+/* Clockwork Kitchen bench panel: the last run's three trays as chips (station-panel base in ui.css). */
+.ck-panel .ck-trays{display:flex;gap:6px;margin:8px 0 0}
+.ck-panel .ck-trays i{flex:1;font-style:normal;font-size:12px;font-weight:700;text-align:center;padding:3px 0;border-radius:10px;border:2px solid var(--ink);color:#fffaf0}
+.ck-panel .ck-trays i.golden{background:#2f9a62}
+.ck-panel .ck-trays i.burnt{background:#7a2a22}
+.ck-panel .ck-trays i.raw{background:#3f7fd6}

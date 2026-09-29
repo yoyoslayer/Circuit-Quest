@@ -21,7 +21,7 @@ interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
@@ -99,7 +99,10 @@ export class Game {
     const head=new T.Mesh(new T.SphereGeometry(.3,16,10),toon('#eab387'));head.position.y=1.43;this.avatar.add(head);
     const hat=new T.Mesh(new T.SphereGeometry(.33,16,8,0,Math.PI*2,0,Math.PI/2),toon('#ffc44b'));hat.position.y=1.52;this.avatar.add(hat);
     this.root.add(this.avatar);
-    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.rotation.y=Math.PI;gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=toon('#'+old.color.getHexString());o.castShadow=true;}});this.avatar.add(gltf.scene);},undefined,()=>{document.body.dataset.assetFallback='true';});
+    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=toon('#'+old.color.getHexString());o.castShadow=true;}});this.avatar.add(gltf.scene);
+      // Limbs are separate nodes (tools/create_assets.py); hang them on hip and shoulder pivots to animate.
+      const pivot=(x:number,y:number,names:string[])=>{const g=new T.Group();g.position.set(x,y,0);gltf.scene.add(g);gltf.scene.updateMatrixWorld(true);for(const n of names){const o=gltf.scene.getObjectByName(n);if(o)g.attach(o);}return g;};
+      this.rig={legs:[pivot(-.17,.62,['LegL','BootL']),pivot(.17,.62,['LegR','BootR'])],arms:[pivot(-.39,1.12,['ArmL','GloveL']),pivot(.39,1.12,['ArmR','GloveR'])]};},undefined,()=>{document.body.dataset.assetFallback='true';});
   }
   setupUI(){
     this.hud.innerHTML=`<div class="job"><div class="badge">${icon(this.level.badge)}<svg class="timer" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29"/></svg></div><div class="stats"><span>${icon('clock')}<b id="clock">0:00</b></span><span>${icon('damage')}<b id="damage">0</b></span><span>${icon('coins')}<b id="cost">0</b></span></div></div><div class="tension">${icon('reel')}<div><i id="strain"></i></div></div><div class="toolbar"><button aria-label="Grab or drop" data-action="grab">${icon('hand')}<kbd>E</kbd></button><button aria-label="Cable" data-action="cable">${icon('plug')}<kbd>F</kbd></button><button aria-label="Throw" data-action="throw">${icon('throw')}<kbd>Q</kbd></button><button aria-label="Jump" data-action="jump">${icon('jump')}<kbd>␣</kbd></button><button aria-label="Reset camera" data-action="camera">${icon('camera')}</button></div><div class="utility"><button aria-label="Mute audio" data-action="sound">${icon('sound')}</button><button aria-label="Pause" data-action="pause">${icon('pause')}</button><button aria-label="Restart" data-action="restart">${icon('retry')}</button></div><div class="intro panel"><div class="eyebrow">FACILITIES DEPARTMENT / ${this.level.number}</div><h1>CIRCUIT<br><em>CREW</em><span>®</span></h1><div class="intro-rule"></div><p>${this.level.tagline}</p><div class="control-strip"><span><kbd>W A S D</kbd>${icon('move')}</span><span><kbd>E</kbd>${icon('hand')}</span><span><kbd>F</kbd>${icon('plug')}</span><span><kbd>Q</kbd>${icon('throw')}</span><span><kbd>␣</kbd>${icon('jump')}</span><span><kbd>⇧</kbd>${icon('arrow')}</span><span><kbd>RMB</kbd>${icon('camera')}</span></div><button class="start" aria-label="Start playing">${icon('play')}</button><nav class="levels">${levels.map(l=>`<a href="?level=${l.id}" aria-label="${l.name}" class="${l.id===this.level.id?'current':''}">${icon(l.badge)}</a>`).join('')}</nav><small>${this.level.name} <span>${this.level.number} / CIRCUIT CREW</span></small></div><div class="result panel" hidden></div><div class="pause panel" hidden><button aria-label="Resume" class="resume">${icon('play')}</button></div>`;
@@ -237,14 +240,25 @@ export class Game {
     result.hidden=false;result.querySelector('button')!.onclick=()=>location.reload();document.body.dataset.complete='true';
   }
   formatTime(t:number){return `${Math.floor(t/60)}:${Math.floor(t%60).toString().padStart(2,'0')}`;}
-  updateCamera(dt:number){const p=this.player.translation(),target=new T.Vector3(p.x*.24,0,p.z*.24);const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(this.pitch),Math.sin(this.pitch),Math.cos(this.yaw)*Math.cos(this.pitch)).multiplyScalar(this.zoom);const wanted=target.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
+  // Zoomed out the camera frames the whole floor like a diorama; zooming in hands it over to Pip.
+  updateCamera(dt:number){const p=this.player.translation(),follow=T.MathUtils.clamp(1-(this.zoom-12)/31*.76,.24,1),target=new T.Vector3(p.x*follow,0,p.z*follow);const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(this.pitch),Math.sin(this.pitch),Math.cos(this.yaw)*Math.cos(this.pitch)).multiplyScalar(this.zoom);const wanted=target.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     this.view.camera.position.lerp(wanted,1-Math.exp(-dt*6));this.view.camera.lookAt(target);this.shake*=.9;
     const start=this.view.camera.position,end=new T.Vector3(p.x,p.y+.4,p.z),ray=new T.Raycaster(start,end.clone().sub(start).normalize(),0,start.distanceTo(end));const hit=new Set(ray.intersectObjects(this.occluders).map(h=>h.object));
     for(const mesh of this.occluders){const material=mesh.material as T.MeshToonMaterial;material.opacity=T.MathUtils.lerp(material.opacity,hit.has(mesh)?.15:1,.15);material.depthWrite=material.opacity>.8;}
   }
+  /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
+  animateRig(dt:number){
+    if(!this.rig)return;const p=this.player.translation(),speed=dt>0?Math.hypot(p.x-this.lastPos.x,p.z-this.lastPos.z)/dt:0;this.lastPos.set(p.x,p.y,p.z);
+    const amount=Math.min(1,speed/4),carrying=!!this.held,plug=this.holdingPlug,air=!this.grounded&&this.airborne>.08;this.stride+=dt*speed*2.1;
+    const swing=Math.sin(this.stride)*.75*amount,ease=1-Math.exp(-dt*14),to=(g:T.Group,x:number,z=0)=>{g.rotation.x+=(x-g.rotation.x)*ease;g.rotation.z+=(z-g.rotation.z)*ease;};
+    to(this.rig.legs[0],air?-.5:swing);to(this.rig.legs[1],air?.35:-swing);
+    const reach=carrying?-1.45:0,sway=air?-2.3:-swing*.8;
+    to(this.rig.arms[0],carrying?reach:plug?sway*.4:sway,air?-.5:carrying?.18:0);to(this.rig.arms[1],carrying?reach:plug?-1.25:-sway,air?.5:carrying?-.18:0);
+  }
   render(dt:number){
     const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);this.avatar.rotation.y=this.heading;const moving=(this.keys.size>0||!!this.stick)&&this.running&&!this.paused;this.squash=T.MathUtils.lerp(this.squash,0,1-Math.exp(-dt*9));
     const sy=1-this.squash*.22+(moving&&this.grounded?Math.sin(this.time*15)*.03:0),sxz=1/Math.sqrt(Math.max(.5,sy));this.avatar.scale.set(sxz,sy,sxz);
+    this.animateRig(dt);
     for(const prop of this.props){if(!prop.mesh.visible)continue;prop.mesh.position.copy(prop.body.translation());prop.mesh.quaternion.copy(prop.body.rotation());}
     this.updateBatches();
     for(const npc of this.npcs){const g=npc.group,near=distance(p,g.position)<2;npc.alarm=Math.max(0,npc.alarm-dt);

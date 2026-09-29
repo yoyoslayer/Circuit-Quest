@@ -6,4 +6,5 @@ import {qfn} from './qfn';
 import {archive} from './archive';
 import {waterworks} from './waterworks';
 import {observatory} from './observatory';
-export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory];
+import {clockwork} from './clockwork';
+export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,clockwork];

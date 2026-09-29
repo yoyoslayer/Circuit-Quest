@@ -6,7 +6,8 @@ import {LunchJob,BURN_WARNING} from './sim/lunch';
 import {Rope,distance,segmentDistance,segmentHits,strainColor,type Point} from './sim/cable';
 import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge,paint} from './render/kit';
 import {makeProp} from './props/prefabs';
-import {icon} from './render/icons';
+import {lunchHud} from './ui/lunch-hud';
+import {gameUI} from './ui/game-ui';
 import {solid} from './levels/decor';
 const warningTexture=()=>cachedTexture('warning',()=>glyph(c=>{c.fillStyle='#e5484d';c.beginPath();c.arc(128,128,112,0,7);c.fill();c.lineWidth=14;c.strokeStyle='#2b2d42';c.stroke();c.fillStyle='#fff6e6';c.beginPath();c.moveTo(150,40);c.lineTo(84,138);c.lineTo(126,138);c.lineTo(106,216);c.lineTo(176,112);c.lineTo(134,112);c.closePath();c.fill();}));
 import type {Prop} from './game';
@@ -44,7 +45,8 @@ export class LunchRuntime {
     this.addCable('thin-1',3,32,'a',null,[-11,2]);this.addCable('thin-2',3,30,'a',null,[-10,3.5]);this.addCable('thin-3',3,32,null,null,[-11,7]);this.addCable('thick',10,30,'b',null,[-10,7.5]);
     this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#141726',{transparent:true,opacity:.88,depthWrite:false}),-12.1,2.7,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;
     const tray=this.prop('tray');if(tray){tray.mesh.visible=false;tray.body.setEnabled(false);}
-    const objective=document.createElement('div');objective.className='lunch-chain';objective.innerHTML=`<span id="oven-stage">${icon('oven')}</span>${icon('arrow')}<span id="belt-stage">${icon('conveyor')}</span>${icon('arrow')}<span id="lift-stage">${icon('lift')}</span><span id="fridge-stage">${icon('thermometer')}</span><span id="breaker-stage">${icon('bolt')}</span>`;game.hud.append(objective);
+    // HUD: objective chain, fridge thermometer and breaker dials (src/ui/lunch-hud.ts).
+    lunchHud(game.hud);
   }
   prop(id:string){return this.game.props.find(p=>p.spec.id===id);}
   socketPlate(parent:T.Object3D,x:number,y:number,z:number,ry=0){const g=group(parent,x,y,z,ry);part(g,rbox(.38,.1,.38,.06).clone().rotateX(Math.PI/2),toon('#f0ece2'));part(g,cyl(.11,.11,.06,14,'z'),toon(INK),0,0,.05);return g;}
@@ -223,7 +225,7 @@ export class LunchRuntime {
     if(scorching&&Math.random()<dt*3)this.puff(new T.Vector3(-2.7,2,-7.4));
     if(this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&Math.floor(this.job.ovenWait)%2===0&&Math.floor(this.job.ovenWait-dt)%2===1)g.audio.tone(880,.12,.04,'square');
     if(this.job.done&&!g.won)g.win();
-    if(this.job.failed&&!g.won){g.won=true;const result=g.hud.querySelector<HTMLElement>('.result')!;result.hidden=false;result.innerHTML=`<div class="medal fail">${icon(this.job.tray==='burned'?'oven':'thermometer')}</div><button aria-label="Retry Lunch Rush">${icon('retry')}</button>${g.levelNav()}`;result.querySelector('button')!.onclick=()=>location.reload();g.audio.tone(120,.7,.05,'triangle');document.body.dataset.failed='true';}
+    if(this.job.failed&&!g.won){g.won=true;gameUI(g)?.failed(this.job);g.audio.tone(120,.7,.05,'triangle');document.body.dataset.failed='true';}
   }
   updateScars(dt:number){for(const s of [...this.scars]){s.life-=dt;const badge=s.mark.children[1] as T.Sprite;badge.scale.setScalar(.9+Math.sin(s.life*8)*.08);badge.visible=s.life>2;if(Math.random()<dt*2.5)this.puff(s.at.clone().setY(.2));if(s.life<=0){this.game.root.remove(s.mark);this.scars.splice(this.scars.indexOf(s),1);}}}
   puff(at:T.Vector3){const m=part(this.game.root,sphere(.22,10,8),toon('#8d8a96'),at.x,at.y,at.z,false);m.userData.life=1.4;this.smoke.push(m);}
@@ -257,8 +259,7 @@ export class LunchRuntime {
     }
     for(const m of [...this.smoke]){m.userData.life-=dt;m.position.y+=dt*.8;m.scale.setScalar(1+(1.4-m.userData.life));if(m.userData.life<=0){this.game.root.remove(m);this.smoke.splice(this.smoke.indexOf(m),1);}}
     if(this.held)g.rope=this.held.cable.rope;g.audio.strain(this.held&&!g.paused&&!g.won?g.rope.strain:0);
-    g.hud.querySelector('#oven-stage')?.classList.toggle('done',this.job.tray!=='raw');g.hud.querySelector('#belt-stage')?.classList.toggle('done',this.job.transport>=1);g.hud.querySelector('#lift-stage')?.classList.toggle('done',this.job.done);
-    (g.hud.querySelector('#fridge-stage') as HTMLElement).style.color=temp>.8?'#e85c65':'#528979';g.hud.querySelector('#breaker-stage')?.classList.toggle('alert',tripped);
+    lunchHud(g.hud).update(this.job,this.circuit);
   }
   snapshot(){return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),door:{angle:this.doorAngle,side:this.doorSide},bots:this.bots.map(b=>({x:+b.group.position.x.toFixed(2),z:+b.group.position.z.toFixed(2),snag:b.snag?.cable.id})),cablePoints:Object.fromEntries(this.cables.map(c=>[c.id,c.points.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)}))])),lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,heat:c.lead.heat,strain:c.rope.strain})),events:this.circuit.events};}
 }

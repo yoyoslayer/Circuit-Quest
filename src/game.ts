@@ -4,7 +4,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon} from './render/toon';
 import {BLOBC,bangTexture,freeze,blobMesh} from './render/kit';
 import {Sound} from './render/audio';
-import {icon} from './render/icons';
+import {setupGameUI,gameUI} from './ui/game-ui';
 import {makeProp,prefabs,type PropSpec} from './props/prefabs';
 import {Rope,CORNER,detour,distance,segmentDistance,strainColor,type Point,type Obstacle} from './sim/cable';
 import {Circuit} from './sim/electrical';
@@ -108,13 +108,8 @@ export class Game {
       const pivot=(x:number,y:number,names:string[])=>{const g=new T.Group();g.position.set(x,y,0);gltf.scene.add(g);gltf.scene.updateMatrixWorld(true);for(const n of names){const o=gltf.scene.getObjectByName(n);if(o)g.attach(o);}return g;};
       this.rig={legs:[pivot(-.17,.62,['LegL','BootL']),pivot(.17,.62,['LegR','BootR'])],arms:[pivot(-.39,1.12,['ArmL','GloveL']),pivot(.39,1.12,['ArmR','GloveR'])]};},undefined,()=>{document.body.dataset.assetFallback='true';});
   }
-  levelNav(){return `<nav class="levels">${levels.map(l=>`<a href="?level=${l.id}" aria-label="${l.name}" class="${l.id===this.level.id?'current':''}">${icon(l.badge)}</a>`).join('')}</nav>`;}
-  setupUI(){
-    this.hud.innerHTML=`<div class="job"><div class="badge">${icon(this.level.badge)}<svg class="timer" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29"/></svg></div><div class="stats"><span>${icon('clock')}<b id="clock">0:00</b></span><span>${icon('damage')}<b id="damage">0</b></span><span>${icon('coins')}<b id="cost">0</b></span></div></div><div class="tension">${icon('reel')}<div><i id="strain"></i></div></div><div class="toolbar"><button aria-label="Grab or drop" data-action="grab">${icon('hand')}<kbd>E</kbd></button><button aria-label="Cable" data-action="cable">${icon('plug')}<kbd>F</kbd></button><button aria-label="Throw" data-action="throw">${icon('throw')}<kbd>Q</kbd></button><button aria-label="Jump" data-action="jump">${icon('jump')}<kbd>␣</kbd></button><button aria-label="Reset camera" data-action="camera">${icon('camera')}</button></div><div class="utility"><button aria-label="Mute audio" data-action="sound">${icon('sound')}</button><button aria-label="Pause" data-action="pause">${icon('pause')}</button><button aria-label="Restart" data-action="restart">${icon('retry')}</button></div><div class="intro panel"><div class="eyebrow">FACILITIES DEPARTMENT / ${this.level.number}</div><h1>CIRCUIT<br><em>CREW</em><span>®</span></h1><div class="intro-rule"></div><p>${this.level.tagline}</p><div class="control-strip"><span><kbd>W A S D</kbd>${icon('move')}</span><span><kbd>E</kbd>${icon('hand')}</span><span><kbd>F</kbd>${icon('plug')}</span><span><kbd>Q</kbd>${icon('throw')}</span><span><kbd>␣</kbd>${icon('jump')}</span><span><kbd>⇧</kbd>${icon('arrow')}</span><span><kbd>RMB</kbd>${icon('camera')}</span></div><button class="start" aria-label="Start playing">${icon('play')}</button>${this.levelNav()}<small>${this.level.name} <span>${this.level.number} / CIRCUIT CREW</span></small></div><div class="result panel" hidden></div><div class="pause panel" hidden><button aria-label="Resume" class="resume">${icon('play')}</button>${this.levelNav()}</div>`;
-    this.hud.querySelector('.start')!.addEventListener('click',()=>this.begin());
-    this.hud.querySelector('.resume')!.addEventListener('click',()=>this.togglePause());
-    this.hud.querySelectorAll<HTMLButtonElement>('[data-action]').forEach(button=>button.addEventListener('click',()=>this.action(button.dataset.action!)));
-  }
+  /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
+  setupUI(){setupGameUI(this);}
   setupInput(){
     addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.repeat)return;
       if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');if(e.code==='Tab'){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');if(e.code==='KeyR')this.action('restart');});
@@ -135,13 +130,13 @@ export class Game {
     if(action==='grab'||action==='cable')this.interact(action==='cable');
     if(action==='throw'){if(this.holdingPlug)this.releasePlug();else if(this.held){const p=this.held;this.held=undefined;p.body.applyImpulse({x:Math.sin(this.heading)*prefabs[p.spec.kind].mass*8,y:prefabs[p.spec.kind].mass*5,z:Math.cos(this.heading)*prefabs[p.spec.kind].mass*8},true);this.audio.tone(240,.1,.06,'triangle');}}
   }
-  begin(){if(this.running)return;this.running=true;this.audio.start();this.hud.querySelector('.intro')?.remove();}
+  begin(){if(this.running)return;const ui=gameUI(this);if(ui?.beforeBegin())return;this.running=true;this.survey=false;this.audio.start();ui?.started();}
   /** Gamepad buttons are read every frame so Start/A also work on the intro card and while paused. */
   pollPad(){const pad=navigator.getGamepads?.()[0];if(!pad)return;
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
       if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
       const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera',10:'survey'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
-  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.hud.querySelector<HTMLElement>('.pause')!.hidden=!this.paused;this.hud.classList.toggle('is-paused',this.paused);this.audio.strain(0);}
+  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;gameUI(this)?.paused(this.paused);this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) win ties against clutter that got pushed along. */
   reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id?.6:0);}
@@ -267,10 +262,8 @@ export class Game {
   }
   win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');const g=grade(this.time,this.damage,this.cost);
-    const result=this.hud.querySelector<HTMLDivElement>('.result')!;result.innerHTML=`<div class="medal">${icon('check')}<b>${g.overall}</b></div><div class="grade-row"><span>${icon('clock')}<b>${g.parts[0]}</b><small>${this.formatTime(this.time)}</small></span><span>${icon('damage')}<b>${g.parts[1]}</b><small>${this.damage}</small></span><span>${icon('coins')}<b>${g.parts[2]}</b><small>${this.cost}</small></span></div><button aria-label="Play again">${icon('retry')}</button>${this.level.next?`<a href="?level=${this.level.next}" aria-label="Next job">${icon('arrow')}</a>`:''}${this.levelNav()}`;
-    result.querySelector('button')!.onclick=()=>location.reload();
-    // Let the camera push in on the machine coming to life before the card lands.
-    setTimeout(()=>{result.hidden=false;document.body.dataset.complete='true';},1400);
+    // Records the best, then lands the result tag once the camera has pushed in (1.4 s).
+    gameUI(this)?.won(g);
   }
   formatTime(t:number){return `${Math.floor(t/60)}:${Math.floor(t%60).toString().padStart(2,'0')}`;}
   // Zoomed out the camera frames the whole floor like a diorama; zooming in hands it over to Pip.
@@ -332,10 +325,7 @@ export class Game {
     const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'dust');}
     // After a while a dotted ghost line traces the clean way round walls and pillars to the socket.
     if(this.time>35&&!this.connected&&!this.lunch&&!this.won){this.hint.visible=true;this.hint.geometry.dispose();this.hint.geometry=new T.BufferGeometry().setFromPoints(detour({x:p.x,z:p.z},this.level.target,this.obstacles).map(q=>new T.Vector3(q.x,.1,q.z)));this.hint.computeLineDistances();}else this.hint.visible=false;
-    this.hud.querySelector('#clock')!.textContent=this.formatTime(this.time);this.hud.querySelector('#damage')!.textContent=String(this.damage);this.hud.querySelector('#cost')!.textContent=String(this.cost);
-    const shown=this.lunch&&!this.lunch.held?0:this.rope.strain,strain=this.hud.querySelector<HTMLElement>('#strain')!;strain.style.width=`${Math.min(100,shown*100)}%`;strain.style.background=this.connected?'#ffc94d':strainColor(shown);
-    const deadline=this.level.deadline??240,ring=this.hud.querySelector('.timer circle') as SVGElement;ring.style.strokeDashoffset=String(Math.min(1,this.time/deadline)*183);ring.style.stroke=this.time>deadline?'#e5484d':'';
-    this.hud.querySelector('[data-action="cable"]')!.classList.toggle('active',this.holdingPlug);this.hud.querySelector('[data-action="grab"]')!.classList.toggle('active',!!this.held);
+    gameUI(this)?.update();
     this.updateCamera(dt);const d0=performance.now();this.view.effect.render(this.view.scene,this.view.camera);this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;
   }
   frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad();

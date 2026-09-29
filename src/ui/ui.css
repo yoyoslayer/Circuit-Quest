@@ -1,0 +1,192 @@
+/* Circuit Crew UI kit: tokens, shared components and the in-game HUD.
+   Spec: mockups/ui/UI.md. Font: Fredoka variable, self-hosted via @fontsource-variable/fredoka (wdth axis). */
+:root{
+  --night:#1D1F2B;--ink:#262A40;--ink-2:#4A4F68;--muted:#8A8FA6;
+  --paper:#FAF3E3;--paper-2:#F0E5CC;--paper-3:#DDCFAF;
+  --hat:#FFC53D;--hat-deep:#E09A12;--snap:#5ED6CC;--snap-deep:#2E9E96;
+  --live:#3BB273;--warm:#FF8A3D;--trip:#E5484D;
+  --gold:#FFC53D;--gold-rim:#C98A0E;--silver:#CBD5DE;--silver-rim:#8C9AA8;
+  --bronze:#E49B63;--bronze-rim:#A9602F;--tin:#B3B6C3;--tin-rim:#7D8193;
+  --r-chip:10px;--r-btn:16px;--r-panel:28px;
+  --edge:3px solid var(--ink);
+  --drop:0 5px 0 var(--ink);
+  --drop-lg:0 8px 0 var(--ink),0 26px 50px rgba(8,10,20,.45);
+  --font:'Fredoka Variable','Fredoka','Nunito',ui-rounded,'Arial Rounded MT Bold',system-ui,sans-serif;
+  --ease-pop:cubic-bezier(.34,1.56,.64,1);
+  --ease-thud:cubic-bezier(.2,1.4,.4,1);
+  --inset:24px;
+  --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px);--safe-r:env(safe-area-inset-right,0px);
+}
+#hud{font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+:where(#hud) button{font:inherit;color:inherit;margin:0;-webkit-tap-highlight-color:transparent}
+:where(#hud) [hidden]{display:none!important}
+
+/* ---------- icons ---------- */
+.ico{width:32px;height:32px;flex-shrink:0;fill:none;stroke:var(--ink-c,var(--ink));stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+
+/* ---------- buttons: chunky, tactile ---------- */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:12px;pointer-events:auto;
+  min-width:56px;min-height:56px;padding:0 16px;border:var(--edge);border-radius:var(--r-btn);
+  background:var(--paper);box-shadow:var(--drop);font-weight:600;font-size:19px;cursor:pointer;
+  transition:transform .12s var(--ease-pop),box-shadow .12s,background .12s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 7px 0 var(--ink)}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn:focus-visible,.act:focus-visible,.job:focus-visible{outline:4px solid var(--snap);outline-offset:4px}
+.btn.primary{background:var(--hat);--ic:var(--paper)}
+.btn.primary::after{content:"";position:absolute;inset:3px 3px auto 3px;height:38%;border-radius:11px 11px 20px 20px;background:rgba(255,255,255,.28);pointer-events:none}
+.btn.big{min-height:76px;border-radius:22px;font-size:26px;padding:0 30px}
+.btn.big .ico{width:40px;height:40px}
+
+/* keycap / pad glyph chip */
+.key{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 5px;border-radius:7px;
+  background:var(--ink);color:var(--paper);font-size:12px;font-weight:700;line-height:1;letter-spacing:.02em;font-style:normal;
+  box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.key.sp{min-width:34px}.key.sp::after{content:"";width:18px;height:6px;border:2px solid currentColor;border-top:0;border-radius:0 0 3px 3px;margin-top:2px}
+.btnpad{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border-radius:50%;border:2.5px solid var(--ink);font-size:14px;font-weight:700;color:#fff;box-shadow:0 2px 0 var(--ink)}
+.pa{background:#3BB273}.pb{background:#E5484D}.px{background:#4A86E0}.py{background:#E0A712}
+.pill{display:inline-grid;place-items:center;height:26px;padding:0 9px;border-radius:13px;background:var(--ink);color:var(--paper);font-size:12px;font-weight:700}
+
+/* ---------- panels, cards, tags ---------- */
+.panel{background:var(--paper);border:var(--edge);border-radius:var(--r-panel);box-shadow:var(--drop-lg)}
+.card{background:var(--paper);border:var(--edge);box-shadow:var(--drop)}
+.tag{position:relative;background:var(--paper);border:var(--edge);border-radius:18px 18px var(--r-panel) var(--r-panel);box-shadow:var(--drop-lg)}
+.tag .hole{position:absolute;left:50%;top:18px;width:26px;height:26px;margin-left:-13px;border-radius:50%;background:var(--night);border:var(--edge);box-shadow:inset 0 3px 0 rgba(0,0,0,.4)}
+.tag .eyelet{position:absolute;left:50%;top:13px;width:36px;height:36px;margin-left:-18px;border-radius:50%;background:var(--paper-3);border:var(--edge)}
+.disc,.d{border-radius:50%;background:var(--lvl,var(--hat));border:var(--edge);display:grid;place-items:center;--ic:var(--paper);--ic-a:var(--paper)}
+
+/* ---------- grade medal ---------- */
+.medal{--m:var(--gold);--rim:var(--gold-rim);position:relative;display:grid;place-items:center;width:var(--size,56px);height:var(--size,56px);flex-shrink:0;
+  border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.55) 0 18%,transparent 19%),var(--m);
+  border:var(--edge);box-shadow:inset 0 0 0 calc(var(--size,56px)*.07) var(--rim),inset 0 0 0 calc(var(--size,56px)*.07 + 2px) rgba(38,42,64,.9),0 4px 0 var(--ink);
+  font-weight:700;font-size:calc(var(--size,56px)*.56);line-height:1;color:var(--ink);font-stretch:110%}
+.medal.b{--m:var(--silver);--rim:var(--silver-rim)}
+.medal.c{--m:var(--bronze);--rim:var(--bronze-rim)}
+.medal.d{--m:var(--tin);--rim:var(--tin-rim)}
+.medal.none{background:transparent;border:3px dashed var(--paper-3);box-shadow:none;color:var(--paper-3)}
+.medal span{transform:translateY(4%)}
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;inset:0;pointer-events:none;font-variant-numeric:tabular-nums;transition:opacity .25s}
+.hud > *{position:absolute}
+.hud[hidden]{display:none}
+
+/* job plate: badge with time ring + three grade tallies */
+.jobplate{left:calc(var(--inset) + var(--safe-l));top:calc(22px + var(--safe-t));display:flex;align-items:center;gap:6px;padding:8px 18px 8px 8px;border-radius:60px}
+.badge{position:relative;width:84px;height:84px;display:grid;place-items:center}
+.badge .ring{position:absolute;inset:0;transform:rotate(-90deg)}
+.badge .ring circle{fill:none;stroke-width:7}
+.badge .ring .track{stroke:var(--paper-3)}
+.badge .ring .left{stroke:var(--ink);stroke-linecap:round;stroke-dasharray:232.5 232.5}
+.badge.late .ring .track{stroke:#F9C9CB}
+.badge.late .disc{animation:breathe 1.2s ease-in-out infinite}
+.badge .disc{width:62px;height:62px;background:var(--hat)}
+.badge .disc .ico{width:38px;height:38px}
+.tallies{display:flex;gap:4px;margin-left:6px}
+.tally{display:flex;flex-direction:column;align-items:center;gap:3px;width:62px}
+.tally .ico{width:34px;height:34px}
+.tally b{font-size:19px;font-weight:600;line-height:1}
+.tally + .tally{border-left:2px solid var(--paper-3)}
+
+/* strain + reel + pause (top right) */
+.topright{right:calc(var(--inset) + var(--safe-r));top:calc(22px + var(--safe-t));display:flex;gap:12px;align-items:center}
+.strain{display:flex;align-items:center;gap:12px;padding:8px 18px 8px 8px;border-radius:60px;transition:opacity .3s,transform .3s var(--ease-pop)}
+.strain:not(.show){opacity:0;transform:translateY(-10px) scale(.96)}
+.reel{position:relative;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
+  background:conic-gradient(var(--snap) calc(var(--left,.6)*1turn),var(--paper-3) 0);border:var(--edge)}
+.reel::before{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--paper);border:2px solid var(--ink)}
+.reel .ico{position:relative;width:36px;height:36px;animation:spin 1.6s linear infinite;animation-play-state:paused}
+.reel.paying .ico{animation-play-state:running}
+.cablebar{--bw:184px;position:relative;width:190px;height:24px;border:var(--edge);border-radius:13px;background:#3A3E57;box-shadow:inset 0 3px 0 rgba(0,0,0,.35);overflow:hidden}
+.cablebar i{position:absolute;inset:0;width:calc(var(--t,0)*100%);
+  background:linear-gradient(90deg,#fff 0 61%,#FFD45C 61% 74%,var(--warm) 74% 84%,var(--trip) 84%) 0 0/var(--bw) 100% no-repeat;
+  border-right:3px solid var(--ink);transition:width .08s linear}
+.cablebar i::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,transparent 0 7px,rgba(38,42,64,.14) 7px 10px);animation:crawl .5s linear infinite}
+.cablebar::after{content:"";position:absolute;top:3px;bottom:3px;left:85%;border-left:3px dotted var(--paper)}
+.strain.connected .cablebar i{background:var(--hat);width:100%}
+.strain.connected .reel{background:var(--hat)}
+.strain.connected{box-shadow:var(--drop),0 0 0 6px rgba(255,197,61,.35)}
+.pausebtn{width:60px;height:60px;min-width:0;min-height:0;padding:0;border-radius:18px}
+.pausebtn .ico{width:28px;height:28px}
+
+/* action bar (bottom centre) */
+.actions{left:50%;bottom:calc(22px + var(--safe-b));transform:translateX(-50%);display:flex;gap:12px;padding:12px 14px 16px;border-radius:26px;align-items:flex-end;transition:opacity .3s}
+.act{position:relative;width:72px;height:72px;padding:0;border:var(--edge);border-radius:20px;background:var(--paper);box-shadow:var(--drop);display:grid;place-items:center;pointer-events:auto;cursor:pointer;
+  transition:transform .12s var(--ease-pop),box-shadow .12s,background .12s,opacity .2s;touch-action:manipulation}
+.act:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.act .ico{width:42px;height:42px}
+.act .key{position:absolute;right:-7px;bottom:-9px}
+.act .btnpad{width:24px;height:24px;font-size:12px;border-width:2.5px}
+.act .pill{height:22px;padding:0 6px;font-size:11px}
+.act .key.gp{display:none}
+.hud.gp .act .key.kb{display:none}
+.hud.gp .act .key.gp{display:inline-grid}
+.act.on{background:var(--hat);transform:translateY(-8px);box-shadow:0 8px 0 var(--ink),0 0 0 6px rgba(255,197,61,.28);--ic:var(--paper);--ic-a:var(--paper)}
+.act.ready::before{content:"";position:absolute;inset:-9px;border-radius:26px;border:3px solid var(--snap);animation:breathe 1.2s ease-in-out infinite;pointer-events:none}
+.act.off{opacity:.42;box-shadow:0 5px 0 var(--ink-2)}
+.act.small{width:58px;height:58px;border-radius:16px}.act.small .ico{width:32px;height:32px}
+.actions .sep{width:3px;align-self:stretch;margin:6px 2px;background:var(--paper-3);border-radius:2px}
+.hud.won .actions,.hud.won .topright{opacity:0;pointer-events:none}
+.stick{display:none}
+
+/* lunch objective chain (top centre) */
+.chain{left:50%;top:calc(22px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;padding:10px 20px 10px 12px;border-radius:60px;gap:0;transform-origin:50% 0}
+.step{position:relative;width:64px;height:64px;border-radius:50%;border:var(--edge);background:var(--paper);display:grid;place-items:center;flex-shrink:0;transition:background .3s}
+.step .ico{width:38px;height:38px}
+.step .prog{display:none}
+.step.done{background:#D8F0DF;--ic:#fff;--ic-a:var(--live)}
+.step.done::after{content:"";position:absolute;right:-8px;bottom:-6px;width:26px;height:26px;border-radius:50%;border:3px solid var(--ink);
+  background:var(--live) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 6.5' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100%;animation:pop .4s var(--ease-pop) both}
+.step.now{background:var(--hat);--ic:var(--paper);--ic-a:var(--paper);box-shadow:0 0 0 5px var(--paper),0 0 0 8px var(--snap)}
+.step.now .prog{display:block;position:absolute;inset:-3px;width:calc(100% + 6px);height:calc(100% + 6px);transform:rotate(-90deg)}
+.step.now .prog circle{fill:none;stroke:var(--ink);stroke-width:5;stroke-linecap:round;stroke-dasharray:0 202;transition:stroke-dasharray .25s linear}
+.step.todo{border-style:dashed;border-color:var(--ink-2);background:transparent;--ink-c:var(--ink-2);--ic:var(--paper-2);--ic-a:var(--paper-3)}
+.link{width:44px;height:14px;position:relative;flex-shrink:0}
+.link::before{content:"";position:absolute;left:-2px;right:-2px;top:4px;height:6px;border-radius:3px;background:var(--ink)}
+.link.live::after{content:"";position:absolute;left:0;right:0;top:5px;height:4px;background:repeating-linear-gradient(90deg,var(--snap) 0 6px,transparent 6px 14px);animation:flow .6s linear infinite}
+.link.cold::before{background:repeating-linear-gradient(90deg,var(--ink-2) 0 6px,transparent 6px 11px)}
+.chain .div{width:3px;height:48px;background:var(--paper-3);border-radius:2px;margin:0 16px 0 20px;flex-shrink:0}
+.thermo{display:flex;align-items:center;gap:8px}
+.thermo .fr{width:44px;height:44px}
+.tube{position:relative;width:132px;height:22px;margin-left:16px;border:var(--edge);border-radius:12px;background:linear-gradient(90deg,#CFEFEA 0 55%,#FFE3C6 55% 80%,#F9C9CB 80%)}
+.tube i{position:absolute;left:3px;top:3px;bottom:3px;width:calc(var(--h,.3)*(100% - 6px));border-radius:8px;background:var(--snap-deep);transition:width .4s linear,background .4s}
+.thermo.warm .tube i{background:var(--warm)}
+.thermo.hot .tube i{background:var(--trip)}
+.tube::before{content:"";position:absolute;left:-15px;top:50%;width:26px;height:26px;margin-top:-13px;border-radius:50%;border:var(--edge);background:var(--snap-deep);z-index:1;transition:background .4s}
+.thermo.warm .tube::before{background:var(--warm)}
+.thermo.hot .tube::before{background:var(--trip)}
+.tube::after{content:"";position:absolute;top:-3px;bottom:-3px;left:80%;border-left:3px solid var(--ink)}
+.thermo .sad{width:40px;height:40px;opacity:.35;transition:opacity .3s}
+.thermo.warm .sad{opacity:.7}
+.thermo.hot .sad{opacity:1;animation:wobble .9s ease-in-out infinite}
+.thermo.hot .tube{animation:shake .4s linear infinite}
+
+/* supply cart breaker needles (bottom left) */
+.breakers{left:calc(var(--inset) + var(--safe-l));bottom:calc(22px + var(--safe-b));display:flex;gap:12px;padding:12px;border-radius:26px;transform-origin:0 100%}
+.gauge{position:relative;width:118px;height:92px;border-radius:18px;border:var(--edge);background:var(--g,var(--hat));padding:8px 8px 0}
+.gauge .face{position:relative;width:96px;height:62px;border-radius:52px 52px 10px 10px;border:3px solid var(--ink);background:var(--paper);overflow:hidden;transition:background .2s}
+.gauge svg{position:absolute;inset:0;width:100%;height:100%}
+.gauge .needle{transform-origin:48px 56px;transform:rotate(0deg);transition:transform .3s var(--ease-pop)}
+.gauge.tripped{animation:shake .3s linear infinite}
+.gauge.tripped .face{background:#F9C9CB}
+.gauge .pip{position:absolute;right:6px;bottom:4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);background:#7a2c30}
+.gauge.hot .pip{background:var(--warm);box-shadow:0 0 10px var(--warm)}
+.gauge.tripped .pip{background:var(--trip);box-shadow:0 0 12px var(--trip)}
+
+/* Narrower desktops: the lunch chain shrinks so it clears the plate and the strain meter. */
+@media (max-width:1400px){.chain{transform:translateX(-50%) scale(.84)}}
+@media (max-width:1180px){.hud.lunch .chain{left:calc(var(--inset) + var(--safe-l));top:calc(128px + var(--safe-t));transform:scale(.72);transform-origin:0 0}}
+
+/* ---------- motion ---------- */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes crawl{to{background-position:24px 0}}
+@keyframes flow{to{background-position:14px 0}}
+@keyframes breathe{50%{transform:scale(1.07);opacity:.85}}
+@keyframes pop{0%{transform:scale(0) translateY(20px)}100%{transform:scale(1)}}
+@keyframes wobble{50%{transform:rotate(-8deg) translateY(-2px)}}
+@keyframes shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+@keyframes stamp{0%{transform:scale(2.6) rotate(-4deg);opacity:0;filter:blur(6px)}60%{transform:scale(.92) rotate(-13deg);opacity:1;filter:blur(0)}100%{transform:scale(1) rotate(-12deg)}}
+@keyframes starpop{0%{transform:scale(0) rotate(-40deg)}70%{transform:scale(1.25) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes rise{from{transform:translateY(24px);opacity:0}}
+@keyframes swing{0%,100%{transform:rotate(var(--r,0deg))}50%{transform:rotate(calc(var(--r,0deg) + 2.5deg))}}
+@keyframes fadein{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){#hud *,#hud *::before,#hud *::after{animation:none!important;transition:none!important}}

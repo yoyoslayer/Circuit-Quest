@@ -38,7 +38,7 @@ interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];hat?:T.Group;hatTilt=new T.Vector2();hatVel=new T.Vector2();lastVel=new T.Vector2();twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
@@ -130,7 +130,7 @@ export class Game {
     new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=toon('#'+old.color.getHexString());o.castShadow=true;}});this.avatar.add(gltf.scene);
       // Limbs are separate nodes (tools/create_assets.py); hang them on hip and shoulder pivots to animate.
       const pivot=(x:number,y:number,names:string[])=>{const g=new T.Group();g.position.set(x,y,0);gltf.scene.add(g);gltf.scene.updateMatrixWorld(true);for(const n of names){const o=gltf.scene.getObjectByName(n);if(o)g.attach(o);}return g;};
-      this.rig={legs:[pivot(-.17,.62,['LegL','BootL']),pivot(.17,.62,['LegR','BootR'])],arms:[pivot(-.39,1.12,['ArmL','GloveL']),pivot(.39,1.12,['ArmR','GloveR'])]};this.hand.position.set(.03,-.5,.04);this.rig.arms[1].add(this.hand);},undefined,()=>{document.body.dataset.assetFallback='true';});
+      this.rig={legs:[pivot(-.17,.62,['LegL','BootL']),pivot(.17,.62,['LegR','BootR'])],arms:[pivot(-.39,1.12,['ArmL','GloveL']),pivot(.39,1.12,['ArmR','GloveR'])]};this.hand.position.set(.03,-.5,.04);this.rig.arms[1].add(this.hand);this.hat=pivot(0,1.5,['Helmet','Helmet_brim']);},undefined,()=>{document.body.dataset.assetFallback='true';});
   }
   /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
   setupUI(){setupGameUI(this);}
@@ -342,6 +342,11 @@ export class Game {
     to(this.rig.legs[0],air?-.5:swing);to(this.rig.legs[1],air?.35:-swing);
     const reach=carrying?-1.45:0,sway=air?-2.3:-swing*.8;
     to(this.rig.arms[0],carrying?reach:plug?sway*.4:sway,air?-.5:carrying?.18:0);const taut=plug&&(this.lunch?.held?this.lunch.held.cable.rope.strain:this.rope.strain)>.85;to(this.rig.arms[1],carrying?reach:taut?2.45:plug?-1.25:-sway,air?.5:carrying?-.18:taut?-.35:0);
+    // The hard hat sits on a spring: it tips against acceleration and wobbles back.
+    if(this.hat&&dt>0){const vx=Math.sin(this.heading)*speed,vz=Math.cos(this.heading)*speed,ax=(vx-this.lastVel.x)/dt,az=(vz-this.lastVel.y)/dt;this.lastVel.set(vx,vz);
+      const fwd=Math.sin(this.heading)*ax+Math.cos(this.heading)*az,side=Math.cos(this.heading)*ax-Math.sin(this.heading)*az,kick=this.squash*6;
+      this.hatVel.x+=(-120*this.hatTilt.x-10*this.hatVel.x-fwd*.08-kick)*dt;this.hatVel.y+=(-120*this.hatTilt.y-10*this.hatVel.y+side*.08)*dt;this.hatTilt.addScaledVector(this.hatVel,dt);
+      this.hatTilt.clampScalar(-.35,.35);this.hat.rotation.set(this.hatTilt.x,0,this.hatTilt.y);}
     // Win: face the camera and cheer with both arms up; title: face the camera and wave.
     const titling=!this.running&&document.body.dataset.screen==='title';
     if(this.won||titling){this.heading+=Math.atan2(Math.sin(this.yaw-this.heading),Math.cos(this.yaw-this.heading))*Math.min(1,dt*6);const wave=Math.sin(this.last*.012);
@@ -359,7 +364,8 @@ export class Game {
       const watch=d<4||npc.alarm>0||this.won,yaw=watch?Math.atan2(p.x-g.position.x,p.z-g.position.z):npc.restYaw;
       g.rotation.y+=Math.atan2(Math.sin(yaw-g.rotation.y),Math.cos(yaw-g.rotation.y))*Math.min(1,dt*5);
       const cheer=this.won?Math.abs(Math.sin(clock*9+npc.seed)):0,duck=npc.alarm>0?.72:near?.88:1,breathe=Math.sin(clock*1.3*Math.PI*2+npc.seed)*.025;
-      const typing=npc.seated&&!watch?Math.abs(Math.sin(clock*16+npc.seed*3))*.012:0;
+      const typing=npc.seated&&!watch?Math.abs(Math.sin(clock*16+npc.seed*3))*.03*(Math.sin(clock*.7+npc.seed)>-.3?1:0):0;
+      if(npc.seated&&!watch)g.rotation.y=npc.restYaw+Math.sin(clock*.45+npc.seed*2)*Math.max(0,Math.sin(clock*.23+npc.seed))*.6;
       npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
       const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
     if(this.lunch)this.lunch.render(dt);else this.drawCable();this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);

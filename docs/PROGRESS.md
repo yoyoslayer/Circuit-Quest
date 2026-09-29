@@ -43,9 +43,10 @@ and a lamp socket. The reel is 19 m (17 m could not reach round any pillar).
 **Level 01 Big Meeting.** 33 × 20 m open-plan floor with 312 physics props (desk pods,
 monitors, mugs, papers, bins, cabinets, printer, vending machine, lounge, glass
 boardroom), 24 blob coworkers, a server closet with racks and the one live outlet.
-- Solutions, each covered by a test: clean (couple the second reel from the mail cart),
-  single-reel overstretch, and sneaky (borrow the coffee machine's extension; the coffee
-  corner groans and the machine stops steaming).
+- Solutions, each covered by a test: clean (couple the second reel from the mail cart
+  for 37 m), chaos (the single 23 m reel only reaches if Pip sprints and overstretches it,
+  dragging props along), and sneaky (borrow the coffee machine's 30 m extension; the
+  coffee corner groans and the machine stops steaming).
 - Coworkers duck and show "!" at nearby crashes and cable snaps and bounce when the
   projector comes on. The timer ring goes red after 4:00 and the boardroom gets
   impatient, but lateness only lowers the time grade.
@@ -102,6 +103,10 @@ mesh each. Not yet measured on a real integrated-GPU laptop.
   and beeps from 60 s and burns at 90 s; switching the oven off or taking the tray stops
   the clock. The spec gave no time, and 45 s was shorter than the intended solution's
   own detour.
+- **Big Meeting reel is 23.2 m, not 26 m.** The aisle between the pod rows is nearly
+  straight (24.7 m against 24.3 m as the crow flies), so at 26 m the single reel reached
+  cleanly and the coupler was pointless. At 23.2 m walking falls short and only a
+  sprinting overstretch reaches.
 - **Spoiled lunch.** Letting the fridge spoil ends the job with a retry card. The spec
   calls for this; it is the only failure state, and chaos alone never causes it.
 

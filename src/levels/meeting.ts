@@ -21,6 +21,6 @@ props.push({kind:'sofa',x:12,z:6.4,rotation:Math.PI},{kind:'beanbag',x:10,z:4.6,
 for(let i=0;i<8;i++){const x=i%2?13.2:10.8,z=-7.9+Math.floor(i/2)*1.05;props.push({kind:'chair',x,z,rotation:i%2?-Math.PI/2:Math.PI/2,color:'#3a3d55'});if(i<4)npcs.push({x,z});}
 for(let i=0;i<4;i++)props.push({kind:'box',x:-15.2+(i%2)*.8,z:7.6+Math.floor(i/2)*.8});
 for(let i=0;i<3;i++)props.push({kind:'glass',x:9.3,z:-8+i*2.5,id:`glass-${i}`});
-export const meeting:Level={id:'meeting',name:'BIG MEETING',number:'01',tagline:'Big meeting. Little technician.',badge:'projector',next:'lunch',deadline:240,width:33,depth:20,spawn:{x:-10,z:-5.8},anchor:{x:-11.4,z:-7.8},target:{x:12.3,z:-2.25},length:26,props,npcs,
+export const meeting:Level={id:'meeting',name:'BIG MEETING',number:'01',tagline:'Big meeting. Little technician.',badge:'projector',next:'lunch',deadline:240,width:33,depth:20,spawn:{x:-10,z:-5.8},anchor:{x:-11.4,z:-7.8},target:{x:12.3,z:-2.25},length:23.2,props,npcs,
   obstacles:[...[[-4.75,-2.9],[.15,-2.9],[5.1,-2.9],[-4.75,4.2],[.15,4.2]].map(([x,z],i)=>({id:`pillar-${i}`,minX:x-.45,maxX:x+.45,minZ:z-.45,maxZ:z+.45})),
     {id:'closet-east',minX:-12.025,maxX:-11.775,minZ:-10,maxZ:-5.5},{id:'closet-front',minX:-16.5,maxX:-11.775,minZ:-5.625,maxZ:-5.375}]};

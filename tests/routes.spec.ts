@@ -7,17 +7,22 @@ test('playground cable physically reaches socket and lights lamp',async({page})=
   await page.keyboard.press('KeyF');await complete(page);expect((await snapshot(page)).electrical).toBe('on');expect(errors).toEqual([]);
   await page.screenshot({path:'artifacts/playground-complete.png'});
 });
-test('meeting single-reel chaos route powers projector through the office',async({page})=>{
+test('meeting single reel only reaches when overstretched at a sprint',async({page})=>{
   await open(page,'meeting');await page.keyboard.press('KeyF');expect((await snapshot(page)).holdingPlug).toBe(true);
-  await route(page,[[-10,-7],[7.8,-7],[8,-1.4],[11.4,-1.4]]);await page.keyboard.press('KeyF');
-  await complete(page);await page.screenshot({path:'artifacts/meeting-complete.png'});
+  await route(page,[[-8,-5],[-1,-1.5],[6,-1.2]]);
+  // Walking, the reel's spring stops Pip well short of the boardroom door...
+  await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(2,['KeyD']));let s=await snapshot(page);
+  expect(Math.hypot(s.player.x-12.3,s.player.z+2.25)).toBeGreaterThan(2.3);
+  // ...but sprinting stretches it past its length (dragging props along) far enough to plug in.
+  await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(1.5,['KeyD','ShiftLeft']));s=await snapshot(page);expect(s.rope.strain).toBeGreaterThan(1);
+  await page.keyboard.press('KeyF');await complete(page);await page.screenshot({path:'artifacts/meeting-complete.png'});
 });
 test('meeting clean route joins a second reel using a coupler',async({page})=>{
   await open(page,'meeting');
   await route(page,[[-9,-6],[-9,5.3],[-3.65,5.3]],.3);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('coupler');
   await route(page,[[-9,5.3],[-9,-6.8],[-10.7,-6.8]],.4);await page.keyboard.press('KeyE');
   await route(page,[[-9,-6],[-9,5.3],[-3,5.3]],.3);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('extension');
-  await route(page,[[-9,5.3],[-9,-6.8],[-10.7,-6.8]],.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).rope.maxLength).toBe(40);
+  await route(page,[[-9,5.3],[-9,-6.8],[-10.7,-6.8]],.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).rope.maxLength).toBe(37.2);
   await page.keyboard.press('KeyF');await route(page,[[7.8,-7],[8,-1.4],[11.4,-1.4]]);await page.keyboard.press('KeyF');await complete(page);
 });
 test('meeting coffee extension can be reused to power the projector',async({page})=>{

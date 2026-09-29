@@ -58,3 +58,11 @@ describe('via counter rules',()=>{
     expect(solutions(lamp).every(s=>s.build.pressed)).toBe(true);
   });
 });
+
+import {rushOrder} from './logic';
+import {rng} from '../../render/textures';
+describe('via rush orders',()=>{
+  it('every generated order has a reliable, elegant solution',()=>{
+    const r=rng(7);for(let i=0;i<200;i++){const o=rushOrder(r,i);const best=cheapest(o);expect(best,o.ask).toBeDefined();expect(judge(o,best!.build).tier).toBe(3);}
+  });
+});

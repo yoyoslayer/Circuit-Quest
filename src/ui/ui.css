@@ -232,3 +232,4 @@ body[data-screen="play"] .won .objective,body[data-screen="play"] .won .prompt-p
 body[data-screen="play"] .won .station-panel,body[data-screen="play"] .won .station-toast{display:none}
 @media (max-width:700px){.station-panel{top:auto;bottom:calc(330px + var(--safe-b));font-size:12px;padding:10px 12px}.station-panel .build,.station-panel .profile{display:none}.station-toast{bottom:calc(300px + var(--safe-b));font-size:13px}}
 body[data-hub] .jobplate,body[data-hub] .strain{display:none}
+.station-panel .patience{display:block;height:8px;margin:6px 0 4px;border-radius:4px;background:linear-gradient(90deg,var(--hat) calc(var(--p)*100%),var(--paper-3) 0);border:2px solid var(--ink)}

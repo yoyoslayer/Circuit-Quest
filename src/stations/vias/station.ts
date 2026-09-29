@@ -9,7 +9,8 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressViaFoundry} from './room';
 import {toon,box,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot} from '../../render/actors';
-import {SHIFT,PADS,FINISHES,PROFILE,blank,judge,kindOf,ring,cost,cheapest,drillSize,isLaser,type Build,type Drill,type Finish,type Layer,type Order,type Verdict} from './logic';
+import {rng} from '../../render/textures';
+import {SHIFT,rushOrder,PADS,FINISHES,PROFILE,blank,judge,kindOf,ring,cost,cheapest,drillSize,isLaser,type Build,type Drill,type Finish,type Layer,type Order,type Verdict} from './logic';
 
 const COPPER='#e98a42',PREPREG='#b7c77c',CORE='#86ad64',MASK='#2f9a62',FILL='#9aa0ad';
 // Display thicknesses (world units) for the cutaway, top to bottom: L1, prepreg, L2, core, L3, prepreg, L4.
@@ -18,6 +19,8 @@ const SLABS:{kind:'cu'|'pp'|'core';layer?:Layer;h:number;group:number}[]=[
 const BOARD_W=.9,BOARD_D=.34,BASE_Y=.14,GAP=.06,SCALE=.3;
 const DRILL_NAMES:Record<Drill,string>={'mech-0.30':'0.30 mm bit','mech-0.20':'0.20 mm bit','laser-0.10':'Laser 0.10 mm'};
 const FINISH_NAMES:Record<Finish,string>={open:'Open','tented':'Tented','plugged':'Plugged','filled-capped':'Filled + capped'};
+/** Rush mode: a three-minute shift of endless orders; each customer waits this long. */
+export const RUSH_TIME=180,PATIENCE=50;
 const KIND_NAMES={through:'through via',buried:'buried via',micro:'microvia',blind:'blind via'};
 const GLOW_OK=hot('#ffe36e',1.4),GLOW_BAD=hot('#ff6b6b',1.2);
 const countLabels=new Map<number,T.Texture>();
@@ -58,9 +61,20 @@ export class ViaCounter implements Station {
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';private bubble!:T.Sprite;private leaving:{g:T.Group;t:number}[]=[];
   private crate?:Game['props'][number];
   readonly job:StationJob;
+  /** Rush (level vias-rush) keeps generating orders; the story shift is the fixed five. */
+  readonly rush:boolean;private orders:Order[];private random=rng(20260929);misses=0;patience=PATIENCE;
   constructor(private game:Game){
-    this.limits.cost=Math.ceil(SHIFT.reduce((n,o)=>n+(cheapest(o)?.cost??0),0)*1.25);
-    this.job={goal:'Run the via counter: fill five customer orders',
+    this.rush=game.level.id==='vias-rush';this.orders=this.rush?[]:[...SHIFT];
+    this.limits.cost=this.rush?90:Math.ceil(SHIFT.reduce((n,o)=>n+(cheapest(o)?.cost??0),0)*12.5);
+    if(this.rush){this.limits.damage=2;this.limits.time=RUSH_TIME;}
+    this.job=this.rush?{goal:`Via Rush: serve as many orders as you can in ${RUSH_TIME/60} minutes`,
+      steps:[
+        {text:'Bring the crate of board blanks to the counter',done:()=>this.blanksReady,at:()=>this.crate?.body.translation()??this.stand},
+        {text:'Step up to the via counter (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand},
+        {text:'Serve 3 orders',done:()=>this.served.length>=3},{text:'Serve 6 orders',done:()=>this.served.length>=6},
+        {text:'Keep serving until the whistle',done:()=>this.complete()}],
+      bonuses:[{text:'Serve 8 orders',ok:()=>this.served.length>=8},{text:'Every via works reliably',ok:()=>this.served.every(s=>s.verdict.tier>=2)},{text:'Nobody gives up waiting',ok:()=>this.misses===0}]}:
+    {goal:'Run the via counter: fill five customer orders',
       steps:[
         {text:'Bring the crate of board blanks to the counter',done:()=>this.blanksReady,at:()=>this.crate?.body.translation()??this.stand},
         {text:'Step up to the via counter (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand},
@@ -77,7 +91,9 @@ export class ViaCounter implements Station {
   private ready=false;
   private setup(){this.ready=true;this.crate=this.game.props.find(p=>p.spec.id==='blanks');this.buildQueue();}
   orderTitle(o:Order){const k=kindOf(o.from,o.to);return `L${o.from}→L${o.to} ${KIND_NAMES[k]}${o.inPad?' in a pad':''}${o.stitch?`, row of ${o.stitch}`:''}`;}
-  current(){return SHIFT[this.order];}
+  current():Order|undefined{if(this.rush){if(this.complete())return undefined;while(this.orders.length<=this.order+5)this.orders.push(rushOrder(this.random,this.orders.length));}return this.orders[this.order];}
+  /** The coworker playing the customer for an order (rush reuses the five in a loop). */
+  private customer(i:number){const n=this.game.npcs;return this.rush?n[i%5]:n[i];}
 
   // ---------- the counter ----------
   private buildCounter(){
@@ -127,14 +143,13 @@ export class ViaCounter implements Station {
 
   // ---------- customers ----------
   private buildQueue(){
-    this.bubble=new T.Sprite(new T.SpriteMaterial({map:ticketTexture(SHIFT[0]),depthTest:false}));this.bubble.scale.set(.75,.75,1);this.bubble.renderOrder=9;this.game.root.add(this.bubble);
+    this.bubble=new T.Sprite(new T.SpriteMaterial({map:ticketTexture(this.current()??SHIFT[0]),depthTest:false}));this.bubble.scale.set(.75,.75,1);this.bubble.renderOrder=9;this.game.root.add(this.bubble);
     this.placeQueue(true);
   }
   private placeQueue(instant=false){
-    const npcs=this.game.npcs.slice(0,SHIFT.length);
-    npcs.forEach((n,i)=>{const k=i-this.order;if(k<0)return;const x=k===0?this.table.x:this.table.x+1.3+k*1.05,z=k===0?this.table.z-1.2:this.table.z-2.1;
-      n.group.userData.goal=new T.Vector3(x,0,z);n.restYaw=0;if(instant)n.group.position.set(x,0,z);});
-    const cur=npcs[this.order];this.bubble.visible=!!cur;if(cur)(this.bubble.material as T.SpriteMaterial).map=ticketTexture(SHIFT[this.order]);
+    for(let k=0;k<5;k++){const i=this.order+k,n=this.customer(i);if(!n||(!this.rush&&i>=this.orders.length))continue;const x=k===0?this.table.x:this.table.x+1.3+k*1.05,z=k===0?this.table.z-1.2:this.table.z-2.1;
+      n.group.userData.goal=new T.Vector3(x,0,z);n.restYaw=0;if(instant)n.group.position.set(x,0,z);}
+    const o=this.current(),cur=o&&this.customer(this.order);this.bubble.visible=!!cur;if(o&&cur)(this.bubble.material as T.SpriteMaterial).map=ticketTexture(o);this.patience=PATIENCE;
   }
 
   // ---------- actions ----------
@@ -163,7 +178,7 @@ export class ViaCounter implements Station {
         if(v.tier===0){this.mistakes++;this.spent+=v.cost;this.say(`${o.customer} sends it back: ${v.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z-1.2},2);return true;}
         this.served.push({order:o.id,verdict:v});this.spent+=v.cost;
         this.say(`${o.customer}: “${['','Thanks!','Lovely work.','Perfect, and cheap too!'][v.tier]}” · ${['','Works','Reliable','Elegant'][v.tier]}${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);const npc=this.game.npcs[this.order];if(npc){npc.alarm=0;this.leaving.push({g:npc.group,t:0});}
+        a.cheer();a.bell(1319,.5,.05);this.sendOff(this.order);
         this.game.burst(this.table.clone().add(new T.Vector3(0,.8,-1)),'#ffcf52',30,'confetti');
         this.order++;this.build=blank();this.press=0;this.pressTarget=0;this.placeQueue();break;}
       case 'scrap':{if(b.drill)this.spent+=cost(b);this.build=blank();this.press=0;this.pressTarget=0;a.thud(2);a.clatter();break;}
@@ -174,7 +189,9 @@ export class ViaCounter implements Station {
   /** Test result: the via's copper lights gold if the layers connect, red if not. */
   private glowVia(){const m=this.testOk?GLOW_OK:GLOW_BAD;this.viaGroup.traverse(o=>{if(o instanceof T.Mesh)o.material=m;});}
   private bit:Drill='mech-0.30';
-  verdict(){return judge(this.current(),this.build);}
+  /** A served (or fed-up) customer walks off to the right; in rush they rejoin the back of the queue. */
+  private sendOff(i:number){const npc=this.customer(i);if(npc){npc.alarm=0;this.leaving.push({g:npc.group,t:0});}}
+  verdict(){return judge(this.current()!,this.build);}
 
   // ---------- drawing ----------
   private slabY(i:number){let y=BASE_Y;for(let k=SLABS.length-1;k>i;k--)y+=SLABS[k].h+(SLABS[k].group!==SLABS[k-1].group?GAP*(1-this.press):0);return y+SLABS[i].h/2;}
@@ -239,7 +256,10 @@ export class ViaCounter implements Station {
     // Customers walk to their spot; served ones leave through the side door.
     for(const n of this.game.npcs){const goal=n.group.userData.goal as T.Vector3|undefined;if(goal&&!this.leaving.some(l=>l.g===n.group))n.group.position.lerp(goal,Math.min(1,dt*2.5));}
     for(const l of this.leaving){l.t+=dt;l.g.position.x+=dt*2.2;if(l.t>4)l.g.visible=false;}
-    const cur=this.game.npcs[this.order];if(cur&&this.bubble.visible)this.bubble.position.set(cur.group.position.x+.75,2.05+Math.sin(this.game.last*.004)*.05,cur.group.position.z);
+    if(this.rush){for(const l of this.leaving)if(l.t>4.5){l.g.visible=true;l.g.position.set(this.table.x+8,0,this.table.z-2.1);}this.leaving=this.leaving.filter(l=>l.t<=4.5);
+      // Patience only runs while a customer is at the window and the counter is stocked.
+      if(this.blanksReady&&this.current()){this.patience-=dt;if(this.patience<=0){const o=this.current()!;this.misses++;this.say(`${o.customer} gave up waiting.`,'bad');this.game.audio.voice('groan',.9);this.sendOff(this.order);this.order++;this.build=blank();this.press=0;this.pressTarget=0;this.placeQueue();this.redraw();}}}
+    const cur=this.customer(this.order);if(cur&&this.bubble.visible)this.bubble.position.set(cur.group.position.x+.75,2.05+Math.sin(this.game.last*.004)*.05,cur.group.position.z);
     this.updatePanel();
   }
   private redrawBoardOnly(){this.redraw();}
@@ -253,12 +273,13 @@ export class ViaCounter implements Station {
   private updatePanel(){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const o=this.current(),b=this.build,r=ring(b);
-    const key=JSON.stringify([this.active,this.order,b,this.bit,this.blanksReady]);if(key===this.shown)return;this.shown=key;
+    const key=JSON.stringify([this.active,this.order,b,this.bit,this.blanksReady,this.rush?Math.ceil(this.game.time):0]);if(key===this.shown)return;this.shown=key;
     if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel';this.layer()?.append(this.panel);}
     this.panel.hidden=!o;if(!o)return;
     const span=b.from===undefined?'pick two layers':b.to===undefined?`L${b.from} → ?`:`L${b.from} → L${b.to} · ${KIND_NAMES[kindOf(b.from,b.to)]}`;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
-    this.panel.innerHTML=`<header><small>ORDER ${this.order+1}/${SHIFT.length} · ${o.customer}</small><h4>${this.orderTitle(o)}</h4><p>${o.ask}</p></header>`+
+    const head=this.rush?`RUSH · ${Math.max(0,Math.ceil(RUSH_TIME-this.game.time))} s left · served ${this.served.length}`:`ORDER ${this.order+1}/${SHIFT.length}`;
+    this.panel.innerHTML=`<header><small>${head} · ${o.customer}</small>${this.rush?`<i class="patience" style="--p:${Math.max(0,this.patience/PATIENCE).toFixed(2)}"></i>`:''}<h4>${this.orderTitle(o)}</h4><p>${o.ask}</p></header>`+
       (this.active?`<ul class="build">${row('Joins',span,b.to!==undefined)}${row('Stack',b.pressed?'pressed':'loose layers',b.pressed)}${row('Hole',b.drill?`${DRILL_NAMES[b.drill]} · ${b.drilledPressed?'after press':'before press'}`:`${DRILL_NAMES[this.bit]} ready`,!!b.drill)}`+
         `${row('Barrel',b.plated?'plated':'bare',b.plated)}${row('Pad',b.pad!==undefined?`${b.pad.toFixed(2)} mm · ring ${r!.toFixed(3)}`:'—',b.pad!==undefined)}${row('Finish',FINISH_NAMES[b.finish??'open'])}${row('Row',`×${b.count}`)}${row('Cost',String(cost(b)))}</ul>`+
         `<p class="profile">${PROFILE.name}: ring ≥ ${PROFILE.minRing} mm (laser microvias ${PROFILE.microMinRing}), aspect ≤ ${PROFILE.maxAspect}:1. Shop values, not universal rules.</p>`:'');
@@ -278,7 +299,7 @@ export class ViaCounter implements Station {
     if(!b.pressed)return {key:'Click',text:'PRESS the stack before it ships'};
     return {key:'Enter',text:'TEST it, then ring SERVE (Enter)'};
   }
-  complete(){return this.served.length>=SHIFT.length;}
-  score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
-  snapshot(){return {order:this.order,served:this.served.map(s=>({order:s.order,tier:s.verdict.tier})),build:this.build,bit:this.bit,blanksReady:this.blanksReady,mistakes:this.mistakes,spent:this.spent};}
+  complete(){return this.rush?this.game.time>=RUSH_TIME:this.served.length>=SHIFT.length;}
+  score(){return {mistakes:this.mistakes+this.misses,cost:Math.round(this.spent*10)};}
+  snapshot(){return {current:this.current(),rush:this.rush,misses:this.misses,patience:this.patience,order:this.order,served:this.served.map(s=>({order:s.order,tier:s.verdict.tier})),build:this.build,bit:this.bit,blanksReady:this.blanksReady,mistakes:this.mistakes,spent:this.spent};}
 }

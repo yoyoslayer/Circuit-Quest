@@ -1,4 +1,4 @@
-// Via service counter rules. A 4-layer board: L1 (top) · prepreg 0.1 mm · L2 · core 1.2 mm · L3 ·
+// Via service counter rules. A symmetric 4-layer board: L1 (top) · prepreg 0.1 mm · L2 · core 1.4 mm · L3 ·
 // prepreg 0.1 mm · L4 (bottom), 1.6 mm finished. Limits below are this shop's fabrication profile,
 // not universal constants; the game labels them that way.
 export type Layer=1|2|3|4;
@@ -14,7 +14,7 @@ export const PROFILE={minRing:.1,reliableRing:.125,microMinRing:.075,microReliab
 const minRing=(d:Drill)=>isLaser(d)?PROFILE.microMinRing:PROFILE.minRing;
 const reliableRing=(d:Drill)=>isLaser(d)?PROFILE.microReliableRing:PROFILE.reliableRing;
 /** Depth (mm) between two layers in the finished board. */
-const Z:Record<Layer,number>={1:0,2:.1,3:1.3,4:1.6};
+const Z:Record<Layer,number>={1:0,2:.1,3:1.5,4:1.6};
 export const depth=(a:Layer,b:Layer)=>+(Math.abs(Z[b]-Z[a])||0).toFixed(3);
 export const drillSize=(d:Drill)=>Number(d.split('-')[1]);
 export const isLaser=(d:Drill)=>d.startsWith('laser');
@@ -128,3 +128,16 @@ export const SHIFT:Order[]=[
   {id:'qfn',customer:'Tuck',from:1,to:4,inPad:true,ask:'Put a via inside the QFN\'s thermal pad so heat can sink to the bottom layer.'},
   {id:'stitch',customer:'Pim',from:1,to:4,stitch:6,covered:true,ask:'Stitch the ground planes along the board edge with a row of 6 vias, under a metal shield.'},
 ];
+
+/** Rush mode: endless orders mixed from the shift's ideas, seeded so a run can be replayed. */
+const NAMES=['Bolt','Mira','Dot','Tuck','Pim','Juno','Rex','Ivy','Nell','Oto','Skye','Wren'];
+export function rushOrder(rng:()=>number,n:number):Order{
+  const pick=<V>(a:V[])=>a[Math.floor(rng()*a.length)],customer=pick(NAMES),id=`rush-${n}`;
+  switch(pick(['through','through','buried','micro','pad','stitch'] as const)){
+    case 'through':return rng()<.5?{id,customer,from:1,to:4,ask:'A plain through via, top to bottom.'}:{id,customer,from:1,to:4,covered:true,ask:'Top to bottom, under a metal shield.'};
+    case 'buried':return {id,customer,from:2,to:3,covered:rng()<.5,ask:'L2 to L3 only; the outer layers are full.'};
+    case 'micro':{const top=rng()<.5;return {id,customer,from:top?1:3,to:top?2:4,maxPad:.3,ask:`Fine-pitch part: L${top?1:3} to L${top?2:4}, pad no bigger than 0.30 mm.`};}
+    case 'pad':return {id,customer,from:1,to:4,inPad:true,ask:'A via inside a thermal pad.'};
+    case 'stitch':{const k=4+Math.floor(rng()*4);return {id,customer,from:1,to:4,stitch:k,covered:rng()<.5,ask:`Stitch the ground planes with a row of ${k} vias.`};}
+  }
+}

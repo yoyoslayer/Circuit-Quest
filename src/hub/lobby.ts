@@ -16,7 +16,7 @@ import * as TX from '../render/textures';
 import {wallArt,pendant,lampPool,pointLamp,rug} from '../levels/dressing';
 import {solid} from '../levels/decor';
 
-interface Door {level:Level;at:Point;leaf:T.Group;open:number;lamp:T.Mesh;done:boolean}
+interface Door {level:Level;at:Point;leaf:T.Group;open:number;lamp:T.Mesh;done:boolean;locked:boolean}
 /** Door slots: along the back wall, then the left wall, then free-standing arches on the right. */
 function slots(width:number,depth:number){
   const out:{wall:'back'|'side'|'free';x:number;z:number}[]=[];
@@ -58,7 +58,7 @@ export class Lobby {
     return {};
   }
   private door(kit:RoomKit,level:Level,s:{wall:'back'|'side'|'free';x:number;z:number}):Door{
-    const g=this.game,color=LOOK[level.id]?.color??'#5ED6CC',done=!!bestFor(level.id),best=bestFor(level.id);
+    const g=this.game,color=LOOK[level.id]?.color??'#5ED6CC',done=!!bestFor(level.id),best=bestFor(level.id),locked=!!level.requires&&!bestFor(level.requires);
     // Wall-local frames: the back wall's local x is world x; the side wall's local x is -world z.
     let parent:T.Object3D,lx=0,at:Point;
     if(s.wall==='back'){parent=kit.back;lx=s.x;at={x:s.x,z:s.z+1.1};}
@@ -71,20 +71,23 @@ export class Lobby {
     const leaf=group(f,-.84,0,0);part(leaf,rbox(1.66,2.26,.08,.03),glossyToon('#fffaf0',{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.07);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.1);
     signPlate(leaf,level.number,.83,1.55,.085,.7,{bg:color,h:80,w:160});
     signPlate(f,title(level),0,2.95,.03,2.1,{bg:'#fffaf0'});
+    if(locked){signPlate(leaf,'LOCKED',.83,.95,.085,.9,{bg:'#262A40',fg:'#fffaf0',w:200,h:64});part(leaf,rbox(.3,.26,.08,.05),toon('#ffc629'),.83,1.2,.1);}
     if(best)signPlate(f,best.grade,.95,2.2,.16,.34,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});
     // The wing lamp: dark until the job is done.
     const lamp=part(f,sphere(.13,14,10),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),0,3.35,.12,false);part(f,cyl(.05,.07,.12,10),toon(DMETAL),0,3.5,.1,false);
     if(done){const w=f.getWorldPosition(new T.Vector3());glow(g.root,'rgba(255,220,140,1)',1.4,.35).position.set(w.x,3.35,w.z+(s.wall==='back'?.4:0));}
-    return {level,at,leaf,open:0,lamp,done};
+    return {level,at,leaf,open:0,lamp,done,locked};
   }
   near(pos:Point){return this.doors.find(d=>Math.hypot(pos.x-d.at.x,pos.z-d.at.z)<1.5);}
   /** E at a door walks through it into that job. */
-  interact(pos:Point){const d=this.near(pos);if(!d)return false;this.game.audio.pop();this.enter(d.level);return true;}
+  interact(pos:Point){const d=this.near(pos);if(!d)return false;
+    if(d.locked){this.game.audio.tone(140,.2,.06,'square');d.leaf.rotation.y=-.08;return true;}
+    this.game.audio.pop();this.enter(d.level);return true;}
   enter(level:Level){flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;location.href=`?level=${level.id}`;}
   update(dt:number){
     const p=this.game.player.translation();
-    for(const d of this.doors){const want=Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=-d.open*1.2;}
+    for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=-d.open*1.2;}
   }
-  prompt():Prompt|null{const d=this.near(this.game.player.translation());return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
-  snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done})),near:this.near(this.game.player.translation())?.level.id};}
+  prompt():Prompt|null{const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: finish ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
+  snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}
 }

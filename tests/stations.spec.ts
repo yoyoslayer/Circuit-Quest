@@ -45,3 +45,21 @@ test('via counter: a buried via drilled after pressing is sent back, and scrappi
   // Stepping back from the bench returns the keys to walking.
   await page.keyboard.press('Escape');expect((await snapshot(page)).atBench).toBe(false);
 });
+
+import {cheapest,kindOf,type Order} from '../src/stations/vias/logic';
+/** Builds an order the way the solver's cheapest reliable build says, pressing real buttons. */
+function recipe(o:Order):[string,unknown?][]{
+  const b=cheapest(o)!.build,out:[string,unknown?][]=[['layer',o.from],['layer',o.to],['bit',b.drill]];
+  if(kindOf(o.from,o.to)==='buried')out.push(['drill'],['plate'],['press']);else out.push(['press'],['drill'],['plate']);
+  out.push(['pad',b.pad]);if(b.finish&&b.finish!=='open')out.push(['finish',b.finish]);for(let k=1;k<b.count;k++)out.push(['count',1]);out.push(['serve']);return out;
+}
+test('via rush: a timed queue of generated orders; impatient customers leave; the whistle ends the shift',async({page})=>{
+  const errors=await open(page,'vias-rush');await wait(page,.1);await toCounter(page);
+  for(let i=0;i<4;i++){const o=(await snapshot(page)).station.current as Order;await steps(page,recipe(o));}
+  let s=await snapshot(page);expect(s.station.served.length).toBe(4);expect(s.station.served.every((v:{tier:number})=>v.tier===3)).toBe(true);
+  // Let the next customer run out of patience, then run the clock out.
+  await wait(page,52);s=await snapshot(page);expect(s.station.misses).toBeGreaterThan(0);
+  await wait(page,180);s=await snapshot(page);expect(s.won).toBe(true);
+  await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
+  expect(errors).toEqual([]);
+});

@@ -20,4 +20,6 @@ const npcs:NpcSpot[]=[
   {x:-6.6,z:-5.6,standing:true,acc:['sprout'],yaw:Math.PI},{x:7.4,z:-6.2,standing:true,acc:['tuft'],yaw:Math.PI},
 ];
 export const vias:Level={id:'vias',name:'VIA COUNTER',number:'03',tagline:'Five orders at the window. Drill, plate, serve.',badge:'via',station:'vias',
-  width:22,depth:16,spawn:{x:-6,z:4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+  next:'vias-rush',width:22,depth:16,spawn:{x:-6,z:4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+/** Rush: the same counter, three minutes of endless orders (unlocks after the story shift). */
+export const viasRush:Level={...vias,id:'vias-rush',name:'VIA RUSH',number:'03R',tagline:'Three minutes. The queue never ends.',requires:'vias',next:undefined};

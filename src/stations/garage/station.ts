@@ -134,9 +134,9 @@ export class GarageBench implements Station {
     // Section names stand on little posts along the board's back edge, above the fitted parts.
     for(const [text,x] of [['ACROSS MOTOR',-.61],['ACROSS SWITCH',.34],['AT CONTROLLER',1.0]] as const){for(const s of [-.14,.14])part(board,cyl(.008,.008,.12,6),toon(DMETAL),x+s,y+.06,-.36,false);sign(board,text,x,y+.15,-.36,.4,.08,'#fffaf0',INK,-.75);}
     // Flip buttons beside each socket.
-    for(const [id,x,z] of [['fly1',-.81,TOP+.17],['fly2',-.41,TOP+.17],['switch',.34-.24,TOP+.17],['ctrl',1.0-.24,TOP+.04]] as const){
-      const b=group(board,x,y,z);part(b,cyl(.045,.05,.03,16),toon(INK),0,.015,0);const cap=part(b,cyl(.037,.037,.02,16),toon(TEAL),0,.035,0);cap.name='cap';
-      sign(b,'⇄',0,.047,0,.06,.06,TEAL,'#fffaf0');this.flipBtns.set(id,b);this.click(b,'flip',id);}
+    for(const [id,x,z] of [['fly1',-1.06,TOP],['fly2',-.16,TOP],['switch',.58,TOP],['ctrl',.76,TOP-.02]] as const){
+      const b=group(board,x,y+.01,z);part(b,cyl(.055,.06,.04,18),toon(INK),0,.02,0);const cap=part(b,cyl(.046,.046,.03,18),toon(TEAL),0,.045,0);cap.name='cap';
+      sign(b,'⇄',0,.062,0,.075,.075,TEAL,'#fffaf0');this.flipBtns.set(id,b);this.click(b,'flip',id);}
     // ---- Parts tray, front right: five parts.
     part(top,rbox(1.1,.03,.68,.05),toon('#cbb488'),1.52,.055,.25);
     PART_IDS.forEach((id,k)=>{const at=new T.Vector3(1.52+(k<3?(k-1)*.35:(k-3.5)*.35),.075,.25+(k<3?-.16:.17));this.trayAt.set(id,at);part(top,rbox(.34,.01,.26,.04),toon('#b99f71'),at.x,.073,at.z,false);

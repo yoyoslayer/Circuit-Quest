@@ -26,14 +26,14 @@ export class Game {
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
-  yaw=.12;pitch=.83;zoom=24;orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
+  yaw=.12;pitch=.92;zoom=18;survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
   audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint:T.Line;reticle:T.Mesh;
   batches:Batch[]=[];decorRoot=new T.Group();
   lunch?:LunchRuntime;
   // ?manual lets automated tests advance simulated time deterministically.
   manual=new URLSearchParams(location.search).has('manual');stick?:Point;
   constructor(public level:Level){
-    const {scene}=this.view;scene.add(this.root);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=level.id==='playground'?26:38;
+    const {scene}=this.view;scene.add(this.root);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=level.id==='playground'?15:18;this.view.camera.fov=34;this.view.camera.updateProjectionMatrix();
     this.rope=new Rope({...level.anchor},level.length);this.obstacles=[...level.obstacles];
     this.buildRoom();
     for(const spec of level.props)this.addProp(spec);
@@ -114,18 +114,18 @@ export class Game {
   }
   setupInput(){
     addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.repeat)return;
-      if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');if(e.code==='Escape')this.action('pause');if(e.code==='KeyR')this.action('restart');});
+      if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');if(e.code==='Tab'){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');if(e.code==='KeyR')this.action('restart');});
     addEventListener('keyup',e=>this.keys.delete(e.code));
     addEventListener('blur',()=>{this.keys.clear();if(this.running&&!this.won&&!this.paused)this.togglePause();});
     const canvas=this.view.renderer.domElement;
     canvas.addEventListener('contextmenu',e=>e.preventDefault());
     canvas.addEventListener('pointerdown',e=>{this.audio.start();if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
     canvas.addEventListener('pointerup',()=>this.orbit=false);
-    canvas.addEventListener('pointermove',e=>{if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,.35,1.25);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
-    canvas.addEventListener('wheel',e=>{this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.015,12,43);},{passive:true});
+    canvas.addEventListener('pointermove',e=>{if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,.5,1.2);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
+    canvas.addEventListener('wheel',e=>{this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.012,8,26);},{passive:true});
   }
   action(action:string){
-    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='camera'){this.yaw=.12;this.pitch=.83;return;}
+    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='camera'){this.survey=false;this.pitch=.92;this.zoom=this.level.id==='playground'?15:18;this.yaw=.12;this.pitch=.83;return;}
     if(!this.running||this.paused||this.won)return;
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
     if(action==='jump'&&this.grounded&&(!this.held||prefabs[this.held.spec.kind].mass<15)){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
@@ -137,7 +137,7 @@ export class Game {
   pollPad(){const pad=navigator.getGamepads?.()[0];if(!pad)return;
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
       if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
-      const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
+      const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera',10:'survey'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
   togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.hud.querySelector<HTMLElement>('.pause')!.hidden=!this.paused;this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) win ties against clutter that got pushed along. */
@@ -248,18 +248,35 @@ export class Game {
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
     if(this.lunch)this.lunch.step(dt);else{this.simulateCable();this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
   }
-  win(){this.won=true;this.audio.cheer();this.audio.strain(0);if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
+  win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');const g=grade(this.time,this.damage,this.cost);
     const result=this.hud.querySelector<HTMLDivElement>('.result')!;result.innerHTML=`<div class="medal">${icon('check')}<b>${g.overall}</b></div><div class="grade-row"><span>${icon('clock')}<b>${g.parts[0]}</b><small>${this.formatTime(this.time)}</small></span><span>${icon('damage')}<b>${g.parts[1]}</b><small>${this.damage}</small></span><span>${icon('coins')}<b>${g.parts[2]}</b><small>${this.cost}</small></span></div><button aria-label="Play again">${icon('retry')}</button>${this.level.next?`<a href="?level=${this.level.next}" aria-label="Next job">${icon('arrow')}</a>`:''}${this.levelNav()}`;
-    result.hidden=false;result.querySelector('button')!.onclick=()=>location.reload();document.body.dataset.complete='true';
+    result.querySelector('button')!.onclick=()=>location.reload();
+    // Let the camera push in on the machine coming to life before the card lands.
+    setTimeout(()=>{result.hidden=false;document.body.dataset.complete='true';},1400);
   }
   formatTime(t:number){return `${Math.floor(t/60)}:${Math.floor(t%60).toString().padStart(2,'0')}`;}
   // Zoomed out the camera frames the whole floor like a diorama; zooming in hands it over to Pip.
-  updateCamera(dt:number){const p=this.player.translation(),follow=T.MathUtils.clamp(1-(this.zoom-12)/31*.76,.24,1),target=new T.Vector3(p.x*follow,0,p.z*follow);const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(this.pitch),Math.sin(this.pitch),Math.cos(this.yaw)*Math.cos(this.pitch)).multiplyScalar(this.zoom);const wanted=target.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
-    this.view.camera.position.lerp(wanted,1-Math.exp(-dt*6));this.view.camera.lookAt(target);this.shake*=.9;
-    const start=this.view.camera.position,end=new T.Vector3(p.x,p.y+.4,p.z),ray=new T.Raycaster(start,end.clone().sub(start).normalize(),0,start.distanceTo(end));const hit=new Set(ray.intersectObjects(this.occluders).map(h=>h.object));
+  /** Close third-person follow with a little velocity lead; Tab toggles a survey of the whole floor.
+   *  On success the camera pushes in on the machine that came to life. */
+  updateCamera(dt:number){
+    const p=this.player.translation(),cam=this.view.camera,ease=1-Math.exp(-dt*5);
+    this.lead.lerp(new T.Vector3(Math.sin(this.heading),0,Math.cos(this.heading)).multiplyScalar(this.grounded&&this.airborne===0&&(this.keys.size>0||this.stick)?1.2:0),ease*.5);
+    let target=new T.Vector3(p.x,p.y+.8,p.z).add(this.lead),distanceTo=this.zoom,pitch=this.pitch;
+    if(this.survey){target=new T.Vector3(0,0,0);distanceTo=34;pitch=1.05;}
+    const pushing=this.won&&this.winAt>0;if(pushing){target=this.winFocus();distanceTo=9;pitch=.7;}
+    this.focus.lerp(target,this.survey||pushing?ease*.6:ease);
+    const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo);
+    const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
+    cam.position.lerp(wanted,1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
+    // Cutaway: shell walls whose outside faces the camera drop to 0.9 m stubs.
+    for(const wall of this.shellWalls){const toCam=new T.Vector3(cam.position.x-wall.group.position.x,0,cam.position.z-wall.group.position.z).normalize();const stub=wall.normal.dot(toCam)>.2;
+      const want=stub?.9/wall.height:1;wall.group.scale.y=T.MathUtils.lerp(wall.group.scale.y,want,.15);}
+    const start=cam.position,end=new T.Vector3(p.x,p.y+.4,p.z),ray=new T.Raycaster(start,end.clone().sub(start).normalize(),0,start.distanceTo(end));const hit=new Set(ray.intersectObjects(this.occluders).map(h=>h.object));
     for(const mesh of this.occluders){const material=mesh.material as T.MeshToonMaterial;material.opacity=T.MathUtils.lerp(material.opacity,hit.has(mesh)?.15:1,.15);material.depthWrite=material.opacity>.8;}
   }
+  winFocus(){const l=this.level;return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.4,-7.5):new T.Vector3(l.target.x,1.2,l.target.z);}
+
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
   animateRig(dt:number){
     if(!this.rig)return;const p=this.player.translation(),speed=dt>0?Math.hypot(p.x-this.lastPos.x,p.z-this.lastPos.z)/dt:0;this.lastPos.set(p.x,p.y,p.z);

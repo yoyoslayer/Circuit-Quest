@@ -18,10 +18,10 @@ function floor(game:Game,x0:number,x1:number,z0:number,z1:number,map:T.Texture,t
   m.rotation.x=-Math.PI/2;m.userData.outline=false;return m;
 }
 /** A fading full-height shell wall with a trim cap. */
-function shellWall(game:Game,w:number,d:number,x:number,z:number,h=3){
-  const material=toon(WALL).clone();material.transparent=true;const m=part(game.root,box(w,h,d),material,x,h/2-.05,z);game.occluders.push(m);
-  const capMaterial=toon(TRIM).clone();capMaterial.transparent=true;const cap=part(game.root,box(w+.02,.08,d+.05),capMaterial,x,h-.05,z);game.occluders.push(cap);
-  solid(game,w,h,d,x,h/2,z);
+/** Full-height back/side wall. When the camera swings round behind it, it drops to a stub (cutaway). */
+function shellWall(game:Game,w:number,d:number,x:number,z:number,normal:[number,number],h=3){
+  const wall=group(game.root,x,0,z);part(wall,box(w,h,d),toon(WALL),0,h/2-.05,0);part(wall,box(w+.02,.08,d+.05),toon(TRIM),0,h-.05,0);
+  game.shellWalls.push({group:wall,normal:new T.Vector3(normal[0],0,normal[1]),height:h});solid(game,w,h,d,x,h/2,z);
 }
 function interiorWall(game:Game,o:Obstacle,color=WALL,h=1.35){
   const w=o.maxX-o.minX,d=o.maxZ-o.minZ,x=(o.minX+o.maxX)/2,z=(o.minZ+o.maxZ)/2;
@@ -42,7 +42,7 @@ function windows(game:Game,z:number,skyline=true){
 export function decorate(game:Game):Decor{
   const l=game.level;
   // Outer shell: fading back and left walls, low front rails keep physics contained.
-  shellWall(game,l.width,.25,0,-l.depth/2);shellWall(game,.25,l.depth,-l.width/2,0);
+  shellWall(game,l.width,.25,0,-l.depth/2,[0,-1]);shellWall(game,.25,l.depth,-l.width/2,0,[-1,0]);
   part(game.decorRoot,box(l.width,.3,.22),toon(WALL),0,.1,l.depth/2);solid(game,l.width,1,.22,0,.5,l.depth/2);
   part(game.decorRoot,box(.22,.3,l.depth),toon(WALL),l.width/2,.1,0);solid(game,.22,1,l.depth,l.width/2,.5,0);
   if(l.id==='meeting')return meeting(game);

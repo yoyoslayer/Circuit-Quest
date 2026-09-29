@@ -11,7 +11,7 @@ export function cablePath(route:Point[],end:T.Vector3,startY:number,strain:numbe
   const points:T.Vector3[]=[],total=route.slice(1).reduce((n,b,i)=>n+distance(route[i],b),0);let walked=0;
   for(let i=0;i<route.length-1;i++){const a=route[i],b=i===route.length-2?{x:end.x,z:end.z}:route[i+1],len=distance(a,b),steps=Math.max(2,Math.ceil(len*2));
     for(let j=0;j<steps;j++){const t=j/steps,along=walked+len*t,left=total-along;
-      const rise=left<1.2?T.MathUtils.smoothstep(1.2-left,0,1.2)*(end.y-.09):0,lift=along<.8?(1-along/.8)*(startY-.09):0,sag=Math.max(0,1-strain)*.05;
+      const rise=left<1.8?Math.pow(T.MathUtils.smoothstep(1.8-left,0,1.8),1.6)*(end.y-.09):0,lift=along<.8?(1-along/.8)*(startY-.09):0,sag=Math.max(0,1-strain)*.05;
       points.push(new T.Vector3(T.MathUtils.lerp(a.x,b.x,t),Math.max(.09,.09+rise+lift-sag),T.MathUtils.lerp(a.z,b.z,t)));}
     walked+=len;}
   points.push(end.clone());return points;
@@ -38,13 +38,13 @@ interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
   yaw=.14;pitch=0;zoom=26;survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
-  audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint:T.Line;reticle:T.Mesh;pipRing:T.Mesh;
+  audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint=new T.Group();reticle=new T.Group();pipRing:T.Mesh;
   batches:Batch[]=[];decorRoot=new T.Group();
   lunch?:LunchRuntime;
   // ?manual lets automated tests advance simulated time deterministically.
@@ -65,12 +65,16 @@ export class Game {
     this.plug=makeProp('coupler','#ffcc52');this.root.add(this.plug);
     this.target=new T.Mesh(new T.TorusGeometry(.42,.07,8,28),new T.MeshBasicMaterial({color:'#64ddd4'}));this.target.rotation.x=-Math.PI/2;this.target.position.set(level.target.x,.15,level.target.z);this.root.add(this.target);
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
-    const anchor=makeProp('reel');anchor.position.set(level.anchor.x,.6,level.anchor.z);this.root.add(anchor);
+    const anchor=makeProp('reel');anchor.position.set(level.anchor.x,.35,level.anchor.z);this.root.add(anchor);
     this.ropeMesh=new T.Mesh(new T.BufferGeometry(),hoseMaterial());this.ropeMesh.castShadow=true;this.root.add(this.ropeMesh);this.pulses=new Pulses(this.root);
-    this.reticle=new T.Mesh(new T.TorusGeometry(.5,.06,8,32),new T.MeshBasicMaterial({color:'#ffd84a',depthTest:false,transparent:true,opacity:.9}));this.reticle.visible=false;
+    // Comic twang arcs drawn where a taut cable bites a corner.
+    {const m=new T.MeshBasicMaterial({color:'#fffaf0'});m.userData.outlineParameters={visible:false};for(let i=0;i<3;i++){const r=.35+i*.18,pts:T.Vector3[]=[];for(let k=0;k<=12;k++){const a=-.55+1.1*k/12;pts.push(new T.Vector3(Math.cos(a)*r,.05*i,Math.sin(a)*r));}const t=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),16,.022,5,false),m);t.userData.noAO=true;this.twang.add(t);}this.twang.visible=false;this.root.add(this.twang);}
+    // Grab cue: four floor-level corner brackets around whatever E would take (UI.md world cues).
+    {const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.userData.outlineParameters={visible:false};for(let k=0;k<4;k++){const c=new T.Group();c.rotation.y=k*Math.PI/2;for(const [w,d,x,z] of [[.28,.07,-.4,-.53],[.07,.28,-.53,-.4]] as const){const b=new T.Mesh(new T.BoxGeometry(w,.03,d),m);b.position.set(x,0,z);b.userData.noAO=true;c.add(b);}this.reticle.add(c);}this.reticle.visible=false;this.root.add(this.reticle);}
     // A soft ring under Pip keeps the hero findable among coworkers.
     this.pipRing=new T.Mesh(new T.RingGeometry(.42,.58,40).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#ffc629',transparent:true,opacity:.55,depthWrite:false}));this.pipRing.userData.outlineParameters={visible:false};this.root.add(this.pipRing);this.reticle.rotation.x=-Math.PI/2;this.reticle.renderOrder=10;this.root.add(this.reticle);
-    this.hint=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#76e1d3',dashSize:.2,gapSize:.35,transparent:true,opacity:.6}));this.hint.visible=false;this.root.add(this.hint);
+    // Idle hint: glowing dots flowing along the clean route to the socket.
+    {const m=new T.MeshBasicMaterial({color:'#9ff3ea'});m.color.multiplyScalar(1.4);m.userData.outlineParameters={visible:false};const dot=new T.SphereGeometry(.07,8,6);for(let k=0;k<40;k++){const d=new T.Mesh(dot,m);d.userData.noAO=true;this.hint.add(d);}this.hint.visible=false;this.root.add(this.hint);}
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
     this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else{this.simulateCable();this.drawCable();}
     freeze(this.decorRoot);this.updateCamera(1);this.view.render();
@@ -167,7 +171,7 @@ export class Game {
     // With the plug in hand, E or F next to the coupler or second reel attaches it (coupler first).
     if(this.holdingPlug&&this.attachNear(pos))return;
     // Forgiving snap: the held plug only has to look close to the socket.
-    if(this.holdingPlug){if(Math.min(distance(pos,this.level.target)-.3,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12){this.connected=true;this.holdingPlug=false;this.plugPosition.set(this.level.target.x,.28,this.level.target.z);this.circuit.leads[0].closed=true;this.audio.plug();this.burst(this.plugPosition,'#fff3a3',16,'spark');}else this.releasePlug();return;}
+    if(this.holdingPlug){if(Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12){this.connected=true;this.holdingPlug=false;this.plugPosition.set(this.level.target.x,.28,this.level.target.z);this.circuit.leads[0].closed=true;this.audio.plug();this.plugFlash(this.plugPosition);}else this.releasePlug();return;}
     if(this.held){const p=this.held;
       if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&this.coupler){this.extension=true;this.rope.maxLength=this.level.length+14;this.consume(p);this.audio.cheer();}
       else if(p.spec.id==='coupler'&&distance(pos,this.plugPosition)<2){this.coupler=true;this.consume(p);this.audio.plug();}
@@ -198,6 +202,8 @@ export class Game {
     else{this.audio.tone(110,.22,.07,'square');part.body.applyImpulse({x:0,y:prefabs[part.spec.kind].mass*2.5,z:0},true);part.body.applyTorqueImpulse({x:0,y:0,z:.4},true);}
     return true;
   }
+  /** Plug-in beat: a short hit-stop, a star flash, sparks and a floor shockwave. */
+  plugFlash(at:{x:number;y:number;z:number}){this.hitstop=.09;this.burst(at,'#fff3a3',16,'spark');this.burst({x:at.x,y:at.y+.35,z:at.z},'#fff3c8',1,'flash');this.burst({x:at.x,y:.05,z:at.z},'#8ff3ea',1,'ring');this.burst(at,'#ffe36e',5,'star');this.shake=Math.max(this.shake,.12);}
   consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);}
   slingshot(energy:number){
     this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.audio.noise(.2,.08,1400);this.alarm(this.plugPosition,6);
@@ -236,10 +242,17 @@ export class Game {
   handPosition(){return this.rig?this.hand.getWorldPosition(new T.Vector3()):this.plugPosition.clone();}
   drawCable(){
     const end=this.holdingPlug?this.handPosition():this.plugPosition.clone();this.plug.position.copy(end);
-    const points=cablePath(this.ropePoints,end,.5,this.rope.strain);
+    const strain=this.holdingPlug?this.rope.strain:.3,points=cablePath(this.ropePoints,end,.5,strain);
+    // Near its limit the cable buzzes: it jitters, sparks and twangs at the corner it is biting,
+    // and coworkers along it flinch.
+    const bite=this.rope.bends.at(-1),frantic=this.holdingPlug&&this.rope.strain>.97;
+    if(frantic)for(let i=1;i<points.length-1;i++){points[i].x+=(Math.random()-.5)*.04;points[i].z+=(Math.random()-.5)*.04;}
+    this.twang.visible=frantic&&!!bite;if(frantic&&bite){this.twang.position.set(bite.x,.25,bite.z);this.twang.rotation.y=this.last*.02;this.twang.scale.setScalar(1+Math.sin(this.last*.05)*.15);
+      if(Math.random()<.12)this.burst({x:bite.x,y:.2,z:bite.z},'#fff3a3',3,'spark');}
+    if(this.holdingPlug&&this.rope.strain>.9&&Math.floor(this.last/700)!==Math.floor((this.last-16)/700))for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];this.alarm({x:(a.x+b.x)/2,z:(a.z+b.z)/2},2.2);}
     // The hero cable: strain builds from the reel toward Pip's hand; gold once it is plugged in,
     // with current pulses flowing to the load.
-    if(points.length>1){const hose=hoseGeometry(points,{radius:.1,strain:u=>this.rope.strain*(.6+.4*u),tint:this.connected?GOLD:undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
+    if(points.length>1){const hose=hoseGeometry(points,{radius:.1,strain:u=>strain*(.6+.4*u),tint:this.connected?GOLD:undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
       this.pulses.update(hose.curve,hose.length,this.last/1000,this.circuit.loads[0].state==='on');}
     this.audio.strain(this.holdingPlug&&!this.paused&&!this.won?this.rope.strain:0);
   }
@@ -291,11 +304,15 @@ export class Game {
     const p=this.player.translation(),cam=this.view.camera,ease=1-Math.exp(-dt*5);
     this.lead.lerp(new T.Vector3(Math.sin(this.heading),0,Math.cos(this.heading)).multiplyScalar(this.grounded&&this.airborne===0&&(this.keys.size>0||this.stick)?1.2:0),ease*.5);
     // Zoomed out it frames the floor like a diorama; zooming in drops to Pip's eye line (mockups/look/LOOK.md).
-    const zoom=this.survey?36.5:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=T.MathUtils.clamp(.25+near*.9,.25,1);
+    const zoom=this.survey?36.5:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.25+near*.9,.25,1);
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
-    const pushing=this.won&&this.winAt>0;if(pushing){target=this.winFocus();distanceTo=9;pitch=.7;}
-    this.focus.lerp(target,this.survey||pushing?ease*.6:ease);
+    const pushing=this.won&&this.winAt>0;
+    if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.level.id==='meeting'?8:9;pitch=this.level.id==='meeting'?.32:.6;}
+    // Title: a hero shot of Pip beside the logo (Pip sits in the right half of the frame).
+    const titling=!this.running&&document.body.dataset.screen==='title';
+    if(titling){const right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=new T.Vector3(p.x,p.y+.3,p.z).addScaledVector(right,-2.6);distanceTo=8;pitch=.32;}
+    this.focus.lerp(target,this.survey||pushing?ease*.6:titling?1:ease);
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo);
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
@@ -313,7 +330,7 @@ export class Game {
     this.qualityTimer=0;this.slowAvg=1/60;const next=(q-1) as 0|1;this.view.setQuality(next);try{localStorage.setItem('circuit-crew-quality',String(next));}catch{/* storage unavailable */}
   }
   homeZoom(){return this.level.id==='playground'?18:26;}
-  winFocus(){const l=this.level;return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.4,-7.5):new T.Vector3(l.target.x,1.2,l.target.z);}
+  winFocus(){const l=this.level;return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
   animateRig(dt:number){
@@ -325,6 +342,10 @@ export class Game {
     to(this.rig.legs[0],air?-.5:swing);to(this.rig.legs[1],air?.35:-swing);
     const reach=carrying?-1.45:0,sway=air?-2.3:-swing*.8;
     to(this.rig.arms[0],carrying?reach:plug?sway*.4:sway,air?-.5:carrying?.18:0);const taut=plug&&(this.lunch?.held?this.lunch.held.cable.rope.strain:this.rope.strain)>.85;to(this.rig.arms[1],carrying?reach:taut?2.45:plug?-1.25:-sway,air?.5:carrying?-.18:taut?-.35:0);
+    // Win: face the camera and cheer with both arms up; title: face the camera and wave.
+    const titling=!this.running&&document.body.dataset.screen==='title';
+    if(this.won||titling){this.heading+=Math.atan2(Math.sin(this.yaw-this.heading),Math.cos(this.yaw-this.heading))*Math.min(1,dt*6);const wave=Math.sin(this.last*.012);
+      if(this.won){to(this.rig.arms[0],-2.9+wave*.15,-.35);to(this.rig.arms[1],-2.9-wave*.15,.35);}else{to(this.rig.arms[1],-2.7,.5+wave*.35);to(this.rig.arms[0],0,0);}}
   }
   render(dt:number){
     const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);this.avatar.rotation.y=this.heading;const moving=(this.keys.size>0||!!this.stick)&&this.running&&!this.paused;this.squash=T.MathUtils.lerp(this.squash,0,1-Math.exp(-dt*9));
@@ -346,21 +367,26 @@ export class Game {
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
     const plugFirst=!this.lunch&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));
     const mark=attach?.mesh.position??(plugFirst?this.plugPosition:!this.holdingPlug&&!this.held?nearest?.mesh.position:undefined);
-    this.reticle.visible=this.running&&!this.won&&!!mark;if(mark){this.reticle.position.copy(mark);this.reticle.position.y=Math.max(.08,mark.y-.2);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.08);}
+    this.reticle.visible=this.running&&!this.won&&!!mark;if(mark){this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);}
     this.pipRing.position.set(p.x,.03,p.z);
     this.fx.update(dt);
     // The meeting clock reads 9:55 and its red minute hand sweeps the four minutes to the meeting.
     if(this.clock){const late=this.level.deadline!==undefined&&this.time>this.level.deadline;this.clock.hand.rotation.z=-(9+55/60)/12*Math.PI*2-this.time/3600/12*Math.PI*2;this.clock.minute.rotation.z=-(55/60)*Math.PI*2-Math.min(this.time,this.level.deadline??240)/60/60*Math.PI*2;this.clock.face.material=toon(late&&Math.floor(this.last/300)%2?'#ff7a6b':'#fbf5ea');}
+    // Title: the reel's plug spits a spark every couple of seconds.
+    if(!this.running&&document.body.dataset.screen==='title'&&Math.floor(this.last/1900)!==Math.floor((this.last-dt*1000)/1900)){this.burst(this.plugPosition,'#fff3a3',10,'spark');this.burst(this.plugPosition,'#ffe36e',2,'star');this.audio.noise(.04,.03,3200,'highpass');}
     // Steam from the coffee machine until its extension is borrowed.
-    const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'dust');}
+    const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'smoke');}
     // After a while a dotted ghost line traces the clean way round walls and pillars to the socket.
-    if(this.time>35&&!this.connected&&!this.lunch&&!this.won){this.hint.visible=true;this.hint.geometry.dispose();this.hint.geometry=new T.BufferGeometry().setFromPoints(detour({x:p.x,z:p.z},this.level.target,this.obstacles).map(q=>new T.Vector3(q.x,.1,q.z)));this.hint.computeLineDistances();}else this.hint.visible=false;
+    if(this.time>35&&!this.connected&&!this.lunch&&!this.won){this.hint.visible=true;const path=detour({x:p.x,z:p.z},this.level.target,this.obstacles),total=path.slice(1).reduce((n,b,k)=>n+distance(path[k],b),0),shift=(this.last*.0012)%.6;
+      this.hint.children.forEach((d,k)=>{let along=k*.6+shift;d.visible=along<total&&along>.8;for(let q=1;q<path.length&&d.visible;q++){const len=distance(path[q-1],path[q]);if(along<=len){d.position.set(T.MathUtils.lerp(path[q-1].x,path[q].x,along/len),.1,T.MathUtils.lerp(path[q-1].z,path[q].z,along/len));break;}along-=len;}});}
+    else this.hint.visible=false;
     gameUI(this)?.update();
     this.updateCamera(dt);const d0=performance.now();this.view.render();this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;
   }
   frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad();
     const t0=performance.now();
-    if(this.running&&!this.paused&&!this.won&&!this.manual){this.accumulator+=dt;let steps=0;while(this.accumulator>=1/60&&steps++<5){this.step(1/60);this.accumulator-=1/60;}}
+    if(this.hitstop>0)this.hitstop-=dt;
+    else if(this.running&&!this.paused&&!this.won&&!this.manual){this.accumulator+=dt;let steps=0;while(this.accumulator>=1/60&&steps++<5){this.step(1/60);this.accumulator-=1/60;}}
     this.frames++;this.frameWindow+=dt;if(this.frameWindow>=1){this.fps=this.frames/this.frameWindow;this.frames=0;this.frameWindow=0;}
     const t1=performance.now();this.render(dt);const t2=performance.now();this.adaptQuality(dt);
     // Rolling averages (ms) for tools/perf.mjs.

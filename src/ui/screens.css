@@ -291,3 +291,10 @@ body[data-screen="fail"] canvas#game{filter:saturate(.35) brightness(.5) blur(3p
   .hud.lunch .stick{bottom:calc(var(--safe-b) + 160px)}
 }
 @media (prefers-reduced-motion:reduce){.job,.job.sel{animation:none}}
+/* The result tag docks to the right third so the machine that came to life stays in view
+   (the win camera frames it on the left). Phones keep it centred. */
+@media (min-width:900px){
+  .result-screen .scrim{background:linear-gradient(90deg,rgba(29,31,43,0) 30%,rgba(29,31,43,.6) 75%)}
+  .result{left:auto;right:6vw;margin-left:0}
+  .result-screen .string{left:auto;right:calc(6vw + 274px)}
+}

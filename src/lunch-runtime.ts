@@ -7,7 +7,7 @@ import {Rope,distance,segmentDistance,segmentHits,strainColor,type Point} from '
 import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge,paint} from './render/kit';
 import {makeProp} from './props/prefabs';
 import {hoseGeometry,hoseMaterial,Pulses,hot,glossyToon} from './render/actors';
-const OVEN_WINDOW=hot('#ff9a3c',1.6),HOT_WINDOW=hot('#ff4a2a',2),DEAD=new T.Color('#262833'),HOT=new T.Color('#ff5a3a'),WARM=new T.Color('#ffa04a'),THICK=new T.Color('#ffc94d'),THIN=new T.Color('#ecE8dc');
+const OVEN_WINDOW=hot('#ff9a3c',1.6),HOT_WINDOW=hot('#ff4a2a',2),DEAD=new T.Color('#262833'),HOT=new T.Color('#ff5a3a'),WARM=new T.Color('#ffa04a'),THICK=new T.Color('#ffc94d'),THIN=new T.Color('#ffe2a8');
 import {lunchHud} from './ui/lunch-hud';
 import {gameUI} from './ui/game-ui';
 import {solid} from './levels/decor';
@@ -30,7 +30,7 @@ export class LunchRuntime {
   // Assigned by the build* helpers called from the constructor.
   thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenLight!:T.PointLight;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
   liftRope!:T.Mesh;alerts=new Map<string,T.Sprite>();scars:{mark:T.Object3D;life:number;at:T.Vector3}[]=[];wetAt?:Point;
-  lamps=new Map<string,{bulb:T.Mesh;glow:T.Sprite;light:T.PointLight}>();smoke:T.Mesh[]=[];
+  lamps=new Map<string,{bulb:T.Mesh;glow:T.Sprite;light:T.PointLight}>();
   constructor(public game:Game){
     game.ropeMesh.visible=false;game.plug.visible=false;game.target.visible=false;if(game.screen)game.screen.visible=false;
     const loads:Load[]=[['oven',3,0],['fridge',2,0],['conveyor',1.5,3],['lift',3,9],['kitchen-lamp',.5,0],['store-lamp',.5,0]].map(([id,steady,kick])=>({id:String(id),steady:Number(steady),kick:Number(kick),kickSeconds:1,enabled:!['conveyor','lift'].includes(String(id)),state:'off',started:0}));
@@ -49,7 +49,7 @@ export class LunchRuntime {
     // (look-dev lunch.js); it lifts away once a lamp in there is powered.
     const darkTex=cachedTexture('store-dark',()=>{const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d')!;x.fillStyle='rgba(16,18,40,1)';x.fillRect(0,0,512,512);x.globalCompositeOperation='destination-out';
       const hx=(-10+16.55)/8.9*512,hy=(-3+10)/10*512,gr=x.createRadialGradient(hx,hy,0,hx,hy,150);gr.addColorStop(0,'rgba(0,0,0,.35)');gr.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=gr;x.fillRect(0,0,512,512);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;});
-    this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#ffffff',{map:darkTex,transparent:true,opacity:.84,depthWrite:false}),-12.1,2.72,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;this.dark.userData.noAO=true;
+    this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#ffffff',{map:darkTex,transparent:true,opacity:.8,depthWrite:false}),-12.1,1.5,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;this.dark.userData.noAO=true;
     const tray=this.prop('tray');if(tray){tray.mesh.visible=false;tray.body.setEnabled(false);}
     // HUD: objective chain, fridge thermometer and breaker dials (src/ui/lunch-hud.ts).
     lunchHud(game.hud);
@@ -228,14 +228,18 @@ export class LunchRuntime {
     if(g.held===tray)this.job.pickTray();
     if(this.job.tray==='carried'&&g.held!==tray&&distance(tray.body.translation(),{x:0,z:-7})<2){this.job.placeTray();tray.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);}
     if(['conveyor','lift','delivered'].includes(this.job.tray)){const along=this.job.transport;tray.body.setNextKinematicTranslation({x:along<1?-.5+along*12.5:12,y:1.18+this.job.height*2.5,z:-7});}
+    if(this.powered('oven')&&this.job.tray==='raw'&&Math.random()<dt*2)this.puff(new T.Vector3(-1.9,2.9,-8.4),'#fffaf0');
     const scorching=this.job.tray==='burned'||(this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&this.powered('oven'));
     if(scorching&&Math.random()<dt*3)this.puff(new T.Vector3(-2.7,2,-7.4));
     if(this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&Math.floor(this.job.ovenWait)%2===0&&Math.floor(this.job.ovenWait-dt)%2===1)g.audio.tone(880,.12,.04,'square');
     if(this.job.done&&!g.won)g.win();
-    if(this.job.failed&&!g.won){g.won=true;gameUI(g)?.failed(this.job);g.audio.tone(120,.7,.05,'triangle');document.body.dataset.failed='true';}
+    // Failure gets an in-world beat first: the fridge (or oven) puffs, everyone groans, then the tag drops.
+    if(this.job.failed&&!g.won){g.won=true;const at=this.job.tray==='burned'?{x:-2.5,z:-7.2}:{x:-5.3,z:-2.1};g.alarm(at,9);for(let k=0;k<6;k++)this.puff(new T.Vector3(at.x+(k%3-1)*.3,1.6+k*.1,at.z));g.audio.tone(120,.7,.05,'triangle');for(let i=0;i<3;i++)setTimeout(()=>g.audio.voice('groan',.8+i*.2),200+i*250);
+      setTimeout(()=>{gameUI(g)?.failed(this.job);document.body.dataset.failed='true';},1200);}
   }
   updateScars(dt:number){for(const s of [...this.scars]){s.life-=dt;const badge=s.mark.children[1] as T.Sprite;badge.scale.setScalar(.9+Math.sin(s.life*8)*.08);badge.visible=s.life>2;if(Math.random()<dt*2.5)this.puff(s.at.clone().setY(.2));if(s.life<=0){this.game.root.remove(s.mark);this.scars.splice(this.scars.indexOf(s),1);}}}
-  puff(at:T.Vector3){const m=part(this.game.root,sphere(.22,10,8),toon('#8d8a96'),at.x,at.y,at.z,false);m.userData.life=1.4;this.smoke.push(m);}
+  /** A little cloud of toon smoke (pooled particles). */
+  puff(at:T.Vector3,color='#8d8a96'){this.game.burst(at,color,3,'smoke');}
   render(dt:number){const g=this.game;this.updateScars(dt);
     for(const [i,m] of this.puddles.entries())m.scale.setScalar(Math.max(.001,this.water*(1-i*.02)));this.puddles.forEach(m=>m.scale.x*=1.4);this.dark.visible=!this.lit();
     for(const id of ['capacitor','cooler-box']){const prop=this.prop(id);if(prop)prop.mesh.visible=this.lit()||!this.inStore(prop.body.translation());}
@@ -264,11 +268,10 @@ export class LunchRuntime {
         // Hose look: dead cables go black, overheating ones glow orange then red, a held one shows
         // strain, the thick one keeps its black bands; live cables carry current pulses.
         const heat=cable.lead.heat,tint=cable.lead.dead?DEAD:heat>1.2?HOT:heat>.4?WARM:held?undefined:cable.rating>3?THICK:THIN;
-        const hose=hoseGeometry(sampled,{radius:cable.rating>3?.1:.06,bands:cable.rating>3,tint,strain:u=>cable.rope.strain*(.6+.4*u)});cable.mesh.geometry.dispose();cable.mesh.geometry=hose.geo;
+        const hose=hoseGeometry(sampled,{radius:cable.rating>3?.1:.075,bands:cable.rating>3,tint,strain:u=>cable.rope.strain*(.6+.4*u)});cable.mesh.geometry.dispose();cable.mesh.geometry=hose.geo;
         const current=(this.circuit.draw.get(cable.id)??0)>0&&!cable.lead.dead,fromAnchor=cable.lead.from===cable.ports[(1-active) as 0|1];cable.pulses.update(hose.curve,hose.length,g.time,current,!fromAnchor);}
       cable.plugs.forEach((plug,i)=>{if(!(held&&i===active))plug.position.copy(cable.ends[i]);const toward=cable.points[i===1-cable.active?1:cable.points.length-2];if(toward)plug.rotation.y=Math.atan2(-(toward.z-cable.ends[i].z),toward.x-cable.ends[i].x)+Math.PI;});
     }
-    for(const m of [...this.smoke]){m.userData.life-=dt;m.position.y+=dt*.8;m.scale.setScalar(1+(1.4-m.userData.life));if(m.userData.life<=0){this.game.root.remove(m);this.smoke.splice(this.smoke.indexOf(m),1);}}
     if(this.held)g.rope=this.held.cable.rope;g.audio.strain(this.held&&!g.paused&&!g.won?g.rope.strain:0);
     lunchHud(g.hud).update(this.job,this.circuit);
   }

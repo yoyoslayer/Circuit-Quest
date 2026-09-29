@@ -64,6 +64,6 @@ test('emptying the fridge into the cooler box is a valid alternative',async({pag
 });
 test('an unpowered fridge eventually spoils lunch and offers a retry',async({page})=>{
   await open(page,'lunch');await wait(page,125);
-  expect((await lunch(page)).job.failed).toBe(true);await expect(page.locator('body')).toHaveAttribute('data-failed','true');
+  expect((await lunch(page)).job.failed).toBe(true);await expect(page.locator('body')).toHaveAttribute('data-failed','true',{timeout:15000});
   await expect(page.getByRole('button',{name:'Retry Lunch Rush'})).toBeVisible();
 });

@@ -145,7 +145,11 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   for(let k=0;k<6;k++)part(r,box(.28,.02,.2),toon('#fffaf0'),11.6+(k%2)*.8,.84,-7.8+Math.floor(k/2)*1.3,false).rotation.y=(k*.37)%1-.5;
   const projector=group(r,12,0,-4.5);part(projector,rbox(.6,.25,.5,.06),toon('#dcdfe6'),0,.96,0);part(projector,cyl(.1,.1,.1,14,'z'),toon(INK),0,.96,-.28);
   const lead=new T.CatmullRomCurve3([[12.1,.9,-4.3],[12.2,.3,-3.9],[12.4,.05,-3.2],[12.3,.05,-2.4]].map(p=>new T.Vector3(...p)));part(r,new T.TubeGeometry(lead,40,.035,6),toon(INK));
-  part(r,box(4.4,2.5,.08),toon(INK),12.2,1.9,-9.82);const screen=part(game.root,box(4.2,2.3,.05),toon('#34364f'),12.2,1.9,-9.76);
+  part(r,box(4.4,2.5,.08),toon(INK),12.2,1.9,-9.82);
+  // Projector screen: a blue "no signal" card until the cable goes in, then a glowing slide.
+  const noSignal=cachedTexture('no-signal',()=>glyph(c=>{c.fillStyle='#2a3b7a';c.fillRect(0,0,256,256);c.strokeStyle='#8fb0ff';c.lineWidth=12;c.beginPath();c.arc(128,120,46,0,7);c.stroke();c.beginPath();c.moveTo(96,152);c.lineTo(160,88);c.stroke();c.fillStyle='#8fb0ff';c.fillRect(70,200,116,10);}));
+  const slide=cachedTexture('slide',()=>glyph(c=>{c.fillStyle='#fffaf0';c.fillRect(0,0,256,256);c.fillStyle='#ffc629';c.fillRect(0,0,256,34);c.fillStyle='#3f7fd6';for(let i=0;i<5;i++)c.fillRect(34+i*40,200-(i+1)*26,26,(i+1)*26);c.strokeStyle='#e5484d';c.lineWidth=8;c.beginPath();c.moveTo(30,170);c.lineTo(90,130);c.lineTo(140,146);c.lineTo(226,70);c.stroke();c.fillStyle='#2b2d42';c.fillRect(30,12,120,10);}));
+  const screen=part(game.root,new T.PlaneGeometry(4.2,2.3),new T.MeshBasicMaterial({map:noSignal}),12.2,1.9,-9.77,false);(screen.material as T.Material).userData.outlineParameters={visible:false};
   const beam=part(game.root,new T.CylinderGeometry(1.4,.1,5.1,20,1,true).rotateX(Math.PI/2),new T.MeshBasicMaterial({color:'#fff3c8',transparent:true,opacity:.14,depthWrite:false,side:T.DoubleSide}),12.1,1.4,-7.2,false);
   (beam.material as T.Material).userData.outlineParameters={visible:false};beam.userData.noAO=true;beam.lookAt(12.2,1.9,-9.8);beam.visible=false;
   pendant(game.root,12,-7.6,{y:2.35,color:'#3f7fd6'});pendant(game.root,12,-5.2,{y:2.35,color:'#3f7fd6',light:false});lampPool(game.root,12,-6.4,2.4,.14);
@@ -158,8 +162,10 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   glow(game.root,'rgba(255,210,140,1)',1.3,.35).position.set(15.4,1.72,7.6);lampPool(game.root,15.2,7.4,1.6,.22);
   // Floor clutter: paper drift, stacked boxes.
   for(const [x,z,ry] of [[-8.6,-1.2,.3],[7.2,3.6,-.4],[-2.6,5.1,.8],[2.2,-.8,.2],[-7.8,4.6,1.2],[6.8,-6.9,.5]])part(r,box(.3,.012,.23),toon('#fffaf0'),x,.01,z,false).rotation.y=ry;
-  for(const [x,z] of [[-8.9,9.1],[7.8,9.2],[-9.2,-7.9]]){part(r,rbox(.7,.6,.7,.05),toon('#c98f5a'),x,.3,z).rotation.y=.3;part(r,rbox(.6,.5,.6,.05),toon('#d7a56d'),x+.1,.85,z-.05).rotation.y=.8;}
-  return {screen,beam,clock:{hand,minute,face}};
+  for(const [x,z] of [[-8.9,9.1],[7.8,9.2]]){part(r,rbox(.7,.6,.7,.05),toon('#c98f5a'),x,.3,z).rotation.y=.3;part(r,rbox(.6,.5,.6,.05),toon('#d7a56d'),x+.1,.85,z-.05).rotation.y=.8;}
+  const lightUp=()=>{const m=new T.MeshBasicMaterial({map:slide});m.color.setScalar(1.8);m.userData.outlineParameters={visible:false};screen.material=m;
+    pointLamp(game.root,12.2,1.9,-9,{color:'#dfe9ff',intensity:7,distance:7});lampPool(game.root,12.2,-8.4,2.4,.25,'#dfe9ff');glow(game.root,'rgba(220,235,255,1)',4,.35).position.set(12.2,1.9,-9.6);};
+  return {screen,beam,lightUp,clock:{hand,minute,face}};
 }
 function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   const l=game.level;
@@ -168,7 +174,7 @@ function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   floor(game,8,l.width/2,-l.depth/2,0,TX.concreteFloor('#9aa3b2'),3);
   floor(game,-7.8,l.width/2,0,l.depth/2,TX.woodPlanks('#d9ab6e'),3.2);
   floor(game,10.4,13.6,-5.9,-5.45,TX.hazardStripe(),.6,.006);
-  backWindows(game,back,()=>false,.14);wallArt(side,'sun',-3,1.9,.16);wallArt(back,'plant',-8.5,1.95,.18,0,.8);
+  backWindows(game,back,x=>x< -7.6,.14);for(const x of windowXs(l.width))if(x< -7.6)windowUnit(back,x,1.95,.16);wallArt(side,'sun',-3,1.9,.16);wallArt(back,'plant',-8.5,1.95,.18,0,.8);
   const colors:Record<string,[string,string]>={store:['#b9b3c9','#6a6488'],kitchen:[WALL_UP,'#6cc3b4'],lift:['#c9d1db','#5a6378']};
   for(const o of l.obstacles){const [u,d]=colors[o.id.split('-')[0]]??[WALL_UP,WALL_LOW];interiorWall(game,o,u,d);}
   const r=game.decorRoot;
@@ -180,7 +186,7 @@ function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   const rack=group(r,-16.1,0,5,Math.PI/2);part(rack,box(3.4,.08,.5),toon(TRIM),0,1,.1);part(rack,box(3.4,.08,.5),toon(TRIM),0,2.1,.1);for(const sx of [-1.6,1.6])part(rack,box(.08,2.2,.08),toon(DMETAL),sx,1.1,.3);
   for(let k=0;k<6;k++)part(r,rbox(.6,.5,.6,.05),toon(k%2?'#d7a56d':'#c98f5a'),-15.8,k<3?1.3:2.4,3.6+(k%3)*1.1).rotation.y=(k*.13)%.4;
   // Corridor: vending machine, water cooler, benches, a dining table with chairs, rugs, plants.
-  part(r,rbox(1,2,.8,.08),toon('#e5484d'),-6.9,1,9.3);part(r,box(.66,1.24,.05),toon('#bfeaf5'),-6.98,1.12,8.88);solid(game,1,2,.8,-6.9,1,9.3);
+  part(r,rbox(1,2,.8,.08),toon('#e5484d'),-6.9,1,9.3);part(r,box(.66,1.24,.05),toon('#bfeaf5'),-6.98,1.12,9.72);for(let k=0;k<9;k++)part(r,box(.14,.14,.02),toon(['#ffc94d','#6cc58a','#3f7fd6','#f08a4b'][k%4]),-7.18+(k%3)*.2,.8+Math.floor(k/3)*.3,9.76,false);solid(game,1,2,.8,-6.9,1,9.3);
   part(r,rbox(.5,1,.5,.06),toon('#f4efe6'),-5.6,.5,9.4);part(r,cyl(.2,.2,.55,16),toon('#8fd0f0'),-5.6,1.3,9.4);solid(game,.5,1.5,.5,-5.6,.75,9.4);
   for(const x of [-4.2,-2.6]){part(r,rbox(1.3,.1,.45,.06),toon('#c98a55'),x,.46,9.45);for(const s of [-.5,.5])part(r,box(.08,.44,.36),toon(INK),x+s,.22,9.45);}
   rug(r,13.2,8.1,3.4,3.2,'#d98c5f','#f6d49b');part(r,cyl(.7,.7,.06,24),toon('#f4efe6'),13.2,.76,8.1);part(r,cyl(.08,.3,.74,12),toon(INK),13.2,.38,8.1);solid(game,1.4,.8,1.4,13.2,.4,8.1);

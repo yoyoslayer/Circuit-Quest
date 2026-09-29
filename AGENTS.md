@@ -6,7 +6,7 @@ Read in this order: `docs/GAME_DESIGN.md` → `docs/LEVEL_01_BIG_MEETING.md` →
 
 ## Hard rules (decided by the product owner — do not relitigate)
 1. **Solo only.** No co-op, networking, accounts or lobbies. Keep code free of them.
-2. **Play by doing, not reading.** No text needed to play. HUD = icons, rings, meters. No floating world labels. No tutorials made of text.
+2. **Play by doing, not reading.** HUD = icons, rings, meters. No floating world labels. No tutorials made of text. *Product-owner override:* a short objective card and a one-line key prompt are shown (see docs/PROGRESS.md).
 3. **Big, dense rooms.** A floor is ~32 × 20 m with **hundreds of physics props** (desks, chairs, monitors, mugs, paper, plants, cabinets, boxes, printers, bins…). Only a few are needed for the job; all can be bumped, knocked over, carried or thrown.
 4. **The cable is the star.** Finite length, wraps around obstacles, visibly strains (white → yellow → orange → red), and **slingshots** props when pulled taut then released or snapped.
 5. **Clean solution first, chaos shortcuts second.** Every level must be solvable tidily; destruction is allowed and graded, never a fail.

@@ -1,5 +1,6 @@
 // Screen flow and HUD for Circuit Crew. game.ts calls in from setupUI/begin/togglePause/win/render;
-// everything shown here is icons, rings and meters: no text is needed to play.
+// Icons, rings and meters carry the state; a short objective card and key prompts say what to do
+// (src/ui/objectives.ts).
 import type {Game} from '../game';
 import type {Grade} from '../sim/grade';
 import type {LunchJob} from '../sim/lunch';
@@ -7,6 +8,7 @@ import {installIcons} from '../render/icons';
 import {levels} from '../levels';
 import {prefabs} from '../props/prefabs';
 import {bestFor,record,flagAutostart,takeAutostart} from './store';
+import {ObjectivesHUD} from './objectives';
 import {hudMarkup,titleMarkup,jobsMarkup,pauseMarkup,resultMarkup,failMarkup,clock} from './screens';
 
 type Screen='title'|'jobs'|'play'|'pause'|'result'|'fail';
@@ -21,6 +23,7 @@ export class GameUI {
   private lastLength=0;private connectedUntil=0;private heldCable?:{ports:(string|null)[];lead:{dead:boolean}};private actState='';private padFrame=0;private padPrev:boolean[]=[];private padAxis=0;private stickId?:number;
   /** Focus follows the keyboard only; mouse and touch players never see a focus ring they didn't ask for. */
   private keyboard=false;
+  objectives!:ObjectivesHUD;
   constructor(public game:Game){
     installIcons();
     const hud=game.hud,params=new URLSearchParams(location.search),bests=levels.map(l=>bestFor(l.id));
@@ -35,6 +38,7 @@ export class GameUI {
     // Registered before Game.setupInput, so these run ahead of the game's own key handling.
     addEventListener('keydown',e=>{this.keyboard=true;this.key(e);});addEventListener('pointerdown',()=>this.keyboard=false,true);
     this.setupStick();
+    this.objectives=new ObjectivesHUD(game,this.layer);
     addEventListener('gamepadconnected',()=>this.syncPad());addEventListener('gamepaddisconnected',()=>this.syncPad());
     // Autostarted jobs begin without a click, so the first input anywhere wakes the audio.
     const unlock=()=>{if(this.game.running)this.game.audio.start();removeEventListener('pointerdown',unlock);removeEventListener('keydown',unlock);};
@@ -156,7 +160,7 @@ export class GameUI {
     const deadline=g.level.deadline??240,left=Math.max(0,1-g.time/deadline);
     this.ring.style.strokeDasharray=`${(left*RING).toFixed(1)} ${RING.toFixed(1)}`;this.badge.classList.toggle('late',g.time>deadline);
     this.layer.classList.toggle('won',g.won);
-    this.updateStrain();this.updateActions();
+    this.updateStrain();this.updateActions();this.objectives.update();
   }
   setTally(k:'time'|'damage'|'cost',v:string,visible=true){
     const t=this.tallies[k];if(t.shown===v&&!t.box.hidden===visible)return;
@@ -200,6 +204,8 @@ export class GameUI {
     setTimeout(()=>{
       g.hud.insertAdjacentHTML('beforeend',resultMarkup(view));this.show('result');document.body.dataset.complete='true';
       const screen=g.hud.querySelector<HTMLElement>('.result-screen')!;this.countUp(screen);
+      // Bonus goals under the grade rows: a star for each one achieved.
+      const rows=screen.querySelector('.result .rows');const bonus=this.objectives.results();if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
       if(this.keyboard)requestAnimationFrame(()=>screen.querySelector<HTMLElement>('.btn.primary')?.focus({preventScroll:true}));
       if(!reduced())setTimeout(()=>{g.audio.thud(9);g.audio.tone(90,.18,.08,'triangle');screen.querySelector('.result')?.classList.add('thud');},1800);
       setTimeout(()=>{if(improved)g.audio.bell(1319,.6,.05);},reduced()?0:1950);

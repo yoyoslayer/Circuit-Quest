@@ -1,5 +1,5 @@
 import type {Level} from './types';
-export const playground:Level={id:'playground',name:'CABLE PLAYGROUND',number:'00',tagline:'A little tension goes a long way.',badge:'bolt',next:'meeting',width:20,depth:20,spawn:{x:-7,z:5},anchor:{x:-8,z:4},target:{x:7,z:-6},length:19,
+export const playground:Level={id:'playground',name:'CABLE PLAYGROUND',number:'00',tagline:'A little tension goes a long way.',badge:'bolt',next:'meeting',width:20,depth:20,spawn:{x:-7,z:5},anchor:{x:-8,z:4},target:{x:7,z:-6},switchAt:{x:7.55,z:-6.35},length:19,
   obstacles:[{id:'pillar-a',minX:-2,maxX:-.6,minZ:-2,maxZ:-.6},{id:'pillar-b',minX:2.5,maxX:3.9,minZ:2,maxZ:3.4}],
   props:[
     // The obstacle course: crate stacks and strewn chairs between the reel and the lamp, to drag

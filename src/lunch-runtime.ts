@@ -30,6 +30,7 @@ export class LunchRuntime {
   // Assigned by the build* helpers called from the constructor.
   thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenLight!:T.PointLight;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
   liftRope!:T.Mesh;alerts=new Map<string,T.Sprite>();scars:{mark:T.Object3D;life:number;at:T.Vector3}[]=[];wetAt?:Point;
+  maxTemperature=0;
   lamps=new Map<string,{bulb:T.Mesh;glow:T.Sprite;light:T.PointLight}>();
   constructor(public game:Game){
     game.ropeMesh.visible=false;game.plug.visible=false;game.target.visible=false;if(game.screen)game.screen.visible=false;
@@ -156,6 +157,31 @@ export class LunchRuntime {
     return false;
   }
   inStore(p:Point){return p.x< -7.8&&p.z<0;}
+  /** Text prompt for the key that does something useful here (mirrors interact()). */
+  promptAt():{key:string;text:string}|null{
+    const g=this.game,pos=g.player.translation(),names:Record<string,string>={a:'cart A',b:'cart B',kitchen:'kitchen power post',fridge:'fridge',conveyor:'conveyor motor',lift:'lift winch'};
+    const portName=(id:string)=>names[id]??'splitter';
+    if(g.held){const id=g.held.spec.id;
+      if(id==='mop')return {key:'E',text:this.water>.1?'Stand in the leak to mop it up  ·  E puts the mop down':'Put the mop down'};
+      if(id==='wedge')return {key:'E',text:distance(pos,{x:0,z:.5})<2.4?'Wedge the door open':'Carry the doorstop to the kitchen door'};
+      if(id==='cooler-box')return {key:'E',text:'Carry it to the fridge to cool the lunch'};
+      if(id==='tray')return {key:'E',text:distance(pos,{x:0,z:-7})<2?'Put the tray on the conveyor':'Carry the tray to the start of the conveyor'};
+      if(id==='capacitor')return {key:'E',text:distance(pos,{x:12,z:-4.8})<2.2?'Park it by the lift winch':'Push the capacitor cart to the lift winch'};
+      return null;}
+    if(this.held){const {cable,end}=this.held,other=(1-end) as 0|1;
+      const target=this.ports.filter(p=>Math.min(distance(pos,p.pos)-.3,distance(cable.ends[end],p.pos))<1.4&&p.id!==cable.ports[other]).sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];
+      if(target)return {key:'F',text:`Plug into the ${portName(target.id)}`};
+      return cable.rope.strain>.97?{key:'Q',text:'Let go to slingshot the cable'}:{key:'F',text:'Drop the cable end'};}
+    const trip=this.ports.find(p=>(p.id==='a'||p.id==='b')&&distance(pos,p.pos)<2&&this.circuit.sources.find(s=>s.id===p.id)!.tripped);
+    if(trip)return {key:'E',text:`Reset the tripped breaker on ${portName(trip.id)}`};
+    if(this.job.tray==='baked'&&distance(pos,this.prop('tray')!.body.translation())<1.65)return {key:'E',text:'Pick up the baked tray'};
+    const switches:[string,Point,string][]=[['oven',{x:-2.5,z:-6.9},'oven'],['conveyor',{x:5,z:-5},'conveyor'],['lift',{x:12,z:-4.8},'lift'],['store-lamp',{x:-10,z:-3},'storeroom lamp']];
+    const sw=switches.find(([,p])=>distance(pos,p)<1.25);
+    if(sw){const load=this.circuit.loads.find(l=>l.id===sw[0])!;return {key:'E',text:`Switch the ${sw[2]} ${load.enabled?'off':'on'}`};}
+    const nearby=this.cables.flatMap(c=>[0,1].map(end=>({c,d:distance(pos,c.ends[end])}))).filter(v=>v.d<1.75).sort((a,b)=>a.d-b.d)[0];
+    if(nearby)return {key:'F',text:nearby.c.lead.dead?'Repair the burned cable (costs 15)':`Pick up the ${nearby.c.rating>3?'thick':'thin'} cable end`};
+    return null;
+  }
   /** Letting go of a stretched cable slingshots props lying along it back toward its anchor. */
   release(){if(!this.held)return;const {cable,end}=this.held,energy=cable.rope.release(),g=this.game;
     if(energy>1){g.shake=Math.min(.5,energy*.006);g.audio.tone(90,.3,.1,'sawtooth');g.alarm(cable.ends[end],6);const anchor=cable.ends[(1-end) as 0|1];
@@ -222,6 +248,7 @@ export class LunchRuntime {
       if(event.kind==='start')g.audio.tone(event.id==='lift'?180:260,.15,.03,'triangle');
     }
     this.eventIndex=this.circuit.events.length;
+    this.maxTemperature=Math.max(this.maxTemperature,this.job.temperature);
     this.job.tick(dt,{oven:this.powered('oven'),fridge:this.powered('fridge'),conveyor:this.powered('conveyor'),lift:this.powered('lift')});
     const tray=this.prop('tray')!;
     if(this.job.tray==='baked'&&!tray.mesh.visible){tray.mesh.visible=true;tray.body.setEnabled(true);tray.body.setTranslation({x:-2.5,y:1,z:-6.4},true);g.audio.bell(1319,.8,.06);g.audio.bell(1760,.8,.04,.12);g.burst({x:-2.5,y:1.2,z:-6.6},'#fffaf0',8,'dust');}

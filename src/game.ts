@@ -39,7 +39,7 @@ interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];lastHeading=0;twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:PipRig;stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];switchedOn=false;flung=false;lastHeading=0;twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:PipRig;stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
@@ -177,8 +177,11 @@ export class Game {
       else if(p.spec.id==='coupler'&&distance(pos,this.plugPosition)<2){this.coupler=true;this.consume(p);this.audio.plug();}
       p.body.setLinvel({x:0,y:0,z:0},true);p.body.setAngvel({x:0,y:0,z:0},true);
       this.lunch?.dropped(p);
+      if(p.spec.id==='strip'&&distance(pos,this.level.target)<2.6){const t=this.level.target;p.body.setTranslation({x:t.x,y:.08,z:t.z+.3},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);this.audio.plug();this.burst({x:t.x,y:.2,z:t.z+.3},'#8ff3ea',1,'ring');}
       this.held=undefined;return;
     }
+    // Machine switch: once powered, the lamp/projector still needs switching on (E).
+    if(!cableOnly&&!this.held&&this.nearSwitch(pos)){this.switchedOn=!this.switchedOn;this.audio.noise(.03,.07,2500,'highpass');this.audio.tone(this.switchedOn?420:200,.09,.04);const s=this.level.switchAt!;this.burst({x:s.x,y:1,z:s.z},'#fff3a3',6,'spark');return;}
     const nearest=cableOnly?undefined:this.nearest();
     if(!this.lunch&&distance(pos,this.plugPosition)<1.75&&!(nearest&&this.reach(pos,nearest)<distance(pos,this.plugPosition))){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.pop();return;}
     if(cableOnly){this.shrug();return;}
@@ -187,7 +190,7 @@ export class Game {
         // The coffee bar goes dark: nearby coworkers groan.
         this.alarm({x:-13,z:4.5},4.5);for(let i=0;i<3;i++)setTimeout(()=>this.audio.voice('groan',.8+i*.15),150+i*280);return;}
       // A jammed doorstop only comes loose when deliberately picked up.
-      if(nearest.spec.id==='wedge')nearest.body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
+      if(nearest.spec.id==='wedge'||nearest.spec.id==='strip')nearest.body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
       this.held=nearest;this.audio.pop();
     }else this.shrug();
   }
@@ -202,12 +205,16 @@ export class Game {
     else{this.audio.tone(110,.22,.07,'square');part.body.applyImpulse({x:0,y:prefabs[part.spec.kind].mass*2.5,z:0},true);part.body.applyTorqueImpulse({x:0,y:0,z:.4},true);}
     return true;
   }
+  nearSwitch(pos:Point){return !this.lunch&&!this.holdingPlug&&!!this.level.switchAt&&distance(pos,this.level.switchAt)<1.9;}
+  /** The power strip must sit by the boardroom door before the reel can feed the projector. */
+  needsStrip(){return this.props.some(q=>q.spec.id==='strip');}
+  stripPlaced(){const q=this.props.find(q=>q.spec.id==='strip');return !q||(q!==this.held&&distance(q.body.translation(),this.level.target)<1.4&&q.body.translation().y<.6);}
   /** Plug-in beat: a short hit-stop, a star flash, sparks and a floor shockwave. */
   plugFlash(at:{x:number;y:number;z:number}){this.hitstop=.09;this.burst(at,'#fff3a3',16,'spark');this.burst({x:at.x,y:at.y+.35,z:at.z},'#fff3c8',1,'flash');this.burst({x:at.x,y:.05,z:at.z},'#8ff3ea',1,'ring');this.burst(at,'#ffe36e',5,'star');this.shake=Math.max(this.shake,.12);}
   consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);}
   slingshot(energy:number){
     this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.audio.noise(.2,.08,1400);this.alarm(this.plugPosition,6);
-    for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();const impulse=Math.min(energy*.22,45)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
+    for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){this.flung=true;const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();const impulse=Math.min(energy*.22,45)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
   }
   releasePlug(){
     const energy=this.rope.release();this.holdingPlug=false;
@@ -289,7 +296,7 @@ export class Game {
     if(p.y< -3){this.player.setTranslation({x:this.level.spawn.x,y:1,z:this.level.spawn.z},true);this.vertical=0;}
     // Past the deadline the meeting waits impatiently; running late only costs time grade.
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
-    if(this.lunch)this.lunch.step(dt);else{this.simulateCable();this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
+    if(this.lunch)this.lunch.step(dt);else{this.simulateCable();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
   }
   win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');const g=grade(this.time,this.damage,this.cost);
@@ -409,5 +416,5 @@ export class Game {
     };
     return {advance,walkTo};
   }
-  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),alarmed:this.npcs.filter(n=>n.alarm>0).length,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
+  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
 }

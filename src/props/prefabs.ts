@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached} from '../render/kit';
 import {screen,keyboardTex,SCREENS,type ScreenKind} from '../render/textures';
-export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong'|'bridge'|'mop'|'tray'|'lamp'|'dolly'|'supply'|'capcart'|'coolbox'|'splitter'|'plug'|'wedge'|'beanbag'|'cone';
+export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong'|'bridge'|'mop'|'tray'|'lamp'|'dolly'|'supply'|'capcart'|'coolbox'|'splitter'|'plug'|'wedge'|'beanbag'|'cone'|'strip';
 /** variant picks a dressing (desk clutter, monitor screen); desks add 10 when the chair is on -z. */
 export interface PropSpec {kind:PropKind;x:number;z:number;y?:number;color?:string;rotation?:number;id?:string;variant?:number}
 export interface Prefab {size:[number,number,number];mass:number;cost:number;color:string}
@@ -23,7 +23,7 @@ export const prefabs:Record<PropKind,Prefab>={
   supply:{size:[1.7,1.3,1.1],mass:40,cost:120,color:'#f2b93b'},capcart:{size:[1.6,1.2,1.0],mass:20,cost:150,color:'#3f7fd6'},
   coolbox:{size:[1.0,.6,.65],mass:6,cost:30,color:'#e9f0f2'},splitter:{size:[.5,.24,.4],mass:.6,cost:6,color:'#ffc94d'},
   plug:{size:[.3,.22,.22],mass:.2,cost:0,color:INK},wedge:{size:[.8,.35,.5],mass:2,cost:5,color:'#ffc94d'},
-  beanbag:{size:[.9,.6,.9],mass:4,cost:20,color:'#ffc94d'},cone:{size:[.5,.62,.5],mass:1,cost:3,color:'#ff8a3d'}
+  beanbag:{size:[.9,.6,.9],mass:4,cost:20,color:'#ffc94d'},cone:{size:[.5,.62,.5],mass:1,cost:3,color:'#ff8a3d'},strip:{size:[.9,.14,.26],mass:1.2,cost:8,color:'#ff8a3d'}
 };
 const templates=new Map<string,T.Group>();
 /** Returns a copy of the prop's model; copies share geometry and materials so they batch. */
@@ -99,6 +99,7 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       for(let i=0;i<9;i++)part(g,box(.14,.14,.02),toon(CHAIRC[i%6]),-w*.3+(i%3)*.2,-.05+Math.floor(i/3)*.33,d/2+.03,false);break;
     case 'cooler':part(g,rbox(w*.85,h*.75,w*.85,.06),m,0,bottom+h*.375);part(g,cyl(.2,.2,h*.3,16),toon('#8fd0f0',{opacity:.8}),0,h/2-h*.15,0,false);break;
     case 'beanbag':part(g,sphere(.5,16,12),m).scale.set(.9,.6,.9);break;
+    case 'strip':part(g,rbox(w,h,d,.05),m);for(let k=0;k<4;k++){part(g,rbox(.13,.02,.13,.03),toon('#fff6e6'),-.3+k*.19,h/2+.005,0,false);part(g,box(.02,.012,.05),toon(INK),-.33+k*.19,h/2+.02,0,false);part(g,box(.02,.012,.05),toon(INK),-.27+k*.19,h/2+.02,0,false);}part(g,cyl(.03,.03,.04,10),toon('#e5484d'),w/2-.06,h/2+.02,0);break;
     case 'cone':part(g,box(.5,.05,.5),m,0,bottom+.025);part(g,cyl(.03,.22,.56,14),m,0,.03);part(g,cyl(.12,.15,.1,14),toon('#fff6e6'),0,.06);break;
     case 'pingpong':
       part(g,rbox(w,.06,d,.04),m,0,h/2-.03);part(g,box(.04,.16,d),toon('#f4efe6'),0,h/2+.08);

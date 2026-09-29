@@ -5,4 +5,6 @@ import type {Accessory,Mood} from '../render/actors';
 export interface NpcSpot {x:number;z:number;standing?:boolean;color?:string;acc?:Accessory[];mood?:Mood;yaw?:number;chef?:boolean}
 export type LevelId='playground'|'meeting'|'lunch';
 /** name/number/tagline appear only on the intro card; nothing in play needs reading. */
-export interface Level {id:LevelId;name:string;number:string;tagline:string;badge:string;next?:LevelId;deadline?:number;width:number;depth:number;spawn:Point;anchor:Point;target:Point;length:number;obstacles:Obstacle[];props:PropSpec[];npcs:NpcSpot[]}
+export interface Level {id:LevelId;name:string;number:string;tagline:string;badge:string;next?:LevelId;deadline?:number;
+  /** Where the machine's on/off switch is (E); it only runs once powered and switched on. */
+  switchAt?:Point;width:number;depth:number;spawn:Point;anchor:Point;target:Point;length:number;obstacles:Obstacle[];props:PropSpec[];npcs:NpcSpot[]}

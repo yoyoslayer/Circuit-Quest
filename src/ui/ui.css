@@ -190,3 +190,30 @@
 @keyframes swing{0%,100%{transform:rotate(var(--r,0deg))}50%{transform:rotate(calc(var(--r,0deg) + 2.5deg))}}
 @keyframes fadein{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){#hud *,#hud *::before,#hud *::after{animation:none!important;transition:none!important}}
+
+/* ---------- objectives (job card, key prompt, bonus stars) ---------- */
+.objective{position:absolute;left:calc(var(--inset) + var(--safe-l));top:calc(128px + var(--safe-t));width:min(360px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:22px;pointer-events:none;font-size:15px;line-height:1.25;color:var(--ink)}
+.objective h3{margin:0 0 8px;font-size:17px;font-weight:700;font-stretch:104%}
+.objective h3 small{display:block;font-size:11px;letter-spacing:.14em;color:var(--ink-2);margin-bottom:2px}
+.objective ol{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.objective li{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start}
+.objective li i{width:14px;height:14px;margin-top:2px;border-radius:50%;border:2.5px solid var(--ink-2)}
+.objective li.done{color:var(--muted)}.objective li.done span{text-decoration:line-through}
+.objective li.done i{background:var(--live);border-color:var(--live)}
+.objective li.now{font-weight:700}.objective li.now i{border-color:var(--ink);background:var(--hat);animation:nowpulse 1.2s ease-in-out infinite alternate}
+.objective li.todo{color:var(--ink-2);opacity:.75}
+.objective li.flash{animation:stepdone .9s ease-out}
+.objective .bonus{list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:2px dashed var(--paper-3);display:grid;gap:3px;font-size:13px}
+.objective .bonus li{grid-template-columns:18px 1fr;color:var(--ink-2)}
+.objective .bonus li i,.result-bonus li i{border:0;width:auto;height:auto;margin:0;font-style:normal;color:var(--paper-3);background:none;animation:none}
+.objective .bonus li.ok i,.result-bonus li.ok i{color:var(--gold,#ffc53d);text-shadow:0 1px 0 var(--ink)}
+@keyframes nowpulse{to{transform:scale(1.25)}}
+@keyframes stepdone{0%{background:var(--hat)}100%{background:transparent}}
+.prompt-pill{position:absolute;left:50%;bottom:calc(128px + var(--safe-b));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 16px 8px 8px;border-radius:30px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:17px;font-weight:600;color:var(--ink);pointer-events:none;white-space:nowrap;animation:promptin .18s ease-out}
+.prompt-pill kbd{display:grid;place-items:center;min-width:34px;height:34px;padding:0 8px;border-radius:9px;background:var(--hat);border:var(--edge);font:inherit;font-weight:700}
+@keyframes promptin{from{opacity:0;transform:translate(-50%,6px)}}
+.result-bonus{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px;font-size:15px;font-weight:600}
+.result-bonus li{display:flex;gap:8px;align-items:center}.result-bonus li.miss{opacity:.55}
+body[data-screen="play"] .won .objective,body[data-screen="play"] .won .prompt-pill{display:none}
+@media (max-width:700px){.objective{top:calc(96px + var(--safe-t));font-size:13px;padding:10px 12px}.objective .bonus{display:none}.prompt-pill{bottom:calc(250px + var(--safe-b));font-size:14px;white-space:normal;max-width:calc(100vw - 32px)}}
+@media (prefers-reduced-motion:reduce){.objective li.now i,.prompt-pill{animation:none}}

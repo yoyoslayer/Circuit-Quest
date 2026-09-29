@@ -14,7 +14,7 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
 Verification on the last commit: `npm run build`, `npm test` (19 unit tests) and
-`npm run smoke` (21 browser tests) all pass. Browser tests run twice in a row with
+`npm run smoke` (23 browser tests) all pass. Browser tests run twice in a row with
 identical results (simulation is deterministic in `?manual` mode).
 
 ## Visual and UI overhaul (after product-owner feedback)
@@ -110,8 +110,39 @@ boardroom), 24 blob coworkers, a server closet with racks and the one live outle
 **Look.** Toon renderer (3-step ramp, dark outlines, ACES), with prop models and set
 dressing ported from `reference/render_kit` so the floors match the concept frames.
 
-**No text needed to play.** The HUD is icons, rings and meters. Words appear only on the
-intro card (title, level name, tagline).
+**On-screen objectives (product-owner override).** The product owner found the
+wordless HUD made the goal hard to read and asked for "a bit of text on the screen
+saying what to do". This overrides the AGENTS.md rule "no text needed to play".
+`src/ui/objectives.ts` adds:
+
+- a job card (top left) with ordered steps that tick off with a bell, and three
+  bonus goals per level that show on the result card;
+- a prompt pill above the action bar naming what the key in reach does
+  ("F Plug in", "E Grab the power strip", "Q Let go to slingshot the cable");
+- a bouncing marker over whatever the current step needs.
+
+Lunch Rush has seven steps, so its card shows only the done count, the current step
+and the next one.
+
+## Art, lighting, rig and extra steps (second product-owner pass)
+
+- **Higher poly.** Kit boxes are rounded and bevelled, cylinders and spheres have
+  twice the segments, and the coworker blobs are smoother. Pip is rebuilt in Blender
+  (`tools/create_assets.py`) with 43 named parts: nose, ears, glints, cheeks, lamp
+  on the hard hat, cuffs, soles, thumbs, belt, pocket and badge.
+- **Lighting.** Soft-cel ramp (`?hardcel` restores the 3-step ramp), soft PCF shadows,
+  a warmer key, a cool fill, a pink rim and a warm-ground hemisphere per level.
+- **Rig.** `src/render/pipRig.ts` replaces the part-swing animation. It gives Pip:
+  - hips, torso, head and hat pivots;
+  - a stride and arm swing that lengthen when running;
+  - a torso counter-twist and a lean into turns;
+  - poses for carrying, hauling a taut cable, jumping, cheering and waving;
+  - a head that glances at the nearest usable thing;
+  - blinks, and a hard hat on a spring.
+- **More steps.** Both office levels now end with a wall switch: plugging in powers the
+  load, then Pip switches it on (E). In Big Meeting the boardroom socket is dead
+  until Pip carries the power strip from beside the printer to the boardroom door; it
+  snaps into place there.
 
 ## Performance
 
@@ -129,7 +160,7 @@ mesh each. Not yet measured on a real integrated-GPU laptop.
 ## Not verifiable here
 
 - M1 exit: "dragging the cable around pillars is fun for 5 minutes" needs a human.
-- M3: a blind playtest (a new player finishes in under 5 minutes without text).
+- M3: a blind playtest (a new player finishes in under 5 minutes).
 - 60 fps on real mid-range laptop hardware (only CPU throttling was emulated).
 
 ## Decisions taken without the product owner

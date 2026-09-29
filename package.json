@@ -9,7 +9,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "smoke": "playwright test",
-    "assets": "powershell -NoProfile -File tools/build-assets.ps1"
+    "assets": "node tools/build-assets.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

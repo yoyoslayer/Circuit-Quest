@@ -32,9 +32,10 @@ Rush. `?level=<id>` opens that job directly; `?lowfx` turns off the expensive ef
 | `npm run build` | Strict type check + production build |
 | `npm test` | Vitest: cable wrapping, electrical graph, grading, lunch job |
 | `npm run smoke` | Playwright: smoke tests plus every level route and Lunch Rush rule |
-| `npm run assets` | Rebuild Pip (`public/models/pip.glb`) with Blender |
+| `npm run assets` | Rebuild Pip (`public/models/pip.glb` and `pip.blend`) with Blender 5.x (`$BLENDER` or PATH) |
 | `node tools/perf.mjs` | Frame timing on the host GPU (`THROTTLE=4` emulates a mid laptop CPU) |
 | `node tools/shot.mjs [level]` | GPU screenshots into `artifacts/` |
+| `tools/debug/*.mjs` | Error catcher, pose logger, crops and scripted scene shots |
 
 Browser tests open levels with `?manual`, which advances simulated time only when a
 test asks, so routes are deterministic even under software rendering.
@@ -43,6 +44,8 @@ test asks, so routes are deterministic even under software rendering.
 
 | Path | What |
 |---|---|
+| `docs/HANDOFF_TO_CODEX.md` | Current state, Linux setup, where things live, what is open |
+| `docs/screenshots/` | Screenshots of the current build |
 | `AGENTS.md` | Hard rules, stack, done criteria (Codex reads this automatically) |
 | `docs/GAME_DESIGN.md` | Current design (wins over older docs) |
 | `docs/LEVEL_01_BIG_MEETING.md` | First level spec |

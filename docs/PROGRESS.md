@@ -13,8 +13,8 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M4 Juice | Done | Sounds, particles, shake, squash/stretch, coworker reactions |
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
-Verification on the last commit: `npm run build`, `npm test` (19 unit tests) and
-`npm run smoke` (23 browser tests) all pass. Browser tests run twice in a row with
+Verification on the last commit: `npm run build` and `npm test` (142 unit tests) pass,
+and `npm run smoke` passes (see below for the latest browser-suite count). Browser tests run twice in a row with
 identical results (simulation is deterministic in `?manual` mode).
 
 ## Visual and UI overhaul (after product-owner feedback)
@@ -143,6 +143,44 @@ and the next one.
   load, then Pip switches it on (E). In Big Meeting the boardroom socket is dead
   until Pip carries the power strip from beside the printer to the boardroom door; it
   snaps into place there.
+
+## Stations, the HQ lobby and the Workshop (third product-owner pass)
+
+The product owner pointed out that many rooms and ideas from the brainstorm and the
+original mission catalogue were missing. The audit, the decisions and the pattern every
+station follows are in `docs/EXPANSION_PLAN.md`.
+
+**HQ lobby** (`src/hub/lobby.ts`, the bare URL):
+- Every job is a door in its wing colour, showing its number, name and best medal.
+- A lamp over the door lights once the job is done.
+- Via Rush stays locked until the Via Counter is finished.
+- The **Workshop** arch practises any station with `&practice`, which is never recorded.
+
+**Bench mode** (in `src/game.ts`): walk to the bench and press E. The camera eases onto the
+tabletop, the station takes the pointer and keys, and E or Esc steps back.
+
+| # | Station | Room | What it teaches |
+|---|---|---|---|
+| 03 | `vias` | Via Foundry | Through, buried, micro, via-in-pad and stitching vias; plating aspect ratio, annular ring and lamination order. `vias-rush` is a timed queue of generated orders. |
+| 04 | `qfn` | Fabrication Bay | Placement before routing; no crossings on one layer; decoupling loop length; a second layer, vias and thermal vias. |
+| 05 | `archive` | The Archive | Datasheets: typical vs guaranteed vs recommended vs absolute maximum; test conditions; ordering suffixes (the freezer twist). |
+| 06 | `waterworks` | The Waterworks | Thevenin and Norton equivalents found by measurement at two ports, then named as a circuit. The pipe analogy is labelled. |
+| 07 | `observatory` | Signal Observatory | RC and LC filters on a live scope; an inductor carries DC and opposes changes in current; a DC latch must hold; quarter-wave antenna (c = fλ). |
+| 08 | `arcade` | Overheating Arcade | LED series resistor, P = I²R against the rating, polarity, the parallel-resistor trap, battery life, base resistor. |
+| 09 | `garage` | Robot Garage | Inductive kickback, flyback diode vs zener or TVS clamp and stop time, polarity, why a capacitor doesn't fix it, star ground. |
+| 10 | `clockwork` | Clockwork Kitchen | Internal RC vs resonator vs crystal; integer dividers; accumulated timing error; temperature drift; clock-line noise. |
+| 11 | `depot` | Delivery Depot | Voltage, current and power with trucks that are never used up; open socket vs closed loop; rail drop; short and breaker; meter-only transfer. |
+| 12 | `spectrum` | Spectrum Delivery | Propagation through brick, glass, metal, mesh and smoke; mirrors; detector matching; link margin; c = fλ. |
+
+Each station has:
+- rules as pure functions with unit tests;
+- a solver that proves every job is solvable and defines the elegant answer;
+- a physical first step in its room;
+- works / reliable / elegant tiers and three bonus goals;
+- a full browser playthrough plus a recoverable-mistake test.
+
+The stations were built by parallel agents from one brief and reviewed on screenshots
+before merging.
 
 ## Performance
 

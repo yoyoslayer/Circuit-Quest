@@ -39,19 +39,19 @@ lists everything that is missing and the order it gets built in.
 | Idea | Source | Status |
 |---|---|---|
 | Cable floors: Playground, Big Meeting, Lunch Rush (capacitor cart, brownout) | GAME_DESIGN, MISSIONS 01/03 | Built |
-| **Via service counter**: pictorial orders at a hatch; drill, plate, set the ring, fill/cap, test, serve | brainstorm 2, MISSIONS 09 | Missing |
-| **QFN parking puzzle**: grid bench, slide and rotate parts, draw traces, second layer and vias, decoupling placement, thermal pad | brainstorm 1, MISSIONS 10 | Missing |
-| **Datasheet detective desk**: search documents, bookmark evidence, typical vs guaranteed vs absolute max, a part that fails when installed | brainstorm 3, MISSIONS 11 | Missing |
-| **Thevenin/Norton waterworks**: hidden pipe network with two ports, test loads, build an equivalent cart, reveal the circuit | brainstorm 4, MISSIONS 05 | Missing |
-| **Signal observatory**: garbled message, scope, filter modules, antenna, spectrum exhibits | brainstorm 5, MISSIONS 06/07 | Missing |
-| **Clockwork kitchen**: internal vs external oscillator, drift causes bad cook cycles | brainstorm, MISSIONS 08 | Missing |
-| **Overheating arcade**: pick an LED/motor current-limiting resistor; brightness, temperature, battery life, resettable fuses | brainstorm, MISSIONS 02 | Missing |
-| **Robot garage**: motor resets its controller on shutdown; diagnose the transient and add protection | brainstorm | Missing |
-| **Delivery depot**: voltage as energy per charge, current as charge per second, power as their product; trucks plus gauges | brainstorm, MISSIONS 04 | Missing |
-| **Spectrum delivery**: move a signal past obstacles; choose transmitter, detector and optical path | brainstorm, MISSIONS 07 | Missing |
-| Building lobby with wings that unlock as jobs are finished | GAME_VISION | Missing (job board only) |
-| Free Workshop mode (try parts, no penalties) | brainstorm, GAME_VISION "Open Lab" | Missing |
-| Rush mode per station, unlocked once the station is understood | brainstorm, "Crew Rush" | Missing |
+| **Via service counter**: pictorial orders at a hatch; drill, plate, set the ring, fill/cap, test, serve | brainstorm 2, MISSIONS 09 | Built (`vias`, plus `vias-rush`) |
+| **QFN parking puzzle**: grid bench, slide and rotate parts, draw traces, second layer and vias, decoupling placement, thermal pad | brainstorm 1, MISSIONS 10 | Built (`qfn`) |
+| **Datasheet detective desk**: search documents, bookmark evidence, typical vs guaranteed vs absolute max, a part that fails when installed | brainstorm 3, MISSIONS 11 | Built (`archive`) |
+| **Thevenin/Norton waterworks**: hidden pipe network with two ports, test loads, build an equivalent cart, reveal the circuit | brainstorm 4, MISSIONS 05 | Built (`waterworks`) |
+| **Signal observatory**: garbled message, scope, filter modules, antenna, spectrum exhibits | brainstorm 5, MISSIONS 06/07 | Built (`observatory`) |
+| **Clockwork kitchen**: internal vs external oscillator, drift causes bad cook cycles | brainstorm, MISSIONS 08 | Built (`clockwork`) |
+| **Overheating arcade**: pick an LED/motor current-limiting resistor; brightness, temperature, battery life, resettable fuses | brainstorm, MISSIONS 02 | Built (`arcade`) |
+| **Robot garage**: motor resets its controller on shutdown; diagnose the transient and add protection | brainstorm | Built (`garage`) |
+| **Delivery depot**: voltage as energy per charge, current as charge per second, power as their product; trucks plus gauges | brainstorm, MISSIONS 04 | Built (`depot`) |
+| **Spectrum delivery**: move a signal past obstacles; choose transmitter, detector and optical path | brainstorm, MISSIONS 07 | Built (`spectrum`) |
+| Building lobby with wings that unlock as jobs are finished | GAME_VISION | Built (`src/hub/lobby.ts`): doors, medals, wing lamps, rush locked until the counter is done |
+| Free Workshop mode (try parts, no penalties) | brainstorm, GAME_VISION "Open Lab" | Built: Workshop arch in the lobby, `&practice` runs are never recorded |
+| Rush mode per station, unlocked once the station is understood | brainstorm, "Crew Rush" | Built for the via counter (`vias-rush`); other stations later |
 | Grand Reopening capstone | MISSIONS 12 | Later |
 | Drop-in co-op | brainstorm | Excluded by the solo-only rule |
 

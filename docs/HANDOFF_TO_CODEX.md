@@ -6,13 +6,23 @@ it, read `docs/PROGRESS.md` (what works, decisions taken, what is still unverifi
 
 ## State in one paragraph
 
-All three levels are playable end to end: Cable Playground (tutorial), The Big Meeting and
-Lunch Rush. The build, 19 unit tests and 23 browser tests pass. Each browser test plays a
-level's route through deterministically in `?manual` mode. The latest product-owner request
-has been delivered in full: higher-poly art, better lighting, a better Pip rig, more steps
-per level, and on-screen objective text. The text overrides the original "no text" rule;
-see AGENTS.md rule 2 and `docs/PROGRESS.md`. Screenshots of the current build are in
-`docs/screenshots/`.
+The game has 15 levels.
+- **The HQ lobby** (bare URL). A walkable atrium with a door per job and a Workshop arch
+  for practice runs.
+- **Three cable floors:** Cable Playground, Big Meeting and Lunch Rush.
+- **Eleven station jobs** played at benches in their own rooms:
+  - Via Counter, plus Via Rush;
+  - QFN bench, Archive, Waterworks and Signal Observatory;
+  - Overheating Arcade, Robot Garage, Clockwork Kitchen, Delivery Depot and Spectrum
+    Delivery.
+
+The product owner asked for these in the third pass. The audit, the decisions and the
+station pattern are in `docs/EXPANSION_PLAN.md`; the table in `docs/PROGRESS.md` says
+what each station teaches.
+
+Unit tests cover every station's rules and solver. Each job has a browser playthrough in
+`?manual` mode. On-screen objective text is a product-owner override of the original
+"no text" rule (AGENTS.md rule 2). Screenshots are in `docs/screenshots/`.
 
 ## Setting up on Linux
 
@@ -46,14 +56,22 @@ npm run dev                              # http://127.0.0.1:5173
 | Pip model and rig | `tools/create_assets.py` (Blender), `src/render/pipRig.ts` |
 | Toon look, lights per level, post effects | `src/render/toon.ts`, `src/render/post.ts`, `src/render/kit.ts` |
 | Coworkers, particles, audio | `src/render/actors.ts`, `particles.ts`, `audio.ts` |
-| HUD, screens, objectives card and key prompts | `src/ui/` (`objectives.ts` holds each level's steps and bonus goals) |
+| HUD, screens, objectives card and key prompts | `src/ui/` (`objectives.ts` holds the cable floors' steps; stations supply their own `job`) |
+| Station framework and bench mode | `src/stations/types.ts`, `src/stations/index.ts`, bench code in `src/game.ts` (search `atBench`) |
+| Each station | `src/stations/<id>/` (`logic.ts` + tests, `station.ts`, `room.ts`), `src/levels/<id>.ts`, `tests/station-<id>.spec.ts` |
+| HQ lobby and Workshop | `src/hub/lobby.ts`, `src/levels/lobby.ts` |
 | Browser tests and their drive helpers | `tests/*.spec.ts`, `tests/navigation.ts` |
 | Design reviews, mockups, QA pass | `mockups/review`, `mockups/review2`, `mockups/ui`, `mockups/look`, `mockups/qa/QA.md` |
 
 The test hook: in `?manual` mode, `window.__circuitCrew` exposes `snapshot()` and
 `drive.walkTo()` / `drive.advance()`. Time only moves when a test advances it.
 
-## Adding a step to a level
+## Adding a station
+
+Follow "How to build a station" in `docs/EXPANSION_PLAN.md`. Registering the level adds its lobby
+door automatically.
+
+## Adding a step to a cable level
 
 1. Add the mechanic in `src/game.ts`, or `src/lunch-runtime.ts` for Lunch Rush.
 2. Add the step to `JOBS` in `src/ui/objectives.ts`. Give it `done(g)` and, optionally,
@@ -70,6 +88,8 @@ The test hook: in `?manual` mode, `window.__circuitCrew` exposes `snapshot()` an
 - **Not built yet** (BUILD_PLAN's "not now" list): a level hub beyond the job board, more
   floors, a WebGPU renderer, remapping and accessibility options, and save data. Only best
   grades and the mute setting persist.
+- Rush mode for the other stations. Only the via counter has one, as `vias-rush`.
+- Co-op is deliberately out of scope (solo only).
 - Anything new the product owner asks for: they review from screenshots and a zip, so
   send visuals with each change.
 

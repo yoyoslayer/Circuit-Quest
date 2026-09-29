@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {toon} from '../render/toon';
-export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong';
+export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong'|'bridge'|'mop'|'tray'|'lamp'|'dolly';
 export interface PropSpec {kind:PropKind;x:number;z:number;y?:number;color?:string;rotation?:number;id?:string}
 export interface Prefab {size:[number,number,number];mass:number;cost:number;color:string}
 export const prefabs:Record<PropKind,Prefab>={
@@ -14,7 +14,7 @@ export const prefabs:Record<PropKind,Prefab>={
   glass:{size:[.12,2.6,2.5],mass:7,cost:250,color:'#98c8cd'},printer:{size:[.85,1.0,.75],mass:15,cost:200,color:'#d7daca'},
   whiteboard:{size:[1.7,1.7,.2],mass:9,cost:65,color:'#eee8d1'},bookshelf:{size:[2,1.8,.45],mass:24,cost:90,color:'#c79b69'},
   vending:{size:[1,2,.8],mass:45,cost:300,color:'#bd5f68'},cooler:{size:[.6,1.25,.6],mass:9,cost:75,color:'#c5dfe0'},
-  pingpong:{size:[2.6,.9,1.5],mass:18,cost:80,color:'#418c73'}
+  pingpong:{size:[2.6,.9,1.5],mass:18,cost:80,color:'#418c73'},bridge:{size:[1.8,.18,1.0],mass:3,cost:10,color:'#edc34b'},mop:{size:[.6,1.5,.22],mass:1,cost:5,color:'#79bcb3'},tray:{size:[.8,.15,.5],mass:1,cost:10,color:'#edba76'},lamp:{size:[.65,1.5,.65],mass:3,cost:20,color:'#f3d491'},dolly:{size:[1.0,.65,.8],mass:30,cost:40,color:'#eab841'}
 };
 const cube=new T.BoxGeometry(1,1,1),ball=new T.SphereGeometry(1,12,8),cylinder=new T.CylinderGeometry(1,1,1,16);
 function part(g:T.Group,shape:T.BufferGeometry,size:number[],pos:number[],color:string){const m=new T.Mesh(shape,toon(color));m.scale.set(size[0],size[1],size[2]);m.position.set(pos[0],pos[1],pos[2]);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;}
@@ -34,6 +34,17 @@ export function makeProp(kind:PropKind,color?:string):T.Group{
   }else if(kind==='reel'){
     for(const z of [-.23,.23])part(g,cylinder,[.35,.065,.35],[0,0,z],c).rotation.x=Math.PI/2;
     part(g,cylinder,[.24,.4,.24],[0,0,0],'#3c4659').rotation.x=Math.PI/2;
+  }else if(kind==='cart'||kind==='dolly'){
+    part(g,cube,[w,.15,d],[0,-h*.2,0],c);for(const x of [-w*.37,w*.37])for(const z of [-d*.35,d*.35])part(g,ball,[.12,.12,.12],[x,-h/2+.1,z],'#3a4256');
+    part(g,cube,[.08,h,d],[w*.45,0,0],'#74818d');if(kind==='dolly'){const reel=makeProp('reel');reel.position.y=.13;g.add(reel);}
+  }else if(kind==='lamp'){
+    part(g,cylinder,[.28,.1,.28],[0,-.7,0],'#526579');part(g,cylinder,[.045,1.2,.045],[0,-.1,0],'#617184');part(g,ball,[.32,.2,.32],[0,.55,0],c);
+  }else if(kind==='mop'){
+    part(g,cylinder,[.035,1.4,.035],[0,.05,0],'#ceac77');part(g,cube,[.6,.12,.22],[0,-.68,0],c);
+  }else if(kind==='bridge'){
+    part(g,cube,[w,h,d],[0,0,0],c);for(let x=-.7;x<.8;x+=.3)part(g,cube,[.12,.012,d],[x,h/2+.007,0],'#3a4256');
+  }else if(kind==='tray'){
+    part(g,cube,[w,.08,d],[0,-.03,0],'#727e8a');for(const x of [-.23,0,.23])part(g,ball,[.09,.08,.15],[x,.04,0],c);
   }else if(kind==='mug'||kind==='bin'){
     part(g,cylinder,[w/2,h,w/2],[0,0,0],c);part(g,cylinder,[w*.36,.012,w*.36],[0,h/2+.002,0],'#38424a');
   }else if(kind==='sofa'){

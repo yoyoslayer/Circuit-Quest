@@ -25,3 +25,7 @@ test('office contains over 300 physics props and renders without errors',async({
   expect(state.props).toBeGreaterThanOrEqual(300);expect(errors).toEqual([]);
   await page.screenshot({path:'artifacts/meeting.png'});
 });
+test('Lunch Rush boots with two supplies, four cables and a warming fridge',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/?level=lunch');await expect(page.locator('body')).toHaveAttribute('data-ready','true');await page.getByRole('button',{name:'Start playing'}).click();await page.waitForTimeout(2000);
+  const state=await page.evaluate(()=>(window as any).__circuitCrew.snapshot());expect(state.lunch.sources).toHaveLength(2);expect(state.lunch.cables).toHaveLength(4);expect(state.lunch.loads).toHaveLength(6);expect(errors).toEqual([]);await page.screenshot({path:'artifacts/lunch.png'});
+});

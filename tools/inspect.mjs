@@ -7,5 +7,6 @@ await page.waitForSelector('body[data-ready="true"]');
 await page.getByRole('button',{name:'Start playing'}).click();
 await page.waitForTimeout(5000);
 console.log(JSON.stringify(await page.evaluate(()=>window.__circuitCrew.snapshot()),null,2));
+console.log(await page.evaluate(()=>{const gl=document.querySelector('canvas').getContext('webgl2');const ext=gl.getExtension('WEBGL_debug_renderer_info');return ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'Renderer information unavailable';}));
 await page.screenshot({path:'artifacts/meeting-hardware.png'});
 await browser.close();

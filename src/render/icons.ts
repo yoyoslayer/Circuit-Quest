@@ -1,4 +1,9 @@
 const paths:Record<string,string>={
+  tray:'<path d="M3 16h18v4H3v-4Zm3 0a6 6 0 0 1 12 0M12 8V5"/>',
+  oven:'<rect x="3" y="3" width="18" height="19" rx="2"/><path d="M3 8h18M7 5h1m4 0h1m4 0h1M7 12h10v6H7v-6Z"/>',
+  conveyor:'<rect x="2" y="11" width="20" height="7" rx="3"/><path d="M7 11V5h9v6M6 14v1m6-1v1m6-1v1M5 18v3m14-3v3"/>',
+  lift:'<path d="M4 22V3h16v19M7 18h10v3H7v-3Zm5-2V6m-3 3 3-3 3 3"/>',
+  thermometer:'<path d="M9 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0Zm3-6v9m5-11h3m-3 4h3"/>',
   plug:'<path d="M9 3v5m6-5v5M7 8h10v5a5 5 0 0 1-10 0V8Zm5 10v4"/>',
   hand:'<path d="M8 12V6a2 2 0 0 1 3 0v4-6a2 2 0 0 1 3 0v6-4a2 2 0 0 1 3 0v6-2a2 2 0 0 1 3 0v6c0 4-3 6-7 6-3 0-5-2-7-5l-3-4a2 2 0 0 1 3-2l2 2Z"/>',
   throw:'<path d="m4 18 6-6m-6 0v6h6M9 8c7-8 11-3 11 5m-3-3 3 3 2-4"/>',

@@ -1,7 +1,7 @@
 import type {Level} from './types';
 import type {PropSpec} from '../props/prefabs';
 const props:PropSpec[]=[],npcs:{x:number;z:number}[]=[];
-for(const [px,pz] of [[-6,-4.5],[-1,-4.5],[4,-4.5],[-6,1.5],[-1,1.5],[4,1.5],[-6,7],[-.8,7]]){
+for(const [px,pz] of [[-6,-4.5],[-1,-4.5],[4,-4.5],[-6,1.5],[-1,1.5],[4,1.5],[-6,7.6],[-.8,7.6]]){
   for(const dx of [-.85,.85])for(const dz of [-.48,.48]){
     const x=px+dx,z=pz+dz;props.push({kind:'desk',x,z});
     props.push({kind:'monitor',x,z:z+(dz<0?.17:-.17),y:1.2,rotation:dz<0?Math.PI:0});

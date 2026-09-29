@@ -1,6 +1,45 @@
-# Circuit Crew — Codex handoff
+# Circuit Crew
 
-Unzip into the root of the `Circuit-Quest` repo, then tell Codex: **"Read AGENTS.md and start M0 + M1 from docs/BUILD_PLAN.md."**
+A solo physics-comedy repair game: Pip drags springy power cables through crowded
+office floors to get machines running. Truthful, simplified electricity; chaos is
+graded, never punished with failure. Status and milestone notes: `docs/PROGRESS.md`.
+
+## Play
+
+```
+npm install
+npm run dev          # http://127.0.0.1:5173
+```
+
+Levels: `?level=playground` (cable playground, default), `?level=meeting` (01 Big
+Meeting), `?level=lunch` (02 Lunch Rush). The intro card and result card also link
+between them.
+
+| Input | Keyboard / mouse | Gamepad |
+|---|---|---|
+| Move / sprint | WASD or arrows / Shift | Left stick |
+| Jump | Space | A |
+| Grab, drop, plug, flip a switch, reset a breaker | E or left click | X |
+| Pick up / plug a cable end | F | B |
+| Throw / let go of a taut cable (slingshot) | Q | Y |
+| Orbit / zoom camera | Right-drag / wheel | Right stick |
+| Pause / restart | Esc / R | Start |
+
+## Develop
+
+| Command | What |
+|---|---|
+| `npm run build` | Strict type check + production build |
+| `npm test` | Vitest: cable wrapping, electrical graph, grading, lunch job |
+| `npm run smoke` | Playwright: smoke tests plus every level route and Lunch Rush rule |
+| `npm run assets` | Rebuild Pip (`public/models/pip.glb`) with Blender |
+| `node tools/perf.mjs` | Frame timing on the host GPU (`THROTTLE=4` emulates a mid laptop CPU) |
+| `node tools/shot.mjs [level]` | GPU screenshots into `artifacts/` |
+
+Browser tests open levels with `?manual`, which advances simulated time only when a
+test asks, so routes are deterministic even under software rendering.
+
+## Handoff material
 
 | Path | What |
 |---|---|

@@ -45,6 +45,7 @@ export const MOODS:Record<string,Mood>={
   lobby:{key:['#ffeccc',2.15],fill:.5,rim:.45,hemi:.72,exposure:1.02,backdrop:['#4a4466','#2b2c48','#191a2c','rgba(255,205,150,.24)']},
   'vias-rush':{key:['#fff0d6',2.2],fill:.5,rim:.55,hemi:.72,exposure:1.03,backdrop:['#5b2f3a','#3a2433','#1d1520','rgba(255,160,140,.2)']},
   vias:{key:['#fff0d6',2.15],fill:.5,rim:.5,hemi:.72,exposure:1.02,backdrop:['#2f5b57','#233a44','#16202b','rgba(150,255,210,.18)']},
+  observatory:{key:['#fff0dc',2.1],fill:.55,rim:.55,hemi:.7,exposure:1.02,backdrop:['#2d3570','#1d2250','#0e1233','rgba(180,165,255,.22)']},
   lunch:{key:['#ffeccc',2.2],fill:.45,rim:.5,hemi:.72,exposure:1.02,backdrop:['#4a4466','#2b2c48','#191a2c','rgba(255,205,150,.24)']},
 };
 export function createRenderer(canvas:HTMLCanvasElement) {

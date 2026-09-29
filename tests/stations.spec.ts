@@ -1,5 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot} from './navigation';
+// Whole-shift playthroughs press dozens of buttons under software rendering.
+test.describe.configure({timeout:300000});
 
 // Presses the same buttons a player clicks at the bench (drive.act).
 const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);

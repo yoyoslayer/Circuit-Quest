@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "cubic-bezier(.34, 1.56, .64, 1)",
+        "createdAt": "2026-09-29T11:13:40.770Z",
+        "reason": "Claude: deliberate press/pop overshoot specified in mockups/ui/UI.md motion spec for a toy-like cartoon game UI (Good Job! reference); disabled under prefers-reduced-motion"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "cubic-bezier(.2, 1.4, .4, 1)",
+        "createdAt": "2026-09-29T11:13:40.836Z",
+        "reason": "Claude: deliberate 'thud' landing for hanging tags and the grade stamp per mockups/ui/UI.md; cartoon game motion, disabled under reduced motion"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "wobble",
+        "createdAt": "2026-09-29T11:13:40.900Z",
+        "reason": "Claude: wobble is the spoiling-lunch icon's alarm animation (literal, domain-appropriate), UI.md"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "mockups/ui/ui.css"
+        ],
+        "createdAt": "2026-09-29T11:13:40.963Z",
+        "reason": "Claude: flagged borders are the strain meter's fill edge (.cablebar i) and the thermometer's 80% danger tick (.tube::after), not card accent tabs"
+      }
+    ]
+  }
+}

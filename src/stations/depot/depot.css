@@ -1,0 +1,15 @@
+/* Delivery Depot bench panel: device table, meter line, short warning (station-panel base in ui.css). */
+.dp-panel .dp-table{width:100%;margin:8px 0 0;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.dp-panel .dp-table th{font-weight:600;color:var(--ink-2);text-align:right;padding:0 0 2px 6px;font-size:11px;letter-spacing:.1em}
+.dp-panel .dp-table td{padding:2px 0 2px 6px;text-align:right;font-weight:600;white-space:nowrap}
+.dp-panel .dp-table td:first-child{text-align:left;padding-left:0;white-space:normal}
+.dp-panel .dp-table td small{display:block;font-size:10.5px;font-weight:500;color:var(--muted)}
+.dp-panel .dp-table tr.ok td:not(:first-child){color:#1f7a4d}
+.dp-panel .dp-table tr.no td:not(:first-child){color:#c2383d}
+.dp-panel .dp-loss{margin:4px 0 0;font-size:12px;color:var(--ink-2)}
+.dp-panel .dp-table{border-top:2px dashed var(--paper-3)}
+.dp-panel .dp-table tr:first-child th{padding-top:6px}
+.dp-panel .dp-meter,.dp-panel .dp-check,.dp-panel .dp-warn{margin:8px 0 0;font-size:12.5px}
+.dp-panel .dp-meter{padding-top:6px;border-top:2px dashed var(--paper-3)}
+.dp-panel .dp-warn{color:#c2383d;font-weight:600}
+.dp-panel .dp-check{font-weight:600}

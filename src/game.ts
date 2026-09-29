@@ -29,6 +29,8 @@ import {PipRig} from './render/pipRig';
 import {Particles,type Fx} from './render/particles';
 import {decorate,solid,type Decor} from './levels/decor';
 import {levels} from './levels';
+import {makeStation} from './stations';
+import type {Station} from './stations/types';
 
 export interface Prop {spec:PropSpec;body:RAPIER.RigidBody;collider:RAPIER.Collider;mesh:T.Group;damaged:boolean;home:T.Vector3;lastSpeed:number}
 interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.Mesh;startled:T.Mesh;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number}
@@ -48,12 +50,15 @@ export class Game {
   audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint=new T.Group();reticle=new T.Group();pipRing:T.Mesh;
   batches:Batch[]=[];decorRoot=new T.Group();
   lunch?:LunchRuntime;
+  /** Station jobs (src/stations): a bench Pip works at instead of a cable to plug in. */
+  station?:Station;atBench=false;
   // ?manual lets automated tests advance simulated time deterministically.
   manual=new URLSearchParams(location.search).has('manual');stick?:Point;
   constructor(public level:Level){
     try{const saved=Number(localStorage.getItem('circuit-crew-quality'));if(saved===0||saved===1)this.view.setQuality(saved);}catch{/* storage unavailable */}
     const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=this.homeZoom();
     this.rope=new Rope({...level.anchor},level.length);this.obstacles=[...level.obstacles];
+    if(level.station)this.station=makeStation(level.station,this);
     this.buildRoom();
     for(const spec of level.props)this.addProp(spec);
     this.batchProps();
@@ -67,6 +72,7 @@ export class Game {
     this.target=new T.Mesh(new T.TorusGeometry(.42,.07,8,28),new T.MeshBasicMaterial({color:'#64ddd4'}));this.target.rotation.x=-Math.PI/2;this.target.position.set(level.target.x,.15,level.target.z);this.root.add(this.target);
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
     const anchor=makeProp('reel');anchor.position.set(level.anchor.x,.35,level.anchor.z);this.root.add(anchor);
+    if(this.station)for(const o of [this.plug,this.target,socket,anchor])o.visible=false;
     this.ropeMesh=new T.Mesh(new T.BufferGeometry(),hoseMaterial());this.ropeMesh.castShadow=true;this.root.add(this.ropeMesh);this.pulses=new Pulses(this.root);
     // Comic twang arcs drawn where a taut cable bites a corner.
     {const m=new T.MeshBasicMaterial({color:'#fffaf0'});m.userData.outlineParameters={visible:false};for(let i=0;i<3;i++){const r=.35+i*.18,pts:T.Vector3[]=[];for(let k=0;k<=12;k++){const a=-.55+1.1*k/12;pts.push(new T.Vector3(Math.cos(a)*r,.05*i,Math.sin(a)*r));}const t=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),16,.022,5,false),m);t.userData.noAO=true;this.twang.add(t);}this.twang.visible=false;this.root.add(this.twang);}
@@ -77,7 +83,7 @@ export class Game {
     // Idle hint: glowing dots flowing along the clean route to the socket.
     {const m=new T.MeshBasicMaterial({color:'#9ff3ea'});m.color.multiplyScalar(1.4);m.userData.outlineParameters={visible:false};const dot=new T.SphereGeometry(.07,8,6);for(let k=0;k<40;k++){const d=new T.Mesh(dot,m);d.userData.noAO=true;this.hint.add(d);}this.hint.visible=false;this.root.add(this.hint);}
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
-    this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else{this.simulateCable();this.drawCable();}
+    this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else if(!this.station){this.simulateCable();this.drawCable();}
     freeze(this.decorRoot);this.updateCamera(1);this.view.render();
     document.body.dataset.ready='true';
     Object.assign(window,{__circuitCrew:{snapshot:()=>this.snapshot(),drive:this.manual?this.driver():undefined}});
@@ -135,16 +141,20 @@ export class Game {
   /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
   setupUI(){setupGameUI(this);}
   setupInput(){
-    addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.repeat)return;
+    addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+      // At a bench the station takes the keys; E or Esc steps back.
+      if(this.atBench&&this.running&&!this.paused&&!this.won){if(e.repeat)return;if(e.code==='KeyE'||e.code==='Escape'){this.leaveBench();return;}if(this.station!.key(e.code)){e.preventDefault();return;}}
+      this.keys.add(e.code);if(e.repeat)return;
       if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');const playing=this.running&&!this.won;if(e.code==='Tab'&&playing&&!this.paused){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');if(e.code==='KeyR'&&playing)this.action('restart');});
     addEventListener('keyup',e=>this.keys.delete(e.code));
     addEventListener('blur',()=>{this.keys.clear();if(this.running&&!this.won&&!this.paused)this.togglePause();});
     const canvas=this.view.renderer.domElement;
     canvas.addEventListener('contextmenu',e=>e.preventDefault());
-    canvas.addEventListener('pointerdown',e=>{this.audio.start();if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
-    canvas.addEventListener('pointerup',()=>this.orbit=false);
-    canvas.addEventListener('pointermove',e=>{if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
-    canvas.addEventListener('wheel',e=>{this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
+    const benchPointer=(kind:'down'|'move'|'up',e:PointerEvent)=>{const r=canvas.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1),this.view.camera);this.station!.pointer({kind,ray,button:e.button});};
+    canvas.addEventListener('pointerdown',e=>{this.audio.start();if(this.atBench&&e.button===0&&this.running&&!this.paused&&!this.won){benchPointer('down',e);return;}if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
+    canvas.addEventListener('pointerup',e=>{this.orbit=false;if(this.atBench&&e.button===0)benchPointer('up',e);});
+    canvas.addEventListener('pointermove',e=>{if(this.atBench&&!this.orbit)benchPointer('move',e);if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
+    canvas.addEventListener('wheel',e=>{if(this.atBench)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
   action(action:string){
     if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.14;return;}
@@ -166,6 +176,8 @@ export class Game {
   reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id?2:0);}
   interact(cableOnly=false){
     const pos=this.player.translation();
+    if(this.atBench){this.leaveBench();return;}
+    if(this.station&&!this.held&&!cableOnly&&this.nearBench(pos)){this.enterBench();return;}
     if(this.lunch?.interact(cableOnly))return;
     if(this.lunch&&cableOnly){this.shrug();return;}
     // With the plug in hand, E or F next to the coupler or second reel attaches it (coupler first).
@@ -176,14 +188,14 @@ export class Game {
       if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&this.coupler){this.extension=true;this.rope.maxLength=this.level.length+14;this.consume(p);this.audio.cheer();}
       else if(p.spec.id==='coupler'&&distance(pos,this.plugPosition)<2){this.coupler=true;this.consume(p);this.audio.plug();}
       p.body.setLinvel({x:0,y:0,z:0},true);p.body.setAngvel({x:0,y:0,z:0},true);
-      this.lunch?.dropped(p);
+      this.lunch?.dropped(p);this.station?.dropped?.(p);
       if(p.spec.id==='strip'&&distance(pos,this.level.target)<2.6){const t=this.level.target;p.body.setTranslation({x:t.x,y:.08,z:t.z+.3},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);this.audio.plug();this.burst({x:t.x,y:.2,z:t.z+.3},'#8ff3ea',1,'ring');}
       this.held=undefined;return;
     }
     // Machine switch: once powered, the lamp/projector still needs switching on (E).
     if(!cableOnly&&!this.held&&this.nearSwitch(pos)){this.switchedOn=!this.switchedOn;this.audio.noise(.03,.07,2500,'highpass');this.audio.tone(this.switchedOn?420:200,.09,.04);const s=this.level.switchAt!;this.burst({x:s.x,y:1,z:s.z},'#fff3a3',6,'spark');return;}
     const nearest=cableOnly?undefined:this.nearest();
-    if(!this.lunch&&distance(pos,this.plugPosition)<1.75&&!(nearest&&this.reach(pos,nearest)<distance(pos,this.plugPosition))){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.pop();return;}
+    if(!this.lunch&&!this.station&&distance(pos,this.plugPosition)<1.75&&!(nearest&&this.reach(pos,nearest)<distance(pos,this.plugPosition))){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.pop();return;}
     if(cableOnly){this.shrug();return;}
     if(nearest){
       if(nearest.spec.id==='coffee-reel'&&!this.coffeeReused){this.coffeeReused=true;this.rope.reset({x:-14,z:5},Math.max(30,this.rope.maxLength));this.plugPosition.set(-13,.3,4.5);this.holdingPlug=true;this.consume(nearest);this.audio.tone(100,.6,.06,'triangle');
@@ -205,6 +217,9 @@ export class Game {
     else{this.audio.tone(110,.22,.07,'square');part.body.applyImpulse({x:0,y:prefabs[part.spec.kind].mass*2.5,z:0},true);part.body.applyTorqueImpulse({x:0,y:0,z:.4},true);}
     return true;
   }
+  nearBench(pos:Point){return !!this.station&&distance(pos,this.station.stand)<1.6;}
+  enterBench(){if(!this.station)return;this.atBench=true;this.survey=false;this.station.setActive(true);this.audio.pop();this.keys.clear();this.stick=undefined;}
+  leaveBench(){if(!this.station)return;this.atBench=false;this.station.setActive(false);this.audio.tone(260,.08,.03,'triangle');}
   nearSwitch(pos:Point){return !this.lunch&&!this.holdingPlug&&!!this.level.switchAt&&distance(pos,this.level.switchAt)<1.9;}
   /** The power strip must sit by the boardroom door before the reel can feed the projector. */
   needsStrip(){return this.props.some(q=>q.spec.id==='strip');}
@@ -269,6 +284,7 @@ export class Game {
     let x=Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft'));
     let z=Number(this.keys.has('KeyS')||this.keys.has('ArrowDown'))-Number(this.keys.has('KeyW')||this.keys.has('ArrowUp'));
     if(this.stick){x+=this.stick.x;z+=this.stick.z;}
+    if(this.atBench){x=0;z=0;this.heading=this.station!.facing;}
     const pad=navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
     const move=new T.Vector3(x,0,z);if(move.length()>1)move.normalize();move.applyAxisAngle(new T.Vector3(0,1,0),this.yaw);
     if(move.length()>.1)this.heading=Math.atan2(move.x,move.z);
@@ -296,10 +312,13 @@ export class Game {
     if(p.y< -3){this.player.setTranslation({x:this.level.spawn.x,y:1,z:this.level.spawn.z},true);this.vertical=0;}
     // Past the deadline the meeting waits impatiently; running late only costs time grade.
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
-    if(this.lunch)this.lunch.step(dt);else{this.simulateCable();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
+    if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else{this.simulateCable();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
   }
   win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
-    this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');const g=grade(this.time,this.damage,this.cost);
+    this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');
+    // Station jobs add their mistakes and process cost to the result card and grade on their own limits.
+    if(this.station){if(this.atBench)this.leaveBench();const s=this.station.score();this.damage+=s.mistakes;this.cost+=s.cost;}
+    const g=grade(this.time,this.damage,this.cost,this.station?.limits);
     // Records the best, then lands the result tag once the camera has pushed in (1.4 s).
     gameUI(this)?.won(g);
   }
@@ -315,11 +334,12 @@ export class Game {
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;
-    if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.level.id==='meeting'?8:9;pitch=this.level.id==='meeting'?.32:.6;}
+    if(this.atBench&&this.station){const st=this.station,v=st.view;target=st.table.clone().add(new T.Vector3(0,v.lookY,0));distanceTo=v.distance;pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*Math.min(1,dt*4);}
+    if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.station?7:this.level.id==='meeting'?8:9;pitch=this.station?.5:this.level.id==='meeting'?.32:.6;}
     // Title: a hero shot of Pip beside the logo (Pip sits in the right half of the frame).
     const titling=!this.running&&document.body.dataset.screen==='title';
     if(titling){const right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));const portrait=cam.aspect<1;target=new T.Vector3(p.x,p.y+(portrait?1.5:.3),p.z).addScaledVector(right,portrait?0:-2.6);distanceTo=portrait?10.5:8;pitch=.32;}
-    this.focus.lerp(target,this.survey||pushing?ease*.6:titling?1:ease);
+    this.focus.lerp(target,this.survey||pushing?ease*.6:titling?1:this.atBench?ease*.8:ease);
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo);
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
@@ -336,8 +356,8 @@ export class Game {
     const q=this.view.getQuality();if(this.qualityTimer<3||q===0||this.slowAvg<1/45)return;
     this.qualityTimer=0;this.slowAvg=1/60;const next=(q-1) as 0|1;this.view.setQuality(next);try{localStorage.setItem('circuit-crew-quality',String(next));}catch{/* storage unavailable */}
   }
-  homeZoom(){return this.level.id==='playground'?18:26;}
-  winFocus(){const l=this.level;return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
+  homeZoom(){return this.level.id==='playground'?18:this.station?20:26;}
+  winFocus(){const l=this.level;if(this.station)return this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
   /** Feeds Pip's rig (src/render/pipRig.ts) with movement, poses and what to glance at. */
@@ -353,7 +373,9 @@ export class Game {
       strain:lunchHeld?lunchHeld.cable.rope.strain:this.rope.strain,won:this.won,waving:titling,lookAt:near?new T.Vector3().copy(near.body.translation()):undefined});
   }
   render(dt:number){
-    const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);this.avatar.rotation.y=this.heading;const moving=(this.keys.size>0||!!this.stick)&&this.running&&!this.paused;this.squash=T.MathUtils.lerp(this.squash,0,1-Math.exp(-dt*9));
+    const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);
+    // At a bench the camera looks over Pip's shoulder; Pip steps out of frame so the tabletop reads.
+    this.avatar.visible=!this.atBench;this.pipRing.visible=!this.atBench;this.avatar.rotation.y=this.heading;const moving=(this.keys.size>0||!!this.stick)&&this.running&&!this.paused;this.squash=T.MathUtils.lerp(this.squash,0,1-Math.exp(-dt*9));
     const sy=1-this.squash*.22+(moving&&this.grounded?Math.sin(this.time*15)*.03:0),sxz=1/Math.sqrt(Math.max(.5,sy));this.avatar.scale.set(sxz,sy,sxz);
     this.animateRig(dt);
     for(const prop of this.props){if(!prop.mesh.visible)continue;prop.mesh.position.copy(prop.body.translation());prop.mesh.quaternion.copy(prop.body.rotation());}
@@ -368,22 +390,22 @@ export class Game {
       if(npc.seated&&!watch)g.rotation.y=npc.restYaw+Math.sin(clock*.45+npc.seed*2)*Math.max(0,Math.sin(clock*.23+npc.seed))*.6;
       npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
       const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
-    if(this.lunch)this.lunch.render(dt);else this.drawCable();this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);
+    if(this.lunch)this.lunch.render(dt);else if(!this.station)this.drawCable();this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);
     // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
-    const plugFirst=!this.lunch&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));
+    const plugFirst=!this.lunch&&!this.station&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));
     const mark=attach?.mesh.position??(plugFirst?this.plugPosition:!this.holdingPlug&&!this.held?nearest?.mesh.position:undefined);
-    this.reticle.visible=this.running&&!this.won&&!!mark;if(mark){this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);}
+    this.reticle.visible=this.running&&!this.won&&!this.atBench&&!!mark;if(mark){this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);}
     this.pipRing.position.set(p.x,.03,p.z);
     this.fx.update(dt);
     // The meeting clock reads 9:55 and its red minute hand sweeps the four minutes to the meeting.
     if(this.clock){const late=this.level.deadline!==undefined&&this.time>this.level.deadline;this.clock.hand.rotation.z=-(9+55/60)/12*Math.PI*2-this.time/3600/12*Math.PI*2;this.clock.minute.rotation.z=-(55/60)*Math.PI*2-Math.min(this.time,this.level.deadline??240)/60/60*Math.PI*2;this.clock.face.material=toon(late&&Math.floor(this.last/300)%2?'#ff7a6b':'#fbf5ea');}
     // Title: the reel's plug spits a spark every couple of seconds.
-    if(!this.running&&document.body.dataset.screen==='title'&&Math.floor(this.last/1900)!==Math.floor((this.last-dt*1000)/1900)){this.burst(this.plugPosition,'#fff3a3',10,'spark');this.burst(this.plugPosition,'#ffe36e',2,'star');this.audio.noise(.04,.03,3200,'highpass');}
+    if(!this.station&&!this.running&&document.body.dataset.screen==='title'&&Math.floor(this.last/1900)!==Math.floor((this.last-dt*1000)/1900)){this.burst(this.plugPosition,'#fff3a3',10,'spark');this.burst(this.plugPosition,'#ffe36e',2,'star');this.audio.noise(.04,.03,3200,'highpass');}
     // Steam from the coffee machine until its extension is borrowed.
     const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'smoke');}
     // After a while a dotted ghost line traces the clean way round walls and pillars to the socket.
-    if(this.time>35&&!this.connected&&!this.lunch&&!this.won){this.hint.visible=true;const path=detour({x:p.x,z:p.z},this.level.target,this.obstacles),total=path.slice(1).reduce((n,b,k)=>n+distance(path[k],b),0),shift=(this.last*.0012)%.6;
+    if(this.time>35&&!this.connected&&!this.lunch&&!this.station&&!this.won){this.hint.visible=true;const path=detour({x:p.x,z:p.z},this.level.target,this.obstacles),total=path.slice(1).reduce((n,b,k)=>n+distance(path[k],b),0),shift=(this.last*.0012)%.6;
       this.hint.children.forEach((d,k)=>{let along=k*.6+shift;d.visible=along<total&&along>.8;for(let q=1;q<path.length&&d.visible;q++){const len=distance(path[q-1],path[q]);if(along<=len){d.position.set(T.MathUtils.lerp(path[q-1].x,path[q].x,along/len),.1,T.MathUtils.lerp(path[q-1].z,path[q].z,along/len));break;}along-=len;}});}
     else this.hint.visible=false;
     gameUI(this)?.update();
@@ -414,7 +436,9 @@ export class Game {
       this.stick=undefined;this.keys.clear();for(let i=0;i<8&&live();i++)this.step(1/60);this.render(1/60);
       const p=this.player.translation();return {arrived:Math.hypot(x-p.x,z-p.z)<radius+.15,state:this.snapshot()};
     };
-    return {advance,walkTo};
+    // Station tests press the same buttons a player would: act(name, arg) at the bench.
+    const act=(name:string,arg?:unknown)=>{const ok=this.station?.act(name,arg)??false;this.render(1/60);return {ok,state:this.snapshot()};};
+    return {advance,walkTo,act};
   }
-  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
+  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),station:this.station?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
 }

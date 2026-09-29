@@ -187,7 +187,8 @@ export class GameUI {
     if(lunch){
       if(lunch.held){const end=lunch.held.cable.ends[lunch.held.end];cableReady=lunch.ports.some(q=>q.id!==lunch.held!.cable.ports[1-lunch.held!.end]&&Math.min(dist(p,q.pos)-.3,dist(end,q.pos))<1.4);}
       else cableReady=!g.held&&lunch.cables.some(c=>c.ends.some(e=>dist(p,e)<1.75));
-    }else cableReady=holding?Math.min(dist(p,g.level.target)-.3,dist(g.plugPosition,g.level.target))<1.6:!g.held&&dist(p,g.plugPosition)<1.75;
+    }else if(g.station)cableReady=false;
+    else cableReady=holding?Math.min(dist(p,g.level.target)-.3,dist(g.plugPosition,g.level.target))<1.6:!g.held&&dist(p,g.plugPosition)<1.75;
     const state={grab:{on:!!g.held,ready:!g.held&&!holding&&g.reticle.visible,off:false},
       cable:{on:holding,ready:cableReady,off:!!g.held},
       throw:{on:false,ready:holding&&g.rope.strain>.97,off:!g.held&&!holding},

@@ -217,3 +217,17 @@
 body[data-screen="play"] .won .objective,body[data-screen="play"] .won .prompt-pill{display:none}
 @media (max-width:700px){.objective{top:calc(96px + var(--safe-t));font-size:13px;padding:10px 12px}.objective .bonus{display:none}.prompt-pill{bottom:calc(250px + var(--safe-b));font-size:14px;white-space:normal;max-width:calc(100vw - 32px)}}
 @media (prefers-reduced-motion:reduce){.objective li.now i,.prompt-pill{animation:none}}
+/* Station panels (src/stations): the order ticket and live build card top right, and a result toast. */
+.station-panel{position:absolute;right:calc(var(--inset) + var(--safe-r));top:calc(96px + var(--safe-t));width:min(330px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:22px;pointer-events:none;font-size:14px;line-height:1.3;color:var(--ink)}
+.station-panel header small{display:block;font-size:11px;letter-spacing:.14em;color:var(--ink-2);margin-bottom:2px}
+.station-panel h4{margin:0 0 4px;font-size:17px;font-weight:700;font-stretch:104%}
+.station-panel header p{margin:0;color:var(--ink-2)}
+.station-panel .build{list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:2px dashed var(--paper-3);display:grid;gap:3px}
+.station-panel .build li{display:flex;justify-content:space-between;gap:10px}
+.station-panel .build li span{color:var(--ink-2)}
+.station-panel .build li.ok b{color:#1f7a4d}.station-panel .build li.no b{color:var(--ink-2);font-weight:600}
+.station-panel .profile{margin:8px 0 0;font-size:11.5px;color:var(--muted)}
+.station-toast{position:absolute;left:50%;bottom:calc(186px + var(--safe-b));transform:translateX(-50%);max-width:min(620px,calc(100vw - 32px));padding:10px 16px;border-radius:18px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:15px;font-weight:600;line-height:1.3;text-align:center;pointer-events:none;animation:promptin .18s ease-out}
+.station-toast[data-tone="ok"]{background:#dff5e6}.station-toast[data-tone="bad"]{background:#ffe1dc}
+body[data-screen="play"] .won .station-panel,body[data-screen="play"] .won .station-toast{display:none}
+@media (max-width:700px){.station-panel{top:auto;bottom:calc(330px + var(--safe-b));font-size:12px;padding:10px 12px}.station-panel .build,.station-panel .profile{display:none}.station-toast{bottom:calc(300px + var(--safe-b));font-size:13px}}

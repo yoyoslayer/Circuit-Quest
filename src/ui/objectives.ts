@@ -55,12 +55,16 @@ export const JOBS:Record<string,Job>={
 const NAMES:Partial<Record<PropKind,string>>={box:'crate',desk:'desk',chair:'chair',monitor:'monitor',mug:'mug',paper:'paper',plant:'plant',cabinet:'cabinet',sofa:'sofa',bin:'bin',
   reel:'cable reel',coupler:'coupler',cart:'cart',printer:'printer',whiteboard:'whiteboard',bookshelf:'shelf',cooler:'water cooler',bridge:'cable bridge',mop:'mop',tray:'lunch tray',
   lamp:'lamp',dolly:'cable dolly',capcart:'capacitor cart',coolbox:'cooler box',splitter:'splitter',wedge:'doorstop',cone:'cone',strip:'power strip',beanbag:'bean bag'};
+/** A station supplies its own steps and bonuses (src/stations); the marker defaults to its bench. */
+function stationJob(g:Game):Job{const st=g.station!,j=st.job;
+  return {goal:j.goal,steps:j.steps.map(s=>({text:s.text,done:()=>s.done(),at:()=>s.at?.()??st.stand})),bonuses:j.bonuses.map(b=>({text:b.text,ok:()=>b.ok()}))};}
 export interface Prompt {key:string;text:string}
 /** What the most useful key does right now, in words. */
 export function promptFor(g:Game):Prompt|null{
   if(!g.running||g.won||g.paused)return null;
   const pos=g.player.translation();
   if(g.lunch){const p=g.lunch.promptAt();if(p)return p;}
+  if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench)return p;}
   if(g.held){const name=NAMES[g.held.spec.kind]??'it';
     if(g.held.spec.id==='strip'&&dist(pos,g.level.target)<2.6)return {key:'E',text:'Set the power strip down by the door'};
     return {key:'E',text:`Put the ${name} down  ·  Q throws it`};}
@@ -80,7 +84,7 @@ export function promptFor(g:Game):Prompt|null{
 export class ObjectivesHUD{
   card:HTMLElement;prompt:HTMLElement;marker:T.Mesh;private shown='';private promptShown='';private job:Job;private flash=new Set<number>();
   constructor(private g:Game,layer:HTMLElement){
-    this.job=JOBS[g.level.id]??JOBS.playground;
+    this.job=g.station?stationJob(g):JOBS[g.level.id]??JOBS.playground;
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
     this.prompt=document.createElement('div');this.prompt.className='prompt-pill';this.prompt.hidden=true;layer.append(this.prompt);
     const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.color.multiplyScalar(1.5);m.userData.outlineParameters={visible:false};
@@ -100,7 +104,7 @@ export class ObjectivesHUD{
       this.card.innerHTML=`<h3><small>JOB · ${doneCount}/${this.job.steps.length}</small>${this.job.goal}</h3><ol>${hiddenDone>0?`<li class="done summary"><i></i><span>${hiddenDone} step${hiddenDone>1?'s':''} done</span></li>`:''}${steps.map(({st,i})=>`<li class="${this.done.has(i)?'done':i===current?'now':'todo'}${this.flash.has(i)?' flash':''}"><i></i><span>${st.text}</span></li>`).join('')}</ol>`+
         `<ul class="bonus">${this.job.bonuses.map((b,i)=>`<li class="${bonus[i]?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`;}
     // A bouncing arrow over whatever the current step needs.
-    const at=current>=0&&g.running&&!g.won?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;
+    const at=current>=0&&g.running&&!g.won&&!g.atBench?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;
     if(at){this.marker.position.set(at.x,2.1+Math.sin(g.last*.006)*.18,at.z);this.marker.rotation.y=g.last*.002;}
     const p=promptFor(g),pk=p?`${p.key}|${p.text}`:'';
     if(pk!==this.promptShown){this.promptShown=pk;this.prompt.hidden=!p;if(p)this.prompt.innerHTML=`<kbd>${p.key}</kbd><span>${p.text}</span>`;}

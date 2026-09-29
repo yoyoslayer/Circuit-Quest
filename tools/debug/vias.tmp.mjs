@@ -1,0 +1,17 @@
+import {chromium} from '@playwright/test';
+const b=await chromium.launch({args:['--enable-webgl','--ignore-gpu-blocklist','--enable-gpu','--use-angle=d3d11']});const p=await b.newPage({viewport:{width:1440,height:900}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text());});
+await p.goto('http://127.0.0.1:4173/?level=vias&manual&fullfx');await p.waitForSelector('body[data-ready="true"]');await p.getByRole('button',{name:'Start playing'}).click();
+const d=(fn,...a)=>p.evaluate(([f,a])=>new Function('drive','a',f)(window.__circuitCrew.drive,a),[fn,a]);
+const snap=()=>p.evaluate(()=>window.__circuitCrew.snapshot());
+await d('return drive.advance(.5)');await p.waitForTimeout(600);await p.screenshot({path:'artifacts/vias-room.png'});
+console.log(JSON.stringify((await d('return drive.walkTo(-7,4,.6)')).arrived));await p.keyboard.press('KeyE');console.log('held',(await snap()).held);
+console.log(JSON.stringify((await d('return drive.walkTo(1.2,-1.4,.5)')).arrived));await p.keyboard.press('KeyE');await d('return drive.advance(.3)');
+let s=await snap();console.log('blanks',s.station.blanksReady);
+await d('return drive.walkTo(0,-1.55,.4)');await p.keyboard.press('KeyE');await d('return drive.advance(1)');await p.waitForTimeout(900);
+s=await snap();console.log('atBench',s.atBench);await p.screenshot({path:'artifacts/vias-bench.png'});
+for(const [n,v] of [['layer',1],['layer',4],['press'],['bit','mech-0.30'],['drill'],['plate'],['pad',.6]])await d('return drive.act(a[0],a[1])',n,v);
+await d('return drive.advance(.6)');await p.waitForTimeout(500);await p.screenshot({path:'artifacts/vias-built.png'});
+await d('return drive.act("test")');await p.waitForTimeout(300);await p.screenshot({path:'artifacts/vias-test.png'});
+const r=await d('return drive.act("serve")');console.log(JSON.stringify(r.state.station));
+console.log(errs.length?errs.join('\n'):'no errors');await b.close();

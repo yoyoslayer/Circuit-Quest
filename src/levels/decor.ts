@@ -43,8 +43,10 @@ function shellWall(game:Game,length:number,x:number,z:number,normal:[number,numb
 }
 function interiorWall(game:Game,o:Obstacle,upperColor=WALL_UP,lowerColor=WALL_LOW,h=1.35){
   const w=o.maxX-o.minX,d=o.maxZ-o.minZ,x=(o.minX+o.maxX)/2,z=(o.minZ+o.maxZ)/2,r=game.decorRoot;
-  part(r,box(w,.8,d),plain(lowerColor),x,.4,z);part(r,box(w,h-.8,d),plain(upperColor),x,.8+(h-.8)/2,z);part(r,box(w+.03,.12,d+.05),toon(BASE),x,.06,z);
-  part(r,box(w+.05,.1,d+.07),toon(CAP),x,h,z);part(r,box(w+.06,.04,d+.08),toon(CAP_DARK),x,h+.06,z);solid(game,w,2.6,d,x,1.3,z);
+  // Interior walls fade like pillars when they hide Pip, so they stay on root with their own materials.
+  const wall=group(game.root,x,0,z),fade=(m:T.Material)=>{const c=m.clone();c.transparent=true;return c;};
+  for(const [geo,mat,y] of [[box(w,.8,d),plain(lowerColor),.4],[box(w,h-.8,d),plain(upperColor),.8+(h-.8)/2],[box(w+.03,.12,d+.05),toon(BASE),.06],[box(w+.05,.1,d+.07),toon(CAP),h],[box(w+.06,.04,d+.08),toon(CAP_DARK),h+.06]] as const){const m=part(wall,geo,fade(mat),0,y,0);game.occluders.push(m);}
+  solid(game,w,2.6,d,x,1.3,z);
 }
 /** Pillars: capped and trimmed; alternate ones carry a poster or an extinguisher. The fading
  *  pillar body stays on root (it is an occluder). */

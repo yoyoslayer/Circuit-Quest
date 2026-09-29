@@ -7,13 +7,14 @@ test('loads a rendered playable scene without runtime errors',async({page})=>{
   expect(errors).toEqual([]);
 });
 test('player can pick up the plug, move, jump, and release it',async({page})=>{
-  await page.goto('/?lowfx');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+  // Simulated time (?manual) so the checks don't depend on how fast this machine renders.
+  await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
   await page.getByRole('button',{name:'Start playing'}).click();
   const snapshot=()=>page.evaluate(()=>(window as any).__circuitCrew.snapshot());
+  const advance=(s:number,keys:string[]=[])=>page.evaluate(([s,k])=>(window as any).__circuitCrew.drive.advance(s,k),[s,keys] as const);
   await page.keyboard.press('KeyF');expect((await snapshot()).holdingPlug).toBe(true);
-  const start=await snapshot();await page.keyboard.down('KeyD');await page.waitForTimeout(700);await page.keyboard.up('KeyD');
-  const moved=await snapshot();expect(moved.player.x).toBeGreaterThan(start.player.x+1);
-  await page.keyboard.press('Space');await page.waitForTimeout(180);expect((await snapshot()).player.y).toBeGreaterThan(moved.player.y+.2);
+  const start=await snapshot();const moved=await advance(.7,['KeyD']);expect(moved.player.x).toBeGreaterThan(start.player.x+1);
+  await page.keyboard.press('Space');const up=await advance(.18);expect(up.player.y).toBeGreaterThan(moved.player.y+.2);
   await page.keyboard.press('KeyQ');expect((await snapshot()).holdingPlug).toBe(false);
   await page.screenshot({path:'artifacts/playground.png'});
 });

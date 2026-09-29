@@ -18,7 +18,7 @@ export class GameUI {
   screen:Screen='title';sel=0;
   layer:HTMLElement;ring:SVGCircleElement;badge:HTMLElement;strainCard:HTMLElement;strainFill:HTMLElement;reel:HTMLElement;cablebar:HTMLElement;
   tallies:Record<'time'|'damage'|'cost',{box:HTMLElement;value:HTMLElement;shown:string}>;acts:Record<string,HTMLElement>={};
-  private lastLength=0;private connectedUntil=0;private heldCable?:{ports:(string|null)[]};private actState='';private padFrame=0;private padPrev:boolean[]=[];private padAxis=0;private stickId?:number;
+  private lastLength=0;private connectedUntil=0;private heldCable?:{ports:(string|null)[];lead:{dead:boolean}};private actState='';private padFrame=0;private padPrev:boolean[]=[];private padAxis=0;private stickId?:number;
   /** Focus follows the keyboard only; mouse and touch players never see a focus ring they didn't ask for. */
   private keyboard=false;
   constructor(public game:Game){
@@ -168,7 +168,7 @@ export class GameUI {
     const g=this.game,lunch=g.lunch,held=lunch?lunch.held?.cable:undefined,holding=lunch?!!held:g.holdingPlug,rope=held?held.rope:g.rope;
     // A plug seated after being carried flashes the meter gold before it fades.
     if(held)this.heldCable=held;
-    if(!holding&&this.heldCable&&lunch){if(this.heldCable.ports.every(p=>!!p))this.connectedUntil=g.time+1.4;this.heldCable=undefined;}
+    if(!holding&&this.heldCable&&lunch){if(this.heldCable.ports.every(p=>!!p)&&!this.heldCable.lead.dead)this.connectedUntil=g.time+1.4;this.heldCable=undefined;}
     if(!lunch&&g.connected&&this.connectedUntil===0)this.connectedUntil=g.time+1.6;
     const connected=g.time<this.connectedUntil||(!lunch&&g.connected&&g.won);
     const show=holding||connected;this.strainCard.classList.toggle('show',show);this.strainCard.classList.toggle('connected',connected&&!holding);

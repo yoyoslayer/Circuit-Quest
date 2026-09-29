@@ -12,9 +12,13 @@ export class Sound {
   context?:AudioContext;hum?:OscillatorNode;gain?:GainNode;buffer?:AudioBuffer;
   private master?:GainNode;private sfx?:GainNode;private musicBus?:GainNode;private ambience?:GainNode;private isMuted=false;
   private song?:Song;private nextStep=0;private stepIndex=0;private level='playground';private timer?:number;
+  constructor(){try{this.isMuted=localStorage.getItem('circuit-crew-muted')==='1';}catch{/* storage unavailable */}}
   get muted(){return this.isMuted;}
-  set muted(value:boolean){this.isMuted=value;if(this.master&&this.context)this.master.gain.setTargetAtTime(value?0:.9,this.context.currentTime,.05);}
+  // Mute survives restarts and moving on to the next job.
+  set muted(value:boolean){this.isMuted=value;try{localStorage.setItem('circuit-crew-muted',value?'1':'0');}catch{/* storage unavailable */}if(this.master&&this.context)this.master.gain.setTargetAtTime(value?0:.9,this.context.currentTime,.05);}
   start(){
+    // Browsers refuse audio before a user gesture; the first click or key starts it instead.
+    if(!this.context&&!(navigator as Navigator&{userActivation?:{hasBeenActive:boolean}}).userActivation?.hasBeenActive)return;
     if(!this.context){const c=this.context=new AudioContext();
       const comp=c.createDynamicsCompressor();comp.threshold.value=-18;comp.ratio.value=3;comp.connect(c.destination);
       this.master=c.createGain();this.master.gain.value=this.isMuted?0:.9;this.master.connect(comp);

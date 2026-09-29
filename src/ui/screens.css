@@ -298,3 +298,5 @@ body[data-screen="fail"] canvas#game{filter:saturate(.35) brightness(.5) blur(3p
   .result{left:auto;right:6vw;margin-left:0}
   .result-screen .string{left:auto;right:calc(6vw + 274px)}
 }
+/* Mid-size desktops: three tags plus the side arrows must fit without clipping. */
+@media (min-width:701px) and (max-width:1560px){.row{gap:32px}.job{width:292px}.job .thumb{height:164px}}

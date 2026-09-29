@@ -31,7 +31,7 @@ export function windowUnit(upper:T.Object3D,x:number,y:number,z:number){
   for(let k=0;k<6;k++){const s=part(upper,box(w,.05,.03),toon('#f4efe4'),x,y+h/2-.1-k*.075,z+.03,false);s.rotation.x=.5;}
 }
 /** Warm light shaft from a back-wall window falling into the room (+z). */
-export function windowShaft(parent:T.Object3D,x:number,z:number,{len=5.2,width=2.2,opacity=.16,skew=.9}={}){
+export function windowShaft(parent:T.Object3D,x:number,z:number,{len=5.2,width=2.2,opacity=.16,skew=.9}={}){opacity*=.6;
   const m=noOutline(new T.MeshBasicMaterial({map:TX.shaft(),transparent:true,opacity,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,color:'#ffd9a0'}));
   const geo=new T.BufferGeometry(),top=2.55,bot=.02,x0=x-width/2,x1=x+width/2;
   geo.setAttribute('position',new T.Float32BufferAttribute([x0,top,z,x1,top,z,x0+skew,bot,z+len,x1+skew,bot,z+len],3));geo.setAttribute('uv',new T.Float32BufferAttribute([0,1,1,1,0,0,1,0],2));geo.setIndex([0,2,1,1,2,3]);

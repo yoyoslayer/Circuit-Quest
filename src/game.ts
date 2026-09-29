@@ -136,7 +136,7 @@ export class Game {
   setupUI(){setupGameUI(this);}
   setupInput(){
     addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.repeat)return;
-      if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');if(e.code==='Tab'){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');if(e.code==='KeyR')this.action('restart');});
+      if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');const playing=this.running&&!this.won;if(e.code==='Tab'&&playing&&!this.paused){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');if(e.code==='KeyR'&&playing)this.action('restart');});
     addEventListener('keyup',e=>this.keys.delete(e.code));
     addEventListener('blur',()=>{this.keys.clear();if(this.running&&!this.won&&!this.paused)this.togglePause();});
     const canvas=this.view.renderer.domElement;
@@ -147,7 +147,7 @@ export class Game {
     canvas.addEventListener('wheel',e=>{this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
   action(action:string){
-    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.12;this.pitch=.83;return;}
+    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.14;return;}
     if(!this.running||this.paused||this.won)return;
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
     if(action==='jump'&&this.grounded&&(!this.held||prefabs[this.held.spec.kind].mass<15)){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
@@ -304,7 +304,7 @@ export class Game {
     const p=this.player.translation(),cam=this.view.camera,ease=1-Math.exp(-dt*5);
     this.lead.lerp(new T.Vector3(Math.sin(this.heading),0,Math.cos(this.heading)).multiplyScalar(this.grounded&&this.airborne===0&&(this.keys.size>0||this.stick)?1.2:0),ease*.5);
     // Zoomed out it frames the floor like a diorama; zooming in drops to Pip's eye line (mockups/look/LOOK.md).
-    const zoom=this.survey?36.5:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.25+near*.9,.25,1);
+    const zoom=this.survey?44:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.25+near*.9,.25,1);
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;

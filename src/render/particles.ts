@@ -8,6 +8,9 @@ const flatSquare=new T.PlaneGeometry(1,1);
 const starShape=(()=>{const s=new T.Shape();for(let i=0;i<8;i++){const a=i/8*Math.PI*2,r=i%2?.22:.5;const x=Math.cos(a)*r,y=Math.sin(a)*r;if(i)s.lineTo(x,y);else s.moveTo(x,y);}s.closePath();return new T.ShapeGeometry(s);})();
 const ringGeo=new T.RingGeometry(.8,1,40).rotateX(-Math.PI/2);
 const hotMaterials=new Map<string,T.Material>();
+// Smoke and steam: translucent, unlit and unoutlined so puffs read as vapour, not snowballs.
+const smokeMaterials=new Map<string,T.Material>();
+const softSmoke=(c:string)=>{let m=smokeMaterials.get(c);if(!m){const b=new T.MeshBasicMaterial({color:c,transparent:true,opacity:.45,depthWrite:false});b.userData.outlineParameters={visible:false};m=b;smokeMaterials.set(c,m);}return m;};
 const hotFlat=(c:string,k:number,additive=false)=>{const key=c+k+additive;let m=hotMaterials.get(key);if(!m){const b=new T.MeshBasicMaterial({color:c,side:T.DoubleSide,transparent:true,depthWrite:false,blending:additive?T.AdditiveBlending:T.NormalBlending});b.color.multiplyScalar(k);b.userData.outlineParameters={visible:false};m=b;hotMaterials.set(key,m);}return m;};
 const confettiMaterials=new Map<string,T.Material>();
 // Confetti gets its own double-sided materials so shared prop materials stay single-sided.
@@ -27,7 +30,7 @@ export class Particles {
       else if(kind==='star'){mesh.geometry=starShape;mesh.material=hotFlat(color,2.4);velocity=new T.Vector3(r()*3,2+Math.random()*2,r()*3);life=.45;size=.35;}
       else if(kind==='ring'){mesh.geometry=ringGeo;mesh.material=hotFlat(color,2,true);mesh.rotation.set(0,0,0);velocity=new T.Vector3();life=.45;size=.2;}
       else if(kind==='flash'){mesh.geometry=starShape;mesh.material=hotFlat(color,3.5,true);velocity=new T.Vector3();life=.18;size=1.4;}
-      else if(kind==='smoke'){mesh.geometry=ico(1);mesh.material=toon(color);velocity=new T.Vector3(r()*.5,.7+Math.random()*.5,r()*.5);life=1.3+Math.random()*.6;size=.14+Math.random()*.08;}
+      else if(kind==='smoke'){mesh.geometry=ico(1);mesh.material=softSmoke(color);velocity=new T.Vector3(r()*.5,.7+Math.random()*.5,r()*.5);life=1.3+Math.random()*.6;size=.14+Math.random()*.08;}
       else if(kind==='dust'){mesh.geometry=ico(1);mesh.material=toon(color);velocity=new T.Vector3(r()*1.6,.4+Math.random()*.6,r()*1.6);life=.7+Math.random()*.4;size=.12+Math.random()*.1;}
       else {mesh.geometry=box(1,1,1);mesh.material=toon(color);velocity=new T.Vector3(r()*5,2+Math.random()*4,r()*5);life=1.1+Math.random();size=.09;}
       mesh.scale.setScalar(size);this.root.add(mesh);

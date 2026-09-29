@@ -48,6 +48,18 @@ What is now in the game:
   stamped result tag and a failure tag; phone layout with a virtual stick.
 - **Audio:** procedural music per level, room tone, coworker gibberish, foley.
 
+A second review (`mockups/review2/REVIEW2.md`) drove the payoff pass: plug-in hit-stop,
+flash and shockwave; the projector slide and the playground street lamp light up and
+bloom; the win camera frames the machine beside the docked result tag while Pip turns
+and cheers; the title is a hero shot of Pip waving beside the logo (portrait-aware); the
+taut cable jitters, sparks and twangs, and coworkers along it flinch; floor corner
+brackets mark what E will grab; the idle hint is a line of flowing dots; smoke, stars and
+steam; phones follow Pip fully. The Cable Playground got its own set (practice socket
+wall, how-to poster, START tape, supply cage, trainees, clustered crates). Pip's hat
+wobbles on a spring, seated coworkers type and glance around, and audio gained cable
+creaks, glass smashes and light-prop clatter. Job thumbnails are regenerated from the
+live scenes with `node tools/thumbs.mjs`.
+
 ## What works
 
 **Pip and camera.** Rapier character controller: walk, sprint, jump, grab/carry/throw.

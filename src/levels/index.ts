@@ -10,4 +10,5 @@ import {arcade} from './arcade';
 import {garage} from './garage';
 import {clockwork} from './clockwork';
 import {depot} from './depot';
-export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,arcade,garage,clockwork,depot];
+import {spectrum} from './spectrum';
+export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,arcade,garage,clockwork,depot,spectrum];

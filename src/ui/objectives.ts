@@ -75,7 +75,7 @@ export function promptFor(g:Game):Prompt|null{
     if(Math.min(dist(pos,g.level.target)-.6,dist(g.plugPosition,g.level.target))<1.6)return {key:'F',text:g.stripPlaced()?'Plug in':'Plug in (the power strip is still missing)'};
     return g.rope.strain>.97?{key:'Q',text:'Let go to slingshot the cable'}:{key:'F',text:'Drop the plug'};}
   if(!g.lunch&&g.nearSwitch(pos))return {key:'E',text:g.switchedOn?'Switch it off':g.connected?'Switch it on':'Switch on (needs power first)'};
-  if(!g.lunch&&!g.connected&&dist(pos,g.plugPosition)<1.75)return {key:'F',text:'Pick up the plug'};
+  if(!g.lunch&&!g.station&&!g.hub&&!g.connected&&dist(pos,g.plugPosition)<1.75)return {key:'F',text:'Pick up the plug'};
   const near=g.nearest();if(near){if(near.spec.id==='coffee-reel'&&!g.coffeeReused)return {key:'E',text:'Borrow the coffee machine\'s cable'};
     return {key:'E',text:`Grab the ${NAMES[near.spec.kind]??'thing'}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
   return null;

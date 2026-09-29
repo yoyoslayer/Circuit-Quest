@@ -10,6 +10,7 @@ import {ArcadeBench} from './arcade/station';
 import {GarageBench} from './garage/station';
 import {ClockworkKitchen} from './clockwork/station';
 import {DeliveryDepot} from './depot/station';
+import {SpectrumDesk} from './spectrum/station';
 export function makeStation(id:StationId,game:Game):Station{
   switch(id){
     case 'vias':return new ViaCounter(game);
@@ -21,5 +22,6 @@ export function makeStation(id:StationId,game:Game):Station{
     case 'garage':return new GarageBench(game);
     case 'clockwork':return new ClockworkKitchen(game);
     case 'depot':return new DeliveryDepot(game);
+    case 'spectrum':return new SpectrumDesk(game);
   }
 }

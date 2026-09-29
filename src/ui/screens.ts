@@ -20,6 +20,7 @@ export const LOOK:Record<LevelId,{color:string;thumb:string;size:string;pos:stri
   arcade:{color:'#FF7EB6',thumb:'thumb-arcade.jpg',size:'160%',pos:'50% 45%'},
   depot:{color:'#F28C28',thumb:'thumb-depot.jpg',size:'160%',pos:'50% 45%'},
   garage:{color:'#2FB3A6',thumb:'thumb-garage.jpg',size:'160%',pos:'50% 45%'},
+  spectrum:{color:'#E0679B',thumb:'thumb-spectrum.jpg',size:'160%',pos:'50% 45%'},
 };
 export const thumbUrl=(id:LevelId)=>`${import.meta.env.BASE_URL}ui/${LOOK[id].thumb}`;
 /** Level data keeps names upper-case for the old intro card; menus use title case. */

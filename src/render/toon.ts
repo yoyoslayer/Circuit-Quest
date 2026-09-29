@@ -69,12 +69,15 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   const grade=new ShaderPass(GradeShader);
   composer.addPass(ao);composer.addPass(bloom);composer.addPass(new OutputPass());composer.addPass(grade);
   // ?lowfx (or a slow machine, see Game.adaptQuality) drops the expensive passes.
-  const setQuality=(level:0|1|2)=>{ao.enabled=level>=2;bloom.enabled=level>=1;};
-  if(low)setQuality(0);
+  // Quality 2: everything; 1: no AO; 0: no AO or bloom and a lower pixel ratio.
+  let quality:0|1|2=2;
+  const setQuality=(level:0|1|2)=>{quality=level;ao.enabled=level>=2;bloom.enabled=level>=1;const pr=level===0?Math.min(pixelRatio,1):pixelRatio;renderer.setPixelRatio(pr);composer.setPixelRatio(pr);resize();};
+  const getQuality=()=>quality;
   const resize = () => { renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); grade.uniforms.resolution.value.set(innerWidth*pixelRatio,innerHeight*pixelRatio); };
   addEventListener('resize',resize); resize();
+  if(low)setQuality(0);
   const render=()=>composer.render();
   const mood=(id:string)=>{const m=MOODS[id]??MOODS.meeting;sun.color.set(m.key[0]);sun.intensity=m.key[1];fill.intensity=m.fill;rim.intensity=m.rim;hemi.intensity=m.hemi;renderer.toneMappingExposure=m.exposure;scene.background=backdrop(...m.backdrop);};
   mood('meeting');
-  return {renderer,effect,scene,camera,sun,hemi,fill,mood,render,composer,setQuality};
+  return {renderer,effect,scene,camera,sun,hemi,fill,mood,render,composer,setQuality,getQuality};
 }

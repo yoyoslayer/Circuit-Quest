@@ -338,15 +338,17 @@ export class Game {
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;
-    if(this.atBench&&this.station){const st=this.station,v=st.view;target=st.table.clone().add(new T.Vector3(0,v.lookY,0));distanceTo=v.distance;pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*Math.min(1,dt*4);}
+    if(this.atBench&&this.station){const st=this.station,v=st.view;target=st.table.clone().add(new T.Vector3(0,v.lookY,0));distanceTo=v.distance;pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
     if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.station?7:this.level.id==='meeting'?8:9;pitch=this.station?.5:this.level.id==='meeting'?.32:.6;}
     // Title: a hero shot of Pip beside the logo (Pip sits in the right half of the frame).
     const titling=!this.running&&document.body.dataset.screen==='title';
     if(titling){const right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));const portrait=cam.aspect<1;target=new T.Vector3(p.x,p.y+(portrait?1.5:.3),p.z).addScaledVector(right,portrait?0:-2.6);distanceTo=portrait?10.5:8;pitch=.32;}
-    this.focus.lerp(target,this.survey||pushing?ease*.6:titling?1:this.atBench?ease*.8:ease);
+    // Tests (?manual) snap straight onto a bench so pointer positions are deterministic.
+    const snap=this.manual&&this.atBench;
+    this.focus.lerp(target,snap?1:this.survey||pushing?ease*.6:titling?1:this.atBench?ease*.8:ease);
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo);
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
-    cam.position.lerp(wanted,1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
+    cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
     // Cutaway: shell walls whose outside faces the camera drop to 0.9 m stubs.
     for(const wall of this.shellWalls){const at=wall.group.parent!.getWorldPosition(new T.Vector3()),toCam=new T.Vector3(cam.position.x-at.x,0,cam.position.z-at.z).normalize();const stub=wall.normal.dot(toCam)>.2;
       wall.group.scale.y=T.MathUtils.lerp(wall.group.scale.y,stub?.01:1,.15);wall.group.visible=wall.group.scale.y>.03;}

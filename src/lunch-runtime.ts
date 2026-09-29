@@ -168,7 +168,7 @@ export class LunchRuntime {
     for(const port of this.ports)if(port.bodyId){const prop=this.prop(port.bodyId);if(prop){const pos=prop.body.translation();port.pos.set(pos.x,pos.y+port.lift,pos.z);}}
     const wedged=this.doorWedged(),open=wedged||distance(p,{x:0,z:.2})<2.6;
     if(this.doorAngle<.05&&!wedged)this.doorSide=p.z>DOOR.z?-1:1;
-    this.doorAngle=T.MathUtils.lerp(this.doorAngle,open?1:0,dt*7);const shut=this.doorWasOpen&&this.doorAngle<=.15&&!wedged;
+    this.doorAngle=T.MathUtils.lerp(this.doorAngle,open?1:0,dt*7);const shut=this.doorWasOpen&&this.doorAngle<=.15&&!wedged;if(this.doorWasOpen!==this.doorAngle>.15)g.audio.noise(.22,.035,shut?260:700);
     for(const leaf of this.leaves){const angle=leaf.closed+leaf.dir*this.doorSide*Math.PI*.47*this.doorAngle;leaf.pivot.rotation.y=angle;
       const center=new T.Vector3(.72,1.05,0).applyAxisAngle(new T.Vector3(0,1,0),angle).add(leaf.pivot.position);leaf.body.setNextKinematicTranslation(center);leaf.body.setNextKinematicRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),angle));}
     if(g.held?.spec.id==='mop'&&this.nearPuddle(p))this.water=Math.max(0,this.water-dt*.3);
@@ -214,7 +214,7 @@ export class LunchRuntime {
     if(['conveyor','lift','delivered'].includes(this.job.tray)){const along=this.job.transport;tray.body.setNextKinematicTranslation({x:along<1?-.5+along*12.5:12,y:1.18+this.job.height*2.5,z:-7});}
     if(this.job.tray==='burned'&&Math.random()<dt*3)this.puff(new T.Vector3(-2.7,2,-7.4));
     if(this.job.done&&!g.won)g.win();
-    if(this.job.failed&&!g.won){g.won=true;const result=g.hud.querySelector<HTMLElement>('.result')!;result.hidden=false;result.innerHTML=`<div class="medal fail">${icon(this.job.tray==='burned'?'oven':'thermometer')}</div><button aria-label="Retry Lunch Rush">${icon('retry')}</button>`;result.querySelector('button')!.onclick=()=>location.reload();g.audio.tone(120,.7,.05,'triangle');document.body.dataset.failed='true';}
+    if(this.job.failed&&!g.won){g.won=true;const result=g.hud.querySelector<HTMLElement>('.result')!;result.hidden=false;result.innerHTML=`<div class="medal fail">${icon(this.job.tray==='burned'?'oven':'thermometer')}</div><button aria-label="Retry Lunch Rush">${icon('retry')}</button>${g.levelNav()}`;result.querySelector('button')!.onclick=()=>location.reload();g.audio.tone(120,.7,.05,'triangle');document.body.dataset.failed='true';}
   }
   puff(at:T.Vector3){const m=part(this.game.root,sphere(.22,10,8),toon('#8d8a96'),at.x,at.y,at.z,false);m.userData.life=1.4;this.smoke.push(m);}
   render(dt:number){const g=this.game;

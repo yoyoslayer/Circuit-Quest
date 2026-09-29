@@ -7,3 +7,4 @@ playwright-report/
 *.blend1
 public/models/*.glb
 !public/models/pip.glb
+tools/*.tmp.mjs

@@ -2,6 +2,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon} from './render/toon';
+import {INK,BLOBC,part,capsule,sphere,bangTexture} from './render/kit';
 import {Sound} from './render/audio';
 import {icon} from './render/icons';
 import {makeProp,prefabs,type PropSpec} from './props/prefabs';
@@ -10,16 +11,18 @@ import {Circuit} from './sim/electrical';
 import {grade} from './sim/grade';
 import type {Level} from './levels/types';
 import {LunchRuntime} from './lunch-runtime';
+import {decorate} from './levels/decor';
 
 interface Prop {spec:PropSpec;body:RAPIER.RigidBody;collider:RAPIER.Collider;mesh:T.Group;damaged:boolean;home:T.Vector3;lastSpeed:number}
 interface Particle {mesh:T.Mesh;velocity:T.Vector3;life:number}
+interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;alarm:number;seed:number}
 interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:T.Group[]=[];particles:Particle[]=[];
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];particles:Particle[]=[];
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
-  avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;
+  avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
   yaw=.12;pitch=.83;zoom=24;orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
@@ -60,23 +63,8 @@ export class Game {
   }
   buildRoom(){
     const l=this.level;
-    this.box(l.width,.35,l.depth,0,-.2,0,'#879fa7');
-    // Small tiles are a single shared canvas texture, not hundreds of draw calls.
-    const canvas=document.createElement('canvas');canvas.width=canvas.height=128;const c=canvas.getContext('2d')!;c.fillStyle='#97abb0';c.fillRect(0,0,128,128);c.fillStyle='#8da3aa';c.fillRect(0,0,64,64);c.fillRect(64,64,64,64);
-    const texture=new T.CanvasTexture(canvas);texture.wrapS=texture.wrapT=T.RepeatWrapping;texture.repeat.set(l.width/2,l.depth/2);texture.colorSpace=T.SRGBColorSpace;
-    const floor=new T.Mesh(new T.PlaneGeometry(l.width,l.depth),new T.MeshToonMaterial({map:texture,color:'#ffffff'}));floor.rotation.x=-Math.PI/2;floor.position.y=-.015;floor.receiveShadow=true;this.root.add(floor);
-    this.box(l.width,2.8,.25,0,1.2,-l.depth/2,'#dccdaf',true,true);
-    this.box(.25,2.8,l.depth,-l.width/2,1.2,0,'#dccdaf',true,true);
-    // Low front rails keep the diorama readable and physics contained.
-    this.box(l.width,.3,.22,0,.05,l.depth/2,'#dbcaac');this.box(.22,.3,l.depth,l.width/2,.05,0,'#dbcaac');
-    for(const o of l.obstacles)this.box(o.maxX-o.minX,2.6,o.maxZ-o.minZ,(o.minX+o.maxX)/2,1.3,(o.minZ+o.maxZ)/2,'#e0d2b2',true,true);
-    for(let x=-l.width/2+2;x<l.width/2-1;x+=3.2){this.box(2.2,1.2,.04,x,1.8,-l.depth/2+.15,'#a5c7cc',false);this.box(.08,1.25,.06,x,1.8,-l.depth/2+.19,'#eee2ca',false);}
-    if(l.id==='meeting'){
-      this.box(6.8,.045,19.6,12.5,.015,0,'#c8a36d',false);
-      for(let z=-9.6;z<10;z+=.65)this.box(6.8,.008,.016,12.5,.042,z,'#b48e5b',false);
-      this.screen=this.box(3.5,1.75,.1,12.2,1.9,-9.7,'#30354b',false);
-      this.box(1.7,2.3,.14,10.15,1.15,-2,'#91b8bb',true,true);this.box(2.5,2.3,.14,15.05,1.15,-2,'#91b8bb',true,true);
-    }else if(l.id==='playground'){this.box(.14,1.7,.14,l.target.x,.85,l.target.z,'#44596a');this.screen=new T.Mesh(new T.SphereGeometry(.45,16,12),toon('#495469'));this.screen.position.set(l.target.x,1.9,l.target.z);this.root.add(this.screen);}
+    this.box(l.width,.35,l.depth,0,-.2,0,'#6b7385');
+    const decor=decorate(this);this.screen=decor.screen;this.beam=decor.beam;
   }
   addProp(spec:PropSpec){
     const p=prefabs[spec.kind],mesh=makeProp(spec.kind,spec.color),pos=new T.Vector3(spec.x,spec.y??p.size[1]/2+.025,spec.z);
@@ -86,11 +74,14 @@ export class Game {
     this.props.push({spec,body,collider,mesh,damaged:false,home:pos.clone(),lastSpeed:0});
   }
   addNpc(p:Point){
-    const g=new T.Group(),colors=['#a1bc92','#a98caf','#d69a65','#84b2b5'];
-    const body=new T.Mesh(new T.CapsuleGeometry(.25,.3,4,10),toon(colors[this.npcs.length%4]));body.position.y=.95;body.castShadow=true;g.add(body);
-    for(const x of [-.09,.09]){const eye=new T.Mesh(new T.SphereGeometry(.055,8,6),toon('#f8f1d9'));eye.position.set(x,1.12,.24);g.add(eye);const pupil=new T.Mesh(new T.SphereGeometry(.022,8,6),toon('#303749'));pupil.position.set(x,1.12,.29);g.add(pupil);}
-    g.position.set(p.x,0,p.z);this.npcs.push(g);this.root.add(g);
+    const g=new T.Group(),seated=this.level.id==='meeting',body=new T.Group();body.position.y=seated?.35:0;g.add(body);
+    part(body,capsule(.33,.35),toon(BLOBC[this.npcs.length%BLOBC.length]),0,.55,0);
+    for(const x of [-.1,.1]){part(body,sphere(.085,12,10),toon('#ffffff'),x,.78,.29);part(body,sphere(.042,10,8),toon(INK),x,.78,.36);}
+    const bubble=new T.Sprite(new T.SpriteMaterial({map:bangTexture(),depthTest:false}));bubble.scale.set(.7,.7,1);bubble.position.y=(seated?.35:0)+1.55;bubble.renderOrder=9;bubble.visible=false;g.add(bubble);
+    g.position.set(p.x,0,p.z);this.npcs.push({group:g,body,bubble,alarm:0,seed:this.npcs.length*1.7});this.root.add(g);
   }
+  /** Coworkers near a crash or snap flinch and show a "!" bubble. */
+  alarm(at:Point,radius=4.5){for(const npc of this.npcs)if(distance(npc.group.position,at)<radius)npc.alarm=1.6;}
   batchProps(){
     const groups=new Map<string,{prop:Prop;part:T.Mesh}[]>();
     for(const prop of this.props){prop.mesh.traverse(o=>{if(o instanceof T.Mesh){const key=o.geometry.uuid+(o.material as T.Material).uuid;const list=groups.get(key)??[];list.push({prop,part:o});groups.set(key,list);}});this.root.remove(prop.mesh);}
@@ -136,7 +127,9 @@ export class Game {
     if(action==='throw'){if(this.holdingPlug)this.releasePlug();else if(this.held){const p=this.held;this.held=undefined;p.body.applyImpulse({x:Math.sin(this.heading)*prefabs[p.spec.kind].mass*8,y:prefabs[p.spec.kind].mass*5,z:Math.cos(this.heading)*prefabs[p.spec.kind].mass*8},true);this.audio.tone(240,.1,.06,'triangle');}}
   }
   togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.hud.querySelector<HTMLElement>('.pause')!.hidden=!this.paused;this.audio.strain(0);}
-  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.spec.id))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>distance(pos,a.body.translation())-distance(pos,b.body.translation()))[0];}
+  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
+  /** Job items (anything with an id) win ties against clutter that got pushed along. */
+  reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id?.6:0);}
   interact(cableOnly=false){
     const pos=this.player.translation();
     if(this.lunch?.interact(cableOnly))return;
@@ -147,7 +140,8 @@ export class Game {
       if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&this.coupler){this.extension=true;this.rope.maxLength=this.level.length+14;this.consume(p);this.audio.cheer();}
       else if(p.spec.id==='coupler'&&distance(pos,this.plugPosition)<2){this.coupler=true;this.consume(p);this.audio.tone(550,.2);}
       p.body.setLinvel({x:0,y:0,z:0},true);p.body.setAngvel({x:0,y:0,z:0},true);
-      if(this.lunch&&p.spec.id==='wedge'&&distance(pos,{x:0,z:.5})<2.4)p.body.setTranslation({x:1.05,y:.35,z:.65},true);
+      // A doorstop dropped near the kitchen door tucks in beside the open right leaf.
+      if(this.lunch&&p.spec.id==='wedge'&&distance(pos,{x:0,z:.5})<2.4){p.body.setTranslation({x:1.02,y:.2,z:1.25},true);p.body.setRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),Math.PI/2),true);}
       this.held=undefined;return;
     }
     if(!this.lunch&&distance(pos,this.plugPosition)<1.75){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.tone(420,.08);return;}
@@ -160,7 +154,7 @@ export class Game {
   consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);}
   releasePlug(){
     const energy=this.rope.release();this.holdingPlug=false;
-    if(energy>1){this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');
+    if(energy>1){this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.alarm(this.plugPosition,6);
       for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();const impulse=Math.min(energy*.22,45);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
       const last=this.rope.bends.at(-1)??this.rope.anchor;this.plugPosition.x=T.MathUtils.lerp(this.plugPosition.x,last.x,.15);this.plugPosition.z=T.MathUtils.lerp(this.plugPosition.z,last.z,.15);this.burst(this.plugPosition,'#ffdf94',12);
     }else this.audio.tone(140,.09,.03);
@@ -212,14 +206,14 @@ export class Game {
     this.world.timestep=dt;this.world.step();
     if(this.holdingPlug&&this.rope.strain>.88)for(const prop of this.props){const pos=prop.body.translation();if(prefabs[prop.spec.kind].mass<=15&&this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<.65)){const v=new T.Vector3(p.x-pos.x,0,p.z-pos.z).normalize().multiplyScalar(dt*12*(this.rope.strain-.8));prop.body.applyImpulse({x:v.x,y:.015,z:v.z},true);}}
     for(const prop of this.props){if(!prop.body.isEnabled())continue;const pos=prop.body.translation(),v=prop.body.linvel(),speed=Math.hypot(v.x,v.y,v.z);
-      if(this.time>2&&!prop.damaged&&prop.lastSpeed>4&&prop.lastSpeed-speed>2.5){prop.damaged=true;this.damage++;this.cost+=prefabs[prop.spec.kind].cost;this.audio.tone(70+Math.random()*120,.12,.035,'triangle');this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#e1d4b7',3);if(prop.spec.kind==='glass'){this.consume(prop);this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#a0dbdf',14);}}
+      if(this.time>2&&!prop.damaged&&prop.lastSpeed>4&&prop.lastSpeed-speed>2.5){prop.damaged=true;this.alarm(pos);this.damage++;this.cost+=prefabs[prop.spec.kind].cost;this.audio.tone(70+Math.random()*120,.12,.035,'triangle');this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#e1d4b7',3);if(prop.spec.kind==='glass'){this.consume(prop);this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#a0dbdf',14);}}
       prop.lastSpeed=speed;
       if(pos.y< -3||Math.abs(pos.x)>this.level.width/2+1||Math.abs(pos.z)>this.level.depth/2+1){prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);}
     }
     if(p.y< -3){this.player.setTranslation({x:this.level.spawn.x,y:1,z:this.level.spawn.z},true);this.vertical=0;}
     if(this.lunch)this.lunch.step(dt);else{this.simulateCable();this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
   }
-  win(){this.won=true;this.audio.cheer();this.audio.strain(0);if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88');}
+  win(){this.won=true;this.audio.cheer();this.audio.strain(0);if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     this.burst(new T.Vector3(this.level.target.x,2,this.level.target.z),'#ffcf52',50);const g=grade(this.time,this.damage,this.cost);
     const result=this.hud.querySelector<HTMLDivElement>('.result')!;result.innerHTML=`<div class="medal">${icon('check')}<b>${g.overall}</b></div><div class="grade-row"><span>${icon('clock')}<b>${g.parts[0]}</b><small>${this.formatTime(this.time)}</small></span><span>${icon('damage')}<b>${g.parts[1]}</b><small>${this.damage}</small></span><span>${icon('coins')}<b>${g.parts[2]}</b><small>${this.cost}</small></span></div><button aria-label="Play again">${icon('retry')}</button>${this.level.id==='playground'?'<a href="?level=meeting" aria-label="Play Big Meeting">'+icon('arrow')+'</a>':''}`;
     result.hidden=false;result.querySelector('button')!.onclick=()=>location.reload();document.body.dataset.complete='true';
@@ -234,8 +228,11 @@ export class Game {
     const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);this.avatar.rotation.y=this.heading;const moving=this.keys.size>0&&this.running&&!this.paused;this.avatar.scale.set(1,moving?1+Math.sin(this.time*15)*.025:1,1);
     for(const prop of this.props){if(!prop.mesh.visible)continue;prop.mesh.position.copy(prop.body.translation());prop.mesh.quaternion.copy(prop.body.rotation());}
     this.updateBatches();
-    this.npcs.forEach((npc,i)=>{npc.rotation.y=Math.atan2(p.x-npc.position.x,p.z-npc.position.z);npc.scale.y=this.won?1+Math.sin(this.last*.012+i)*.13:distance(p,npc.position)<2?.78:1;});
-    if(this.lunch)this.lunch.render();else this.drawCable();this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);
+    for(const npc of this.npcs){const g=npc.group,near=distance(p,g.position)<2;npc.alarm=Math.max(0,npc.alarm-dt);
+      g.rotation.y=T.MathUtils.lerp(g.rotation.y,Math.atan2(p.x-g.position.x,p.z-g.position.z),.08);
+      const cheer=this.won?Math.abs(Math.sin(this.last*.009+npc.seed)):0,duck=npc.alarm>0?.72:near?.86:1;
+      npc.body.scale.set(2-duck,duck,2-duck);npc.body.position.y=(this.level.id==='meeting'?.35:0)+cheer*.35;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;npc.bubble.visible=npc.alarm>0&&!this.won;}
+    if(this.lunch)this.lunch.render(dt);else this.drawCable();this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);
     const nearest=this.nearest();this.reticle.visible=this.running&&!this.held&&!this.holdingPlug&&!this.won;
     this.reticle.position.copy(distance(p,this.plugPosition)<1.75?this.plugPosition:nearest?.mesh.position??new T.Vector3(0,-10,0));this.reticle.position.y+=.1;
     for(const particle of [...this.particles]){particle.life-=dt;particle.velocity.y-=8*dt;particle.mesh.position.addScaledVector(particle.velocity,dt);particle.mesh.rotation.x+=dt*4;if(particle.life<=0){this.root.remove(particle.mesh);particle.mesh.geometry.dispose();this.particles.splice(this.particles.indexOf(particle),1);}}

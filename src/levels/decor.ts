@@ -6,13 +6,13 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../game';
 import type {Obstacle} from '../sim/cable';
-import {DMETAL,TRIM,WOOD,toon,rbox,box,cyl,sphere,part,group,glow} from '../render/kit';
+import {DMETAL,TRIM,WOOD,toon,rbox,box,cyl,sphere,part,group,glow,glyph,cachedTexture} from '../render/kit';
 import {INK} from '../render/toon';
 import {glossyToon,hot} from '../render/actors';
 import * as TX from '../render/textures';
 import {windowUnit,windowShaft,wallArt,pendant,pointLamp,lampPool,rug,shadowDecal,type WallArt} from './dressing';
 
-export interface Decor {screen?:T.Mesh;beam?:T.Object3D;clock?:{hand:T.Object3D;minute:T.Object3D;face:T.Mesh}}
+export interface Decor {screen?:T.Mesh;beam?:T.Object3D;clock?:{hand:T.Object3D;minute:T.Object3D;face:T.Mesh};lightUp?:()=>void}
 const WALL_UP='#efe2c8',WALL_LOW='#c7b08e',RAIL='#a8734a',BASE='#7a4f33',CAP='#c98a55',CAP_DARK='#8e5a36';
 // Big flat wall faces skip OutlineEffect: its hull pokes through them at grazing angles as stripes.
 const plainMaterials=new Map<string,T.Material>();
@@ -82,13 +82,33 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
   // Painted lane lines lead from the reel to the lamp socket.
   const lane=toon('#ffc629');for(const [x0,z0,x1,z1] of [[-9.6,5.8,9.6,5.8],[-9.6,-8.2,9.6,-8.2],[-9.6,5.8,-9.6,-8.2]]){const len=Math.hypot(x1-x0,z1-z0);const m=part(r,box(len,.01,.12),lane,(x0+x1)/2,.006,(z0+z1)/2,false);m.rotation.y=-Math.atan2(z1-z0,x1-x0);}
   l.obstacles.forEach((o,i)=>pillar(game,o,i,true));
-  part(r,box(.14,1.7,.14),toon(DMETAL),l.target.x,.85,l.target.z);part(r,cyl(.3,.36,.12,18),toon(INK),l.target.x,.06,l.target.z);
-  const screen=part(game.root,sphere(.45,18,14),glossyToon('#495469'),l.target.x,1.9,l.target.z);
-  for(const [x,z] of [[8,8],[8.8,8.2],[-8.5,-8.5]]){part(r,box(1.1,.14,.9),toon('#c9925e'),x,.07,z);part(r,rbox(.8,.6,.7,.08),toon('#d7a56d'),x,.44,z);}
-  solid(game,1.9,.74,.9,8.4,.37,8.1);solid(game,1.1,.74,.9,-8.5,.37,-8.5);
-  for(const [x,z] of [[6,-2],[6.6,-1.2],[-6,7.5]]){part(r,box(.5,.05,.5),toon('#ff8a3d'),x,.025,z);part(r,cyl(.03,.22,.6,14),toon('#ff8a3d'),x,.33,z);part(r,cyl(.13,.16,.1,14),toon('#fff6e6'),x,.4,z);}
-  wallArt(side,'bolt',-4,1.9,.16);wallArt(side,'cork',2,1.85,.16,0,1.1);wallArt(back,'graph',8.4,1.9,.18,0,.8);
-  return {screen};
+  // The payoff: a big dead street lamp by the socket that blooms warm when the cable goes in.
+  const t=l.target,lamp=group(r,t.x+.55,0,t.z-.35);part(lamp,cyl(.34,.42,.16,20),toon(INK),0,.08,0);part(lamp,cyl(.07,.09,2.6,12),toon(DMETAL),0,1.4,0);part(lamp,box(.9,.08,.08),toon(DMETAL),-.35,2.68,0);
+  const shade=part(lamp,new T.CylinderGeometry(.18,.42,.34,20,1,true),glossyToon('#ffc629',{spec:.7,size:.97}),-.75,2.55,0);(shade.material as T.Material).side=T.DoubleSide;
+  const screen=part(game.root,sphere(.16,14,10),toon('#6b6f84'),t.x-.2,2.42,t.z-.35,false);solid(game,.5,2.8,.5,t.x+.55,1.4,t.z-.35);
+  part(r,rbox(.48,.38,.3,.06),toon('#384454'),t.x,.2,t.z);
+  const lightUp=()=>{screen.material=hot('#fff0c0',3);const bulb=screen.getWorldPosition(new T.Vector3());glow(game.root,'rgba(255,214,140,1)',3,.6).position.copy(bulb);
+    pointLamp(game.root,bulb.x,bulb.y-.3,bulb.z,{intensity:10,distance:9});lampPool(game.root,t.x-.2,t.z-.35,3,.3);};
+  for(const [x,z] of [[8.2,8.2],[8.9,8.4],[-8.5,-8.5]]){part(r,box(1.1,.14,.9),toon('#c9925e'),x,.07,z);solid(game,1.1,.14,.9,x,.07,z);}
+  // A practice wall of sockets and a wordless how-to poster: reel, plug, socket, lamp.
+  for(let k=0;k<5;k++){const x=-6+k*1.2;part(back,rbox(.38,.38,.1,.06),toon('#f0ece2'),x,.55,.18);part(back,cyl(.1,.1,.05,14,'z'),toon(INK),x,.55,.24);if(k===2)glow(game.root,'rgba(120,255,160,1)',.6,.45).position.set(x,.55,-l.depth/2+.35);}
+  const howto=cachedTexture('howto',()=>glyph(c=>{c.fillStyle='#fffaf0';c.fillRect(0,0,256,256);c.lineWidth=10;
+    c.fillStyle='#ffc94d';c.beginPath();c.arc(44,128,26,0,7);c.fill();c.stroke();c.strokeStyle='#ff922f';c.beginPath();c.moveTo(70,128);c.bezierCurveTo(100,90,120,170,150,128);c.stroke();c.strokeStyle='#2b2d42';
+    c.fillStyle='#2b2d42';c.fillRect(150,116,26,24);c.fillRect(176,120,10,6);c.fillRect(176,130,10,6);c.fillStyle='#5ed6cc';c.beginPath();c.arc(200,128,16,0,7);c.fill();c.stroke();
+    c.fillStyle='#ffe36e';c.beginPath();c.arc(210,60,24,0,7);c.fill();c.stroke();for(let a=0;a<8;a++){c.beginPath();c.moveTo(210+Math.cos(a*.8)*32,60+Math.sin(a*.8)*32);c.lineTo(210+Math.cos(a*.8)*42,60+Math.sin(a*.8)*42);c.stroke();}
+    c.beginPath();c.moveTo(200,110);c.lineTo(210,86);c.stroke();}));
+  const board=group(side,0,1.85,.16);part(board,box(1.9,1.3,.05),toon(INK));const face=new T.Mesh(new T.PlaneGeometry(1.8,1.2),toon('#ffffff',{map:howto}));face.position.z=.03;board.add(face);
+  wallArt(side,'bolt',-4,1.9,.16);wallArt(back,'graph',8.4,1.9,.18,0,.8);
+  // START: a taped square with a chevron where Pip begins, by the reel.
+  const tape=toon('#ffc629');for(const [w,d,dx,dz] of [[1.8,.1,0,-.85],[1.8,.1,0,.85],[.1,1.8,-.85,0],[.1,1.8,.85,0]] as const)part(r,box(w,.012,d),tape,l.spawn.x+dx,.008,l.spawn.z+dz,false);
+  for(const s of [-1,1]){const c=part(r,box(.55,.012,.12),tape,l.spawn.x+.25+s*0,.009,l.spawn.z+s*.18,false);c.rotation.y=s*.6;}
+  // Supply cage in the corner: wire mesh with spare reels and boxes.
+  const cage=group(r,-8.3,0,-5.2);const wire=toon(DMETAL);for(const [x,z] of [[-1,-.8],[1,-.8],[-1,.8],[1,.8]])part(cage,box(.06,1.8,.06),wire,x,.9,z);
+  for(const y of [.05,.9,1.8]){part(cage,box(2,.04,.04),wire,0,y,-.8);part(cage,box(2,.04,.04),wire,0,y,.8);part(cage,box(.04,.04,1.6),wire,-1,y,0);}
+  for(let k=0;k<9;k++){part(cage,box(.02,1.8,.02),wire,-1+k*.25,.9,-.8,false);part(cage,box(.02,1.8,.02),wire,-1+k*.25,.9,.8,false);}
+  for(const [x,z,c] of [[-.4,-.2,'#ffc94d'],[.4,.3,'#e5484d']] as const){const reelGroup=group(cage,x,.36,z);for(const s of [-1,1])part(reelGroup,cyl(.32,.32,.06,20,'z'),toon(c),0,0,s*.2);part(reelGroup,cyl(.24,.24,.34,20,'z'),toon('#f4efe6'));}
+  part(cage,rbox(.6,.5,.6,.05),toon('#c98f5a'),.5,.25,-.35);solid(game,2,1.8,1.6,-8.3,.9,-5.2);
+  return {screen,lightUp};
 }
 function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   const l=game.level,r=game.decorRoot;

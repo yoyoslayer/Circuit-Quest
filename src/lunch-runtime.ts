@@ -2,7 +2,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from './game';
 import {Circuit,type Lead,type Load} from './sim/electrical';
-import {LunchJob} from './sim/lunch';
+import {LunchJob,BURN_WARNING} from './sim/lunch';
 import {Rope,distance,segmentDistance,segmentHits,strainColor,type Point} from './sim/cable';
 import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge,paint} from './render/kit';
 import {makeProp} from './props/prefabs';
@@ -38,7 +38,7 @@ export class LunchRuntime {
     this.port('a',-13,3,'out',2,'supply-a',.1);this.port('b',-13,7,'out',2,'supply-b',.1);this.port('kitchen',-4,-3,'in',1);
     this.port('fridge',-4,-1.8,'in',1);this.port('conveyor',5,-5,'in',1);this.port('lift',12,-4.8,'in',1);
     for(let i=1;i<=3;i++)this.port(`splitter-${i}`,-14+(i-1)*.7,0,'both',4,`splitter-${i}`,-.15);
-    for(const id of ['a','b']){const gauge=new Gauge(),mount=gauge.mount(root,0,0,0,.9);mount.rotation.x=-.5;const button=part(root,cyl(.1,.1,.12,12),toon('#d63a3f'));this.supplyGauges.set(id,{gauge,mount,button});}
+    for(const id of ['a','b']){const gauge=new Gauge(),mount=gauge.mount(root,0,0,0,.9);mount.rotation.x=-.5;const button=part(root,cyl(.1,.1,.12,12),toon('#d63a3f',{emissive:'#ff3a3a',ei:0}).clone());this.supplyGauges.set(id,{gauge,mount,button});}
     this.addCable('thin-1',3,32,'a',null,[-11,2]);this.addCable('thin-2',3,30,'a',null,[-10,3.5]);this.addCable('thin-3',3,32,null,null,[-11,7]);this.addCable('thick',10,30,'b',null,[-10,7.5]);
     this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#141726',{transparent:true,opacity:.88,depthWrite:false}),-12.1,2.7,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;
     const tray=this.prop('tray');if(tray){tray.mesh.visible=false;tray.body.setEnabled(false);}
@@ -212,7 +212,9 @@ export class LunchRuntime {
     if(g.held===tray)this.job.pickTray();
     if(this.job.tray==='carried'&&g.held!==tray&&distance(tray.body.translation(),{x:0,z:-7})<2){this.job.placeTray();tray.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);}
     if(['conveyor','lift','delivered'].includes(this.job.tray)){const along=this.job.transport;tray.body.setNextKinematicTranslation({x:along<1?-.5+along*12.5:12,y:1.18+this.job.height*2.5,z:-7});}
-    if(this.job.tray==='burned'&&Math.random()<dt*3)this.puff(new T.Vector3(-2.7,2,-7.4));
+    const scorching=this.job.tray==='burned'||(this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&this.powered('oven'));
+    if(scorching&&Math.random()<dt*3)this.puff(new T.Vector3(-2.7,2,-7.4));
+    if(this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&Math.floor(this.job.ovenWait)%2===0&&Math.floor(this.job.ovenWait-dt)%2===1)g.audio.tone(880,.12,.04,'square');
     if(this.job.done&&!g.won)g.win();
     if(this.job.failed&&!g.won){g.won=true;const result=g.hud.querySelector<HTMLElement>('.result')!;result.hidden=false;result.innerHTML=`<div class="medal fail">${icon(this.job.tray==='burned'?'oven':'thermometer')}</div><button aria-label="Retry Lunch Rush">${icon('retry')}</button>${g.levelNav()}`;result.querySelector('button')!.onclick=()=>location.reload();g.audio.tone(120,.7,.05,'triangle');document.body.dataset.failed='true';}
   }
@@ -220,7 +222,7 @@ export class LunchRuntime {
   render(dt:number){const g=this.game;
     for(const [i,m] of this.puddles.entries())m.scale.setScalar(Math.max(.001,this.water*(1-i*.02)));this.puddles.forEach(m=>m.scale.x*=1.4);this.dark.visible=!this.lit();
     for(const id of ['capacitor','cooler-box']){const prop=this.prop(id);if(prop)prop.mesh.visible=this.lit()||!this.inStore(prop.body.translation());}
-    this.bakeGauge.set(this.job.bake/20);const oven=this.powered('oven');this.ovenWindow.material=oven?lit('#ffb35a','#ff8a2a',.6):toon('#3a3d55');this.ovenGlow.material.opacity=oven?.45:0;
+    this.bakeGauge.set(this.job.bake/20);const oven=this.powered('oven');const hot=this.job.tray==='burned'||this.job.ovenWait>BURN_WARNING;this.ovenWindow.material=oven?(hot?lit('#ff5a3a','#ff2a1a',.8):lit('#ffb35a','#ff8a2a',.6)):toon('#3a3d55');this.ovenGlow.material.opacity=oven?.45:0;
     const temp=this.job.temperature;this.thermoFill.scale.y=Math.max(.02,temp);this.thermoFill.position.y=.68+Math.max(.02,temp)*.5;this.thermoFill.material=toon(temp>.8?'#e5484d':temp>.6?'#ff8a3d':'#ffc94d');
     this.sad.visible=temp>.8||(this.job.failed&&this.job.tray!=='burned');this.sad.position.y=2.9+Math.sin(g.time*6)*.05;
     if(this.powered('conveyor'))this.belt.offset.x-=dt*.2;
@@ -231,7 +233,7 @@ export class LunchRuntime {
     if(distance(lamp,{x:-4,z:-3.15})>.3){this.cord.geometry.dispose();this.cord.geometry=new T.TubeGeometry(new T.CatmullRomCurve3(cordPts),24,.025,5);}
     for(const [id,{gauge,mount,button}] of this.supplyGauges){const prop=this.prop(`supply-${id}`)!,source=this.circuit.sources.find(s=>s.id===id)!,draw=this.circuit.draw.get(id)??0;
       gauge.set(source.tripped?1:draw/6);mount.position.copy(prop.mesh.position).add(new T.Vector3(.15,.75,-.05).applyQuaternion(prop.mesh.quaternion));mount.quaternion.copy(prop.mesh.quaternion);mount.rotateX(-.5);
-      button.position.copy(prop.mesh.position).add(new T.Vector3(.56,.66,-.28).applyQuaternion(prop.mesh.quaternion));button.material=source.tripped?lit('#e5484d','#ff3a3a',.9+Math.sin(g.time*10)*.5):toon('#d63a3f');}
+      button.position.copy(prop.mesh.position).add(new T.Vector3(.56,.66,-.28).applyQuaternion(prop.mesh.quaternion));(button.material as T.MeshToonMaterial).emissiveIntensity=source.tripped?.9+Math.sin(g.time*10)*.5:0;}
     const holding=!!this.held;
     for(const port of this.ports){port.ring.position.copy(port.pos);port.ring.position.y=Math.max(.05,port.pos.y-.25);const source=this.circuit.sources.find(s=>s.id===port.id);const material=port.ring.material as T.MeshBasicMaterial;
       material.color.set(source?.tripped?'#f35b66':'#63d8d0');material.opacity=holding?.95:.35;port.ring.visible=this.lit()||!this.inStore(port.pos);port.ring.scale.setScalar(holding?1+Math.sin(g.time*5)*.08:1);}
@@ -239,10 +241,10 @@ export class LunchRuntime {
       if(pts.length>1){const sampled:T.Vector3[]=[];for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];for(let j=0;j<8;j++){const t=j/8,v=a.clone().lerp(b,t);v.y=Math.max(.09,v.y-Math.sin(t*Math.PI)*.35*Math.max(0,1-cable.rope.strain));sampled.push(v);}}sampled.push(pts.at(-1)!);cable.mesh.geometry.dispose();cable.mesh.geometry=new T.TubeGeometry(new T.CatmullRomCurve3(sampled),Math.max(24,sampled.length*2),cable.rating>3?.085:.045,5,false);}
       const heat=cable.lead.heat;(cable.mesh.material as T.MeshToonMaterial).color.set(cable.lead.dead?'#262833':heat>1.2?'#ff5a3a':heat>.4?'#ffa04a':this.held?.cable===cable?strainColor(cable.rope.strain):cable.rating>3?'#2b2d42':'#ecE8dc');
       (cable.mesh.material as T.MeshToonMaterial).emissive.set(heat>.4&&!cable.lead.dead?'#ff6a2a':'#000000');
-      cable.plugs.forEach((plug,i)=>{plug.position.copy(cable.ends[i]);const toward=cable.points[i===0?1:cable.points.length-2];if(toward)plug.rotation.y=Math.atan2(-(toward.z-cable.ends[i].z),toward.x-cable.ends[i].x)+Math.PI;});
+      cable.plugs.forEach((plug,i)=>{plug.position.copy(cable.ends[i]);const toward=cable.points[i===1-cable.active?1:cable.points.length-2];if(toward)plug.rotation.y=Math.atan2(-(toward.z-cable.ends[i].z),toward.x-cable.ends[i].x)+Math.PI;});
     }
     for(const m of [...this.smoke]){m.userData.life-=dt;m.position.y+=dt*.8;m.scale.setScalar(1+(1.4-m.userData.life));if(m.userData.life<=0){this.game.root.remove(m);this.smoke.splice(this.smoke.indexOf(m),1);}}
-    if(this.held){g.rope=this.held.cable.rope;g.audio.strain(g.rope.strain);}else g.audio.strain(0);
+    if(this.held)g.rope=this.held.cable.rope;g.audio.strain(this.held&&!g.paused&&!g.won?g.rope.strain:0);
     g.hud.querySelector('#oven-stage')?.classList.toggle('done',this.job.tray!=='raw');g.hud.querySelector('#belt-stage')?.classList.toggle('done',this.job.transport>=1);g.hud.querySelector('#lift-stage')?.classList.toggle('done',this.job.done);
     (g.hud.querySelector('#fridge-stage') as HTMLElement).style.color=temp>.8?'#e85c65':'#528979';
   }

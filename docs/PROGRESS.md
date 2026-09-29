@@ -98,6 +98,10 @@ mesh each. Not yet measured on a real integrated-GPU laptop.
   bots' line snap onto it (forgiving interaction).
 - **Bots' loop.** Moved so the corridor feed to the lift crosses it twice ("two cable
   bridges on the bots' line"), while the kitchen feed clears it.
+- **Burning tray.** A baked tray waits on the oven door. If the oven stays on, it smokes
+  and beeps from 60 s and burns at 90 s; switching the oven off or taking the tray stops
+  the clock. The spec gave no time, and 45 s was shorter than the intended solution's
+  own detour.
 - **Spoiled lunch.** Letting the fridge spoil ends the job with a retry card. The spec
   calls for this; it is the only failure state, and chaos alone never causes it.
 

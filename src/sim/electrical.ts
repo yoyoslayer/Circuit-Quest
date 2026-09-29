@@ -23,15 +23,15 @@ export class Circuit {
     }
     const demand=new Map<string,number>();
     for(const load of this.loads){
-      const route=routes.get(load.id);
-      if(!load.enabled||!route||route.source.tripped)continue;
+      const route=routes.get(load.id),cap=load.capacitor;
+      // A parked capacitor tops itself up whenever it is not busy absorbing a kick.
+      if(!load.enabled||!route||route.source.tripped){if(cap?.atLoad)cap.charge=Math.min(12,cap.charge+dt);continue;}
       const starting=load.state!=='on';
       if(starting)load.started=this.time;
       const kickActive=this.time-load.started<(load.kickSeconds??1);
       let value=kickActive?Math.max(load.steady,load.kick??0):load.steady;
-      const cap=load.capacitor;
-      if(cap?.atLoad&&value>load.steady){const need=(value-load.steady)*dt;if(cap.charge>=need){cap.charge-=need;value=load.steady;}}
-      else if(cap?.atLoad)cap.charge=Math.min(12,cap.charge+dt*.5);
+      if(cap?.atLoad&&value>load.steady){const supplied=Math.min(cap.charge,(value-load.steady)*dt);cap.charge-=supplied;value-=supplied/dt;}
+      else if(cap?.atLoad)cap.charge=Math.min(12,cap.charge+dt);
       demand.set(load.id,value);
       this.draw.set(route.source.id,(this.draw.get(route.source.id)??0)+value);
       for(const edge of route.path)this.draw.set(edge.id,(this.draw.get(edge.id)??0)+value);

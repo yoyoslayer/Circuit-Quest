@@ -21,7 +21,7 @@ interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
@@ -107,7 +107,7 @@ export class Game {
   levelNav(){return `<nav class="levels">${levels.map(l=>`<a href="?level=${l.id}" aria-label="${l.name}" class="${l.id===this.level.id?'current':''}">${icon(l.badge)}</a>`).join('')}</nav>`;}
   setupUI(){
     this.hud.innerHTML=`<div class="job"><div class="badge">${icon(this.level.badge)}<svg class="timer" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29"/></svg></div><div class="stats"><span>${icon('clock')}<b id="clock">0:00</b></span><span>${icon('damage')}<b id="damage">0</b></span><span>${icon('coins')}<b id="cost">0</b></span></div></div><div class="tension">${icon('reel')}<div><i id="strain"></i></div></div><div class="toolbar"><button aria-label="Grab or drop" data-action="grab">${icon('hand')}<kbd>E</kbd></button><button aria-label="Cable" data-action="cable">${icon('plug')}<kbd>F</kbd></button><button aria-label="Throw" data-action="throw">${icon('throw')}<kbd>Q</kbd></button><button aria-label="Jump" data-action="jump">${icon('jump')}<kbd>␣</kbd></button><button aria-label="Reset camera" data-action="camera">${icon('camera')}</button></div><div class="utility"><button aria-label="Mute audio" data-action="sound">${icon('sound')}</button><button aria-label="Pause" data-action="pause">${icon('pause')}</button><button aria-label="Restart" data-action="restart">${icon('retry')}</button></div><div class="intro panel"><div class="eyebrow">FACILITIES DEPARTMENT / ${this.level.number}</div><h1>CIRCUIT<br><em>CREW</em><span>®</span></h1><div class="intro-rule"></div><p>${this.level.tagline}</p><div class="control-strip"><span><kbd>W A S D</kbd>${icon('move')}</span><span><kbd>E</kbd>${icon('hand')}</span><span><kbd>F</kbd>${icon('plug')}</span><span><kbd>Q</kbd>${icon('throw')}</span><span><kbd>␣</kbd>${icon('jump')}</span><span><kbd>⇧</kbd>${icon('arrow')}</span><span><kbd>RMB</kbd>${icon('camera')}</span></div><button class="start" aria-label="Start playing">${icon('play')}</button>${this.levelNav()}<small>${this.level.name} <span>${this.level.number} / CIRCUIT CREW</span></small></div><div class="result panel" hidden></div><div class="pause panel" hidden><button aria-label="Resume" class="resume">${icon('play')}</button>${this.levelNav()}</div>`;
-    this.hud.querySelector('.start')!.addEventListener('click',()=>{this.running=true;this.audio.start();this.hud.querySelector('.intro')!.remove();});
+    this.hud.querySelector('.start')!.addEventListener('click',()=>this.begin());
     this.hud.querySelector('.resume')!.addEventListener('click',()=>this.togglePause());
     this.hud.querySelectorAll<HTMLButtonElement>('[data-action]').forEach(button=>button.addEventListener('click',()=>this.action(button.dataset.action!)));
   }
@@ -131,6 +131,12 @@ export class Game {
     if(action==='grab'||action==='cable')this.interact(action==='cable');
     if(action==='throw'){if(this.holdingPlug)this.releasePlug();else if(this.held){const p=this.held;this.held=undefined;p.body.applyImpulse({x:Math.sin(this.heading)*prefabs[p.spec.kind].mass*8,y:prefabs[p.spec.kind].mass*5,z:Math.cos(this.heading)*prefabs[p.spec.kind].mass*8},true);this.audio.tone(240,.1,.06,'triangle');}}
   }
+  begin(){if(this.running)return;this.running=true;this.audio.start();this.hud.querySelector('.intro')?.remove();}
+  /** Gamepad buttons are read every frame so Start/A also work on the intro card and while paused. */
+  pollPad(){const pad=navigator.getGamepads?.()[0];if(!pad)return;
+    pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
+      if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
+      const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
   togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.hud.querySelector<HTMLElement>('.pause')!.hidden=!this.paused;this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) win ties against clutter that got pushed along. */
@@ -151,7 +157,7 @@ export class Game {
     if(!this.lunch&&distance(pos,this.plugPosition)<1.75){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.tone(420,.08);return;}
     if(cableOnly)return;
     const nearest=this.nearest();if(nearest){
-      if(nearest.spec.id==='coffee-reel'&&!this.coffeeReused){this.coffeeReused=true;this.rope.reset({x:-14,z:5},30);this.plugPosition.set(-13,.3,4.5);this.holdingPlug=true;this.consume(nearest);this.audio.tone(100,.6,.06,'triangle');
+      if(nearest.spec.id==='coffee-reel'&&!this.coffeeReused){this.coffeeReused=true;this.rope.reset({x:-14,z:5},Math.max(30,this.rope.maxLength));this.plugPosition.set(-13,.3,4.5);this.holdingPlug=true;this.consume(nearest);this.audio.tone(100,.6,.06,'triangle');
         // The coffee bar goes dark: nearby coworkers groan.
         this.alarm({x:-13,z:4.5},4.5);[220,196,175].forEach((f,i)=>setTimeout(()=>this.audio.tone(f,.35,.04,'triangle'),200+i*260));return;}
       // A jammed doorstop only comes loose when deliberately picked up.
@@ -173,19 +179,25 @@ export class Game {
   }
   simulateCable(){
     if(this.holdingPlug){const pos=this.player.translation();this.plugPosition.set(pos.x+Math.sin(this.heading)*.65,pos.y+.05,pos.z+Math.cos(this.heading)*.65);}
-    const before=this.rope.bends.length,overBefore=this.rope.length-this.rope.maxLength;
+    const beforeBends=[...this.rope.bends],before=beforeBends.length,overBefore=this.rope.length-this.rope.maxLength;
     // Dynamic furniture contributes corners only near the current rope path.
     // This bounds the visibility graph in a dense room while retaining local wraps.
     const route=this.ropePoints.length>1?this.ropePoints:[this.rope.anchor,this.plugPosition];
-    const furniture=this.props.filter(p=>p.mesh.visible&&p!==this.held&&prefabs[p.spec.kind].mass>=3&&p.body.translation().y<1.8&&route.slice(1).some((b,i)=>segmentDistance(p.body.translation(),route[i],b)<1.2)).slice(0,20).map(p=>{
+    // Props the rope is wrapped on always stay in; the rest are the nearest twenty.
+    const near=this.props.filter(p=>p.mesh.visible&&p!==this.held&&prefabs[p.spec.kind].mass>=3&&p.body.translation().y<1.8).map(p=>({p,d:Math.min(...route.slice(1).map((b,i)=>segmentDistance(p.body.translation(),route[i],b)))})).filter(v=>v.d<1.2||this.wrapped.has(v.p));
+    near.sort((a,b)=>Number(this.wrapped.has(b.p))-Number(this.wrapped.has(a.p))||a.d-b.d);const chosen=near.slice(0,20).map(v=>v.p);
+    const furniture=chosen.map(p=>{
       const pos=p.body.translation(),[w,,d]=prefabs[p.spec.kind].size,rotation=new T.Matrix4().makeRotationFromQuaternion(p.mesh.quaternion).elements;
       const hx=Math.abs(rotation[0])*w/2+Math.abs(rotation[8])*d/2+.05,hz=Math.abs(rotation[2])*w/2+Math.abs(rotation[10])*d/2+.05;
-      return {id:`prop-${p.body.handle}`,minX:pos.x-hx,maxX:pos.x+hx,minZ:pos.z-hz,maxZ:pos.z+hz};
+      return {id:`prop-${p.body.handle}`,minX:pos.x-hx,maxX:pos.x+hx,minZ:pos.z-hz,maxZ:pos.z+hz,prop:p};
     }).filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ)&&!(this.rope.anchor.x>o.minX&&this.rope.anchor.x<o.maxX&&this.rope.anchor.z>o.minZ&&this.rope.anchor.z<o.maxZ));
-    this.ropePoints=this.rope.update(this.plugPosition,[...this.obstacles,...furniture]);
+    const obstacles=[...this.obstacles,...furniture];this.ropePoints=this.rope.update(this.plugPosition,obstacles);
+    const isCorner=(o:Obstacle,b:Point)=>(Math.abs(b.x-o.minX+.065)<.05||Math.abs(b.x-o.maxX-.065)<.05)&&(Math.abs(b.z-o.minZ+.065)<.05||Math.abs(b.z-o.maxZ-.065)<.05);
+    this.wrapped=new Set(furniture.filter(o=>this.rope.bends.some(b=>isCorner(o,b))).map(o=>o.prop));
+    const swungClear=beforeBends.filter(b=>!this.rope.bends.some(a=>distance(a,b)<.01)).some(b=>obstacles.some(o=>isCorner(o,b)));
     if(this.running&&this.rope.bends.length!==before){this.audio.tone(this.rope.bends.length>before?160:280,.08,.05,'triangle');}
     // A taut rope whipping off a corner slingshots whatever lies along it.
-    if(this.running&&this.holdingPlug&&this.rope.bends.length<before&&overBefore>.3)this.slingshot(overBefore**2*60*.6);
+    if(this.running&&this.holdingPlug&&swungClear&&this.rope.bends.length<before&&overBefore>.3)this.slingshot(overBefore**2*60*.6);
   }
   drawCable(){
     this.plug.position.copy(this.plugPosition);
@@ -198,7 +210,7 @@ export class Game {
     points.push(this.plugPosition.clone());
     if(points.length>1){const geometry=new T.TubeGeometry(new T.CatmullRomCurve3(points,false,'centripetal'),Math.max(12,points.length*2),.065,5,false);this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=geometry;}
     (this.ropeMesh.material as T.MeshToonMaterial).color.set(strainColor(this.rope.strain));
-    this.audio.strain(this.holdingPlug?this.rope.strain:0);
+    this.audio.strain(this.holdingPlug&&!this.paused&&!this.won?this.rope.strain:0);
   }
   burst(pos:{x:number;y:number;z:number},color:string,count:number,kind:Fx='debris'){this.fx.spawn(kind,pos,count,color);}
   step(dt:number){
@@ -206,7 +218,7 @@ export class Game {
     let x=Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft'));
     let z=Number(this.keys.has('KeyS')||this.keys.has('ArrowDown'))-Number(this.keys.has('KeyW')||this.keys.has('ArrowUp'));
     if(this.stick){x+=this.stick.x;z+=this.stick.z;}
-    const pad=navigator.getGamepads?.()[0];if(pad){pad.buttons.forEach((b,i)=>{const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera'} as Record<number,string>)[i];if(action&&b.pressed&&!this.padHeld[i])this.action(action);this.padHeld[i]=b.pressed;});x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),.35,1.25);}
+    const pad=navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),.35,1.25);}
     const move=new T.Vector3(x,0,z);if(move.length()>1)move.normalize();move.applyAxisAngle(new T.Vector3(0,1,0),this.yaw);
     if(move.length()>.1)this.heading=Math.atan2(move.x,move.z);
     let speed=this.keys.has('ShiftLeft')?6.8:4.2;if(this.held)speed/=1+prefabs[this.held.spec.kind].mass/25;if(this.lunch?.held?.cable.rating===10)speed*=.65;
@@ -280,7 +292,7 @@ export class Game {
     this.hud.querySelector('[data-action="cable"]')!.classList.toggle('active',this.holdingPlug);this.hud.querySelector('[data-action="grab"]')!.classList.toggle('active',!!this.held);
     this.updateCamera(dt);const d0=performance.now();this.view.effect.render(this.view.scene,this.view.camera);this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;
   }
-  frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;
+  frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad();
     const t0=performance.now();
     if(this.running&&!this.paused&&!this.won&&!this.manual){this.accumulator+=dt;let steps=0;while(this.accumulator>=1/60&&steps++<5){this.step(1/60);this.accumulator-=1/60;}}
     this.frames++;this.frameWindow+=dt;if(this.frameWindow>=1){this.fps=this.frames/this.frameWindow;this.frames=0;this.frameWindow=0;}

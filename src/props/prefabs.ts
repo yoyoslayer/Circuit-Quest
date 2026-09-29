@@ -74,7 +74,7 @@ function build(kind:PropKind,c:string):T.Group{
       decal(g,scribble(),w*.82,.88,0,h/2-.55,.04);break;
     case 'bookshelf':
       for(const [px,pz] of [[-1,-1],[1,-1],[-1,1],[1,1]])part(g,box(.07,h,.07),toon(METAL),px*(w/2-.04),0,pz*(d/2-.04));
-      for(const y of [-.6,0,.6]){part(g,box(w,.06,d),toon(c),0,y);for(let k=0;k<7;k++)part(g,box(.14,.34,d*.7),toon(books[(k+Math.round(y*5))%books.length]),-w/2+.25+k*.24,y+.2);}break;
+      for(const y of [-.6,0,.6]){part(g,box(w,.06,d),toon(c),0,y);for(let k=0;k<7;k++)part(g,box(.14,.34,d*.7),toon(books[((k+Math.round(y*5))%books.length+books.length)%books.length]),-w/2+.25+k*.24,y+.2);}break;
     case 'vending':
       part(g,rbox(w,h,d,.08),m);part(g,box(w*.66,h*.62,.05),toon('#bfeaf5'),-w*.08,h*.12,d/2);
       for(let i=0;i<9;i++)part(g,box(.14,.14,.02),toon(CHAIRC[i%6]),-w*.3+(i%3)*.2,-.05+Math.floor(i/3)*.33,d/2+.03,false);break;

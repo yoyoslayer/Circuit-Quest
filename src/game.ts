@@ -26,14 +26,14 @@ export class Game {
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
-  yaw=.12;pitch=.92;zoom=18;survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
+  yaw=.14;pitch=0;zoom=26;survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
   audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint:T.Line;reticle:T.Mesh;pipRing:T.Mesh;
   batches:Batch[]=[];decorRoot=new T.Group();
   lunch?:LunchRuntime;
   // ?manual lets automated tests advance simulated time deterministically.
   manual=new URLSearchParams(location.search).has('manual');stick?:Point;
   constructor(public level:Level){
-    const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=level.id==='playground'?15:18;this.view.camera.fov=34;this.view.camera.updateProjectionMatrix();dispatchEvent(new Event('resize'));
+    const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=this.homeZoom();
     this.rope=new Rope({...level.anchor},level.length);this.obstacles=[...level.obstacles];
     this.buildRoom();
     for(const spec of level.props)this.addProp(spec);
@@ -55,7 +55,7 @@ export class Game {
     this.hint=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#76e1d3',dashSize:.2,gapSize:.35,transparent:true,opacity:.6}));this.hint.visible=false;this.root.add(this.hint);
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
     this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else{this.simulateCable();this.drawCable();}
-    freeze(this.decorRoot);this.updateCamera(1);this.view.effect.render(this.view.scene,this.view.camera);
+    freeze(this.decorRoot);this.updateCamera(1);this.view.render();
     document.body.dataset.ready='true';
     Object.assign(window,{__circuitCrew:{snapshot:()=>this.snapshot(),drive:this.manual?this.driver():undefined}});
     requestAnimationFrame(t=>this.frame(t));
@@ -124,11 +124,11 @@ export class Game {
     canvas.addEventListener('contextmenu',e=>e.preventDefault());
     canvas.addEventListener('pointerdown',e=>{this.audio.start();if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
     canvas.addEventListener('pointerup',()=>this.orbit=false);
-    canvas.addEventListener('pointermove',e=>{if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,.5,1.2);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
-    canvas.addEventListener('wheel',e=>{this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.012,8,26);},{passive:true});
+    canvas.addEventListener('pointermove',e=>{if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
+    canvas.addEventListener('wheel',e=>{this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
   action(action:string){
-    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='camera'){this.survey=false;this.pitch=.92;this.zoom=this.level.id==='playground'?15:18;this.yaw=.12;this.pitch=.83;return;}
+    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.12;this.pitch=.83;return;}
     if(!this.running||this.paused||this.won)return;
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
     if(action==='jump'&&this.grounded&&(!this.held||prefabs[this.held.spec.kind].mass<15)){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
@@ -143,8 +143,8 @@ export class Game {
       const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera',10:'survey'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
   togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.hud.querySelector<HTMLElement>('.pause')!.hidden=!this.paused;this.hud.classList.toggle('is-paused',this.paused);this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
-  /** Job items (anything with an id) win ties against clutter that got pushed along. */
-  reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id?.6:0);}
+  /** Job items (anything with an id) in reach always win over clutter that got pushed along. */
+  reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id?2:0);}
   interact(cableOnly=false){
     const pos=this.player.translation();
     if(this.lunch?.interact(cableOnly))return;
@@ -236,7 +236,7 @@ export class Game {
     let x=Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft'));
     let z=Number(this.keys.has('KeyS')||this.keys.has('ArrowDown'))-Number(this.keys.has('KeyW')||this.keys.has('ArrowUp'));
     if(this.stick){x+=this.stick.x;z+=this.stick.z;}
-    const pad=navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),.35,1.25);}
+    const pad=navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
     const move=new T.Vector3(x,0,z);if(move.length()>1)move.normalize();move.applyAxisAngle(new T.Vector3(0,1,0),this.yaw);
     if(move.length()>.1)this.heading=Math.atan2(move.x,move.z);
     let speed=this.keys.has('ShiftLeft')?6.8:4.2;if(this.held)speed/=1+prefabs[this.held.spec.kind].mass/25;if(this.lunch?.held?.cable.rating===10)speed*=.65;
@@ -279,8 +279,10 @@ export class Game {
   updateCamera(dt:number){
     const p=this.player.translation(),cam=this.view.camera,ease=1-Math.exp(-dt*5);
     this.lead.lerp(new T.Vector3(Math.sin(this.heading),0,Math.cos(this.heading)).multiplyScalar(this.grounded&&this.airborne===0&&(this.keys.size>0||this.stick)?1.2:0),ease*.5);
-    let target=new T.Vector3(p.x,p.y+.8,p.z).add(this.lead),distanceTo=this.zoom,pitch=this.pitch;
-    if(this.survey){target=new T.Vector3(0,0,0);distanceTo=34;pitch=1.05;}
+    // Zoomed out it frames the floor like a diorama; zooming in drops to Pip's eye line (mockups/look/LOOK.md).
+    const zoom=this.survey?36.5:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=T.MathUtils.clamp(.25+near*.9,.25,1);
+    const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
+    let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;if(pushing){target=this.winFocus();distanceTo=9;pitch=.7;}
     this.focus.lerp(target,this.survey||pushing?ease*.6:ease);
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo);
@@ -292,6 +294,7 @@ export class Game {
     const start=cam.position,end=new T.Vector3(p.x,p.y+.4,p.z),ray=new T.Raycaster(start,end.clone().sub(start).normalize(),0,start.distanceTo(end));const hit=new Set(ray.intersectObjects(this.occluders).map(h=>h.object));
     for(const mesh of this.occluders){const material=mesh.material as T.MeshToonMaterial;material.opacity=T.MathUtils.lerp(material.opacity,hit.has(mesh)?.15:1,.15);material.depthWrite=material.opacity>.8;}
   }
+  homeZoom(){return this.level.id==='playground'?18:26;}
   winFocus(){const l=this.level;return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.4,-7.5):new T.Vector3(l.target.x,1.2,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
@@ -338,7 +341,7 @@ export class Game {
     const shown=this.lunch&&!this.lunch.held?0:this.rope.strain,strain=this.hud.querySelector<HTMLElement>('#strain')!;strain.style.width=`${Math.min(100,shown*100)}%`;strain.style.background=this.connected?'#ffc94d':strainColor(shown);
     const deadline=this.level.deadline??240,ring=this.hud.querySelector('.timer circle') as SVGElement;ring.style.strokeDashoffset=String(Math.min(1,this.time/deadline)*183);ring.style.stroke=this.time>deadline?'#e5484d':'';
     this.hud.querySelector('[data-action="cable"]')!.classList.toggle('active',this.holdingPlug);this.hud.querySelector('[data-action="grab"]')!.classList.toggle('active',!!this.held);
-    this.updateCamera(dt);const d0=performance.now();this.view.effect.render(this.view.scene,this.view.camera);this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;
+    this.updateCamera(dt);const d0=performance.now();this.view.render();this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;
   }
   frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad();
     const t0=performance.now();

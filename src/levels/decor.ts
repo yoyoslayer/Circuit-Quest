@@ -8,6 +8,9 @@ import {INK,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,repeat,planks,tiles,
 
 export interface Decor {screen?:T.Mesh;beam?:T.Object3D;clock?:{hand:T.Object3D;minute:T.Object3D;face:T.Mesh}}
 const CREAM='#f4e7cf',WAINSCOT='#d9774a',BASE='#7a4a33';
+// Big flat wall faces skip OutlineEffect: its hull pokes through them at grazing angles as stripes.
+const plainMaterials=new Map<string,T.Material>();
+const plain=(color:string)=>{let m=plainMaterials.get(color);if(!m){m=toon(color).clone();m.userData.outlineParameters={visible:false};plainMaterials.set(color,m);}return m;};
 /** Invisible static collider; interior walls are taller than they look so Pip can't hop them. */
 export function solid(game:Game,w:number,h:number,d:number,x:number,y:number,z:number,ry=0){
   const body=game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z).setRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),ry)));
@@ -22,8 +25,8 @@ function floor(game:Game,x0:number,x1:number,z0:number,z1:number,map:T.Texture,t
  *  coordinates with +z (or +x) pointing into the room. */
 function shellWall(game:Game,w:number,d:number,x:number,z:number,normal:[number,number],h=3){
   const wall=group(game.root,x,0,z),upper=group(wall,0,.9,0);
-  part(wall,box(w,.9,d),toon(WAINSCOT),0,.45,0);part(wall,box(w+.02,.14,d+.06),toon(BASE),0,.07,0);part(wall,box(w+.02,.05,d+.05),toon(TRIM),0,.9,0);
-  part(upper,box(w,h-.9,d),toon(CREAM),0,(h-.9)/2-.05,0);part(upper,box(w+.02,.09,d+.06),toon(TRIM),0,h-.95,0);
+  part(wall,box(w,.9,d),plain(WAINSCOT),0,.45,0);part(wall,box(w+.02,.14,d+.06),toon(BASE),0,.07,0);part(wall,box(w+.02,.05,d+.05),toon(TRIM),0,.9,0);
+  part(upper,box(w,h-.9,d),plain(CREAM),0,(h-.9)/2-.05,0);part(upper,box(w+.02,.09,d+.06),toon(TRIM),0,h-.95,0);
   // Grazing sun on the long wall faces only produces acne; walls don't need to receive shadows.
   wall.traverse(o=>{o.receiveShadow=false;});
   game.shellWalls.push({group:upper,normal:new T.Vector3(normal[0],0,normal[1]),height:h});solid(game,w,h,d,x,h/2,z);
@@ -31,7 +34,7 @@ function shellWall(game:Game,w:number,d:number,x:number,z:number,normal:[number,
 }
 function interiorWall(game:Game,o:Obstacle,upperColor=CREAM,lowerColor=WAINSCOT,h=1.35){
   const w=o.maxX-o.minX,d=o.maxZ-o.minZ,x=(o.minX+o.maxX)/2,z=(o.minZ+o.maxZ)/2,r=game.decorRoot;
-  part(r,box(w,.8,d),toon(lowerColor),x,.4,z);part(r,box(w,h-.8,d),toon(upperColor),x,.8+(h-.8)/2,z);part(r,box(w+.03,.12,d+.05),toon(BASE),x,.06,z);
+  part(r,box(w,.8,d),plain(lowerColor),x,.4,z);part(r,box(w,h-.8,d),plain(upperColor),x,.8+(h-.8)/2,z);part(r,box(w+.03,.12,d+.05),toon(BASE),x,.06,z);
   part(r,box(w+.05,.1,d+.07),toon(TRIM),x,h,z);solid(game,w,2.6,d,x,1.3,z);
 }
 function pillar(game:Game,o:Obstacle,hazard=false){

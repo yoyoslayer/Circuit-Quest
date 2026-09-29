@@ -55,7 +55,7 @@ export class LunchRuntime {
     this.bakeGauge.mount(oven,.9,1.35,.68,.7);this.socketPlate(oven,.95,.4,.66);solid(g,2.6,1.7,1.3,-2.5,.85,-8.1);
     // Fridge with a live thermometer; a sad-food icon warns before it spoils.
     const fridge=group(root,-5.6,0,-2.3,Math.PI/2);part(fridge,rbox(1.3,2.3,1.0,.12),toon('#e9f0f2'),0,1.15);part(fridge,box(.06,.9,.06),toon(DMETAL),.5,1.4,.52);part(fridge,box(1.25,.04,.02),toon(DMETAL),0,1.6,.51);
-    part(fridge,rbox(.22,1.1,.08,.1).clone().rotateX(Math.PI/2),toon('#fffaf0'),-.4,1.2,.54);this.thermoFill=part(group(g.root,-5.6,0,-2.3,Math.PI/2),box(.1,1,.04),toon('#ffc94d'),-.4,.72,.59,false);part(fridge,sphere(.1,12,10),toon('#ffc94d'),-.4,.68,.59);
+    part(fridge,rbox(.22,1.1,.08,.1),toon('#fffaf0'),-.4,1.2,.54);this.thermoFill=part(group(g.root,-5.6,0,-2.3,Math.PI/2),box(.1,1,.04),toon('#ffc94d'),-.4,.72,.59,false);part(fridge,sphere(.1,12,10),toon('#ffc94d'),-.4,.68,.59);
     this.socketPlate(fridge,.3,.35,.52);solid(g,1.0,2.3,1.3,-5.6,1.15,-2.3);
     this.sad=new T.Sprite(new T.SpriteMaterial({map:cachedTexture('sad-food',()=>glyph(c=>{c.fillStyle='#fffaf0';c.beginPath();c.arc(128,128,110,0,7);c.fill();c.lineWidth=14;c.stroke();c.fillStyle='#8bbf5a';c.beginPath();c.arc(128,140,62,0,7);c.fill();c.stroke();c.fillStyle=INK;for(const x of [104,152]){c.beginPath();c.arc(x,128,9,0,7);c.fill();}c.beginPath();c.arc(128,178,24,Math.PI*1.15,Math.PI*1.85);c.stroke();})),depthTest:false}));
     this.sad.scale.set(.8,.8,1);this.sad.position.set(-5.3,2.9,-2.1);this.sad.renderOrder=9;this.sad.visible=false;g.root.add(this.sad);
@@ -90,7 +90,7 @@ export class LunchRuntime {
   buildDoor(){const g=this.game;
     // Double-action swing door: the leaves swing away from whoever pushes through, then auto-close.
     for(const [hinge,closed,dir] of [[-1.5,0,-1],[1.5,Math.PI,1]] as const){
-      const pivot=group(g.root,hinge,0,DOOR.z,closed);part(pivot,rbox(1.45,2,.08,.06).clone().rotateX(Math.PI/2),toon('#5f8fa8'),.73,1.05,0);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,.05);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,-.05);part(pivot,box(1.45,.1,.12),toon('#3f6f86'),.73,2.02,0);part(pivot,box(1.3,.3,.1),toon('#c9d1db'),.73,.22,0);part(pivot,box(.08,.5,.14),toon(METAL),1.3,1.05,0);
+      const pivot=group(g.root,hinge,0,DOOR.z,closed);part(pivot,rbox(1.45,2,.08,.06),toon('#5f8fa8'),.73,1.05,0);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,.05);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,-.05);part(pivot,box(1.45,.1,.12),toon('#3f6f86'),.73,2.02,0);part(pivot,box(1.3,.3,.1),toon('#c9d1db'),.73,.22,0);part(pivot,box(.08,.5,.14),toon(METAL),1.3,1.05,0);
       const body=g.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(hinge,1.05,DOOR.z));g.world.createCollider(RAPIER.ColliderDesc.cuboid(.72,1,.05),body);
       this.leaves.push({pivot,body,closed,dir});
     }

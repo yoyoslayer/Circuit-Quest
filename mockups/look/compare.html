@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Circuit Crew before/after</title>
+<style>
+html,body{margin:0;height:100%;background:#15161f;color:#f4efe4;font:600 14px/1.2 system-ui,sans-serif}
+.wrap{display:grid;grid-template-columns:repeat(2,640px);gap:14px 20px;justify-content:center;padding-top:22px}
+figure{margin:0}img{width:640px;height:400px;object-fit:cover;border-radius:8px;display:block;box-shadow:0 8px 30px #0008}
+figcaption{margin:0 0 7px 3px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+figcaption b{color:#ffc94d}
+</style></head><body><div class="wrap">
+<figure><figcaption>Before &middot; current build &middot; Big Meeting</figcaption><img src="/mockups/look/before-meeting-current.png"></figure>
+<figure><figcaption><b>After</b> &middot; proposed default camera</figcaption><img src="/mockups/look/meeting-overview.png"></figure>
+<figure><figcaption>Before &middot; current build &middot; Lunch Rush</figcaption><img src="/mockups/look/before-lunch-current.png"></figure>
+<figure><figcaption><b>After</b> &middot; proposed default camera</figcaption><img src="/mockups/look/lunch-overview.png"></figure>
+</div><script>Promise.all([...document.images].map(i=>i.decode())).then(()=>window.__done=true)</script></body></html>

@@ -43,7 +43,7 @@ const shade=(c:string,k:number)=>'#'+new T.Color(c).lerp(new T.Color(INK),k).get
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 interface Stroke {layer:Layer;net:string;cells:XY[];warned:boolean}
 export class QfnBench implements Station {
-  readonly view={distance:5.25,pitch:1.02,lookY:-.12};
+  readonly view={distance:5.6,pitch:1.02,lookY:-.1};
   readonly limits={time:720,damage:1,cost:0};
   readonly stand={x:0,z:-.5};readonly table=new T.Vector3(0,.92,-2.2);readonly facing=Math.PI;
   readonly job:StationJob;
@@ -81,7 +81,7 @@ export class QfnBench implements Station {
     part(r,box(3.3,.012,2.26),toon('#d9d4f2'),t.x,t.y+.006,t.z);
     this.solid(4,1.1,2.4,t.x,.5,t.z);
     // Side table: the parts crate lands here, and shipped boards stack beside it.
-    part(r,rbox(1,.84,.9,.05),toon('#9aa3dc'),t.x+2.55,.42,t.z);part(r,box(1.08,.07,.98),toon('#ecd3a6'),t.x+2.55,t.y-.035,t.z);this.solid(1,1,.9,t.x+2.55,.5,t.z);
+    part(r,rbox(1,.84,1.4,.05),toon('#9aa3dc'),t.x+2.55,.42,t.z);part(r,box(1.08,.07,1.48),toon('#ecd3a6'),t.x+2.55,t.y-.035,t.z);this.solid(1,1,1.4,t.x+2.55,.5,t.z);
     const top=group(this.root,t.x,t.y,t.z);
     top.add(this.boardRoot);this.boardRoot.position.set(0,TOP,-.3);
     this.boardRoot.add(this.partsRoot,this.copper,this.rats,this.preview,this.marks,this.selFrame);
@@ -136,9 +136,9 @@ export class QfnBench implements Station {
     if(p.kind==='qfn'){
       // Body over the exposed pad, with the pin-1 dot and each used pin's name printed beside it.
       const tex=canvasTex(512,512,c=>{c.fillStyle='#34364d';c.beginPath();c.roundRect(0,0,512,512,40);c.fill();c.fillStyle='rgba(255,255,255,.08)';c.fillRect(24,24,464,464);
-        c.fillStyle='#fffaf0';c.beginPath();c.arc(70,70,22,0,7);c.fill();c.textAlign='center';c.textBaseline='middle';c.font='700 92px "Fredoka Variable", system-ui, sans-serif';c.fillText(p.id,256,232);
-        c.font='600 46px "Fredoka Variable", system-ui, sans-serif';c.fillStyle='#d9d4f2';c.fillText(p.value,256,318);
-        const ep=p.pins.find(q=>q.id==='EP')!;c.font='600 34px "Fredoka Variable", system-ui, sans-serif';c.fillStyle='#b9bfeb';c.fillText(ep.label==='NC'?'EP: not connected':`EP: ${ep.label}`,256,388);});
+        c.fillStyle='#fffaf0';c.beginPath();c.arc(70,70,22,0,7);c.fill();c.textAlign='center';c.textBaseline='middle';c.font='700 92px "Fredoka Variable", system-ui, sans-serif';c.fillText(p.id,256,178);
+        c.font='600 46px "Fredoka Variable", system-ui, sans-serif';c.fillStyle='#d9d4f2';c.fillText(p.value,256,322);
+        const ep=p.pins.find(q=>q.id==='EP')!;c.font='600 30px "Fredoka Variable", system-ui, sans-serif';c.fillStyle='#b9bfeb';c.fillText(ep.label==='NC'?'EP: not connected':`EP: ${ep.label}`,256,368);});
       const body=part(g,rbox(3*S+.02,.05,3*S+.02,.02),ownToon('#34364d'),0,.04,0);this.qfnBody=body;
       const top=part(g,new T.PlaneGeometry(3*S,3*S),flatMat(tex),0,.0655,0,false);top.rotation.x=-Math.PI/2;body.userData.top=top;
       for(const pin of p.pins){if(pin.id==='EP'||pin.label==='NC')continue;const [x,y]=pin.cells[0],dx=Math.sign(x)*(Math.abs(x)===2?1:0),dy=Math.sign(y)*(Math.abs(y)===2?1:0);
@@ -157,7 +157,7 @@ export class QfnBench implements Station {
       const chev=part(sh,new T.ConeGeometry(.035,.06,3),hot('#ffe36e',1.2),-.12,.07,0,false);chev.rotation.z=Math.PI/2;
     }else{
       const col=p.kind==='cap'?'#d8b88c':'#34364d',body=group(g,S/2,0,0);
-      part(body,rbox(.2,.06,.1,.022),toon(col),0,.045,0);for(const s of [-1,1])part(body,rbox(.04,.064,.104,.014),toon('#dfe3ea'),s*.085,.045,0);
+      part(body,rbox(.2,.06,.1,.022),toon(col),0,.045,0);p.pins.forEach((q,i)=>part(body,rbox(.045,.066,.106,.014),toon(netColor(netOfPin(b,`${p.id}.${q.id}`))),(i?1:-1)*.085,.045,0));
       const tag=plate(body,label(p.id,col,p.kind==='cap'?INK:'#fffaf0',160,80),.12,.06,0,.077,0);tag.renderOrder=2;tags.push({m:tag,z:0});
     }
     g.userData.tags=tags;
@@ -170,7 +170,7 @@ export class QfnBench implements Station {
       g.visible=this.partsReady||p.kind==='qfn'||!!p.locked;
       // Flat tags counter-turn so they always read upright from the bench.
       for(const t of (g.userData.tags??[]) as {m:T.Mesh;z:number}[])t.m.rotation.z=t.z+pl.rot*Math.PI/2;
-      if(instant)g.position.y=0;}
+      if(instant||!this.drops.some(d=>d.g===g))g.position.y=0;}
   }
 
   // ---------- drawing copper, ratsnest and marks ----------
@@ -181,7 +181,7 @@ export class QfnBench implements Station {
       const mesh=part(parent,box(a[0]===z[0]?w:len,.008,a[0]===z[0]?len:w),m,(pa.x+pz.x)/2,y,(pa.z+pz.z)/2,false);return mesh;};
     // The layer being edited is drawn full strength; the other one fades toward the soldermask.
     for(const t of d.traces){const l1=t.layer===1,act=t.layer===this.layer||b.layers===1,base=l1?netColor(t.net):shade(netColor(t.net),.35);
-      const col=act?base:'#'+new T.Color(base).lerp(new T.Color(MASK),l1?.6:.35).getHexString(),m=mat(col,1,act);for(let i=1;i<t.cells.length;i++)seg(this.copper,t.cells[i-1],t.cells[i],l1?.07:.052,l1?.006:.002,m);
+      const col=act?base:'#'+new T.Color(base).lerp(new T.Color(l1?'#f4efe6':MASK),l1?.62:.35).getHexString(),m=mat(col,1,act);for(let i=1;i<t.cells.length;i++)seg(this.copper,t.cells[i-1],t.cells[i],l1?.07:.052,l1?.006:.002,m);
       if(t.cells.length===1){const p=this.at(t.cells[0]);part(this.copper,box(.07,.008,.07),m,p.x,.006,p.z,false);}}
     for(const v of d.vias){const p=this.at(v.at);part(this.copper,cyl(.05,.05,.018,18),mat(netColor(v.net)),p.x,.012,p.z,false);part(this.copper,cyl(.02,.02,.02,12),mat('#1d1f30',1,false),p.x,.013,p.z,false);}
     // Ratsnest: thin dashes floating over the board.
@@ -266,7 +266,7 @@ export class QfnBench implements Station {
     this.syncParts();this.redraw();return true;
   }
   /** Finished boards stack up on the side table. */
-  private stackShipped(){const t=this.table,n=this.outbox.length,g=group(this.game.root,t.x+2.55,t.y+.02+n*.035,t.z+.2);
+  private stackShipped(){const t=this.table,n=this.outbox.length,g=group(this.game.root,t.x+2.55,t.y+.02+n*.035,t.z+.4);
     part(g,box(.5,.03,.36),toon(MASK));part(g,box(.12,.035,.12),toon('#34364d'),0,.01,0);this.outbox.push(g);}
   private dropIn(){for(const p of this.board().parts)if(p.kind!=='qfn'&&!p.locked){const g=this.partGroups.get(p.id)!;g.position.y=.6+Math.random()*.3;this.drops.push({g,t:0});}}
 
@@ -326,7 +326,7 @@ export class QfnBench implements Station {
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='parts'||this.partsReady)return;const q=p.body.translation(),sx=this.table.x+2.55,sz=this.table.z;
     if(Math.hypot(q.x-sx,q.z-sz)<2.2||Math.hypot(q.x-this.stand.x,q.z-this.stand.z)<2.2){
-      this.partsReady=true;p.body.setTranslation({x:sx,y:this.table.y+.32,z:sz-.18},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
+      this.partsReady=true;p.body.setTranslation({x:sx,y:this.table.y+.32,z:sz-.3},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
       this.game.audio.plug();this.game.burst({x:sx,y:this.table.y+.4,z:sz},'#c7b8ff',1,'ring');this.syncParts();this.dropIn();this.redraw();}
   }
   update(dt:number){
@@ -355,7 +355,7 @@ export class QfnBench implements Station {
     const loops=r.loops.map(l=>row(`Bypass ${l.cap??'cap'}`,l.loop===Infinity?'not wired':`loop ${l.loop} · want ≤ ${l.max}`,l.loop<=l.max)).join('');
     const orient=r.problems.find(p=>/mouth/.test(p));
     this.panel.innerHTML=`<header><small>BOARD ${this.boardIx+1}/${BOARDS.length} · ${b.layers===1?'ONE LAYER':'TWO LAYERS'}</small><h4>${b.title}</h4><p>${b.ask}</p></header>`+
-      (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${orient?row('Connector','edge, mouth out',false):''}${loops}${r.thermal?row('Thermal vias',`${r.thermal.vias} / ${r.thermal.need}`,r.thermal.vias>=r.thermal.need):''}`+
+      (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${b.layers===2?row("Drawing on",this.layer===1?"L1 · top, wide tracks":"L2 · bottom, thin tracks"):""}${orient?row('Connector','edge, mouth out',false):''}${loops}${r.thermal?row('Thermal vias',`${r.thermal.vias} / ${r.thermal.need}`,r.thermal.vias>=r.thermal.need):''}`+
         `${row('Track + vias',`${r.cost} · par ${r.par}`,r.tier===3)}${row('Grade now',TIERS[r.tier],r.tier>0)}</ul>`+
         `<p class="profile">Teaching grid: cell sizes and loop limits are this bench's rules. A real layout still needs the fab's DRC and an electrical review.</p>`:'');
   }

@@ -179,7 +179,7 @@ export class DeliveryDepot implements Station {
         v.halo=glow(h,'rgba(255,220,130,1)',.7,0);v.halo.position.y=.28;}
       if(kind==='motor'){part(h,cyl(.05,.05,.07,16,'x'),toon(NAVY),0,.24,0);const rotor=group(h,.045,.24,0);for(let q=0;q<3;q++){const bl=part(rotor,box(.01,.09,.03),toon(CREAM),0,0,0);bl.rotation.x=q*Math.PI*2/3;bl.position.set(0,Math.cos(q*2.09)*.03,Math.sin(q*2.09)*.03);}v.rotor=rotor;}
       if(kind==='heater'){const m=new T.MeshBasicMaterial({color:'#6b3a2e'});m.userData.outlineParameters={visible:false};v.grille=m;part(h,box(.2,.07,.03),m,0,.23,0);for(let q=0;q<4;q++)part(h,box(.012,.08,.035),toon(INK),-.075+q*.05,.23,0);}
-      this.click(h,'deviceClick',k+1);
+      if(!this.clickables.some(c=>c.obj===h))this.click(h,'deviceClick',k+1);
     }
     v.empty.visible=!kind;v.barrier.visible=!!kind;
   }
@@ -200,8 +200,8 @@ export class DeliveryDepot implements Station {
     // View switch (trucks ↔ meter) and the DISPATCH button.
     const vs=group(b,1.42,0,.54);part(vs,rbox(.3,.05,.16,.04),toon(NAVY),0,.025,0);this.viewSwitch=group(vs,0,.06,0);part(this.viewSwitch,rbox(.12,.04,.12,.03),toon(CREAM),0,0,0);
     this.click(vs,'view');sign(b,'TRUCKS · METER',1.42,.014,.67,.34,-Math.PI/2,NAVY,CREAM);
-    const d=group(b,1.9,0,.5);part(d,cyl(.15,.17,.06,24),toon(INK),0,.03,0);part(d,cyl(.12,.13,.06,24),toon('#4fbf7f'),0,.085,0);this.click(d,'dispatch');
-    sign(b,'DISPATCH',1.9,.014,.69,.36,-Math.PI/2,'#4fbf7f',CREAM);
+    const d=group(b,1.84,0,.5);part(d,cyl(.15,.17,.06,24),toon(INK),0,.03,0);part(d,cyl(.12,.13,.06,24),toon('#4fbf7f'),0,.085,0);this.click(d,'dispatch');
+    sign(b,'DISPATCH',1.84,.014,.69,.36,-Math.PI/2,'#4fbf7f',CREAM);
   }
   private leadFrom:T.Vector3[]=[];
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
@@ -456,13 +456,11 @@ export class DeliveryDepot implements Station {
       const need=isRequired(b.device)?`needs ${BAND.lo}–${BAND.hi} V, ≤ ${spec.iMax} A`:'not needed';
       const ok=isRequired(b.device)?!b.barrier&&d.v>=BAND.lo&&d.v<=BAND.hi&&d.i<=spec.iMax!:b.barrier||Math.abs(d.i)<1e-3;
       return `<tr class="${ok?'ok':'no'}"><td><b>${cap(spec.name)}</b><small>${need}</small></td><td>${b.barrier?'blocked':volts(d.v)}</td><td>${b.barrier?'—':amps(d.i)}</td><td>${b.barrier?'—':watts(d.p)}</td></tr>`;}).join('');
-    const short=l.bays.findIndex(b=>b.device==='jumper');
     const pr=probe(l,r,this.probeAt);
     this.panel.innerHTML=head+
       `<table class="dp-table"><tr><th></th><th>V</th><th>A</th><th>W</th></tr><tr class="${l.on?'':'no'}"><td><b>Source</b><small>E ${fmt(l.e,1)} V · breaker ${this.tripped?'TRIPPED':l.on?'on':'off'}</small></td><td>${volts(r.terminal)}</td><td>${amps(r.current)}</td><td>${watts(r.pSource)}</td></tr>${devs}</table>`+
       `<p class="dp-loss">Lost as heat in the rails and the source: <b>${watts(r.pSource-r.devices.reduce((s,d)=>s+d.p,0))}</b></p>`+
       (this.tripped?`<p class="dp-warn">Breaker trip log: ${this.tripLog}.</p>`:'')+
-      (short>=0?`<p class="dp-warn">Bay ${short+1} holds a bare crossover rail: top rail straight to return.</p>`:'')+
       `<p class="dp-meter">Meter on <b>${PROBE_NAMES[this.probeAt]}</b>: ${volts(pr.v)} across, ${amps(pr.i)} through${Math.abs(pr.i)<1e-3&&Math.abs(pr.v)>1?' (voltage, but nothing flowing)':''}.</p>`+
       (job.meterCheck?`<p class="dp-check">Meter check: ${['bay1','bay3'].map(p=>`${PROBE_NAMES[p as Probe]} ${this.probed.has(p as Probe)?'✓':'·'}`).join('  ')}${this.plain?'':' (switch to METER view)'}</p>`:'')+
       `<p class="profile">${this.plain?'Plain meter: V across, A through, W = V × A.':'Analogy: a truck ≈ charge, its cargo ≈ energy, road height ≈ potential, trucks per second ≈ current. Trucks aren\'t used up at a device, and voltage isn\'t a number of trucks.'} Depot values; devices modelled as fixed loads.</p>`;

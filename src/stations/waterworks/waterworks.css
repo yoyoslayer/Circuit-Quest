@@ -1,0 +1,7 @@
+/* Waterworks bench panel: readings log and the compare table (station-panel base in ui.css). */
+.ww-panel .ww-table{width:100%;margin:8px 0 0;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.ww-panel .ww-table caption{text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);padding:6px 0 3px;border-top:2px dashed var(--paper-3)}
+.ww-panel .ww-table th{font-weight:600;color:var(--ink-2);text-align:left;padding:1px 4px 1px 0}
+.ww-panel .ww-table td{padding:1px 4px 1px 0;font-weight:600}
+.ww-panel .ww-table td.ok{color:#1f7a4d}
+.ww-panel .ww-table td.no{color:#c2383d}

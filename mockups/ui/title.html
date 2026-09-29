@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuit Crew - Title</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&display=swap">
+<link rel="stylesheet" href="ui.css">
+<style>
+  .scrim{background:linear-gradient(90deg,rgba(29,31,43,.94) 0,rgba(29,31,43,.86) 30%,rgba(29,31,43,.35) 58%,rgba(29,31,43,0) 78%),
+    linear-gradient(0deg,rgba(29,31,43,.8) 0,rgba(29,31,43,0) 24%)}
+  .title{position:fixed;left:96px;top:118px;width:720px}
+  /* logotype: paper letters with a stacked ink extrusion, like a painted toy */
+  .logo{position:relative;margin:0;font-weight:700;font-size:164px;line-height:.84;letter-spacing:-.02em;font-stretch:108%;color:var(--paper);
+    transform:rotate(-3deg);transform-origin:left bottom}
+  .logo span{position:relative;z-index:1;display:block;text-shadow:0 2px 0 var(--ink),0 4px 0 var(--ink),0 6px 0 var(--ink),0 8px 0 var(--ink),0 10px 0 var(--ink),0 12px 0 var(--ink),0 14px 0 var(--ink),0 22px 30px rgba(0,0,0,.45);
+    -webkit-text-stroke:3px var(--ink);paint-order:stroke fill;animation:drop .6s var(--ease-thud) both}
+  .logo span+span{animation-delay:.12s;margin-left:6px}
+  .logo .cable{position:absolute;z-index:0;left:-150px;top:150px;width:900px;height:250px;overflow:visible;pointer-events:none}
+  .plug{transform-origin:580px 62px;animation:plugin 1.1s .5s var(--ease-thud) both}
+  .spark{transform-origin:688px 62px;animation:spark .5s 1.25s ease-out both}
+  @keyframes drop{from{transform:translateY(-60px);opacity:0}}
+  @keyframes plugin{0%{transform:translate(-40px,-50px) rotate(-25deg)}70%{transform:translate(4px,0) rotate(2deg)}100%{transform:none}}
+  @keyframes spark{0%{transform:scale(0);opacity:1}100%{transform:scale(1);opacity:1}}
+
+  .cta{display:flex;gap:16px;margin-top:150px;align-items:stretch}
+  .play{min-width:330px;justify-content:space-between;padding:0 12px 0 30px;height:88px;font-size:32px;border-radius:24px;box-shadow:0 7px 0 var(--ink)}
+  .play .ico{width:44px;height:44px}
+  .play .lead{display:flex;align-items:center;gap:14px}
+  .nextjob{display:flex;align-items:center;gap:8px;height:62px;padding:0 10px 0 8px;border-radius:16px;background:var(--paper);border:var(--edge);font-size:18px;font-weight:600;position:relative;z-index:1}
+  .nextjob .disc{width:44px;height:44px;border-radius:50%;background:var(--hat);border:var(--edge);display:grid;place-items:center;--ic:var(--paper)}
+  .nextjob .disc .ico{width:28px;height:28px}
+  .nextjob small{font-size:15px;color:var(--ink-2)}
+  .jobsbtn{height:88px;min-width:88px;border-radius:24px;box-shadow:0 7px 0 var(--ink);flex-direction:column;gap:2px;font-size:16px}
+  .jobsbtn .ico{width:38px;height:38px}
+  .tagline{margin:26px 0 0;font-size:22px;font-weight:500;color:#C9CBDA;max-width:44ch}
+
+  .controls{position:fixed;left:96px;bottom:40px;display:flex;gap:22px;align-items:center;color:#C9CBDA;font-size:15px;font-weight:500}
+  .controls div{display:flex;align-items:center;gap:8px}
+  .controls .ico{width:30px;height:30px;--ink-c:#E6E2D6;--ic:#3A3E57;--ic-a:#8A7440}
+  .controls .key{background:#E6E2D6;color:var(--ink)}
+  .corner{position:fixed;right:32px;bottom:32px;display:flex;gap:12px}
+  .corner .btn{width:60px;height:60px;padding:0}
+  .corner .pad{display:flex;align-items:center;gap:8px;padding:0 16px;height:60px;border-radius:16px;background:rgba(250,243,227,.1);color:#C9CBDA;font-weight:600}
+  .corner .pad .ico{--ink-c:#E6E2D6;--ic:#3A3E57}
+  .corner .pad i{width:10px;height:10px;border-radius:50%;background:var(--live);box-shadow:0 0 8px var(--live)}
+</style>
+</head>
+<body>
+<script src="icons.js"></script>
+<div class="scene">
+  <div class="plate">
+    <img src="bg/meeting.png" alt="">
+    <i class="patch" style="left:18px;top:18px;width:245px;height:106px"></i>
+    <i class="patch" style="left:1176px;top:18px;width:250px;height:78px"></i>
+  </div>
+</div>
+<div class="scrim"></div>
+
+<main class="title">
+  <h1 class="logo" aria-label="Circuit Crew">
+    <span>Circuit</span><span>Crew</span>
+    <!-- the thick black/yellow cable runs under "Crew" and its plug snaps into a live socket -->
+    <svg class="cable" viewBox="0 0 900 250" aria-hidden="true">
+      <defs>
+        <pattern id="stripe" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="26" height="26" fill="#262A40"/><rect width="11" height="26" fill="#FFC53D"/></pattern>
+      </defs>
+      <path d="M0 250 C 150 262, 300 214, 380 140 S 480 58, 580 62" fill="none" stroke="#262A40" stroke-width="26" stroke-linecap="round"/>
+      <path d="M0 250 C 150 262, 300 214, 380 140 S 480 58, 580 62" fill="none" stroke="url(#stripe)" stroke-width="16" stroke-linecap="round"/>
+      <!-- socket plate + snap ring -->
+      <circle cx="688" cy="62" r="60" fill="none" stroke="#5ED6CC" stroke-width="5" stroke-dasharray="14 10" opacity=".95"/>
+      <rect x="648" y="22" width="80" height="80" rx="22" fill="#FAF3E3" stroke="#262A40" stroke-width="5"/>
+      <circle cx="704" cy="84" r="5" fill="#262A40"/>
+      <circle cx="710" cy="38" r="6" fill="#5ED6CC" stroke="#262A40" stroke-width="3"/>
+      <g class="spark" fill="#FFC53D" stroke="#262A40" stroke-width="3.5" stroke-linejoin="round">
+        <path d="M686 -26l6 18 14-10-6 17 18 2-17 7"/>
+        <path d="M758 34l20-6-8 14 16 8-20 2"/>
+        <path d="M748 104l18 10-17 2 4 17-13-12"/>
+      </g>
+      <g class="plug">
+        <rect x="574" y="38" width="56" height="48" rx="12" fill="#FFC53D" stroke="#262A40" stroke-width="5"/>
+        <path d="M590 50h24" stroke="#fff" stroke-opacity=".6" stroke-width="5" stroke-linecap="round"/>
+        <path d="M630 51h20M630 73h20" stroke="#262A40" stroke-width="8" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </h1>
+
+  <div class="cta">
+    <button class="btn primary big play" aria-label="Play next job: Lunch Rush">
+      <span class="lead"><svg class="ico"><use href="#i-play"/></svg>Play</span>
+      <span class="nextjob"><span class="disc"><svg class="ico"><use href="#i-tray"/></svg></span><small>02</small></span>
+    </button>
+    <button class="btn jobsbtn" aria-label="Choose a job"><svg class="ico"><use href="#i-jobs"/></svg></button>
+  </div>
+  <p class="tagline">Big offices, springy cables, one small technician.</p>
+</main>
+
+<div class="controls" aria-label="Controls">
+  <div><span class="key">W A S D</span><svg class="ico"><use href="#i-move"/></svg></div>
+  <div><span class="key">E</span><svg class="ico"><use href="#i-hand"/></svg></div>
+  <div><span class="key">F</span><svg class="ico"><use href="#i-plug"/></svg></div>
+  <div><span class="key">Q</span><svg class="ico"><use href="#i-throw"/></svg></div>
+  <div><span class="key sp"></span><svg class="ico"><use href="#i-jump"/></svg></div>
+  <div><span class="key">&#8679;</span><svg class="ico"><use href="#i-dash"/></svg></div>
+  <div><svg class="ico"><use href="#i-mouse"/></svg><svg class="ico"><use href="#i-camera"/></svg></div>
+</div>
+<div class="corner">
+  <span class="pad"><svg class="ico"><use href="#i-gamepad"/></svg><i></i></span>
+  <button class="btn" aria-label="Sound on"><svg class="ico"><use href="#i-sound"/></svg></button>
+</div>
+</body>
+</html>

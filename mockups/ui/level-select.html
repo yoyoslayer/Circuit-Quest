@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuit Crew - Jobs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&display=swap">
+<link rel="stylesheet" href="ui.css">
+<style>
+  .scrim{background:radial-gradient(ellipse at 50% 55%,rgba(29,31,43,.35),rgba(29,31,43,.85) 75%)}
+  header{position:fixed;left:40px;top:32px;right:40px;display:flex;align-items:center;gap:20px}
+  header h1{margin:0;font-size:46px;font-weight:700;color:var(--paper);letter-spacing:-.01em;text-shadow:0 4px 0 var(--ink)}
+  header .btn{width:60px;height:60px;padding:0}
+  .shelf{margin-left:auto;display:flex;gap:10px;align-items:center;padding:8px 14px;border-radius:40px;background:rgba(250,243,227,.1)}
+  .shelf .medal{--size:40px}
+  .wire{position:fixed;left:0;top:0;width:1440px;height:260px;pointer-events:none}
+  .row{position:fixed;left:0;right:0;top:176px;display:flex;justify-content:center;gap:56px;align-items:flex-start}
+  .job{position:relative;width:336px;padding:62px 22px 24px;transform-origin:50% -20px;transform:rotate(var(--r,0deg));animation:swing 3.2s ease-in-out infinite}
+  .job .clip{position:absolute;left:50%;top:-30px;width:34px;height:58px;margin-left:-17px;border-radius:12px;background:var(--ink);box-shadow:inset 0 0 0 6px var(--hat)}
+  .job .clip::after{content:"";position:absolute;left:10px;right:10px;top:34px;height:10px;border-radius:5px;background:var(--paper-3)}
+  .num{display:flex;align-items:baseline;justify-content:space-between}
+  .num b{font-size:22px;font-weight:600;color:var(--ink-2)}
+  .job h2{margin:2px 0 14px;font-size:30px;line-height:1.05;font-weight:700;letter-spacing:-.01em}
+  .thumb{position:relative;height:206px;border:var(--edge);border-radius:18px;background-size:var(--bs,190%);background-position:var(--bp,50% 50%);box-shadow:inset 0 -30px 40px -20px rgba(29,31,43,.35)}
+  .thumb .disc{position:absolute;left:-12px;bottom:-16px;width:62px;height:62px;border-radius:50%;background:var(--lvl,var(--hat));border:var(--edge);display:grid;place-items:center;box-shadow:0 4px 0 var(--ink);--ic:var(--paper);--ic-a:var(--paper)}
+  .thumb .disc .ico{width:36px;height:36px}
+  .thumb .medal{position:absolute;right:-16px;bottom:-22px;--size:84px;transform:rotate(-12deg)}
+  .thumb .medal.none{background:var(--paper);border:3px dashed var(--ink-2);box-shadow:0 4px 0 rgba(38,42,64,.35);--ic-a:var(--paper-2);--ink-c:var(--ink-2)}
+  .thumb .medal.none .ico{width:44px;height:44px}
+  .best{display:flex;justify-content:space-between;margin-top:34px;padding:10px 6px 0;border-top:2px dashed var(--paper-3)}
+  .best div{display:flex;align-items:center;gap:6px;font-size:19px;font-weight:600}
+  .best .ico{width:28px;height:28px}
+  .best.empty{color:var(--muted);--ink-c:var(--muted);--ic:var(--paper-2);--ic-a:var(--paper-3)}
+  .job.sel{--r:0deg;transform:scale(1.07);z-index:2;box-shadow:0 0 0 6px var(--snap),0 10px 0 6px var(--ink),0 40px 70px rgba(8,10,20,.55)}
+  .job.sel .clip{box-shadow:inset 0 0 0 6px var(--snap)}
+  .go{position:fixed;left:50%;top:712px;transform:translateX(-50%);display:flex;gap:14px;align-items:center}
+  .go .btn.primary{min-width:260px;height:84px;font-size:30px;border-radius:24px;box-shadow:0 7px 0 var(--ink)}
+  .hints{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:26px;color:#C9CBDA;font-size:15px;font-weight:500}
+  .hints span{display:flex;align-items:center;gap:6px}
+  .hints .key{background:#E6E2D6;color:var(--ink)}
+  .arrow{position:fixed;top:430px;width:64px;height:64px;padding:0;border-radius:50%}
+  .arrow .ico{width:30px;height:30px}
+</style>
+</head>
+<body>
+<script src="icons.js"></script>
+<div class="scene soft">
+  <div class="plate">
+    <img src="bg/lunch-powered.png" alt="">
+    <i class="patch" style="left:18px;top:18px;width:245px;height:106px"></i>
+    <i class="patch" style="left:592px;top:20px;width:260px;height:74px"></i>
+    <i class="patch" style="left:1176px;top:18px;width:250px;height:78px"></i>
+  </div>
+</div>
+<div class="scrim"></div>
+
+<header>
+  <button class="btn" aria-label="Back to title"><svg class="ico"><use href="#i-home"/></svg></button>
+  <h1>Jobs</h1>
+  <div class="shelf" aria-label="Best grades">
+    <span class="medal"><span>A</span></span><span class="medal b"><span>B</span></span><span class="medal none"></span>
+  </div>
+</header>
+
+<!-- the job tags hang off one long cable -->
+<svg class="wire" viewBox="0 0 1440 260" aria-hidden="true">
+  <defs><pattern id="stripe" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="22" height="22" fill="#262A40"/><rect width="9" height="22" fill="#FFC53D"/></pattern></defs>
+  <path d="M-20 138 C 300 176, 520 170, 720 168 S 1140 176, 1460 138" fill="none" stroke="#262A40" stroke-width="20" stroke-linecap="round"/>
+  <path d="M-20 138 C 300 176, 520 170, 720 168 S 1140 176, 1460 138" fill="none" stroke="url(#stripe)" stroke-width="11"/>
+</svg>
+
+<main class="row">
+  <article class="job tag" style="--r:-3deg">
+    <i class="clip"></i>
+    <div class="num"><b>00</b></div>
+    <h2>Cable Playground</h2>
+    <div class="thumb" style="background-image:url(bg/playground.png);--bs:175%;--bp:52% 42%">
+      <span class="disc" style="--lvl:#5ED6CC"><svg class="ico"><use href="#i-bolt"/></svg></span>
+      <span class="medal"><span>A</span></span>
+    </div>
+    <div class="best">
+      <div><svg class="ico"><use href="#i-clock"/></svg>0:42</div>
+      <div><svg class="ico"><use href="#i-mug"/></svg>0</div>
+      <div><svg class="ico"><use href="#i-coins"/></svg>0</div>
+    </div>
+  </article>
+
+  <article class="job tag sel">
+    <i class="clip"></i>
+    <div class="num"><b>01</b></div>
+    <h2>Big Meeting</h2>
+    <div class="thumb" style="background-image:url(bg/meeting.png);--bs:165%;--bp:52% 45%">
+      <span class="disc" style="--lvl:#6E9BEA"><svg class="ico"><use href="#i-projector"/></svg></span>
+      <span class="medal b"><span>B</span></span>
+    </div>
+    <div class="best">
+      <div><svg class="ico"><use href="#i-clock"/></svg>2:31</div>
+      <div><svg class="ico"><use href="#i-mug"/></svg>14</div>
+      <div><svg class="ico"><use href="#i-coins"/></svg>380</div>
+    </div>
+  </article>
+
+  <article class="job tag" style="--r:2.5deg;animation-delay:-1.2s">
+    <i class="clip"></i>
+    <div class="num"><b>02</b></div>
+    <h2>Lunch Rush</h2>
+    <div class="thumb" style="background-image:url(bg/lunch-powered.png);--bs:160%;--bp:50% 45%">
+      <span class="disc" style="--lvl:#FF8A3D"><svg class="ico"><use href="#i-tray"/></svg></span>
+      <span class="medal none"><svg class="ico"><use href="#i-star"/></svg></span>
+    </div>
+    <div class="best empty">
+      <div><svg class="ico"><use href="#i-clock"/></svg>&ndash;</div>
+      <div><svg class="ico"><use href="#i-mug"/></svg>&ndash;</div>
+      <div><svg class="ico"><use href="#i-coins"/></svg>&ndash;</div>
+    </div>
+  </article>
+</main>
+
+<button class="btn arrow" style="left:40px" aria-label="Previous job"><svg class="ico" style="transform:scaleX(-1)"><use href="#i-next"/></svg></button>
+<button class="btn arrow" style="right:40px" aria-label="Next job"><svg class="ico"><use href="#i-next"/></svg></button>
+
+<div class="go">
+  <button class="btn primary big" aria-label="Play Big Meeting"><svg class="ico"><use href="#i-play"/></svg>Play</button>
+</div>
+<div class="hints">
+  <span><span class="key">A</span><span class="key">D</span><svg class="ico" style="width:24px;height:24px;--ink-c:#E6E2D6"><use href="#i-move"/></svg></span>
+  <span><span class="key">&#9166;</span><svg class="ico" style="width:24px;height:24px;--ink-c:#E6E2D6"><use href="#i-play"/></svg></span>
+  <span><span class="key">Esc</span><svg class="ico" style="width:24px;height:24px;--ink-c:#E6E2D6;--ic:#3A3E57;--ic-a:#8A7440"><use href="#i-home"/></svg></span>
+</div>
+</body>
+</html>

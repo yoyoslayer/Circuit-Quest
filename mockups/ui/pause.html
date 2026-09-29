@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuit Crew - Pause</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&display=swap">
+<link rel="stylesheet" href="ui.css">
+<style>
+  .scrim{background:rgba(29,31,43,.45)}
+  .pause{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:820px;padding:30px 32px 32px;animation:rise .25s var(--ease-pop) both}
+  .tab{position:absolute;left:50%;top:-38px;margin-left:-38px;width:76px;height:76px;border-radius:50%;background:var(--hat);border:var(--edge);box-shadow:0 5px 0 var(--ink);display:grid;place-items:center}
+  .tab .ico{width:34px;height:34px}
+  .head{display:flex;align-items:center;gap:14px;padding:16px 4px 22px;border-bottom:2px dashed var(--paper-3)}
+  .head .disc{width:56px;height:56px;border-radius:50%;background:#FF8A3D;border:var(--edge);display:grid;place-items:center;--ic:var(--paper);--ic-a:var(--paper)}
+  .head .disc .ico{width:34px;height:34px}
+  .head h2{margin:0;font-size:30px;font-weight:700;line-height:1}
+  .head small{display:block;font-size:17px;font-weight:600;color:var(--ink-2);margin-bottom:4px}
+  .head .tallies{margin-left:auto;display:flex;gap:4px}
+  .body{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:24px}.body>div:first-child{display:flex;flex-direction:column}.grid{flex:1}
+  .resume{width:100%;height:92px;font-size:32px;border-radius:24px;box-shadow:0 7px 0 var(--ink)}
+  .resume .ico{width:44px;height:44px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+  .tile{flex-direction:column;gap:8px;height:auto;padding:0;font-size:16px;font-weight:600}
+  .tile .ico{width:40px;height:40px}
+  .tile.on{background:#D8F0DF}
+  .tile .key{position:absolute;right:-7px;top:-9px}
+  .map{background:var(--paper-2);border-radius:20px;padding:14px 18px;display:grid;grid-template-columns:1fr 56px 1fr;gap:9px 18px;justify-items:center;align-items:center;box-shadow:inset 0 3px 0 rgba(38,42,64,.12)}
+  .map .ico{width:32px;height:32px}
+  .map .k{justify-self:end}.map .btnpad,.map .pill,.map>svg:nth-child(3n){justify-self:start}
+  .map .key{min-width:30px;height:30px;font-size:14px;border-radius:9px}.map hr{grid-column:1/-1;width:100%;border:0;border-top:2px dashed var(--paper-3);margin:2px 0}
+  .btnpad{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;border:2.5px solid var(--ink);font-size:14px;font-weight:700;color:#fff;box-shadow:0 2px 0 var(--ink)}
+  .pa{background:#3BB273}.pb{background:#E5484D}.px{background:#4A86E0}.py{background:#E0A712}
+  .pill{display:inline-grid;place-items:center;height:26px;padding:0 9px;border-radius:13px;background:var(--ink);color:var(--paper);font-size:12px;font-weight:700}
+</style>
+</head>
+<body class="">
+<script src="icons.js"></script>
+<div class="scene soft">
+  <div class="plate">
+    <img src="bg/lunch.png" alt="">
+    <i class="patch" style="left:18px;top:18px;width:245px;height:106px"></i>
+    <i class="patch" style="left:592px;top:20px;width:260px;height:74px"></i>
+    <i class="patch" style="left:1176px;top:18px;width:250px;height:78px"></i>
+  </div>
+</div>
+<div class="scrim"></div>
+
+<section class="pause panel" aria-label="Paused">
+  <div class="tab"><svg class="ico"><use href="#i-pause"/></svg></div>
+  <div class="head">
+    <span class="disc"><svg class="ico"><use href="#i-tray"/></svg></span>
+    <div><small>02</small><h2>Lunch Rush</h2></div>
+    <div class="tallies">
+      <div class="tally"><svg class="ico"><use href="#i-clock"/></svg><b>0:51</b></div>
+      <div class="tally"><svg class="ico"><use href="#i-mug"/></svg><b>1</b></div>
+      <div class="tally"><svg class="ico"><use href="#i-coins"/></svg><b>45</b></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div>
+      <button class="btn primary resume"><svg class="ico"><use href="#i-play"/></svg>Resume</button>
+      <div class="grid">
+        <button class="btn tile"><svg class="ico"><use href="#i-retry"/></svg>Restart<span class="key">R</span></button>
+        <button class="btn tile"><svg class="ico"><use href="#i-jobs"/></svg>Jobs</button>
+        <button class="btn tile on" aria-pressed="true"><svg class="ico"><use href="#i-sound"/></svg>Sound</button>
+      </div>
+    </div>
+    <!-- controls reference: keyboard on the left, pad on the right; icons only in the middle -->
+    <div class="map" aria-label="Controls">
+      <span class="k key">W A S D</span><svg class="ico"><use href="#i-move"/></svg><svg class="ico" style="width:28px;height:28px"><use href="#i-gamepad"/></svg>
+      <span class="k key">E</span><svg class="ico"><use href="#i-hand"/></svg><span class="btnpad px">X</span>
+      <span class="k key">F</span><svg class="ico"><use href="#i-plug"/></svg><span class="btnpad pb">B</span>
+      <span class="k key">Q</span><svg class="ico"><use href="#i-throw"/></svg><span class="btnpad py">Y</span>
+      <span class="k key sp"></span><svg class="ico"><use href="#i-jump"/></svg><span class="btnpad pa">A</span>
+      <hr>
+      <span class="k"><svg class="ico" style="width:28px;height:28px"><use href="#i-mouse"/></svg></span><svg class="ico"><use href="#i-camera"/></svg><span class="pill">RS</span>
+    </div>
+  </div>
+</section>
+</body>
+</html>

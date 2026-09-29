@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HUD - Lunch Rush</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&display=swap">
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<script src="icons.js"></script>
+
+<div class="scene">
+  <div class="plate">
+    <img src="bg/lunch.png" alt="">
+    <i class="patch" style="left:18px;top:18px;width:245px;height:106px"></i>
+    <i class="patch" style="left:592px;top:20px;width:260px;height:74px"></i>
+    <i class="patch" style="left:1176px;top:18px;width:250px;height:78px"></i>
+  </div>
+</div>
+
+<!-- in-world cues -->
+<svg class="overlay" viewBox="0 0 1440 900">
+  <!-- ghost route (after a long idle): thick reel -> corridor -> kitchen splitter, around the puddle -->
+  <path class="route" d="M478 652 C 610 668, 770 600, 812 520 S 800 420, 738 390" style="opacity:.75"/>
+</svg>
+<div class="world">
+  <!-- fridge warns before it spoils: the same sad-lunch icon as the HUD thermometer -->
+  <div class="bang hot" style="left:668px;top:318px;width:58px;height:62px;margin:-62px 0 0 -29px">
+    <svg class="ico" style="position:relative;z-index:1;width:40px;height:40px;margin:6px 0 0 9px"><use href="#i-spoiled"/></svg>
+  </div>
+  <!-- sockets glow faintly until you carry a plug; then they spin up like the meeting mockup -->
+  <div class="snap idle" style="left:1279px;top:392px"><i class="o"></i><i class="i"></i></div>
+  <div class="snap idle" style="left:1036px;top:356px;transform:scale(.8)"><i class="o"></i><i class="i"></i></div>
+  <div class="reticle" style="left:392px;top:606px;--w:84px;--h:76px"><i></i><i></i><i></i><i></i></div>
+</div>
+
+<div class="hud">
+  <div class="jobplate card">
+    <div class="badge">
+      <svg class="ring" viewBox="0 0 84 84"><circle class="track" cx="42" cy="42" r="37"/><circle class="left" cx="42" cy="42" r="37" stroke-dasharray="70 233"/></svg>
+      <div class="disc"><svg class="ico"><use href="#i-tray"/></svg></div>
+    </div>
+    <div class="tallies">
+      <div class="tally"><svg class="ico"><use href="#i-clock"/></svg><b>0:51</b></div>
+      <div class="tally"><svg class="ico"><use href="#i-mug"/></svg><b>1</b></div>
+      <div class="tally"><svg class="ico"><use href="#i-coins"/></svg><b>45</b></div>
+    </div>
+  </div>
+
+  <!-- objective chain: oven -> conveyor -> lift, cable links go live as each stage runs; fridge sits apart -->
+  <div class="chain card">
+    <div class="step done"><svg class="ico"><use href="#i-oven"/></svg></div>
+    <i class="link live"></i>
+    <div class="step now">
+      <svg class="prog" viewBox="0 0 70 70"><circle cx="35" cy="35" r="32" stroke-dasharray="120 202"/></svg>
+      <svg class="ico"><use href="#i-conveyor"/></svg>
+    </div>
+    <i class="link cold"></i>
+    <div class="step todo"><svg class="ico"><use href="#i-lift"/></svg></div>
+    <i class="div"></i>
+    <div class="thermo hot">
+      <svg class="ico fr"><use href="#i-fridge"/></svg>
+      <div class="tube" style="--h:.74;margin-left:16px"><i></i></div>
+      <svg class="ico sad"><use href="#i-spoiled"/></svg>
+    </div>
+  </div>
+
+  <div class="topright">
+    <div class="strain card">
+      <div class="reel" style="--left:.8"><svg class="ico" style="animation:none"><use href="#i-reel"/></svg></div>
+      <div class="cablebar" style="--t:.18"><i></i></div>
+    </div>
+    <button class="btn pausebtn" aria-label="Pause"><svg class="ico"><use href="#i-pause"/></svg></button>
+  </div>
+
+  <!-- supply-cart breakers: bezel colour = cart colour in the world; 5 bars, red past the limit -->
+  <div class="breakers card">
+    <div class="gauge" style="--g:#FFC53D">
+      <div class="face"><svg viewBox="0 0 96 62">
+        <path d="M8 56 A40 40 0 0 1 48 16" fill="none" stroke="#3BB273" stroke-width="8"/>
+        <path d="M48 16 A40 40 0 0 1 82.6 36" fill="none" stroke="#FFC53D" stroke-width="8"/>
+        <path d="M82.6 36 A40 40 0 0 1 88 56" fill="none" stroke="#E5484D" stroke-width="8"/>
+        <path d="M22 41l-5.2-3M33 30l-3-5.2M48 26v-6M63 30l3-5.2M74 41l5.2-3" stroke="#262A40" stroke-width="2.5" stroke-linecap="round"/>
+        <g class="needle" style="transform:rotate(90deg)"><path d="M48 56L13 56" stroke="#262A40" stroke-width="4" stroke-linecap="round"/></g>
+        <circle cx="48" cy="56" r="6" fill="#262A40"/>
+      </svg></div>
+      <i class="pip"></i>
+    </div>
+    <div class="gauge hot" style="--g:#E9803A">
+      <div class="face"><svg viewBox="0 0 96 62">
+        <path d="M8 56 A40 40 0 0 1 48 16" fill="none" stroke="#3BB273" stroke-width="8"/>
+        <path d="M48 16 A40 40 0 0 1 82.6 36" fill="none" stroke="#FFC53D" stroke-width="8"/>
+        <path d="M82.6 36 A40 40 0 0 1 88 56" fill="none" stroke="#E5484D" stroke-width="8"/>
+        <path d="M22 41l-5.2-3M33 30l-3-5.2M48 26v-6M63 30l3-5.2M74 41l5.2-3" stroke="#262A40" stroke-width="2.5" stroke-linecap="round"/>
+        <g class="needle" style="transform:rotate(141deg)"><path d="M48 56L13 56" stroke="#262A40" stroke-width="4" stroke-linecap="round"/></g>
+        <circle cx="48" cy="56" r="6" fill="#262A40"/>
+      </svg></div>
+      <i class="pip"></i>
+    </div>
+  </div>
+
+  <div class="actions card">
+    <div class="act ready"><svg class="ico"><use href="#i-hand"/></svg><span class="key">E</span></div>
+    <div class="act"><svg class="ico"><use href="#i-plug"/></svg><span class="key">F</span></div>
+    <div class="act off"><svg class="ico"><use href="#i-throw"/></svg><span class="key">Q</span></div>
+    <div class="act"><svg class="ico"><use href="#i-jump"/></svg><span class="key sp"></span></div>
+    <i class="sep"></i>
+    <div class="act small"><svg class="ico"><use href="#i-camera"/></svg><span class="key">C</span></div>
+  </div>
+</div>
+</body>
+</html>

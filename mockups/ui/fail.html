@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuit Crew - Lunch spoiled</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&display=swap">
+<link rel="stylesheet" href="ui.css">
+<style>
+  .scrim{background:radial-gradient(ellipse 55% 70% at 50% 50%,rgba(29,31,43,.55),rgba(29,31,43,.2) 75%)}
+  .string{position:fixed;left:50%;top:0;width:4px;height:150px;margin-left:-2px;background:var(--ink);box-shadow:0 0 0 2px rgba(250,243,227,.2)}
+  /* same tag as the result, but it sags on one side: no grade, nothing lost, straight back in */
+  .fail{position:fixed;left:50%;top:122px;width:500px;margin-left:-250px;padding:66px 32px 30px;transform:rotate(4deg);transform-origin:50% 0;animation:sag .8s var(--ease-thud) both}
+  @keyframes sag{from{transform:translateY(-760px) rotate(-6deg)}60%{transform:rotate(7deg)}}
+  .head{display:flex;align-items:center;gap:12px}
+  .head .disc{width:52px;height:52px;border-radius:50%;background:#FF8A3D;border:var(--edge);display:grid;place-items:center;--ic:var(--paper);--ic-a:var(--paper)}
+  .head .disc .ico{width:32px;height:32px}
+  .head h2{margin:0;font-size:28px;line-height:1;font-weight:700}
+  .head small{display:block;font-size:16px;font-weight:600;color:var(--ink-2);margin-bottom:3px}
+
+  .hero{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:34px;padding-left:30px;height:236px;margin:14px 0 8px}
+  .plate2{position:relative;width:196px;height:196px;border-radius:50%;background:#E5EDD6;border:var(--edge);display:grid;place-items:center;box-shadow:inset 0 -10px 0 rgba(38,42,64,.08)}
+  .plate2 .ico{width:150px;height:150px;animation:wobble 1.4s ease-in-out infinite;--ic:var(--paper)}
+  .vthermo{position:relative;width:46px;height:212px}
+  .vthermo .tube{position:absolute;left:8px;top:0;width:30px;height:170px;border:var(--edge);border-radius:16px;background:linear-gradient(0deg,#CFEFEA 0 55%,#FFE3C6 55% 80%,#F9C9CB 80%);animation:shake .35s linear infinite}
+  .vthermo .tube::before{display:none}
+  .vthermo .tube::after{content:"";position:absolute;left:3px;right:3px;bottom:3px;top:3px;border-radius:11px;background:var(--trip);border:0}
+  .vthermo .bulb{position:absolute;left:0;bottom:0;width:46px;height:46px;border-radius:50%;background:var(--trip);border:var(--edge);box-shadow:0 0 0 5px rgba(229,72,77,.25)}
+  .vthermo .pop{position:absolute;left:-2px;top:-30px;width:50px;height:34px}
+  .plate2 .fr{position:absolute;left:-10px;bottom:-4px;width:64px;height:64px;border-radius:50%;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);display:grid;place-items:center}
+  .plate2 .fr .ico{width:40px;height:40px;animation:none}
+
+  /* how far you got: the same chain as the HUD */
+  .progress{display:flex;align-items:center;justify-content:center;padding:14px 0 4px;border-top:2px dashed var(--paper-3)}
+  .progress .step{width:54px;height:54px}.progress .step .ico{width:32px;height:32px}
+  .progress .link{width:42px}
+
+  .actions2{display:flex;gap:14px;margin-top:22px}
+  .actions2 .btn{height:88px;border-radius:24px;box-shadow:0 7px 0 var(--ink)}
+  .actions2 .retry{flex:1;font-size:30px;gap:14px}
+  .actions2 .retry .ico{width:46px;height:46px;stroke-width:3}
+  .actions2 .sq{width:88px;padding:0}.actions2 .sq .ico{width:40px;height:40px}
+  .actions2 .key{position:absolute;right:-7px;top:-9px}
+</style>
+</head>
+<body>
+<script src="icons.js"></script>
+<div class="scene dim">
+  <div class="plate">
+    <img src="bg/lunch.png" alt="">
+    <i class="patch" style="left:18px;top:18px;width:245px;height:106px"></i>
+    <i class="patch" style="left:592px;top:20px;width:260px;height:74px"></i>
+    <i class="patch" style="left:1176px;top:18px;width:250px;height:78px"></i>
+  </div>
+</div>
+<div class="scrim"></div>
+
+<i class="string"></i>
+<section class="fail tag" aria-label="Lunch spoiled. Retry?">
+  <i class="eyelet"></i><i class="hole"></i>
+  <div class="head">
+    <span class="disc"><svg class="ico"><use href="#i-tray"/></svg></span>
+    <div><small>02</small><h2>Lunch Rush</h2></div>
+  </div>
+
+  <div class="hero">
+    <div class="plate2"><svg class="ico"><use href="#i-spoiled"/></svg><span class="fr"><svg class="ico"><use href="#i-fridge"/></svg></span></div>
+    <div class="vthermo">
+      <svg class="pop" viewBox="0 0 50 34" aria-hidden="true"><path d="M8 30l-6-12M25 26V4M42 30l6-12" stroke="#E5484D" stroke-width="5" stroke-linecap="round"/></svg>
+      <i class="tube"></i><i class="bulb"></i>
+    </div>
+  </div>
+
+  <div class="progress" aria-label="Oven and conveyor done, lift not reached">
+    <div class="step done"><svg class="ico"><use href="#i-oven"/></svg></div>
+    <i class="link live"></i>
+    <div class="step done"><svg class="ico"><use href="#i-conveyor"/></svg></div>
+    <i class="link cold"></i>
+    <div class="step todo"><svg class="ico"><use href="#i-lift"/></svg></div>
+  </div>
+
+  <div class="actions2">
+    <button class="btn primary retry" aria-label="Retry Lunch Rush"><svg class="ico"><use href="#i-retry"/></svg>Retry<span class="key">R</span></button>
+    <button class="btn sq" aria-label="Jobs"><svg class="ico"><use href="#i-jobs"/></svg></button>
+  </div>
+</section>
+</body>
+</html>

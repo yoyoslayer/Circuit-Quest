@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HUD - Big Meeting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&display=swap">
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<script src="icons.js"></script>
+
+<!-- Real screenshot, zoomed 1.14x from top-centre so the old toolbar drops off-frame; patches hide the old top HUD. -->
+<div class="scene">
+  <div class="plate">
+    <img src="bg/meeting.png" alt="">
+    <i class="patch" style="left:18px;top:18px;width:245px;height:106px"></i>
+    <i class="patch" style="left:1176px;top:18px;width:250px;height:78px"></i>
+  </div>
+</div>
+
+<!-- In-world cues (projected, drawn flat) -->
+<svg class="overlay" viewBox="0 0 1440 900">
+  <!-- ghost route: appears after ~20 s idle holding the plug, hints the clean aisle -->
+  <path class="route" d="M520 404 C 560 505, 820 520, 1040 522 S 1250 540, 1316 552"/>
+</svg>
+<div class="world">
+  <div class="snap" style="left:1326px;top:556px"><i class="o"></i><i class="i"></i><svg class="ico"><use href="#i-plug"/></svg></div>
+  <div class="bang" style="left:622px;top:344px"><b>!</b></div>
+  <div class="bang" style="left:682px;top:350px;animation-delay:.15s"><b>!</b></div>
+  <!-- damage tick floats up from whatever broke -->
+  <div class="card" style="left:838px;top:452px;display:flex;align-items:center;gap:4px;padding:3px 10px 3px 4px;border-radius:30px;font-weight:700;font-size:18px;animation:rise .8s ease-out both">
+    <svg class="ico" style="width:26px;height:26px"><use href="#i-mug"/></svg>+1
+  </div>
+</div>
+
+<div class="hud">
+  <div class="jobplate card">
+    <div class="badge">
+      <svg class="ring" viewBox="0 0 84 84"><circle class="track" cx="42" cy="42" r="37"/><circle class="left" cx="42" cy="42" r="37" stroke-dasharray="151 233"/></svg>
+      <div class="disc"><svg class="ico"><use href="#i-projector"/></svg></div>
+    </div>
+    <div class="tallies">
+      <div class="tally"><svg class="ico"><use href="#i-clock"/></svg><b>1:24</b></div>
+      <div class="tally"><svg class="ico"><use href="#i-mug"/></svg><b>3</b></div>
+      <div class="tally"><svg class="ico"><use href="#i-coins"/></svg><b>120</b></div>
+    </div>
+  </div>
+
+  <div class="topright">
+    <div class="strain card">
+      <div class="reel" style="--left:.38"><svg class="ico"><use href="#i-reel"/></svg></div>
+      <div class="cablebar" style="--t:.72"><i></i></div>
+    </div>
+    <button class="btn pausebtn" aria-label="Pause"><svg class="ico"><use href="#i-pause"/></svg></button>
+  </div>
+
+  <div class="actions card">
+    <div class="act"><svg class="ico"><use href="#i-hand"/></svg><span class="key">E</span></div>
+    <div class="act on"><svg class="ico"><use href="#i-plug"/></svg><span class="key">F</span></div>
+    <div class="act"><svg class="ico"><use href="#i-throw"/></svg><span class="key">Q</span></div>
+    <div class="act"><svg class="ico"><use href="#i-jump"/></svg><span class="key sp"></span></div>
+    <i class="sep"></i>
+    <div class="act small"><svg class="ico"><use href="#i-camera"/></svg><span class="key">C</span></div>
+  </div>
+</div>
+</body>
+</html>

@@ -127,20 +127,20 @@ export class LunchRuntime {
         const otherPort=this.ports.find(p=>p.id===cable.ports[other]);
         const count=this.cables.reduce((n,c)=>n+c.ports.filter(id=>id===target.id).length,0);
         const validRole=!otherPort||!(target.role==='out'&&otherPort.role==='out')&&!(target.role==='in'&&otherPort.role==='in');
-        if(count<target.capacity&&validRole){cable.ports[end]=target.id;cable.ends[end].copy(target.pos);g.audio.tone(610,.13,.045);g.burst(target.pos,'#fff3a3',12,'spark');g.audio.noise(.05,.05,3000);this.held=undefined;g.holdingPlug=false;return true;}
+        if(count<target.capacity&&validRole){cable.ports[end]=target.id;cable.ends[end].copy(target.pos);g.audio.plug();g.burst(target.pos,'#fff3a3',12,'spark');this.held=undefined;g.holdingPlug=false;return true;}
       }
       this.release();return true;
     }
     if(!cableOnly){
       if(this.job.tray==='baked'&&distance(pos,this.prop('tray')!.body.translation())<1.65)return false;
       const source=this.ports.find(p=>(p.id==='a'||p.id==='b')&&distance(pos,p.pos)<2&&this.circuit.sources.find(s=>s.id===p.id)!.tripped);
-      if(source){this.circuit.resetBreaker(source.id);g.audio.tone(120,.1,.09,'square');return true;}
+      if(source){this.circuit.resetBreaker(source.id);g.audio.noise(.08,.1,500);g.audio.tone(140,.1,.06,'square');return true;}
       const switches:Record<string,Point>={oven:{x:-2.5,z:-6.9},conveyor:{x:5,z:-5},lift:{x:12,z:-4.8},'store-lamp':{x:-10,z:-3}};
       const machine=Object.entries(switches).find(([,p])=>distance(pos,p)<1.25);
-      if(machine){const load=this.circuit.loads.find(l=>l.id===machine[0])!;load.enabled=!load.enabled;g.audio.tone(load.enabled?320:160,.1,.04);return true;}
+      if(machine){const load=this.circuit.loads.find(l=>l.id===machine[0])!;load.enabled=!load.enabled;g.audio.noise(.03,.06,2500,'highpass');g.audio.tone(load.enabled?320:160,.1,.04);return true;}
     }
     const nearby=this.cables.flatMap(c=>[0,1].map(end=>({c,end:end as 0|1,d:distance(pos,c.ends[end])}))).filter(v=>v.d<1.75).sort((a,b)=>a.d-b.d)[0];
-    if(nearby){const {c,end}=nearby;if(c.lead.dead){c.lead.dead=false;c.lead.heat=0;g.cost+=15;g.audio.tone(400,.15);return true;}c.ports[end]=null;this.held={cable:c,end};g.holdingPlug=true;g.audio.tone(420,.08);return true;}
+    if(nearby){const {c,end}=nearby;if(c.lead.dead){c.lead.dead=false;c.lead.heat=0;g.cost+=15;g.audio.knock(1.3);g.audio.plug();return true;}c.ports[end]=null;this.held={cable:c,end};g.holdingPlug=true;g.audio.pop();return true;}
     return false;
   }
   inStore(p:Point){return p.x< -7.8&&p.z<0;}
@@ -148,7 +148,7 @@ export class LunchRuntime {
   release(){if(!this.held)return;const {cable,end}=this.held,energy=cable.rope.release(),g=this.game;
     if(energy>1){g.shake=Math.min(.5,energy*.006);g.audio.tone(90,.3,.1,'sawtooth');g.alarm(cable.ends[end],6);const anchor=cable.ends[(1-end) as 0|1];
       for(const prop of g.props){const p=prop.body.translation();if(cable.points.slice(1).some((b,i)=>segmentDistance(p,cable.points[i],b)<.8)){const v=new T.Vector3(anchor.x-p.x,0,anchor.z-p.z).normalize(),impulse=Math.min(energy*.2,40);prop.body.applyImpulse({x:v.x*impulse,y:impulse*.6,z:v.z*impulse},true);}}}
-    else g.audio.tone(140,.09,.03);
+    else g.audio.thud(.5);
     cable.ends[end].y=.15;this.held=undefined;g.holdingPlug=false;
   }
   pull(){if(!this.held)return {x:0,z:0};return this.held.cable.rope.pull(this.game.player.translation());}
@@ -172,7 +172,7 @@ export class LunchRuntime {
     for(const leaf of this.leaves){const angle=leaf.closed+leaf.dir*this.doorSide*Math.PI*.47*this.doorAngle;leaf.pivot.rotation.y=angle;
       const center=new T.Vector3(.72,1.05,0).applyAxisAngle(new T.Vector3(0,1,0),angle).add(leaf.pivot.position);leaf.body.setNextKinematicTranslation(center);leaf.body.setNextKinematicRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),angle));}
     if(g.held?.spec.id==='mop'&&this.nearPuddle(p))this.water=Math.max(0,this.water-dt*.3);
-    if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){this.job.cooled=true;g.audio.tone(550,.1,.03);g.held=undefined;}
+    if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){this.job.cooled=true;g.audio.bell(988,.6,.05);g.held=undefined;}
     const capacitor=this.prop('capacitor')!,capPos=capacitor.body.translation();this.circuit.loads.find(l=>l.id==='lift')!.capacitor!.atLoad=distance(capPos,{x:12,z:-4.8})<2;
     if(this.held?.cable.rating===10){const dolly=this.prop('thick-dolly')!,pos=dolly.body.translation(),d=distance(pos,p);if(d>1.3)dolly.body.setLinvel({x:(p.x-pos.x)*4,y:dolly.body.linvel().y,z:(p.z-pos.z)*4},true);}
     for(const cable of this.cables){
@@ -208,7 +208,7 @@ export class LunchRuntime {
     this.eventIndex=this.circuit.events.length;
     this.job.tick(dt,{oven:this.powered('oven'),fridge:this.powered('fridge'),conveyor:this.powered('conveyor'),lift:this.powered('lift')});
     const tray=this.prop('tray')!;
-    if(this.job.tray==='baked'&&!tray.mesh.visible){tray.mesh.visible=true;tray.body.setEnabled(true);tray.body.setTranslation({x:-2.5,y:1,z:-6.4},true);g.audio.tone(700,.3,.06);g.burst({x:-2.5,y:1.2,z:-6.6},'#fffaf0',8,'dust');}
+    if(this.job.tray==='baked'&&!tray.mesh.visible){tray.mesh.visible=true;tray.body.setEnabled(true);tray.body.setTranslation({x:-2.5,y:1,z:-6.4},true);g.audio.bell(1319,.8,.06);g.audio.bell(1760,.8,.04,.12);g.burst({x:-2.5,y:1.2,z:-6.6},'#fffaf0',8,'dust');}
     if(g.held===tray)this.job.pickTray();
     if(this.job.tray==='carried'&&g.held!==tray&&distance(tray.body.translation(),{x:0,z:-7})<2){this.job.placeTray();tray.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);}
     if(['conveyor','lift','delivered'].includes(this.job.tray)){const along=this.job.transport;tray.body.setNextKinematicTranslation({x:along<1?-.5+along*12.5:12,y:1.18+this.job.height*2.5,z:-7});}

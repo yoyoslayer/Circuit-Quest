@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {open,walk,route,wait} from './navigation';
 test('objective card and key prompts guide the playground',async({page})=>{
-  await open(page);await wait(page,.1);
+  await open(page,'playground');await wait(page,.1);
   const card=page.locator('.objective'),prompt=page.locator('.prompt-pill');
   await expect(card).toContainText('Light the lamp');await expect(card.locator('li.now')).toContainText('Pick up');
   await expect(prompt).toContainText('Pick up the plug');

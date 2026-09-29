@@ -231,3 +231,4 @@ body[data-screen="play"] .won .objective,body[data-screen="play"] .won .prompt-p
 .station-toast[data-tone="ok"]{background:#dff5e6}.station-toast[data-tone="bad"]{background:#ffe1dc}
 body[data-screen="play"] .won .station-panel,body[data-screen="play"] .won .station-toast{display:none}
 @media (max-width:700px){.station-panel{top:auto;bottom:calc(330px + var(--safe-b));font-size:12px;padding:10px 12px}.station-panel .build,.station-panel .profile{display:none}.station-toast{bottom:calc(300px + var(--safe-b));font-size:13px}}
+body[data-hub] .jobplate,body[data-hub] .strain{display:none}

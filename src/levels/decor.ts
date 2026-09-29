@@ -71,7 +71,7 @@ const windowXs=(width:number)=>{const xs:number[]=[];for(let x=-width/2+2.2;x<wi
 export function decorate(game:Game):Decor{
   const l=game.level;slab(game);frontLips(game);
   const back=shellWall(game,l.width,0,-l.depth/2,[0,-1]),side=shellWall(game,l.depth,-l.width/2,0,[-1,0]);
-  if(game.station)return game.station.dress({floor:(x0,x1,z0,z1,map,tile,y)=>floor(game,x0,x1,z0,z1,map,tile,y),backWindows:(skip,o)=>backWindows(game,back,skip,o),interiorWall:(o,u,d,h)=>interiorWall(game,o,u,d,h),back,side});
+  if(game.hub||game.station)return (game.hub??game.station)!.dress({floor:(x0,x1,z0,z1,map,tile,y)=>floor(game,x0,x1,z0,z1,map,tile,y),backWindows:(skip,o)=>backWindows(game,back,skip,o),interiorWall:(o,u,d,h)=>interiorWall(game,o,u,d,h),back,side});
   if(l.id==='meeting')return meeting(game,back,side);
   if(l.id==='lunch')return lunch(game,back,side);
   return playground(game,back,side);

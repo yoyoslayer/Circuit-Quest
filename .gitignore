@@ -6,6 +6,6 @@ playwright-report/
 *.blend1
 public/models/*.glb
 !public/models/pip.glb
-tools/*.tmp.mjs
+tools/**/*.tmp.mjs
 .impeccable/hook.cache.json
 .claude/

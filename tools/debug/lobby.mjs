@@ -1,0 +1,11 @@
+import {chromium} from '@playwright/test';
+const b=await chromium.launch({args:['--enable-webgl','--ignore-gpu-blocklist','--enable-gpu','--use-angle=d3d11']});const p=await b.newPage({viewport:{width:1440,height:900}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text());});
+await p.goto('http://127.0.0.1:4173/?manual&fullfx');await p.waitForSelector('body[data-ready="true"]');await p.waitForTimeout(800);await p.screenshot({path:'artifacts/lobby-title.png'});
+await p.getByRole('button',{name:'Start playing'}).click();
+const d=(fn,...a)=>p.evaluate(([f,a])=>new Function('drive','a',f)(window.__circuitCrew.drive,a),[fn,a]);
+await d('return drive.advance(.5)');await p.waitForTimeout(700);await p.screenshot({path:'artifacts/lobby.png'});
+const s=await p.evaluate(()=>window.__circuitCrew.snapshot());console.log(JSON.stringify(s.hub));
+const door=s.hub.doors[3];await d('return drive.walkTo(a[0],a[1],.4)',door.at.x,door.at.z);await d('return drive.advance(.6)');await p.waitForTimeout(600);await p.screenshot({path:'artifacts/lobby-door.png'});
+console.log(await p.locator('.prompt-pill').textContent());
+console.log(errs.length?errs.join('\n'):'no errors');await b.close();

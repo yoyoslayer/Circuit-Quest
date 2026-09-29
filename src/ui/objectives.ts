@@ -56,8 +56,8 @@ const NAMES:Partial<Record<PropKind,string>>={box:'crate',desk:'desk',chair:'cha
   reel:'cable reel',coupler:'coupler',cart:'cart',printer:'printer',whiteboard:'whiteboard',bookshelf:'shelf',cooler:'water cooler',bridge:'cable bridge',mop:'mop',tray:'lunch tray',
   lamp:'lamp',dolly:'cable dolly',capcart:'capacitor cart',coolbox:'cooler box',splitter:'splitter',wedge:'doorstop',cone:'cone',strip:'power strip',beanbag:'bean bag'};
 /** A station supplies its own steps and bonuses (src/stations); the marker defaults to its bench. */
-function stationJob(g:Game):Job{const st=g.station!,j=st.job;
-  return {goal:j.goal,steps:j.steps.map(s=>({text:s.text,done:()=>s.done(),at:()=>s.at?.()??st.stand})),bonuses:j.bonuses.map(b=>({text:b.text,ok:()=>b.ok()}))};}
+function stationJob(g:Game):Job{const j=(g.station??g.hub)!.job,home=g.station?.stand;
+  return {goal:j.goal,steps:j.steps.map(s=>({text:s.text,done:()=>s.done(),at:()=>s.at?.()??home})),bonuses:j.bonuses.map(b=>({text:b.text,ok:()=>b.ok()}))};}
 export interface Prompt {key:string;text:string}
 /** What the most useful key does right now, in words. */
 export function promptFor(g:Game):Prompt|null{
@@ -65,6 +65,7 @@ export function promptFor(g:Game):Prompt|null{
   const pos=g.player.translation();
   if(g.lunch){const p=g.lunch.promptAt();if(p)return p;}
   if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench)return p;}
+  if(g.hub&&!g.held){const p=g.hub.prompt();if(p)return p;}
   if(g.held){const name=NAMES[g.held.spec.kind]??'it';
     if(g.held.spec.id==='strip'&&dist(pos,g.level.target)<2.6)return {key:'E',text:'Set the power strip down by the door'};
     return {key:'E',text:`Put the ${name} down  ·  Q throws it`};}
@@ -84,7 +85,7 @@ export function promptFor(g:Game):Prompt|null{
 export class ObjectivesHUD{
   card:HTMLElement;prompt:HTMLElement;marker:T.Mesh;private shown='';private promptShown='';private job:Job;private flash=new Set<number>();
   constructor(private g:Game,layer:HTMLElement){
-    this.job=g.station?stationJob(g):JOBS[g.level.id]??JOBS.playground;
+    this.job=g.station||g.hub?stationJob(g):JOBS[g.level.id]??JOBS.playground;
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
     this.prompt=document.createElement('div');this.prompt.className='prompt-pill';this.prompt.hidden=true;layer.append(this.prompt);
     const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.color.multiplyScalar(1.5);m.userData.outlineParameters={visible:false};

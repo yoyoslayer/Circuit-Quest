@@ -8,7 +8,7 @@ test('loads a rendered playable scene without runtime errors',async({page})=>{
 });
 test('player can pick up the plug, move, jump, and release it',async({page})=>{
   // Simulated time (?manual) so the checks don't depend on how fast this machine renders.
-  await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+  await page.goto('/?level=playground&manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
   await page.getByRole('button',{name:'Start playing'}).click();
   const snapshot=()=>page.evaluate(()=>(window as any).__circuitCrew.snapshot());
   const advance=(s:number,keys:string[]=[])=>page.evaluate(([s,k])=>(window as any).__circuitCrew.drive.advance(s,k),[s,keys] as const);

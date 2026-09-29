@@ -9,7 +9,7 @@ const backToReel=(page:Page)=>route(page,[[6,-1.2],[-8,-1.4],[-10,-6.2]]);
 // After plugging in, step into the boardroom and switch the projector on.
 async function switchProjector(page:Page){await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');}
 test('playground cable physically reaches socket and lights lamp',async({page})=>{
-  const errors=await open(page);await page.keyboard.press('KeyF');
+  const errors=await open(page,'playground');await page.keyboard.press('KeyF');
   await route(page,[[-5,-1],[-4,-4],[5.8,-5.5]]);
   await page.keyboard.press('KeyF');await wait(page,.3);expect((await snapshot(page)).won).toBe(false);
   // Powered but still off: flip the lamp's switch.
@@ -42,7 +42,7 @@ test('meeting coffee extension can be reused to power the projector',async({page
 });
 test('a taut cable slingshots boxes when let go',async({page})=>{
   // Stretch the reel past its length so it lies across the front row of boxes, then let go.
-  await open(page);await page.keyboard.press('KeyF');await walk(page,9,3.7);
+  await open(page,'playground');await page.keyboard.press('KeyF');await walk(page,9,3.7);
   await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(2.5,['KeyW','ShiftLeft']));
   const taut=await snapshot(page);expect(taut.rope.strain).toBeGreaterThan(1.02);
   await page.keyboard.press('KeyQ');await wait(page,.05);const after=await snapshot(page);

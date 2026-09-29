@@ -25,7 +25,7 @@ export class GameUI {
   private keyboard=false;
   objectives!:ObjectivesHUD;
   constructor(public game:Game){
-    installIcons();
+    installIcons();if(game.hub)document.body.dataset.hub='true';
     const hud=game.hud,params=new URLSearchParams(location.search),bests=levels.map(l=>bestFor(l.id));
     this.sel=Math.max(0,levels.findIndex(l=>l.id===game.level.id));
     hud.innerHTML=hudMarkup(game.level)+titleMarkup(game.level)+jobsMarkup(levels,bests)+pauseMarkup(game.level);
@@ -70,7 +70,8 @@ export class GameUI {
     this.show(on?'pause':'play');if(!on)(document.activeElement as HTMLElement|null)?.blur?.();
   }
   restart(){flagAutostart(this.game.level.id);location.reload();}
-  toJobs(){location.href=`?level=${this.game.level.id}`;}
+  /** "Jobs" from pause or the result card walks back into the HQ lobby. */
+  toJobs(){flagAutostart('lobby');location.href='?level=lobby';}
   playSelected(){const l=levels[this.sel];if(l.id===this.game.level.id){this.game.begin();return;}flagAutostart(l.id);location.href=`?level=${l.id}`;}
 
   selectJob(i:number){
@@ -187,7 +188,7 @@ export class GameUI {
     if(lunch){
       if(lunch.held){const end=lunch.held.cable.ends[lunch.held.end];cableReady=lunch.ports.some(q=>q.id!==lunch.held!.cable.ports[1-lunch.held!.end]&&Math.min(dist(p,q.pos)-.3,dist(end,q.pos))<1.4);}
       else cableReady=!g.held&&lunch.cables.some(c=>c.ends.some(e=>dist(p,e)<1.75));
-    }else if(g.station)cableReady=false;
+    }else if(g.station||g.hub)cableReady=false;
     else cableReady=holding?Math.min(dist(p,g.level.target)-.3,dist(g.plugPosition,g.level.target))<1.6:!g.held&&dist(p,g.plugPosition)<1.75;
     const state={grab:{on:!!g.held,ready:!g.held&&!holding&&g.reticle.visible,off:false},
       cable:{on:holding,ready:cableReady,off:!!g.held},

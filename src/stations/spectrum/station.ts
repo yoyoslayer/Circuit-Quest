@@ -15,6 +15,7 @@ import {hot,glossyToon} from '../../render/actors';
 import {JOBS,BANDS,BAND_IDS,DETECTORS,DETECTOR_IDS,POWERS,SPEC,PADS,PAD_NAMES,SPOTS,SPOT_IDS,TX,SMOKE,STORE,LAB,QUIET,HATCH,MATERIAL_NAMES,POD_HOME,
   walls,read,judge,cost,leanest,lambdaText,freqText,dist,type Band,type Detector,type Power,type Pad,type Spot,type Setup,type Verdict,type Job,type Reading,type P} from './logic';
 import './spectrum.css';
+import {cheer,walkHint} from '../shared';
 
 type Prop=Game['props'][number];
 const BEAM_Y=1.25,UP=new T.Vector3(0,1,0);
@@ -54,7 +55,7 @@ const yawQuat=(yaw:number)=>new T.Quaternion().setFromAxisAngle(UP,yaw);
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 export class SpectrumDesk implements Station {
-  readonly view={distance:6.7,pitch:.9,lookY:.6};
+  readonly view={distance:6.1,pitch:1.02,lookY:.42};
   readonly limits={time:540,damage:1,cost:0};
   readonly stand={x:-3.5,z:3.55};readonly table=new T.Vector3(-3.5,1,2.6);readonly facing=Math.PI;
   // Desk state. The first try is the obvious one: visible light.
@@ -111,11 +112,11 @@ export class SpectrumDesk implements Station {
     // ---- Left: band keys (front) and the wave ribbon between two posts.
     part(top,rbox(1.26,.02,1.12,.06),toon('#3a3d55'),-1.53,.045,0);
     BAND_IDS.forEach((b,k)=>{const x=-2.01+k*.24,key=group(top,x,.055,.36);part(key,cyl(.085,.095,.05,20),toon(INK),0,.025,0);part(key,cyl(.075,.075,.045,20),toon(BANDS[b].color),0,.06,0);
-      this.bandKeys.set(b,key);this.click(key,'band',b);sign(top,BAND_KEYS[b],x,.057,.51,.23,-Math.PI/2,CREAM,INK,.075);});
+      this.bandKeys.set(b,key);this.click(key,'band',b);sign(top,BAND_KEYS[b],x,.082,.51,.235,-1.1,CREAM,INK,.1);});
     for(const x of [-2.03,-1.03]){part(top,cyl(.02,.02,.46,8),toon(DMETAL),x,.27,-.02);part(top,sphere(.03,10,8),toon(INK),x,.51,-.02);}
     const geo=new T.PlaneGeometry(.96,.07,192,1);this.ribbonBase=Float32Array.from(geo.attributes.position.array as Float32Array);
     this.ribbon=part(top,geo,new T.MeshBasicMaterial({color:BANDS.vis.color,side:T.DoubleSide}),-1.53,.3,-.02,false);(this.ribbon.material as T.Material).userData.outlineParameters={visible:false};this.ribbon.rotation.x=-Math.PI/2;
-    sign(top,'BAND  ·  c = f × λ',-1.53,.057,.19,.56,-Math.PI/2,'#ffd66b',INK,.07);
+    sign(top,'BAND  ·  c = f × λ',-1.53,.082,.19,.7,-1.1,'#ffd66b',INK,.1);
     // ---- Centre back: the wave readout and the link meter, side by side.
     const screen=(x:number,tex:T.Texture)=>{for(const dx of [-.3,.3])part(top,cyl(.025,.025,.3,8),toon(DMETAL),x+dx,.2,-.5);const s=group(top,x,.3,-.5);s.rotation.x=-.4;part(s,rbox(.9,.52,.05,.03),toon(INK),0,.26,0);
       part(s,new T.PlaneGeometry(.86,.484),flatMat(tex),0,.26,.027,false).userData.noAO=true;return s;};
@@ -129,16 +130,16 @@ export class SpectrumDesk implements Station {
     DETECTOR_IDS.forEach((d,k)=>{const x=1.05+k*.24,peg=group(top,x,.055,-.2);part(peg,cyl(.08,.09,.03,16),toon('#fffaf0'),0,.015,0);const h=headMesh(d,.9);h.position.y=.03;peg.add(h);
       this.deskHeads.set(d,peg);this.click(peg,'detector',d);});
     const HEAD_TAGS:Record<Detector,string>={dipole:'DIPOLE',patch:'PATCH',thermopile:'THERMO',nirdiode:'NEAR IR',visdiode:'GREEN'};
-    DETECTOR_IDS.forEach((d,k)=>sign(top,HEAD_TAGS[d],1.05+k*.24,.057,-.04,.22,-Math.PI/2,CREAM,INK,.07));
+    DETECTOR_IDS.forEach((d,k)=>sign(top,HEAD_TAGS[d],1.05+k*.24,.082,-.01,.235,-1.1,CREAM,INK,.1));
     sign(top,'POD DETECTOR',1.53,.057,-.4,.44,-Math.PI/2,'#ffd66b',INK,.07);
-    POWERS.forEach((p,k)=>{const x=1.03+k*.27,key=group(top,x,.055,.2);part(key,rbox(.22,.05,.14,.03),toon('#fffaf0'),0,.025,0);sign(key,`${p} mW`,0,.052,0,.19,-Math.PI/2,'#fffaf0',INK,.07);
+    POWERS.forEach((p,k)=>{const x=1.05+k*.26,key=group(top,x,.055,.22);part(key,rbox(.24,.05,.16,.03),toon('#fffaf0'),0,.025,0);sign(key,`${p} mW`,0,.052,0,.22,-Math.PI/2,'#fffaf0',INK,.11);
       this.powerKeys.set(p as Power,key);this.click(key,'power',p);});
-    sign(top,'POWER',1.3,.057,.33,.3,-Math.PI/2,CREAM,INK,.07);
+    sign(top,'POWER  (P)',1.31,.082,.37,.4,-1.1,CREAM,INK,.1);
     // The hatch switch: a low rocker (tipped back = open), so it doesn't hide the power keys.
     const lever=group(top,1.05,.055,.47);part(lever,rbox(.22,.05,.16,.03),toon(INK),0,.025,0);this.lever=group(lever,0,.06,0);part(this.lever,rbox(.16,.05,.1,.02),toon('#ffc629'),0,.02,0);
-    this.click(lever,'hatch');sign(top,'LAB HATCH',1.4,.057,.48,.36,-Math.PI/2,'#ffc629',INK,.08);
-    const send=group(top,1.94,.055,.16);part(send,cyl(.14,.16,.06,24),toon(INK),0,.03,0);this.sendCap=part(send,cyl(.12,.12,.06,24),toon('#3fae6a'),0,.08,0);
-    this.click(send,'send');sign(top,'SEND',1.94,.057,.4,.3,-Math.PI/2,'#3fae6a','#fffaf0',.09);
+    this.click(lever,'hatch');sign(top,'LAB HATCH',1.4,.082,.5,.4,-1.1,'#ffc629',INK,.1);
+    const send=group(top,1.95,.055,.3);part(send,cyl(.14,.16,.06,24),toon(INK),0,.03,0);this.sendCap=part(send,cyl(.12,.12,.06,24),toon('#3fae6a'),0,.08,0);
+    this.click(send,'send');sign(top,'SEND',1.95,.082,.54,.3,-1.1,'#3fae6a','#fffaf0',.1);
   }
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
   private click(obj:T.Object3D,act:string,arg?:unknown){this.clickables.push({obj,act,arg});obj.userData.baseScale=obj.scale.clone();}
@@ -216,7 +217,7 @@ export class SpectrumDesk implements Station {
         if(v.tier===0){this.mistakes++;this.say(`Not delivered. ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm(PADS[j.pad],3);return true;}
         this.delivered.push({job:j.id,verdict:v});this.lastMessage=j.message;
         this.say(`“${j.message}” · ${['','Received','Reliable','Elegant'][v.tier]} (${v.margin} dB)${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);const at=PADS[j.pad];this.game.burst({x:at.x,y:1.4,z:at.z},'#ffd66b',28,'confetti');this.game.burst({x:at.x,y:1.5,z:at.z},'#fff3c8',6,'star');
+        a.cheer();a.bell(1319,.5,.05);const at=PADS[j.pad];cheer(this.game,this,'#ffd66b',{x:at.x,y:1.4,z:at.z});if(!this.game.atBench)this.game.burst({x:at.x,y:1.5,z:at.z},'#fff3c8',6,'star');
         this.jobIndex++;this.redraw();return true;}
       default:return false;
     }
@@ -357,14 +358,15 @@ export class SpectrumDesk implements Station {
     const first=r.route.path[1]??PADS[this.current()?.pad??'store'],want=Math.atan2(first.x-TX.x,first.z-TX.z);
     this.turret.rotation.y+=Math.atan2(Math.sin(want-this.turret.rotation.y),Math.cos(want-this.turret.rotation.y))*Math.min(1,dt*5);
     (this.beacon.material as T.MeshBasicMaterial).color.set(BANDS[this.band].color).multiplyScalar(1.6);
-    this.drawBeam(r);
-    const t=g.time,bcast=!BANDS[this.band].beam;
+    // At the desk the hall map draws the route; the room's own beam would only cut across the view.
+    this.drawBeam(r);this.beam.visible=!g.atBench;
+    const t=g.time,bcast=!BANDS[this.band].beam&&!g.atBench;
     this.rings.forEach((ring,k)=>{const u=((t*.35+k/3)%1);ring.visible=bcast;ring.scale.setScalar(.3+u*5.5);(ring.material as T.MeshBasicMaterial).opacity=.55*(1-u);});
     // The pulse runs the route after SEND.
     if(this.pulseT>=0&&this.pulsePath.length>1){this.pulseT+=dt*9;let d=this.pulseT,i=1;
       for(;i<this.pulsePath.length;i++){const len=this.pulsePath[i-1].distanceTo(this.pulsePath[i]);if(d<=len)break;d-=len;}
       if(i>=this.pulsePath.length){const end=this.pulsePath[this.pulsePath.length-1];this.game.burst({x:end.x,y:end.y,z:end.z},this.pulseOk?'#8dffb0':'#ff7a7a',10,'spark');this.pulseT=-1;this.pulse.visible=false;}
-      else this.pulse.position.lerpVectors(this.pulsePath[i-1],this.pulsePath[i],d/this.pulsePath[i-1].distanceTo(this.pulsePath[i]));}
+      else{this.pulse.visible=!g.atBench;this.pulse.position.lerpVectors(this.pulsePath[i-1],this.pulsePath[i],d/this.pulsePath[i-1].distanceTo(this.pulsePath[i]));}}
     // Current pad ring pulses; the hatch slides; the smoke drifts.
     const job=this.current();PAD_ON.color.set('#3dff7a').multiplyScalar(1.1+.35*Math.sin(t*4));this.padRings.forEach((m,p)=>{m.material=job?.pad===p?PAD_ON:PAD_OFF;});
     this.hatchT+=((this.hatchOpen?1:0)-this.hatchT)*Math.min(1,dt*5);if(this.room)this.room.hatchDoor.position.y=1.25+this.hatchT*.62;
@@ -403,12 +405,13 @@ export class SpectrumDesk implements Station {
       if(g.held&&g.held===this.pod){const pad=(Object.keys(PADS) as Pad[]).find(k=>dist(p,PADS[k])<2.2);return pad?{key:'E',text:`Set the pod down on the ${PAD_NAMES[pad]} pad`}:{key:'E',text:`Carry the pod to the ${PAD_NAMES[j.pad]} pad`};}
       if(g.held&&this.mirrors.includes(g.held)){const s=SPOT_IDS.find(k=>dist(p,SPOTS[k])<2.1&&![...this.mirrorAt.values()].includes(k));return s?{key:'E',text:`Stand the mirror on mark ${s}`}:{key:'E',text:'Carry the mirror to a floor mark (A, B or C)'};}
       const grab=g.held?undefined:g.nearest();if(grab&&grab===this.pod)return {key:'E',text:'Pick up the receiver pod'};if(grab&&this.mirrors.includes(grab))return {key:'E',text:'Pick up the mirror board'};
-      if(near)return {key:'E',text:this.podPad===j.pad?'Work at the dispatch desk':`Work at the desk (the pod isn't on the ${PAD_NAMES[j.pad]} pad yet)`};return null;}
+      if(near)return {key:'E',text:this.podPad===j.pad?'Work at the dispatch desk':`Work at the desk (the pod isn't on the ${PAD_NAMES[j.pad]} pad yet)`};
+      return walkHint(g,this.podPad!==j.pad?`Take the receiver pod to the ${PAD_NAMES[j.pad]} pad (yellow arrow)`:'Walk to the dispatch desk (yellow arrow)');}
     const r=this.reading();
     if(!r.podOk)return {key:'E',text:`Step back and carry the pod to the ${PAD_NAMES[j.pad]} pad`};
-    if(!r.detectorOk)return {key:'Click',text:'Fit the detector head that matches the band (F)'};
-    if(r.route.blocked)return {key:'Click',text:BANDS[this.band].beam?`The ${MATERIAL_NAMES[r.route.blocked.mat]} stops this band: try another band, or steer the beam with mirrors`:`The ${MATERIAL_NAMES[r.route.blocked.mat]} stops this band: try another band`};
-    if(r.margin<SPEC.reliable)return {key:'Click',text:r.margin<SPEC.works?'Too weak: more power, or a band these obstacles pass':'Readable but weak: more power makes it reliable'};
+    if(!r.detectorOk)return {key:'F',text:'Fit the detector head that matches the band: click it, or F'};
+    if(r.route.blocked)return {key:'1–5',text:BANDS[this.band].beam?`The ${MATERIAL_NAMES[r.route.blocked.mat]} stops this band: try another band key, or steer the beam with mirrors`:`The ${MATERIAL_NAMES[r.route.blocked.mat]} stops this band: try another band key`};
+    if(r.margin<SPEC.reliable)return {key:'P',text:r.margin<SPEC.works?'Too weak: more power, or a band these obstacles pass':'Readable but weak: more power makes it reliable'};
     return {key:'Enter',text:'Clear link: SEND the message (Enter)'};
   }
   complete(){return this.delivered.length>=JOBS.length;}

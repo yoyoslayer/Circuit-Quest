@@ -212,6 +212,7 @@
 .prompt-pill{position:absolute;left:50%;bottom:calc(128px + var(--safe-b));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 16px 8px 8px;border-radius:30px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:17px;font-weight:600;color:var(--ink);pointer-events:none;white-space:nowrap;animation:promptin .18s ease-out}
 .prompt-pill kbd{display:grid;place-items:center;min-width:34px;height:34px;padding:0 8px;border-radius:9px;background:var(--hat);border:var(--edge);font:inherit;font-weight:700}
 @keyframes promptin{from{opacity:0;transform:translate(-50%,6px)}}
+.result-served{margin:4px 0 8px;font-size:18px;font-weight:600;text-align:center}
 .result-bonus{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px;font-size:15px;font-weight:600}
 .result-bonus li{display:flex;gap:8px;align-items:center}.result-bonus li.miss{opacity:.55}
 body[data-screen="play"] .won .objective,body[data-screen="play"] .won .prompt-pill{display:none}
@@ -225,7 +226,7 @@ body[data-screen="play"] .won .objective,body[data-screen="play"] .won .prompt-p
 .station-panel .build{list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:2px dashed var(--paper-3);display:grid;gap:3px}
 .station-panel .build li{display:flex;justify-content:space-between;gap:10px}
 .station-panel .build li span{color:var(--ink-2)}
-.station-panel .build li.ok b{color:#1f7a4d}.station-panel .build li.no b{color:var(--ink-2);font-weight:600}
+.station-panel .build li.ok b{color:#1f7a4d}.station-panel .build li.bad b{color:#c0392b}.station-panel .build li.no b{color:var(--ink-2);font-weight:600}
 .station-panel .profile{margin:8px 0 0;font-size:11.5px;color:var(--muted)}
 .station-toast{position:absolute;left:50%;bottom:calc(186px + var(--safe-b));transform:translateX(-50%);max-width:min(620px,calc(100vw - 32px));padding:10px 16px;border-radius:18px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:15px;font-weight:600;line-height:1.3;text-align:center;pointer-events:none;animation:promptin .18s ease-out}
 .station-toast[data-tone="ok"]{background:#dff5e6}.station-toast[data-tone="bad"]{background:#ffe1dc}
@@ -257,3 +258,9 @@ body[data-bench] .station-toast{bottom:calc(84px + var(--safe-b))}
   body[data-bench] .prompt-pill{bottom:calc(64px + var(--safe-b));font-size:13px}
   body[data-bench] .bench-chip{bottom:calc(12px + var(--safe-b))}
 }
+/* At a bench the job card shrinks to the current step and the order panel narrows, so the table has the middle. */
+body[data-bench] .objective{width:min(300px,calc(100vw - 32px));padding:10px 14px}
+body[data-bench] .objective .bonus,body[data-bench] .objective li.done,body[data-bench] .objective li.todo{display:none}
+body[data-bench] .station-panel{width:min(290px,calc(100vw - 32px));font-size:13px}
+.workshop-picker{max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 0 0 100vmax rgba(20,22,40,.45),var(--drop-lg)}
+.workshop-picker .grid .btn{text-align:left}

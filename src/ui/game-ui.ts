@@ -49,7 +49,8 @@ export class GameUI {
     const auto=params.has('go')||takeAutostart(game.level.id);
     if(params.has('go')){params.delete('go');const q=params.toString();history.replaceState(null,'',location.pathname+(q?`?${q}`:''));}
     if(auto){this.show('play');setTimeout(()=>game.begin(),0);}
-    else{game.survey=true;this.show(!params.has('level')||params.has('intro')?'title':'jobs');}
+    // The lobby is the title's home too: reloading ?level=lobby lands on the title, not the jobs board.
+    else{game.survey=true;this.show(!params.has('level')||params.has('intro')||game.hub?'title':'jobs');}
   }
 
   // ---------- screens ----------
@@ -157,7 +158,7 @@ export class GameUI {
   update(){
     this.pollPad();
     const g=this.game;if(!g.running||this.screen!=='play')return;
-    this.setTally('time',clock(g.time));this.setTally('damage',String(g.damage),g.damage>0);this.setTally('cost',String(g.cost),g.cost>0);
+    const rush=g.station?.rushStatus?.();this.setTally('time',clock(rush?rush.left:g.time));this.setTally('damage',String(g.damage),g.damage>0);this.setTally('cost',String(g.cost),g.cost>0);
     const deadline=g.level.deadline??240,left=Math.max(0,1-g.time/deadline);
     this.ring.style.strokeDasharray=`${(left*RING).toFixed(1)} ${RING.toFixed(1)}`;this.badge.classList.toggle('late',g.time>deadline);
     this.layer.classList.toggle('won',g.won);
@@ -208,7 +209,8 @@ export class GameUI {
       const screen=g.hud.querySelector<HTMLElement>('.result-screen')!;this.countUp(screen);
       if(g.practice)screen.querySelector('.result .head')?.insertAdjacentHTML('beforeend','<span class="practice-tag">Practice · not recorded</span>');
       // Bonus goals under the grade rows: a star for each one achieved.
-      const rows=screen.querySelector('.result .rows');const bonus=this.objectives.results();if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
+      const rows=screen.querySelector('.result .rows');const bonus=this.objectives.results();const rush=g.station?.rushStatus?.();
+      if(rush&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Orders served: <b>${rush.served}</b></p>`);if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
       if(this.keyboard)requestAnimationFrame(()=>screen.querySelector<HTMLElement>('.btn.primary')?.focus({preventScroll:true}));
       if(!reduced())setTimeout(()=>{g.audio.thud(9);g.audio.tone(90,.18,.08,'triangle');screen.querySelector('.result')?.classList.add('thud');},1800);
       setTimeout(()=>{if(improved)g.audio.bell(1319,.6,.05);},reduced()?0:1950);

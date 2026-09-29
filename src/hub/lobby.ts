@@ -67,8 +67,11 @@ export class Lobby {
     let parent:T.Object3D,lx=0,at:Point;
     if(s.wall==='back'){parent=kit.back;lx=s.x;at={x:s.x,z:s.z+1.1};}
     else if(s.wall==='side'){parent=kit.side;lx=-s.z;at={x:s.x+1.1,z:s.z};}
-    else{parent=group(g.root,s.x,0,s.z,-Math.PI/2);lx=0;at={x:s.x-1.1,z:s.z};part(parent,box(2.5,3,.3),toon('#efe2c8'),0,1.5,-.2);solid(g,.3,3,2.5,s.x+.2,1.5,s.z);}
+    // Free-standing doors turn 45° toward the default camera so their signs read from the atrium.
+    else{parent=group(g.root,s.x,0,s.z,-Math.PI/4);lx=0;at={x:s.x-.8,z:s.z+.8};part(parent,box(2.5,3,.3),toon('#efe2c8'),0,1.5,-.2);solid(g,2.5,3,.3,s.x+.14,1.5,s.z-.14,-Math.PI/4);}
     const f=group(parent,lx,0,.14);
+    // Side-wall doors face across the room: a blade sign sticks out from the wall toward the camera.
+    if(s.wall==='side'){const blade=group(g.root,s.x+.95,0,s.z);part(blade,box(.06,.5,.06),toon('#8a8fa6'),-.62,2.95,0);part(blade,box(1.3,.05,.05),toon('#8a8fa6'),0,3.18,0);signPlate(blade,`${level.number} · ${title(level)}`,0,2.86,.03,1.7,{bg:color,h:72});}
     // Frame, the door leaf on a hinge, a threshold, the name sign and a medal.
     for(const x of [-.95,.95])part(f,rbox(.22,2.5,.26,.05),toon(color),x,1.25,0);part(f,rbox(2.12,.26,.28,.06),toon(color),0,2.55,0);
     part(f,box(1.7,2.3,.04),toon('#262A40'),0,1.15,-.06,false);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
@@ -83,11 +86,11 @@ export class Lobby {
     return {level,at,leaf,open:0,lamp,done,locked};
   }
   private workshop(){
-    const g=this.game,w=this.workshopAt,a=group(g.root,w.x+1,0,w.z,-Math.PI/2);
+    const g=this.game,w=this.workshopAt,a=group(g.root,w.x,0,w.z-1.2);
     for(const x of [-1,1])part(a,rbox(.3,2.6,.4,.06),toon('#5ED6CC'),x,1.3,0);part(a,rbox(2.4,.36,.44,.08),toon('#5ED6CC'),0,2.7,0);
-    signPlate(a,'WORKSHOP',0,2.7,.23,1.8,{bg:'#ffc629'});signPlate(a,'practice any station',0,2.35,.23,1.5,{bg:'#fffaf0',h:56});
+    signPlate(a,'WORKSHOP',0,2.7,.23,1.8,{bg:'#ffc629'});signPlate(a,'practise any station',0,2.35,.23,1.5,{bg:'#fffaf0',h:56});
     part(a,box(1.7,.02,1.2),toon('#e3d5bd'),0,.01,.4,false);for(const [x,c] of [[-.5,'#e98a42'],[0,'#7B6FE0'],[.5,'#43B8C4']] as const)part(a,rbox(.36,.3,.3,.05),toon(c),x,.15,-.5);
-    solid(g,.4,2.6,.3,w.x+1,1.3,w.z-1);solid(g,.4,2.6,.3,w.x+1,1.3,w.z+1);
+    solid(g,.3,2.6,.4,w.x-1,1.3,w.z-1.2);solid(g,.3,2.6,.4,w.x+1,1.3,w.z-1.2);
   }
   nearWorkshop(pos:Point){return Math.hypot(pos.x-this.workshopAt.x,pos.z-this.workshopAt.z)<1.6;}
   /** A small picker of every station job, opened at the Workshop arch. */

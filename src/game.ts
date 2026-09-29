@@ -340,7 +340,9 @@ export class Game {
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;
-    if(this.atBench&&this.station){const st=this.station,v=st.view;target=st.table.clone().add(new T.Vector3(0,v.lookY,0));distanceTo=v.distance;pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
+    if(this.atBench&&this.station){const st=this.station,v=st.view;target=st.table.clone().add(new T.Vector3(0,v.lookY,0)).addScaledVector(new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw)),v.lookX??0);
+      // Portrait screens are narrow: pull back so the width of the table still fits.
+      distanceTo=v.distance*T.MathUtils.clamp(1.25/cam.aspect,1,2.1);pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
     if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.station?7:this.level.id==='meeting'?8:9;pitch=this.station?.5:this.level.id==='meeting'?.32:.6;}
     // Title: a hero shot of Pip beside the logo (Pip sits in the right half of the frame).
     const titling=!this.running&&document.body.dataset.screen==='title';
@@ -364,7 +366,7 @@ export class Game {
     const q=this.view.getQuality();if(this.qualityTimer<3||q===0||this.slowAvg<1/45)return;
     this.qualityTimer=0;this.slowAvg=1/60;const next=(q-1) as 0|1;this.view.setQuality(next);try{localStorage.setItem('circuit-crew-quality',String(next));}catch{/* storage unavailable */}
   }
-  homeZoom(){return this.level.id==='playground'?18:this.station?20:this.hub?24:26;}
+  homeZoom(){return this.level.id==='playground'?18:this.station?20:this.hub?28:26;}
   winFocus(){const l=this.level;if(this.station)return this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
@@ -417,6 +419,8 @@ export class Game {
       this.hint.children.forEach((d,k)=>{let along=k*.6+shift;d.visible=along<total&&along>.8;for(let q=1;q<path.length&&d.visible;q++){const len=distance(path[q-1],path[q]);if(along<=len){d.position.set(T.MathUtils.lerp(path[q-1].x,path[q].x,along/len),.1,T.MathUtils.lerp(path[q-1].z,path[q].z,along/len));break;}along-=len;}});}
     else this.hint.visible=false;
     gameUI(this)?.update();
+    // Count every pass of the frame (composer + outlines) for snapshot().drawCalls.
+    this.view.renderer.info.autoReset=false;this.view.renderer.info.reset();
     this.updateCamera(dt);const d0=performance.now();this.view.render();this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;
   }
   frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad();

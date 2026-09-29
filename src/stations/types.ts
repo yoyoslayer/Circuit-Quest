@@ -27,7 +27,9 @@ export interface Station {
   readonly job:StationJob;
   /** Camera at the bench, relative to the tabletop centre: distance, pitch, and the height of the
    *  point it looks at. */
-  readonly view:{distance:number;pitch:number;lookY:number};
+  readonly view:{distance:number;pitch:number;lookY:number;
+    /** Optional sideways shift of the look point (m, toward screen right) so the table clears the right-hand panel. */
+    lookX?:number};
   readonly limits:Limits;
   /** Where Pip stands to work (world), and the tabletop centre (world). */
   readonly stand:Point;readonly table:T.Vector3;readonly facing:number;
@@ -47,4 +49,6 @@ export interface Station {
   /** Mistakes and process cost for the result card (on top of broken props). */
   score():{mistakes:number;cost:number};
   snapshot():unknown;
+  /** Timed modes: orders served and seconds left (the HUD clock counts down). */
+  rushStatus?():{served:number;left:number}|undefined;
 }

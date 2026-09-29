@@ -51,7 +51,7 @@ function ticketTexture(o:Order){
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 export class ViaCounter implements Station {
-  readonly view={distance:6.4,pitch:.62,lookY:.32};
+  readonly view={distance:6.7,pitch:.8,lookY:.02,lookX:.2};
   readonly limits={time:420,damage:1,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   build:Build=blank();order=0;served:{order:string;verdict:Verdict}[]=[];mistakes=0;spent=0;blanksReady=false;active=false;
@@ -65,8 +65,9 @@ export class ViaCounter implements Station {
   readonly rush:boolean;private orders:Order[];private random=rng(20260929);misses=0;patience=PATIENCE;
   constructor(private game:Game){
     this.rush=game.level.id==='vias-rush';this.orders=this.rush?[]:[...SHIFT];
-    this.limits.cost=this.rush?90:Math.ceil(SHIFT.reduce((n,o)=>n+(cheapest(o)?.cost??0),0)*12.5);
-    if(this.rush){this.limits.damage=2;this.limits.time=RUSH_TIME;}
+    this.limits.cost=this.rush?9:Math.ceil(SHIFT.reduce((n,o)=>n+(cheapest(o)?.cost??0),0)*1.25);
+    // Rush always runs the full shift, so its time row can't be failed.
+    if(this.rush){this.limits.damage=2;this.limits.time=RUSH_TIME+10;}
     this.job=this.rush?{goal:`Via Rush: serve as many orders as you can in ${RUSH_TIME/60} minutes`,
       steps:[
         {text:'Bring the crate of board blanks to the counter',done:()=>this.blanksReady,at:()=>this.crate?.body.translation()??this.stand},
@@ -111,30 +112,30 @@ export class ViaCounter implements Station {
     for(const x of [-.5,.5])part(top,box(.06,.5,.06),toon(DMETAL),x,.3,-.2);
     top.add(this.boardGroup);this.boardGroup.add(this.viaGroup);
     sign(top,'CUTAWAY · NOT TO SCALE',0,.08,.4,.7);
-    SLABS.forEach((s,i)=>{if(s.kind!=='cu')return;const tab=part(top,box(.2,.07,.14),toon('#fffaf0'),-.64,0,.1);tab.userData.slab=i;this.tabs.push(tab);this.click(tab,'layer',s.layer);
+    SLABS.forEach((s,i)=>{if(s.kind!=='cu')return;const tab=part(top,box(.2,.07,.14),toon('#fffaf0'),-.57,0,.1);tab.userData.slab=i;this.tabs.push(tab);this.click(tab,'layer',s.layer);
       const tl=sign(tab,`L${s.layer}`,0,0,.072,.2,0);tl.position.set(0,0,.072);});
     // Left tools: scrap bin, press, drill press with its bits, plating tank.
-    const scrap=group(top,-1.95,0,.1);part(scrap,cyl(.14,.12,.3,18),toon('#6b7385'),0,.15,0);part(scrap,cyl(.15,.15,.03,18),toon(INK),0,.31,0);this.click(scrap,'scrap');sign(top,'SCRAP',-1.95,.08,.38);
+    const scrap=group(top,-1.95,0,.1);part(scrap,cyl(.14,.12,.3,18),toon('#6b7385'),0,.15,0);part(scrap,cyl(.15,.15,.03,18),toon(INK),0,.31,0);this.click(scrap,'scrap');sign(top,'SCRAP',-2.02,.08,.4,.4);
     const press=group(top,-1.55,0,-.05);part(press,box(.36,.08,.3),toon('#3f7fd6'),0,.04,0);part(press,box(.36,.08,.3),toon('#3f7fd6'),0,.42,0);
     for(const x of [-.15,.15])part(press,cyl(.025,.025,.42,10),toon(DMETAL),x,.23,-.1);const lever=group(press,.2,.46,0);part(lever,cyl(.02,.02,.3,8,'x'),toon(DMETAL),.15,0,0);part(lever,sphere(.05,12,10),toon('#e5484d'),.3,0,0);
-    this.click(press,'press');sign(top,'PRESS',-1.55,.08,.38);
-    const drill=group(top,-1.08,0,-.12);part(drill,box(.34,.06,.34),toon('#3a3d55'),0,.03,0);part(drill,cyl(.035,.035,.8,12),toon(DMETAL),-.1,.43,-.12);
+    this.click(press,'press');sign(top,'PRESS',-1.56,.08,.4,.4);
+    const drill=group(top,-1.14,0,-.12);part(drill,box(.34,.06,.34),toon('#3a3d55'),0,.03,0);part(drill,cyl(.035,.035,.8,12),toon(DMETAL),-.1,.43,-.12);
     drill.add(this.drillHead);this.drillHead.position.set(0,.62,0);part(this.drillHead,box(.24,.14,.2),toon('#ffc629'),0,0,0);part(this.drillHead,cyl(.012,.004,.16,8),toon('#dfe3ea'),0,-.14,0);
     this.click(drill,'drill');sign(top,'DRILL',-1.08,.62,-.12,.46,0,'#ffc629');
     (['mech-0.30','mech-0.20','laser-0.10'] as Drill[]).forEach((d,k)=>{const b=part(top,cyl(.045,.045,.03,16),toon(isLaser(d)?'#e5484d':'#dfe3ea'),-1.22+k*.14,.015,.14);b.userData.drill=d;this.bitButtons.push(b);this.click(b,'bit',d);});
-    sign(top,'BIT: 0.30 · 0.20 · LASER',-1.08,.08,.34,.62);
-    const tank=group(top,-.8,0,-.05);part(tank,box(.26,.2,.26),toon('#3f7fd6',{opacity:.55}),0,.1,0);part(tank,box(.26,.02,.26),toon('#7fd3ff'),0,.19,0);part(tank,box(.3,.03,.3),toon(DMETAL),0,.01,0);
-    this.click(tank,'plate');sign(top,'PLATE',-.8,.08,.3,.38);
+    sign(top,'BIT 0.30 · 0.20 · LASER',-1.08,.08,.4,.5);
+    const tank=group(top,-.84,0,-.05);part(tank,box(.26,.2,.26),toon('#3f7fd6',{opacity:.55}),0,.1,0);part(tank,box(.26,.02,.26),toon('#7fd3ff'),0,.19,0);part(tank,box(.3,.03,.3),toon(DMETAL),0,.01,0);
+    this.click(tank,'plate');sign(tank,'PLATE',0,.36,0,.34,0,'#7fd3ff');
     // Right tools: pad sizes, finish jars, stitch row count, tester, serve bell.
     PADS.forEach((p,k)=>{const b=part(top,cyl(p*.28,p*.28,.03,24),toon(COPPER),.72+k*.2,.015,.05);b.userData.pad=p;this.padButtons.push(b);this.click(b,'pad',p);});
     sign(top,'PAD 0.30 · 0.45 · 0.60',.92,.08,.34,.62);
     FINISHES.forEach((f,k)=>{const jar=group(top,1.3+(k%2)*.16,0,-.12+Math.floor(k/2)*.18);const m=part(jar,cyl(.055,.055,.12,16),toon(f==='open'?'#fffaf0':f==='tented'?MASK:f==='plugged'?FILL:COPPER),0,.06,0);part(jar,cyl(.058,.058,.025,16),toon(INK),0,.13,0);this.finishJars.push(m);this.click(jar,'finish',f);});
-    sign(top,'FINISH',1.38,.36,-.35,.4,0);
-    const row=group(top,1.72,0,.12);for(const [x,a] of [[-.12,-1],[.12,1]] as const){const b=part(row,box(.09,.05,.09),toon(a>0?'#6cc58a':'#e5484d'),x,.025,0);this.click(b,'count',a);}
+    sign(top,'FINISH',1.38,.08,.4,.4);
+    const row=group(top,1.72,0,-.26);for(const [x,a] of [[-.12,-1],[.12,1]] as const){const b=part(row,box(.09,.05,.09),toon(a>0?'#6cc58a':'#e5484d'),x,.025,0);this.click(b,'count',a);}
     this.countText=part(row,new T.PlaneGeometry(.12,.08),new T.MeshBasicMaterial({map:label('×1','#fffaf0',INK,128,80),transparent:true}),0,.06,0,false);this.countText.rotation.x=-1.1;(this.countText.material as T.Material).userData.outlineParameters={visible:false};
-    sign(top,'ROW',1.72,.08,.36,.3);
-    const tester=group(top,1.72,0,-.2);part(tester,box(.22,.14,.14),toon('#ffc94d'),0,.07,0);part(tester,box(.15,.07,.01),toon('#bfeaf5'),0,.1,.072);this.click(tester,'test');sign(tester,'TEST',0,.24,0,.3,0,'#ffc629');
-    const bell=group(top,2.02,0,-.2);part(bell,cyl(.09,.11,.03,18),toon(INK),0,.015,0);part(bell,sphere(.08,14,10,),toon('#ffc629'),0,.07,0).scale.y=.8;part(bell,cyl(.012,.012,.04,8),toon(INK),0,.14,0);this.click(bell,'serve');sign(top,'SERVE',2.02,.3,-.2,.34,0,'#6cc58a');
+    sign(top,'ROW',1.72,.2,-.42,.3,0);
+    const tester=group(top,1.72,0,.16);part(tester,box(.22,.14,.14),toon('#ffc94d'),0,.07,0);part(tester,box(.15,.07,.01),toon('#bfeaf5'),0,.1,.072);this.click(tester,'test');sign(tester,'TEST',0,.24,0,.3,0,'#ffc629');
+    const bell=group(top,2.04,0,.16);part(bell,cyl(.09,.11,.03,18),toon(INK),0,.015,0);part(bell,sphere(.08,14,10,),toon('#ffc629'),0,.07,0).scale.y=.8;part(bell,cyl(.012,.012,.04,8),toon(INK),0,.14,0);this.click(bell,'serve');sign(top,'SERVE',2.04,.08,.42,.34,-.75,'#6cc58a');
     // The crate of blanks sits at the counter's end once delivered.
     part(g.decorRoot,box(.9,.06,.8),toon('#c98a55'),t.x+2.75,.9,t.z);
   }
@@ -175,20 +176,20 @@ export class ViaCounter implements Station {
         this.say(v.tier>0?`${['','Works','Works reliably','Works reliably · elegant'][v.tier]}. ${v.notes[0]??''}`:v.problems.slice(0,2).join(' '),v.tier>0?'ok':'bad');
         if(v.tier>0)a.bell(1175,.4,.04);else a.tone(160,.25,.06,'square');break;}
       case 'serve':{const v=this.verdict();
-        if(v.tier===0){this.mistakes++;this.spent+=v.cost;this.say(`${o.customer} sends it back: ${v.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z-1.2},2);return true;}
+        if(v.tier===0){this.returned=true;this.mistakes++;this.spent+=v.cost;this.say(`${o.customer} sends it back: ${v.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z-1.2},2);return true;}
         this.served.push({order:o.id,verdict:v});this.spent+=v.cost;
         this.say(`${o.customer}: “${['','Thanks!','Lovely work.','Perfect, and cheap too!'][v.tier]}” · ${['','Works','Reliable','Elegant'][v.tier]}${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
         a.cheer();a.bell(1319,.5,.05);this.sendOff(this.order);
         this.game.burst(this.table.clone().add(new T.Vector3(0,.8,-1)),'#ffcf52',30,'confetti');
-        this.order++;this.build=blank();this.press=0;this.pressTarget=0;this.placeQueue();break;}
-      case 'scrap':{if(b.drill)this.spent+=cost(b);this.build=blank();this.press=0;this.pressTarget=0;a.thud(2);a.clatter();break;}
+        this.returned=false;this.order++;this.build=blank();this.press=0;this.pressTarget=0;this.placeQueue();break;}
+      case 'scrap':{this.returned=false;if(b.drill)this.spent+=cost(b);this.build=blank();this.press=0;this.pressTarget=0;a.thud(2);a.clatter();break;}
       default:return false;
     }
     this.redraw();if(name==='test')this.glowVia();return true;
   }
   /** Test result: the via's copper lights gold if the layers connect, red if not. */
   private glowVia(){const m=this.testOk?GLOW_OK:GLOW_BAD;this.viaGroup.traverse(o=>{if(o instanceof T.Mesh)o.material=m;});}
-  private bit:Drill='mech-0.30';
+  private bit:Drill='mech-0.30';private returned=false;
   /** A served (or fed-up) customer walks off to the right; in rush they rejoin the back of the queue. */
   private sendOff(i:number){const npc=this.customer(i);if(npc){npc.alarm=0;this.leaving.push({g:npc.group,t:0});}}
   verdict(){return judge(this.current()!,this.build);}
@@ -277,11 +278,18 @@ export class ViaCounter implements Station {
     if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel';this.layer()?.append(this.panel);}
     this.panel.hidden=!o;if(!o)return;
     const span=b.from===undefined?'pick two layers':b.to===undefined?`L${b.from} → ?`:`L${b.from} → L${b.to} · ${KIND_NAMES[kindOf(b.from,b.to)]}`;
-    const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
+    // Green only when a choice is right for this order, red when it is set but wrong.
+    const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'bad'}"><span>${k}</span><b>${v}</b></li>`;
+    const kind=kindOf(o.from,o.to),spanOk=b.to!==undefined?((b.from===o.from&&b.to===o.to)||(b.from===o.to&&b.to===o.from)):undefined;
+    const holeOk=b.drill?(isLaser(b.drill)===(kind==='micro')&&b.drilledPressed===(kind!=='buried')):undefined;
+    const minRing=b.drill&&isLaser(b.drill)?PROFILE.microMinRing:PROFILE.minRing;
+    const padOk=b.pad!==undefined&&b.drill?(r!>=minRing&&(o.maxPad===undefined||b.pad<=o.maxPad)):undefined;
+    const fin=b.finish??'open',finishOk=o.inPad?(b.plated?fin==='filled-capped':undefined):o.covered?(b.plated?fin!=='open':undefined):(b.finish?true:undefined);
+    const rowOk=o.stitch?b.count>=o.stitch:b.count===1?undefined:false;
     const head=this.rush?`RUSH · ${Math.max(0,Math.ceil(RUSH_TIME-this.game.time))} s left · served ${this.served.length}`:`ORDER ${this.order+1}/${SHIFT.length}`;
     this.panel.innerHTML=`<header><small>${head} · ${o.customer}</small>${this.rush?`<i class="patience" style="--p:${Math.max(0,this.patience/PATIENCE).toFixed(2)}"></i>`:''}<h4>${this.orderTitle(o)}</h4><p>${o.ask}</p></header>`+
-      (this.active?`<ul class="build">${row('Joins',span,b.to!==undefined)}${row('Stack',b.pressed?'pressed':'loose layers',b.pressed)}${row('Hole',b.drill?`${DRILL_NAMES[b.drill]} · ${b.drilledPressed?'after press':'before press'}`:`${DRILL_NAMES[this.bit]} ready`,!!b.drill)}`+
-        `${row('Barrel',b.plated?'plated':'bare',b.plated)}${row('Pad',b.pad!==undefined?`${b.pad.toFixed(2)} mm · ring ${r!.toFixed(3)}`:'—',b.pad!==undefined)}${row('Finish',FINISH_NAMES[b.finish??'open'])}${row('Row',`×${b.count}`)}${row('Cost',String(cost(b)))}</ul>`+
+      (this.active?`<ul class="build">${row('Joins',span,spanOk)}${row('Stack',b.pressed?'pressed':'loose layers',b.pressed?true:undefined)}${row('Hole',b.drill?`${DRILL_NAMES[b.drill]} · ${b.drilledPressed?'after press':'before press'}`:`${DRILL_NAMES[this.bit]} ready`,holeOk)}`+
+        `${row('Barrel',b.plated?'plated':'bare',b.plated?!(kind==='buried'&&b.platedPressed):undefined)}${row('Pad',b.pad!==undefined?`${b.pad.toFixed(2)} mm · ring ${r!==undefined?r.toFixed(3):'—'}`:'—',padOk)}${row('Finish',FINISH_NAMES[fin],finishOk)}${row('Row',`×${b.count}`,rowOk)}${row('Cost',String(cost(b)))}</ul>`+
         `<p class="profile">${PROFILE.name}: ring ≥ ${PROFILE.minRing} mm (laser microvias ${PROFILE.microMinRing}), aspect ≤ ${PROFILE.maxAspect}:1. Shop values, not universal rules.</p>`:'');
   }
 
@@ -292,14 +300,17 @@ export class ViaCounter implements Station {
       if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.blanksReady?{key:'E',text:'Work at the via counter'}:{key:'E',text:'Work at the counter (the blanks crate is still on the rack)'};return null;}
     const b=this.build;
     if(!this.blanksReady)return {key:'E',text:'Step back and fetch the crate of board blanks'};
-    if(b.to===undefined)return {key:'Click',text:'Pick the two layers this via joins (L1–L4 tabs, or keys 1–4)'};
-    if(!b.drill)return {key:'Click',text:kindOf(b.from!,b.to)==='buried'?'Buried vias are drilled in the core, before pressing: pick a bit and DRILL':'Press the stack if needed, pick a bit, then DRILL'};
-    if(!b.plated)return {key:'Click',text:'PLATE the barrel so it conducts'};
-    if(b.pad===undefined)return {key:'Click',text:'Choose a PAD size (watch the annular ring)'};
-    if(!b.pressed)return {key:'Click',text:'PRESS the stack before it ships'};
-    return {key:'Enter',text:'TEST it, then ring SERVE (Enter)'};
+    if(this.returned)return {key:'Backspace',text:'Sent back: fix the red rows, or SCRAP the board and start again'};
+    if(b.to===undefined)return {key:'1–4',text:'Pick the two layers this via joins (click the L1–L4 tabs)'};
+    if(!b.drill)return {key:'D',text:kindOf(b.from!,b.to)==='buried'?'Buried vias are drilled in the core, before pressing: pick a bit and DRILL':'Press the stack if needed, pick a bit, then DRILL'};
+    if(!b.plated)return {key:'L',text:'PLATE the barrel so it conducts'};
+    if(b.pad===undefined)return {key:'PAD',text:'Click a PAD size (watch the annular ring)'};
+    if(!b.pressed)return {key:'P',text:'PRESS the stack before it ships'};
+    return {key:'Enter',text:'TEST it (T), then ring SERVE'};
   }
   complete(){return this.rush?this.game.time>=RUSH_TIME:this.served.length>=SHIFT.length;}
-  score(){return {mistakes:this.mistakes+this.misses,cost:Math.round(this.spent*10)};}
+  score(){return {mistakes:this.mistakes+this.misses,cost:Math.round(this.spent*10)/10};}
+  /** Rush: orders served and the seconds left, for the HUD clock and the result card. */
+  rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}
   snapshot(){return {current:this.current(),rush:this.rush,misses:this.misses,patience:this.patience,order:this.order,served:this.served.map(s=>({order:s.order,tier:s.verdict.tier})),build:this.build,bit:this.bit,blanksReady:this.blanksReady,mistakes:this.mistakes,spent:this.spent};}
 }

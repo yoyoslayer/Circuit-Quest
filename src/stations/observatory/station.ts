@@ -13,7 +13,7 @@ import {hot,glossyToon} from '../../render/actors';
 import {JOBS,MODULES,MODULE_IDS,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,quarterWave,
   type ModuleId,type RodId,type Slot,type Setup,type Verdict,type Job} from './logic';
 
-const BRASS='#d6a24e',CREAM='#fbf3e2',VIOLET='#8b7be8',NIGHT='#1f2a52',TRACE='#e3a14f';
+const BRASS='#d6a24e',CREAM='#fbf3e2';
 const KIND_COLOR={R:'#f2c98f',L:BRASS,C:'#b8a6f5'} as const;
 const GLOW_ON=hot('#3dff7a',1.25),GLOW_OFF=toon('#4a3f5c');
 const DOT=.075; // Morse dot length (s)
@@ -108,8 +108,8 @@ export class ObservatoryBench implements Station {
     sign(board,'RECEIVER',jr+.06,y+.003,-.23,.3,-Math.PI/2);sign(board,'DECODER',jd-.06,y+.003,-.23,.3,-Math.PI/2);
     for(const x of [jr,jd]){part(board,cyl(.045,.045,.05,14),toon(INK),x,y+.02,line);part(board,cyl(.025,.025,.06,12),toon(BRASS),x,y+.03,line);}
     // The shutter latch sits on the decoder end of the line: its lamp shows whether 12 V DC arrives.
-    const latch=group(board,.6,y,.06);part(latch,rbox(.22,.1,.14,.04),toon('#e9dcc0'),0,.05,0);this.latchLamp=part(latch,sphere(.045,14,10),GLOW_OFF,0,.13,0);
-    sign(board,'LATCH',.6,.09,.13,.2,-.5,'#e9dcc0');
+    const latch=group(board,.6,y,.06);part(latch,rbox(.24,.1,.2,.04),toon('#e9dcc0'),0,.05,0);this.latchLamp=part(latch,sphere(.042,14,10),GLOW_OFF,0,.13,-.045);
+    sign(latch,'LATCH',0,.101,.05,.2,-Math.PI/2,'#e9dcc0');
     // Receiver cable in from the left end, by one of two routes; the lever picks which.
     const cableAt=(pts:number[][])=>new T.CatmullRomCurve3(pts.map(([x,yy,z])=>new T.Vector3(x,yy,z)));
     this.cableNear=part(top,new T.TubeGeometry(cableAt([[-2.2,.02,.56],[-1.7,.06,.58],[-1.15,.06,.56],[-1.02,.07,.3],[bx+jr,.09,bz+line]]),28,.02,6),toon('#e5484d'),0,0,0,false);
@@ -126,9 +126,9 @@ export class ObservatoryBench implements Station {
     this.whip=group(mount,0,.12,0);this.whipRod=part(this.whip,cyl(.014,.014,1,8),toon('#dfe3ea'),0,.5,0);this.whipTip=part(this.whip,sphere(.026,10,8),toon(INK),0,1,0);
     this.click(mount,'orient');sign(top,'ANTENNA',-1.12,.045,-.04,.3,-Math.PI/2+.2);
     const rack=group(top,-1.72,.04,.1);part(rack,rbox(.56,.05,.56,.04),toon('#8a6a3c'),0,.025,0);
-    ROD_IDS.forEach((id,k)=>{const x=k%2?.13:-.13,z=k<2?-.17:.08,r=group(rack,x,.05,z);const len=rodLen(id);part(r,cyl(.03,.03,.04,10),toon(INK),0,.02,0);part(r,cyl(.012,.012,len,8),toon('#dfe3ea'),0,len/2,0);part(r,sphere(.022,8,6),toon(INK),0,len,0);
+    ROD_IDS.forEach((id,k)=>{const x=(k%2?1:-1)*(k<2?.2:.13),z=k<2?.08:-.17,r=group(rack,x,.05,z);const len=rodLen(id);part(r,cyl(.03,.03,.04,10),toon(INK),0,.02,0);part(r,cyl(.012,.012,len,8),toon('#dfe3ea'),0,len/2,0);part(r,sphere(.022,8,6),toon(INK),0,len,0);
       this.rods.set(id,r);this.click(r,'rod',id);});
-    ROD_IDS.forEach((id,k)=>{const s=sign(rack,RODS[id].label,0,0,0,.23,-Math.PI/2+.2,CREAM,INK,80/256);s.position.set(k%2?.13:-.13,.056,(k<2?-.17:.08)+.1);});
+    ROD_IDS.forEach((id,k)=>{const s=sign(rack,RODS[id].label,0,0,0,.23,-Math.PI/2+.2,CREAM,INK,80/256);s.position.set(k%2?.13:-.13,.056,(k<2?.08:-.17)+.1);});
     // ---- Scope, back centre: a cream cabinet with a live canvas screen; mode buttons and the speaker below it.
     const scope=group(top,.12,.04,-.33);part(scope,rbox(1.72,.1,.54,.06),toon('#3a3563'),0,.05,0);
     const body=group(scope,0,.1,-.08);body.rotation.x=-.5;part(body,rbox(1.6,1.0,.22,.08),toon('#e9dcc0'),0,.5,0);part(body,box(1.46,.86,.03),toon(INK),0,.52,.11);
@@ -142,7 +142,7 @@ export class ObservatoryBench implements Station {
     sign(scope,'SPEAKER',0,.101,.18,.24,-Math.PI/2).position.set(.38,.101,.19);
     // ---- LOG button, back right.
     const log=group(top,1.25,.04,-.36);part(log,cyl(.17,.19,.06,24),toon(INK),0,.03,0);part(log,cyl(.13,.13,.06,24),toon('#6cc58a'),0,.08,0);this.click(log,'log');
-    sign(log,'LOG',0,.112,0,.2,-Math.PI/2,'#6cc58a','#fffaf0',120/256);
+    sign(log,'LOG',0,.112,0,.24,-Math.PI/2,'#fffaf0',INK,120/256);
   }
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
   private click(obj:T.Object3D,act:string,arg?:unknown){this.clickables.push({obj,act,arg});obj.userData.baseScale=obj.scale.clone();}

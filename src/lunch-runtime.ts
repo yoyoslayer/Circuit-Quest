@@ -8,6 +8,7 @@ import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,can
 import {makeProp} from './props/prefabs';
 import {icon} from './render/icons';
 import {solid} from './levels/decor';
+const warningTexture=()=>cachedTexture('warning',()=>glyph(c=>{c.fillStyle='#e5484d';c.beginPath();c.arc(128,128,112,0,7);c.fill();c.lineWidth=14;c.strokeStyle='#2b2d42';c.stroke();c.fillStyle='#fff6e6';c.beginPath();c.moveTo(150,40);c.lineTo(84,138);c.lineTo(126,138);c.lineTo(106,216);c.lineTo(176,112);c.lineTo(134,112);c.closePath();c.fill();}));
 import type {Prop} from './game';
 type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;ring:T.Mesh;capacity:number};
 type Cable={id:string;rating:number;active:0|1;ends:[T.Vector3,T.Vector3];ports:[string|null,string|null];rope:Rope;mesh:T.Mesh;plugs:[T.Group,T.Group];lead:Lead;points:Point[]};
@@ -17,7 +18,7 @@ const DOOR={x:0,z:.15};
 // Cleaner bots' painted loop in the corridor; cables heading east to the lift room cross it twice.
 const LANE={x0:-1,x1:14,z0:1.2,z1:5.4};
 // The fridge leak: a trail of puddles from the fridge out through the kitchen door.
-const PUDDLES:[number,number,number][]=[[-4.6,-1.2,.45],[-3.6,-.5,.55],[-2.4,0,.55],[-1.2,.4,.6],[-.2,.8,.7],[.4,1.4,.75],[.6,2.2,.6],[.3,2.8,.45]];
+const PUDDLES:[number,number,number][]=[[-4.6,-1.2,.45],[-3.6,-.55,.55],[-2.5,-.15,.55],[-1.2,.4,.6],[-.2,.8,.7],[.4,1.4,.75],[.6,2.2,.6],[.3,2.8,.45]];
 /** Level 02 rules and visuals: supplies, cables, splitters, machines, door, puddle, bots. */
 export class LunchRuntime {
   circuit:Circuit;job=new LunchJob();ports:Port[]=[];cables:Cable[]=[];held?:{cable:Cable;end:0|1};
@@ -25,6 +26,7 @@ export class LunchRuntime {
   dark:T.Mesh;liftCar!:T.Group;eventIndex=0;bakeGauge=new Gauge([[0,.95,'#ffc94d'],[.95,1,'#3bb273']]);supplyGauges=new Map<string,{gauge:Gauge;mount:T.Group;button:T.Mesh}>();
   // Assigned by the build* helpers called from the constructor.
   thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
+  liftRope!:T.Mesh;alerts=new Map<string,T.Sprite>();scars:{mark:T.Object3D;life:number;at:T.Vector3}[]=[];wetAt?:Point;
   lamps=new Map<string,{bulb:T.Mesh;glow:T.Sprite;light:T.PointLight}>();smoke:T.Mesh[]=[];
   constructor(public game:Game){
     game.ropeMesh.visible=false;game.plug.visible=false;game.target.visible=false;if(game.screen)game.screen.visible=false;
@@ -42,7 +44,7 @@ export class LunchRuntime {
     this.addCable('thin-1',3,32,'a',null,[-11,2]);this.addCable('thin-2',3,30,'a',null,[-10,3.5]);this.addCable('thin-3',3,32,null,null,[-11,7]);this.addCable('thick',10,30,'b',null,[-10,7.5]);
     this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#141726',{transparent:true,opacity:.88,depthWrite:false}),-12.1,2.7,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;
     const tray=this.prop('tray');if(tray){tray.mesh.visible=false;tray.body.setEnabled(false);}
-    const objective=document.createElement('div');objective.className='lunch-chain';objective.innerHTML=`<span id="oven-stage">${icon('oven')}</span>${icon('arrow')}<span id="belt-stage">${icon('conveyor')}</span>${icon('arrow')}<span id="lift-stage">${icon('lift')}</span><span id="fridge-stage">${icon('thermometer')}</span>`;game.hud.append(objective);
+    const objective=document.createElement('div');objective.className='lunch-chain';objective.innerHTML=`<span id="oven-stage">${icon('oven')}</span>${icon('arrow')}<span id="belt-stage">${icon('conveyor')}</span>${icon('arrow')}<span id="lift-stage">${icon('lift')}</span><span id="fridge-stage">${icon('thermometer')}</span><span id="breaker-stage">${icon('bolt')}</span>`;game.hud.append(objective);
   }
   prop(id:string){return this.game.props.find(p=>p.spec.id===id);}
   socketPlate(parent:T.Object3D,x:number,y:number,z:number,ry=0){const g=group(parent,x,y,z,ry);part(g,rbox(.38,.1,.38,.06).clone().rotateX(Math.PI/2),toon('#f0ece2'));part(g,cyl(.11,.11,.06,14,'z'),toon(INK),0,0,.05);return g;}
@@ -75,7 +77,7 @@ export class LunchRuntime {
   buildLift(){const g=this.game,root=g.decorRoot;
     for(const x of [10.6,13.4])part(root,box(.2,3.7,.2),toon(DMETAL),x,1.85,-8.3);part(root,box(3.2,.25,.5),toon(DMETAL),12,3.6,-8.3);
     this.liftCar=group(g.root,12,0,-7);part(this.liftCar,rbox(2.6,.12,2.2,.08),toon(METAL),0,0);part(this.liftCar,box(2.6,1.1,.08),toon('#c7ccd6'),0,.6,-1.1);part(this.liftCar,box(.08,1.1,2.2),toon('#c7ccd6'),1.3,.6,0);
-    part(this.liftCar,cyl(.02,.02,4,6),toon(INK),0,2.6,-.4);
+    this.liftRope=part(g.root,cyl(.025,.025,1,6),toon(INK),12,2,-7.4);
     const winch=group(root,13.3,0,-4.8,-Math.PI/2);part(winch,rbox(1.4,.3,1.1,.08),toon(DMETAL),0,.15);part(winch,cyl(.4,.4,.9,22,'x'),toon('#e0b25a'),0,.85);
     for(const sx of [-.55,.55])part(winch,box(.12,1.1,.8),toon(DMETAL),sx,.65);this.socketPlate(root,12.62,.38,-4.8,-Math.PI/2);solid(g,1.1,1.3,1.4,13.3,.65,-4.8);
   }
@@ -88,12 +90,13 @@ export class LunchRuntime {
   buildDoor(){const g=this.game;
     // Double-action swing door: the leaves swing away from whoever pushes through, then auto-close.
     for(const [hinge,closed,dir] of [[-1.5,0,-1],[1.5,Math.PI,1]] as const){
-      const pivot=group(g.root,hinge,0,DOOR.z,closed);part(pivot,rbox(1.45,2,.08,.06).clone().rotateX(Math.PI/2),toon('#5f8fa8'),.73,1.05,0);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,.05);
+      const pivot=group(g.root,hinge,0,DOOR.z,closed);part(pivot,rbox(1.45,2,.08,.06).clone().rotateX(Math.PI/2),toon('#5f8fa8'),.73,1.05,0);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,.05);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,-.05);part(pivot,box(1.45,.1,.12),toon('#3f6f86'),.73,2.02,0);part(pivot,box(1.3,.3,.1),toon('#c9d1db'),.73,.22,0);part(pivot,box(.08,.5,.14),toon(METAL),1.3,1.05,0);
       const body=g.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(hinge,1.05,DOOR.z));g.world.createCollider(RAPIER.ColliderDesc.cuboid(.72,1,.05),body);
       this.leaves.push({pivot,body,closed,dir});
     }
     // The fridge leak runs out through the doorway into the corridor.
-    const water=unlit('#7cc4ea',{transparent:true,opacity:.72,depthWrite:false});
+    // One opaque water colour so overlapping puddles read as a single spill.
+    const water=unlit('#8fd0ee',{polygonOffset:true,polygonOffsetFactor:-1});
     for(const [x,z,r] of PUDDLES){const m=part(this.game.root,new T.CircleGeometry(r,24),water,x,.02,z,false);m.rotation.x=-Math.PI/2;m.scale.x=1.4;this.puddles.push(m);}
   }
   buildCorridor(){const root=this.game.root,decor=this.game.decorRoot;
@@ -154,7 +157,11 @@ export class LunchRuntime {
   pull(){if(!this.held)return {x:0,z:0};return this.held.cable.rope.pull(this.game.player.translation());}
   bridgeNear(p:Point,radius=1.15){return this.game.props.some(prop=>prop.spec.kind==='bridge'&&distance(prop.body.translation(),p)<radius&&prop.body.translation().y<.6);}
   /** A cable is wet where it crosses a puddle that no cable bridge covers. */
-  wet(points:Point[]){if(this.water<=.1)return false;return PUDDLES.some(([x,z,r])=>{const c={x,z};return points.slice(1).some((b,i)=>segmentDistance(c,points[i],b)<r*1.2*this.water)&&!this.bridgeNear(c,1.3);});}
+  wet(points:Point[]){if(this.water<=.1)return false;const hit=PUDDLES.find(([x,z,r])=>{const c={x,z};return points.slice(1).some((b,i)=>segmentDistance(c,points[i],b)<r*1.2*this.water)&&!this.bridgeNear(c,1.3);});if(hit)this.wetAt={x:hit[0],z:hit[1]};return !!hit;}
+  /** Where something went wrong stays marked for a while: scorch, smoke and a warning badge. */
+  scar(at:Point){const g=this.game,mark=new T.Group();mark.position.set(at.x,0,at.z);
+    const burn=part(mark,new T.CircleGeometry(.55,20),unlit('#3a3140',{transparent:true,opacity:.7,depthWrite:false}),0,.025,0,false);burn.rotation.x=-Math.PI/2;
+    const badge=new T.Sprite(new T.SpriteMaterial({map:warningTexture(),depthTest:false}));badge.scale.set(.9,.9,1);badge.position.y=1.6;badge.renderOrder=9;mark.add(badge);g.root.add(mark);this.scars.push({mark,life:7,at:new T.Vector3(at.x,.3,at.z)});}
   nearPuddle(p:Point){return PUDDLES.some(([x,z,r])=>distance(p,{x,z})<r+1.2);}
   doorWedged(){const g=this.game,wedge=this.prop('wedge')!,p=wedge.body.translation();return g.held!==wedge&&distance(p,{x:0,z:0})<1.9&&p.y<1.2;}
   /** Forgiving drops: a doorstop near the door jams in beside the open right leaf; a cable bridge
@@ -185,7 +192,7 @@ export class LunchRuntime {
       cable.lead.from=(reversed?cable.ports[1]:cable.ports[0])??'';cable.lead.to=(reversed?cable.ports[0]:cable.ports[1])??'';cable.lead.closed=!!cable.lead.from&&!!cable.lead.to;
       cable.lead.wet=this.wet(cable.points);
       // The leaves snap shut across the whole opening and cut any cable left through it.
-      if(shut&&cable.points.slice(1).some((b,i)=>segmentHits(cable.points[i],b,{id:'door',minX:-1.55,maxX:1.55,minZ:-.2,maxZ:.5}))){cable.lead.dead=true;g.audio.tone(80,.2,.08,'sawtooth');g.burst({x:0,y:.5,z:.15},'#fff3a3',16,'spark');g.alarm(DOOR);}
+      if(shut&&cable.points.slice(1).some((b,i)=>segmentHits(cable.points[i],b,{id:'door',minX:-1.55,maxX:1.55,minZ:-.2,maxZ:.5}))){cable.lead.dead=true;g.audio.tone(80,.2,.08,'sawtooth');g.burst({x:0,y:.5,z:.15},'#fff3a3',16,'spark');g.alarm(DOOR);this.scar({x:cable.points[1]?.x??0,z:.15});}
       if(cable.rope.strain>1.25&&cable.lead.closed){cable.ports[1]=null;cable.lead.closed=false;g.audio.tone(110,.2,.05);}
     }
     this.doorWasOpen=this.doorAngle>.15;
@@ -201,8 +208,8 @@ export class LunchRuntime {
     });
     this.circuit.tick(dt);
     for(const event of this.circuit.events.slice(this.eventIndex)){
-      if(event.kind==='trip'||event.kind==='short'){g.audio.tone(75,.25,.1,'square');const source=this.ports.find(q=>q.id===event.id);if(source){g.burst(source.pos,'#fff3a3',18,'spark');g.burst(source.pos,'#8d8a96',5,'dust');g.alarm(source.pos);}g.audio.noise(.25,.1,300);g.shake=.15;}
-      if(event.kind==='scorch'){const cable=this.cables.find(c=>c.id===event.id);const at=cable?.points[Math.floor(cable.points.length/2)]??{x:0,z:0};g.audio.tone(60,.4,.08,'sawtooth');this.puff(new T.Vector3(at.x,.3,at.z));g.burst({x:at.x,y:.3,z:at.z},'#ff9a3d',10,'spark');}
+      if(event.kind==='trip'||event.kind==='short'){g.audio.tone(75,.25,.1,'square');const source=this.ports.find(q=>q.id===event.id);if(source){g.burst(source.pos,'#fff3a3',18,'spark');g.burst(source.pos,'#8d8a96',5,'dust');g.alarm(source.pos);}if(event.kind==='short'&&this.wetAt)this.scar(this.wetAt);g.audio.noise(.25,.1,300);g.shake=.15;}
+      if(event.kind==='scorch'){const cable=this.cables.find(c=>c.id===event.id);const at=cable?.points[Math.floor(cable.points.length/2)]??{x:0,z:0};g.audio.tone(60,.4,.08,'sawtooth');this.puff(new T.Vector3(at.x,.3,at.z));this.scar(at);g.burst({x:at.x,y:.3,z:at.z},'#ff9a3d',10,'spark');}
       if(event.kind==='start')g.audio.tone(event.id==='lift'?180:260,.15,.03,'triangle');
     }
     this.eventIndex=this.circuit.events.length;
@@ -218,20 +225,25 @@ export class LunchRuntime {
     if(this.job.done&&!g.won)g.win();
     if(this.job.failed&&!g.won){g.won=true;const result=g.hud.querySelector<HTMLElement>('.result')!;result.hidden=false;result.innerHTML=`<div class="medal fail">${icon(this.job.tray==='burned'?'oven':'thermometer')}</div><button aria-label="Retry Lunch Rush">${icon('retry')}</button>${g.levelNav()}`;result.querySelector('button')!.onclick=()=>location.reload();g.audio.tone(120,.7,.05,'triangle');document.body.dataset.failed='true';}
   }
+  updateScars(dt:number){for(const s of [...this.scars]){s.life-=dt;const badge=s.mark.children[1] as T.Sprite;badge.scale.setScalar(.9+Math.sin(s.life*8)*.08);badge.visible=s.life>2;if(Math.random()<dt*2.5)this.puff(s.at.clone().setY(.2));if(s.life<=0){this.game.root.remove(s.mark);this.scars.splice(this.scars.indexOf(s),1);}}}
   puff(at:T.Vector3){const m=part(this.game.root,sphere(.22,10,8),toon('#8d8a96'),at.x,at.y,at.z,false);m.userData.life=1.4;this.smoke.push(m);}
-  render(dt:number){const g=this.game;
+  render(dt:number){const g=this.game;this.updateScars(dt);
     for(const [i,m] of this.puddles.entries())m.scale.setScalar(Math.max(.001,this.water*(1-i*.02)));this.puddles.forEach(m=>m.scale.x*=1.4);this.dark.visible=!this.lit();
     for(const id of ['capacitor','cooler-box']){const prop=this.prop(id);if(prop)prop.mesh.visible=this.lit()||!this.inStore(prop.body.translation());}
     this.bakeGauge.set(this.job.bake/20);const oven=this.powered('oven');const hot=this.job.tray==='burned'||this.job.ovenWait>BURN_WARNING;this.ovenWindow.material=oven?(hot?lit('#ff5a3a','#ff2a1a',.8):lit('#ffb35a','#ff8a2a',.6)):toon('#3a3d55');this.ovenGlow.material.opacity=oven?.45:0;
     const temp=this.job.temperature;this.thermoFill.scale.y=Math.max(.02,temp);this.thermoFill.position.y=.68+Math.max(.02,temp)*.5;this.thermoFill.material=toon(temp>.8?'#e5484d':temp>.6?'#ff8a3d':'#ffc94d');
     this.sad.visible=temp>.8||(this.job.failed&&this.job.tray!=='burned');this.sad.position.y=2.9+Math.sin(g.time*6)*.05;
     if(this.powered('conveyor'))this.belt.offset.x-=dt*.2;
-    this.liftCar.position.y=1.12+this.job.height*2.5;
+    this.liftCar.position.y=1.12+this.job.height*2.5;const ropeLength=3.5-this.liftCar.position.y;this.liftRope.scale.y=Math.max(.05,ropeLength);this.liftRope.position.y=this.liftCar.position.y+ropeLength/2;
     const lampTops:Record<string,T.Vector3>={'store-lamp':new T.Vector3(-10,1.9,-3),'kitchen-lamp':(()=>{const t=this.prop('portable-lamp')!.mesh;return new T.Vector3(0,.55,0).applyQuaternion(t.quaternion).add(t.position);})()};
     for(const [id,lamp] of this.lamps){const on=this.powered(id),top=lampTops[id];lamp.bulb.position.copy(top);lamp.bulb.material=on?lit('#fff3c8','#ffe7a8',1):toon('#bbb6a8');lamp.glow.position.copy(top);lamp.glow.material.opacity=on?.55:0;lamp.light.position.copy(top).setY(top.y+.2);lamp.light.intensity=on?14:0;}
     const lamp=this.prop('portable-lamp')!.mesh.position;const cordPts=[new T.Vector3(-4,.4,-3.15),new T.Vector3((lamp.x-4)/2,.05,(lamp.z-3.15)/2),new T.Vector3(lamp.x,.05,lamp.z)];
     if(distance(lamp,{x:-4,z:-3.15})>.3){this.cord.geometry.dispose();this.cord.geometry=new T.TubeGeometry(new T.CatmullRomCurve3(cordPts),24,.025,5);}
+    let tripped=false;
     for(const [id,{gauge,mount,button}] of this.supplyGauges){const prop=this.prop(`supply-${id}`)!,source=this.circuit.sources.find(s=>s.id===id)!,draw=this.circuit.draw.get(id)??0;
+      // A tripped cart wears a pulsing breaker badge until someone presses its reset button.
+      let alert=this.alerts.get(id);if(!alert){alert=new T.Sprite(new T.SpriteMaterial({map:warningTexture(),depthTest:false}));alert.renderOrder=9;g.root.add(alert);this.alerts.set(id,alert);}
+      alert.visible=source.tripped;if(source.tripped){tripped=true;alert.position.copy(prop.mesh.position).setY(2.4+Math.sin(g.time*6)*.08);alert.scale.setScalar(1.05+Math.sin(g.time*10)*.12);}
       gauge.set(source.tripped?1:draw/6);mount.position.copy(prop.mesh.position).add(new T.Vector3(.15,.75,-.05).applyQuaternion(prop.mesh.quaternion));mount.quaternion.copy(prop.mesh.quaternion);mount.rotateX(-.5);
       button.position.copy(prop.mesh.position).add(new T.Vector3(.56,.66,-.28).applyQuaternion(prop.mesh.quaternion));(button.material as T.MeshToonMaterial).emissiveIntensity=source.tripped?.9+Math.sin(g.time*10)*.5:0;}
     const holding=!!this.held;
@@ -246,7 +258,7 @@ export class LunchRuntime {
     for(const m of [...this.smoke]){m.userData.life-=dt;m.position.y+=dt*.8;m.scale.setScalar(1+(1.4-m.userData.life));if(m.userData.life<=0){this.game.root.remove(m);this.smoke.splice(this.smoke.indexOf(m),1);}}
     if(this.held)g.rope=this.held.cable.rope;g.audio.strain(this.held&&!g.paused&&!g.won?g.rope.strain:0);
     g.hud.querySelector('#oven-stage')?.classList.toggle('done',this.job.tray!=='raw');g.hud.querySelector('#belt-stage')?.classList.toggle('done',this.job.transport>=1);g.hud.querySelector('#lift-stage')?.classList.toggle('done',this.job.done);
-    (g.hud.querySelector('#fridge-stage') as HTMLElement).style.color=temp>.8?'#e85c65':'#528979';
+    (g.hud.querySelector('#fridge-stage') as HTMLElement).style.color=temp>.8?'#e85c65':'#528979';g.hud.querySelector('#breaker-stage')?.classList.toggle('alert',tripped);
   }
   snapshot(){return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),door:{angle:this.doorAngle,side:this.doorSide},bots:this.bots.map(b=>({x:+b.group.position.x.toFixed(2),z:+b.group.position.z.toFixed(2),snag:b.snag?.cable.id})),cablePoints:Object.fromEntries(this.cables.map(c=>[c.id,c.points.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)}))])),lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,heat:c.lead.heat,strain:c.rope.strain})),events:this.circuit.events};}
 }

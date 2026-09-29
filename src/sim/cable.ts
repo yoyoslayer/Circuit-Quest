@@ -1,5 +1,7 @@
 export interface Point {x:number;z:number}
 export interface Obstacle {id:string;minX:number;maxX:number;minZ:number;maxZ:number}
+/** Clearance kept between a rope and the corner it wraps (thick cables are ~0.09 m radius). */
+export const CORNER=.12;
 export const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 export const pathLength=(p:Point[])=>p.slice(1).reduce((n,b,i)=>n+distance(p[i],b),0);
 export function segmentHits(a:Point,b:Point,r:Obstacle):boolean {
@@ -15,7 +17,7 @@ export function clear(a:Point,b:Point,obstacles:Obstacle[]){return !obstacles.so
 // crosses a corner. Existing bends stay until their neighbours have line of sight.
 export function detour(a:Point,b:Point,obstacles:Obstacle[]):Point[]{
   if(clear(a,b,obstacles))return [a,b];
-  const e=.065,vertices=[a,b,...obstacles.flatMap(o=>[
+  const e=CORNER,vertices=[a,b,...obstacles.flatMap(o=>[
     {x:o.minX-e,z:o.minZ-e},{x:o.maxX+e,z:o.minZ-e},
     {x:o.maxX+e,z:o.maxZ+e},{x:o.minX-e,z:o.maxZ+e}
   ])];
@@ -30,7 +32,7 @@ export function detour(a:Point,b:Point,obstacles:Obstacle[]):Point[]{
   if(prev[1]<0)return [a,b];
   const result:Point[]=[];for(let i=1;i>=0;i=prev[i])result.unshift(vertices[i]);return result;
 }
-const corners=(o:Obstacle,e=.065):Point[]=>[{x:o.minX-e,z:o.minZ-e},{x:o.maxX+e,z:o.minZ-e},{x:o.maxX+e,z:o.maxZ+e},{x:o.minX-e,z:o.maxZ+e}];
+const corners=(o:Obstacle,e=CORNER):Point[]=>[{x:o.minX-e,z:o.minZ-e},{x:o.maxX+e,z:o.minZ-e},{x:o.maxX+e,z:o.maxZ+e},{x:o.minX-e,z:o.maxZ+e}];
 const cross=(o:Point,a:Point,b:Point)=>(a.x-o.x)*(b.z-o.z)-(a.z-o.z)*(b.x-o.x);
 function inTriangle(p:Point,a:Point,b:Point,c:Point){const d1=cross(a,b,p),d2=cross(b,c,p),d3=cross(c,a,p);return !((d1<0||d2<0||d3<0)&&(d1>0||d2>0||d3>0));}
 function strictlyInside(p:Point,a:Point,b:Point,c:Point){const d1=cross(a,b,p),d2=cross(b,c,p),d3=cross(c,a,p),t=1e-7;return (d1>t&&d2>t&&d3>t)||(d1< -t&&d2< -t&&d3< -t);}

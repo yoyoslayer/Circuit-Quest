@@ -44,3 +44,10 @@ test('borrowing the coffee extension makes the coffee corner groan',async({page}
   await open(page,'meeting');await route(page,[[-10,-5],[-10,3.5]]);await walk(page,-12,4.5,.4);await page.keyboard.press('KeyE');
   expect((await snapshot(page)).holdingPlug).toBe(true);await wait(page,.1);expect((await snapshot(page)).alarmed).toBeGreaterThanOrEqual(2);
 });
+test('holding the plug, F at the mail cart attaches coupler then second reel',async({page})=>{
+  await open(page,'meeting');await page.keyboard.press('KeyF');
+  await route(page,[[-9,-6],[-9,5.3],[-3.3,5.5]],.3);
+  await page.keyboard.press('KeyF');let s=await snapshot(page);expect(s.holdingPlug).toBe(true);expect(s.items.find((i:any)=>i.id==='coupler').visible).toBe(false);expect(s.rope.maxLength).toBe(23.2);
+  await page.keyboard.press('KeyF');s=await snapshot(page);expect(s.holdingPlug).toBe(true);expect(s.rope.maxLength).toBe(37.2);
+  await route(page,[[-1,3],[-1,-1.5],[6,-1.2],[11.4,-1.4]]);await page.keyboard.press('KeyF');await complete(page);
+});

@@ -6,7 +6,7 @@ import {BLOBC,bangTexture,freeze,blobMesh} from './render/kit';
 import {Sound} from './render/audio';
 import {icon} from './render/icons';
 import {makeProp,prefabs,type PropSpec} from './props/prefabs';
-import {Rope,detour,distance,segmentDistance,strainColor,type Point,type Obstacle} from './sim/cable';
+import {Rope,CORNER,detour,distance,segmentDistance,strainColor,type Point,type Obstacle} from './sim/cable';
 import {Circuit} from './sim/electrical';
 import {grade} from './sim/grade';
 import type {Level,NpcSpot} from './levels/types';
@@ -16,7 +16,7 @@ import {decorate} from './levels/decor';
 import {levels} from './levels';
 
 export interface Prop {spec:PropSpec;body:RAPIER.RigidBody;collider:RAPIER.Collider;mesh:T.Group;damaged:boolean;home:T.Vector3;lastSpeed:number}
-interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;alarm:number;seed:number;baseY:number}
+interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number}
 interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
@@ -27,7 +27,7 @@ export class Game {
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
   yaw=.12;pitch=.92;zoom=18;survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
-  audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint:T.Line;reticle:T.Mesh;
+  audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint:T.Line;reticle:T.Mesh;pipRing:T.Mesh;
   batches:Batch[]=[];decorRoot=new T.Group();
   lunch?:LunchRuntime;
   // ?manual lets automated tests advance simulated time deterministically.
@@ -49,7 +49,9 @@ export class Game {
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
     const anchor=makeProp('reel');anchor.position.set(level.anchor.x,.6,level.anchor.z);this.root.add(anchor);
     this.ropeMesh=new T.Mesh(new T.BufferGeometry(),toon('#f5f1dc').clone());this.ropeMesh.castShadow=true;this.root.add(this.ropeMesh);
-    this.reticle=new T.Mesh(new T.TorusGeometry(.48,.035,6,24),new T.MeshBasicMaterial({color:'#fff0a5',depthTest:false}));this.reticle.rotation.x=-Math.PI/2;this.reticle.renderOrder=10;this.root.add(this.reticle);
+    this.reticle=new T.Mesh(new T.TorusGeometry(.5,.06,8,32),new T.MeshBasicMaterial({color:'#ffd84a',depthTest:false,transparent:true,opacity:.9}));this.reticle.visible=false;
+    // A soft ring under Pip keeps the hero findable among coworkers.
+    this.pipRing=new T.Mesh(new T.RingGeometry(.42,.58,40).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#ffc629',transparent:true,opacity:.55,depthWrite:false}));this.pipRing.userData.outlineParameters={visible:false};this.root.add(this.pipRing);this.reticle.rotation.x=-Math.PI/2;this.reticle.renderOrder=10;this.root.add(this.reticle);
     this.hint=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#76e1d3',dashSize:.2,gapSize:.35,transparent:true,opacity:.6}));this.hint.visible=false;this.root.add(this.hint);
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
     this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else{this.simulateCable();this.drawCable();}
@@ -79,10 +81,11 @@ export class Game {
     const g=new T.Group(),seated=this.level.id==='meeting'&&!p.standing,body=new T.Group();body.position.y=seated?.35:0;g.add(body);
     body.add(blobMesh(BLOBC[this.npcs.length%BLOBC.length]));
     const bubble=new T.Sprite(new T.SpriteMaterial({map:bangTexture(),depthTest:false}));bubble.scale.set(.7,.7,1);bubble.position.y=(seated?.35:0)+1.55;bubble.renderOrder=9;bubble.visible=false;g.add(bubble);
-    g.position.set(p.x,0,p.z);this.npcs.push({group:g,body,bubble,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0});this.root.add(g);
+    g.position.set(p.x,0,p.z);const desk=this.props.filter(q=>q.spec.kind==='desk').sort((a,b)=>distance(p,a.spec)-distance(p,b.spec))[0],restYaw=seated&&desk?Math.atan2(desk.spec.x-p.x,desk.spec.z-p.z):Math.atan2(-p.x,-p.z);g.rotation.y=restYaw;
+    this.npcs.push({group:g,body,bubble,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0,seated,restYaw});this.root.add(g);
   }
   /** Coworkers near a crash or snap flinch and show a "!" bubble. */
-  alarm(at:Point,radius=4.5){let startled=0;for(const npc of this.npcs)if(distance(npc.group.position,at)<radius){if(npc.alarm<=0)startled++;npc.alarm=1.6;}
+  alarm(at:Point,radius=4.5){let startled=0;for(const npc of this.npcs)if(distance(npc.group.position,at)<radius){if(npc.alarm<=0)startled++;npc.alarm=1;}
     if(startled&&this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',.9+Math.random()*.4);}}
   batchProps(){
     const groups=new Map<string,{prop:Prop;part:T.Mesh}[]>();
@@ -138,14 +141,16 @@ export class Game {
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
       if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
       const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera',10:'survey'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
-  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.hud.querySelector<HTMLElement>('.pause')!.hidden=!this.paused;this.audio.strain(0);}
+  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.hud.querySelector<HTMLElement>('.pause')!.hidden=!this.paused;this.hud.classList.toggle('is-paused',this.paused);this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) win ties against clutter that got pushed along. */
   reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id?.6:0);}
   interact(cableOnly=false){
     const pos=this.player.translation();
     if(this.lunch?.interact(cableOnly))return;
-    if(this.lunch&&cableOnly)return;
+    if(this.lunch&&cableOnly){this.shrug();return;}
+    // With the plug in hand, E or F next to the coupler or second reel attaches it (coupler first).
+    if(this.holdingPlug&&this.attachNear(pos))return;
     // Forgiving snap: the held plug only has to look close to the socket.
     if(this.holdingPlug){if(Math.min(distance(pos,this.level.target)-.3,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12){this.connected=true;this.holdingPlug=false;this.plugPosition.set(this.level.target.x,.28,this.level.target.z);this.circuit.leads[0].closed=true;this.audio.plug();this.burst(this.plugPosition,'#fff3a3',16,'spark');}else this.releasePlug();return;}
     if(this.held){const p=this.held;
@@ -155,16 +160,28 @@ export class Game {
       this.lunch?.dropped(p);
       this.held=undefined;return;
     }
-    if(!this.lunch&&distance(pos,this.plugPosition)<1.75){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.pop();return;}
-    if(cableOnly)return;
-    const nearest=this.nearest();if(nearest){
+    const nearest=cableOnly?undefined:this.nearest();
+    if(!this.lunch&&distance(pos,this.plugPosition)<1.75&&!(nearest&&this.reach(pos,nearest)<distance(pos,this.plugPosition))){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.pop();return;}
+    if(cableOnly){this.shrug();return;}
+    if(nearest){
       if(nearest.spec.id==='coffee-reel'&&!this.coffeeReused){this.coffeeReused=true;this.rope.reset({x:-14,z:5},Math.max(30,this.rope.maxLength));this.plugPosition.set(-13,.3,4.5);this.holdingPlug=true;this.consume(nearest);this.audio.tone(100,.6,.06,'triangle');
         // The coffee bar goes dark: nearby coworkers groan.
         this.alarm({x:-13,z:4.5},4.5);for(let i=0;i<3;i++)setTimeout(()=>this.audio.voice('groan',.8+i*.15),150+i*280);return;}
       // A jammed doorstop only comes loose when deliberately picked up.
       if(nearest.spec.id==='wedge')nearest.body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
       this.held=nearest;this.audio.pop();
-    }
+    }else this.shrug();
+  }
+  /** Nothing in reach: a little puff and a questioning chirp instead of silence. */
+  shrug(){const p=this.player.translation();this.burst({x:p.x+Math.sin(this.heading)*.6,y:.2,z:p.z+Math.cos(this.heading)*.6},'#efe8d8',4,'dust');this.audio.voice('hm',1.5);this.squash=.25;}
+  attachNear(pos:Point){
+    const part=this.props.filter(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(pos,q.body.translation())<1.9).sort((a,b)=>Number(b.spec.id==='coupler')-Number(a.spec.id==='coupler'))[0];if(!part)return false;
+    const at=part.body.translation();
+    if(part.spec.id==='coupler'){this.coupler=true;this.consume(part);this.audio.plug();this.burst(at,'#fff3a3',12,'spark');}
+    else if(this.coupler){this.extension=true;this.rope.maxLength=this.level.length+14;this.consume(part);this.audio.plug();this.audio.jingle();this.burst(at,'#ffcf52',30,'confetti');}
+    // Wrong order: the reel needs the coupler first, so it wobbles and buzzes.
+    else{this.audio.tone(110,.22,.07,'square');part.body.applyImpulse({x:0,y:prefabs[part.spec.kind].mass*2.5,z:0},true);part.body.applyTorqueImpulse({x:0,y:0,z:.4},true);}
+    return true;
   }
   consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);}
   slingshot(energy:number){
@@ -193,7 +210,7 @@ export class Game {
       return {id:`prop-${p.body.handle}`,minX:pos.x-hx,maxX:pos.x+hx,minZ:pos.z-hz,maxZ:pos.z+hz,prop:p};
     }).filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ)&&!(this.rope.anchor.x>o.minX&&this.rope.anchor.x<o.maxX&&this.rope.anchor.z>o.minZ&&this.rope.anchor.z<o.maxZ));
     const obstacles=[...this.obstacles,...furniture];this.ropePoints=this.rope.update(this.plugPosition,obstacles);
-    const isCorner=(o:Obstacle,b:Point)=>(Math.abs(b.x-o.minX+.065)<.05||Math.abs(b.x-o.maxX-.065)<.05)&&(Math.abs(b.z-o.minZ+.065)<.05||Math.abs(b.z-o.maxZ-.065)<.05);
+    const isCorner=(o:Obstacle,b:Point)=>(Math.abs(b.x-o.minX+CORNER)<.05||Math.abs(b.x-o.maxX-CORNER)<.05)&&(Math.abs(b.z-o.minZ+CORNER)<.05||Math.abs(b.z-o.maxZ-CORNER)<.05);
     this.wrapped=new Set(furniture.filter(o=>this.rope.bends.some(b=>isCorner(o,b))).map(o=>o.prop));
     const swungClear=beforeBends.filter(b=>!this.rope.bends.some(a=>distance(a,b)<.01)).some(b=>obstacles.some(o=>isCorner(o,b)));
     if(this.running&&this.rope.bends.length!==before)this.audio.knock(this.rope.bends.length>before?1:1.5);
@@ -210,7 +227,7 @@ export class Game {
     }
     points.push(this.plugPosition.clone());
     if(points.length>1){const geometry=new T.TubeGeometry(new T.CatmullRomCurve3(points,false,'centripetal'),Math.max(12,points.length*2),.065,5,false);this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=geometry;}
-    (this.ropeMesh.material as T.MeshToonMaterial).color.set(strainColor(this.rope.strain));
+    (this.ropeMesh.material as T.MeshToonMaterial).color.set(this.connected?'#ffd451':strainColor(this.rope.strain));
     this.audio.strain(this.holdingPlug&&!this.paused&&!this.won?this.rope.strain:0);
   }
   burst(pos:{x:number;y:number;z:number},color:string,count:number,kind:Fx='debris'){this.fx.spawn(kind,pos,count,color);}
@@ -235,7 +252,7 @@ export class Game {
     this.world.timestep=dt;this.world.step();
     if(this.holdingPlug&&this.rope.strain>.88)for(const prop of this.props){const pos=prop.body.translation();if(prefabs[prop.spec.kind].mass<=15&&this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<.65)){const v=new T.Vector3(p.x-pos.x,0,p.z-pos.z).normalize().multiplyScalar(dt*12*(this.rope.strain-.8));prop.body.applyImpulse({x:v.x,y:.015,z:v.z},true);}}
     for(const prop of this.props){if(!prop.body.isEnabled())continue;const pos=prop.body.translation(),v=prop.body.linvel(),speed=Math.hypot(v.x,v.y,v.z);
-      if(this.time>2&&!prop.damaged&&prop.lastSpeed>4&&prop.lastSpeed-speed>2.5){prop.damaged=true;this.alarm(pos);this.damage++;this.cost+=prefabs[prop.spec.kind].cost;this.audio.thud(prefabs[prop.spec.kind].mass);this.burst(pos,'#e1d4b7',3);this.burst(pos,'#e9e4d6',3,'dust');if(prop.spec.kind==='glass'){this.consume(prop);this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#a0dbdf',14);}}
+      if(this.time>2&&!prop.damaged&&prop!==this.held&&prop.lastSpeed>5.5&&prop.lastSpeed-speed>3.5){prop.damaged=true;this.alarm(pos);this.damage++;this.cost+=prefabs[prop.spec.kind].cost;this.audio.thud(prefabs[prop.spec.kind].mass);this.burst(pos,'#e1d4b7',3);this.burst(pos,'#e9e4d6',3,'dust');if(prop.spec.kind==='glass'){this.consume(prop);this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#a0dbdf',14);}}
       prop.lastSpeed=speed;
       // Paper sheets flutter: heavy air drag plus a wobble while airborne.
       if(prop.spec.kind==='paper'&&pos.y>.15&&speed>.3){prop.body.applyImpulse({x:-v.x*.004,y:-v.y*.0045+.0002,z:-v.z*.004},true);const w=this.time*23+prop.body.handle;prop.body.applyTorqueImpulse({x:Math.sin(w)*.00002,y:Math.sin(w*1.7)*.00002,z:Math.cos(w*1.3)*.00002},true);}
@@ -282,6 +299,8 @@ export class Game {
     if(!this.rig)return;const p=this.player.translation(),speed=dt>0?Math.hypot(p.x-this.lastPos.x,p.z-this.lastPos.z)/dt:0;this.lastPos.set(p.x,p.y,p.z);
     const amount=Math.min(1,speed/4),carrying=!!this.held,plug=this.holdingPlug,air=!this.grounded&&this.airborne>.08;const lastStride=this.stride;this.stride+=dt*speed*2.1;if(this.grounded&&speed>1&&Math.floor(lastStride/Math.PI)!==Math.floor(this.stride/Math.PI))this.audio.step();
     const swing=Math.sin(this.stride)*.75*amount,ease=1-Math.exp(-dt*14),to=(g:T.Group,x:number,z=0)=>{g.rotation.x+=(x-g.rotation.x)*ease;g.rotation.z+=(z-g.rotation.z)*ease;};
+    // Lean into a run; lean back hauling a taut cable.
+    const pulling=plug&&this.rope.strain>.7,lean=pulling?-.3*Math.min(1,(this.rope.strain-.7)/.3):amount*.14;const body=this.rig.legs[0].parent!;body.rotation.x+=(lean-body.rotation.x)*ease;
     to(this.rig.legs[0],air?-.5:swing);to(this.rig.legs[1],air?.35:-swing);
     const reach=carrying?-1.45:0,sway=air?-2.3:-swing*.8;
     to(this.rig.arms[0],carrying?reach:plug?sway*.4:sway,air?-.5:carrying?.18:0);to(this.rig.arms[1],carrying?reach:plug?-1.25:-sway,air?.5:carrying?-.18:0);
@@ -292,20 +311,29 @@ export class Game {
     this.animateRig(dt);
     for(const prop of this.props){if(!prop.mesh.visible)continue;prop.mesh.position.copy(prop.body.translation());prop.mesh.quaternion.copy(prop.body.rotation());}
     this.updateBatches();
-    for(const npc of this.npcs){const g=npc.group,near=distance(p,g.position)<2;npc.alarm=Math.max(0,npc.alarm-dt);
-      g.rotation.y=T.MathUtils.lerp(g.rotation.y,Math.atan2(p.x-g.position.x,p.z-g.position.z),.08);
-      const cheer=this.won?Math.abs(Math.sin(this.last*.009+npc.seed)):0,duck=npc.alarm>0?.72:near?.86:1;
-      npc.body.scale.set(2-duck,duck,2-duck);npc.body.position.y=npc.baseY+cheer*.35;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;npc.bubble.visible=npc.alarm>0&&!this.won;}
+    // Coworkers breathe, type at their desks, turn to watch Pip when close, and pop a "!" when startled.
+    const clock=this.last/1000;
+    for(const npc of this.npcs){const g=npc.group,d=distance(p,g.position),near=d<2;npc.alarm=Math.max(0,npc.alarm-dt);
+      const watch=d<4||npc.alarm>0||this.won,yaw=watch?Math.atan2(p.x-g.position.x,p.z-g.position.z):npc.restYaw;
+      g.rotation.y+=Math.atan2(Math.sin(yaw-g.rotation.y),Math.cos(yaw-g.rotation.y))*Math.min(1,dt*5);
+      const cheer=this.won?Math.abs(Math.sin(clock*9+npc.seed)):0,duck=npc.alarm>0?.72:near?.88:1,breathe=Math.sin(clock*1.3*Math.PI*2+npc.seed)*.025;
+      const typing=npc.seated&&!watch?Math.abs(Math.sin(clock*16+npc.seed*3))*.012:0;
+      npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
+      const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
     if(this.lunch)this.lunch.render(dt);else this.drawCable();this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);
-    const nearest=this.nearest();this.reticle.visible=this.running&&!this.held&&!this.holdingPlug&&!this.won;
-    this.reticle.position.copy(distance(p,this.plugPosition)<1.75?this.plugPosition:nearest?.mesh.position??new T.Vector3(0,-10,0));this.reticle.position.y+=.1;
+    // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
+    const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
+    const plugFirst=!this.lunch&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));
+    const mark=attach?.mesh.position??(plugFirst?this.plugPosition:!this.holdingPlug&&!this.held?nearest?.mesh.position:undefined);
+    this.reticle.visible=this.running&&!this.won&&!!mark;if(mark){this.reticle.position.copy(mark);this.reticle.position.y=Math.max(.08,mark.y-.2);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.08);}
+    this.pipRing.position.set(p.x,.03,p.z);
     this.fx.update(dt);
     // Steam from the coffee machine until its extension is borrowed.
     const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'dust');}
     // After a while a dotted ghost line traces the clean way round walls and pillars to the socket.
     if(this.time>35&&!this.connected&&!this.lunch&&!this.won){this.hint.visible=true;this.hint.geometry.dispose();this.hint.geometry=new T.BufferGeometry().setFromPoints(detour({x:p.x,z:p.z},this.level.target,this.obstacles).map(q=>new T.Vector3(q.x,.1,q.z)));this.hint.computeLineDistances();}else this.hint.visible=false;
     this.hud.querySelector('#clock')!.textContent=this.formatTime(this.time);this.hud.querySelector('#damage')!.textContent=String(this.damage);this.hud.querySelector('#cost')!.textContent=String(this.cost);
-    const shown=this.lunch&&!this.lunch.held?0:this.rope.strain,strain=this.hud.querySelector<HTMLElement>('#strain')!;strain.style.width=`${Math.min(100,shown*100)}%`;strain.style.background=strainColor(shown);
+    const shown=this.lunch&&!this.lunch.held?0:this.rope.strain,strain=this.hud.querySelector<HTMLElement>('#strain')!;strain.style.width=`${Math.min(100,shown*100)}%`;strain.style.background=this.connected?'#ffc94d':strainColor(shown);
     const deadline=this.level.deadline??240,ring=this.hud.querySelector('.timer circle') as SVGElement;ring.style.strokeDashoffset=String(Math.min(1,this.time/deadline)*183);ring.style.stroke=this.time>deadline?'#e5484d':'';
     this.hud.querySelector('[data-action="cable"]')!.classList.toggle('active',this.holdingPlug);this.hud.querySelector('[data-action="grab"]')!.classList.toggle('active',!!this.held);
     this.updateCamera(dt);const d0=performance.now();this.view.effect.render(this.view.scene,this.view.camera);this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;

@@ -6,3 +6,8 @@
 .levels a.current,.levels a:hover{opacity:1;background:#ffcf5e}
 .levels svg{width:20px;height:20px}
 .medal.fail svg{color:#e5484d;width:70px;height:70px}
+#hud.is-paused::before{content:'';position:fixed;inset:0;background:rgba(20,22,38,.5);backdrop-filter:blur(2px)}
+.toolbar kbd{font-size:11px;font-weight:800;opacity:.8;color:#303448;bottom:2px;right:5px}
+#breaker-stage{display:none}
+#breaker-stage.alert{display:inline-flex;color:#fff;background:#e5484d;border-radius:50%;padding:4px;opacity:1!important;animation:alert-pulse .6s ease-in-out infinite alternate}
+@keyframes alert-pulse{to{transform:scale(1.18)}}

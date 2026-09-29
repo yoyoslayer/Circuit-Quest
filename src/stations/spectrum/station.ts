@@ -117,17 +117,20 @@ export class SpectrumDesk implements Station {
     this.ribbon=part(top,geo,new T.MeshBasicMaterial({color:BANDS.vis.color,side:T.DoubleSide}),-1.53,.3,-.02,false);(this.ribbon.material as T.Material).userData.outlineParameters={visible:false};this.ribbon.rotation.x=-Math.PI/2;
     sign(top,'BAND  ·  c = f × λ',-1.53,.057,.19,.56,-Math.PI/2,'#ffd66b',INK,.07);
     // ---- Centre back: the wave readout and the link meter, side by side.
-    const screen=(x:number,tex:T.Texture)=>{const s=group(top,x,.05,-.47);s.rotation.x=-.4;part(s,rbox(.9,.52,.05,.03),toon(INK),0,.26,0);
+    const screen=(x:number,tex:T.Texture)=>{for(const dx of [-.3,.3])part(top,cyl(.025,.025,.3,8),toon(DMETAL),x+dx,.2,-.5);const s=group(top,x,.3,-.5);s.rotation.x=-.4;part(s,rbox(.9,.52,.05,.03),toon(INK),0,.26,0);
       part(s,new T.PlaneGeometry(.86,.484),flatMat(tex),0,.26,.027,false).userData.noAO=true;return s;};
     screen(-.47,this.wave.tex);screen(.47,this.link.tex);
     // ---- Centre front: the live hall map on a low lectern.
-    const lect=group(top,0,.06,.17);lect.rotation.x=.3;part(lect,rbox(1.4,.05,1.02,.05),toon('#c98a55'),0,.02,0);
+    part(top,rbox(1.3,.18,.5,.04),toon('#8e5a36'),0,.13,-.08);part(top,rbox(1.3,.05,.9,.04),toon('#8e5a36'),0,.07,.17);
+    const lect=group(top,0,.21,.17);lect.rotation.x=.3;part(lect,rbox(1.4,.05,1.02,.05),toon('#c98a55'),0,.02,0);
     const mapMesh=part(lect,new T.PlaneGeometry(1.34,.975),flatMat(this.map.tex),0,.047,0,false);mapMesh.rotation.x=-Math.PI/2;mapMesh.userData.noAO=true;
     // ---- Right: detector heads (back), power keys and SEND (middle), the hatch lever (front).
     part(top,rbox(1.26,.02,1.12,.06),toon('#3a3d55'),1.53,.045,0);
     DETECTOR_IDS.forEach((d,k)=>{const x=1.05+k*.24,peg=group(top,x,.055,-.2);part(peg,cyl(.08,.09,.03,16),toon('#fffaf0'),0,.015,0);const h=headMesh(d,.9);h.position.y=.03;peg.add(h);
       this.deskHeads.set(d,peg);this.click(peg,'detector',d);});
-    sign(top,'DETECTOR HEAD FOR THE POD',1.53,.057,-.01,.9,-Math.PI/2,CREAM,INK,.07);
+    const HEAD_TAGS:Record<Detector,string>={dipole:'DIPOLE',patch:'PATCH',thermopile:'THERMO',nirdiode:'NEAR IR',visdiode:'GREEN'};
+    DETECTOR_IDS.forEach((d,k)=>sign(top,HEAD_TAGS[d],1.05+k*.24,.057,-.04,.22,-Math.PI/2,CREAM,INK,.07));
+    sign(top,'POD DETECTOR',1.53,.057,-.4,.44,-Math.PI/2,'#ffd66b',INK,.07);
     POWERS.forEach((p,k)=>{const x=1.03+k*.27,key=group(top,x,.055,.2);part(key,rbox(.22,.05,.14,.03),toon('#fffaf0'),0,.025,0);sign(key,`${p} mW`,0,.052,0,.19,-Math.PI/2,'#fffaf0',INK,.07);
       this.powerKeys.set(p as Power,key);this.click(key,'power',p);});
     sign(top,'POWER',1.3,.057,.33,.3,-Math.PI/2,CREAM,INK,.07);

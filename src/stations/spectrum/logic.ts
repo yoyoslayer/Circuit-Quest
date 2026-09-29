@@ -77,7 +77,7 @@ export const MATERIAL_NAMES:Record<Material,string>={brick:'brick wall',wood:'wo
 
 // ---------- the hall (plan coordinates in metres; the room and the bench map draw from these) ----------
 /** The transmitter tower beside the dispatch desk. */
-export const TX:P={x:-.8,z:2.3};
+export const TX:P={x:-.4,z:2.3};
 export const PADS:Record<Pad,P>={store:{x:-8.2,z:-5.8},lab:{x:7,z:-6},quiet:{x:8.2,z:4.8}};
 export const PAD_NAMES:Record<Pad,string>={store:'storeroom',lab:'glass lab',quiet:'quiet room'};
 /** Where the pod waits at the start (the dock by the entrance). */

@@ -15,10 +15,11 @@ import {hot} from '../../render/actors';
 import {JOBS,DEVICES,RAILS,SOURCE,BREAKER,BAND,N,PROBES,BEST_COST,COST,clampE,clone,evaluate,judge,probe,isRequired,fmt,
   type DeviceKind,type Job,type Layout,type Probe,type RailKind,type Readings,type Verdict} from './logic';
 import './depot.css';
+import {cheer,walkHint} from '../shared';
 
 const ORANGE='#f28c28',CREAM='#fbf3e2',BRICK='#b5573b',BLUE='#3f7fd6',NAVY='#2c3e66',STEEL='#63748f',CARGO='#ffc94d';
 /** The board sits a little left of the camera's centre (the order panel is on the right). */
-const OX=0;
+const OX=-.15;
 // Board layout (bench-local): the source ramp on the left, three bays, the top rail at the back,
 // the return rail at the front. Heights show potential: y = BASE + volts × K.
 const XS=-1.6,XB=[-.72,.08,.88],ZT=-.42,ZD=-.2,ZB=.3,BASE=.1,K=.04;
@@ -66,8 +67,8 @@ interface BayView {root:T.Group;housing:T.Group;kind:DeviceKind|null;bulb?:T.Mes
   barrier:T.Group;arm:T.Object3D;plate:Live;empty:T.Object3D}
 
 export class DeliveryDepot implements Station {
-  readonly view={distance:9.6,pitch:.8,lookY:.3};
-  readonly limits={time:480,damage:1,cost:Math.ceil(BEST_COST*12.5)};
+  readonly view={distance:7.3,pitch:1.1,lookY:.88};
+  readonly limits={time:480,damage:1,cost:Math.ceil(BEST_COST*1.25)};
   readonly table=new T.Vector3(0,1,-2.7);readonly stand={x:0,z:-1.5};readonly facing=Math.PI;
   index=0;layout:Layout=clone(JOBS[0].start);tripped=false;probeAt:Probe='source';plain=false;active=false;mistakes=0;spent=0;
   carts={lamp:false,motor:false};served:{job:string;tier:number}[]=[];probed=new Set<Probe>();lastVerdict?:Verdict;
@@ -127,13 +128,13 @@ export class DeliveryDepot implements Station {
     // Gap markers (hazard blocks at both ends of an empty rail slot).
     for(const slot of ['feed','ret'] as const){const s=SEGS.find(x=>x.id===slot)!,gm=group(b);this.gapMarks[slot]=gm;
       for(const n of [s.a,s.b]){const blk=part(gm,box(.07,.07,.07),toon('#ffffff',{map:hazardTex()}),0,0,0);blk.userData.node=n;}}
-    // Rail slot buttons: THIN and HEAVY for the feed (behind it) and the return (in front of it).
-    const railBtn=(slot:'feed'|'ret',kind:'thin'|'heavy',x:number,z:number)=>{const m=part(b,rbox(.34,.03,.12,.03),toon(kind==='heavy'?STEEL:'#b8c0cc'),x,.015,z);
-      const s=sign(m,`${kind==='heavy'?'HEAVY':'THIN'} ${slot==='feed'?'FEED':'RETURN'}`,0,.017,0,.33,-Math.PI/2,kind==='heavy'?'#3b4a63':'#eef1f5',kind==='heavy'?CREAM:INK,.105);s.rotation.x=-Math.PI/2;
+    // Rail slot buttons: THIN and HEAVY for the feed (in front of the top rail, where the raised rail can't hide them) and the return (in front of it).
+    const railBtn=(slot:'feed'|'ret',kind:'thin'|'heavy',x:number,z:number)=>{const m=part(b,rbox(.4,.03,.17,.03),toon(kind==='heavy'?STEEL:'#b8c0cc'),x,.015,z);
+      const s=sign(m,`${kind==='heavy'?'HEAVY':'THIN'} ${slot==='feed'?'FEED':'RETURN'}`,0,.017,0,.39,-Math.PI/2,kind==='heavy'?'#3b4a63':'#eef1f5',kind==='heavy'?CREAM:INK,.15);s.rotation.x=-Math.PI/2;
       this.railButtons.push({slot,kind,mesh:m});this.click(m,'rail',[slot,kind]);};
-    railBtn('feed','thin',-1.36,-.58);railBtn('feed','heavy',-.99,-.58);railBtn('ret','thin',-1.36,.41);railBtn('ret','heavy',-.99,.41);
-    this.analogySign=sign(b,'TRUCKS: AN ANALOGY',-2.12,.014,.62,.5,-Math.PI/2,NAVY,CREAM,.1);
-    this.meterSign=sign(b,'PLAIN METER VIEW',-2.12,.014,.62,.5,-Math.PI/2,'#4fbf7f',CREAM,.1);this.meterSign.visible=false;
+    railBtn('feed','thin',-1.2,-.24);railBtn('feed','heavy',-1.2,-.05);railBtn('ret','thin',-1.4,.42);railBtn('ret','heavy',-.98,.42);
+    this.analogySign=sign(b,'TRUCKS: AN ANALOGY',-2.1,.014,.64,.56,-Math.PI/2,NAVY,CREAM,.13);
+    this.meterSign=sign(b,'PLAIN METER VIEW',-2.1,.014,.64,.56,-Math.PI/2,'#4fbf7f',CREAM,.13);this.meterSign.visible=false;
   }
   /** Source: the ramp that lifts the trucks, its knob, and the breaker booth on the top rail. */
   private buildSource(){
@@ -146,16 +147,20 @@ export class DeliveryDepot implements Station {
     // Knob deck at the far left: the source setting E.
     const deck=group(b,-2.12,.0,.4);deck.rotation.x=-Math.PI/2;
     part(deck,rbox(.52,.03,.64,.05),toon(NAVY),0,.2,0).rotation.x=Math.PI/2;
-    sign(deck,'SOURCE  E',0,.45,.02,.46,0,'#1d2b4a',CREAM,.09);
+    sign(deck,'SOURCE  E',0,.44,.02,.5,0,'#1d2b4a',CREAM,.13);
     const kg=group(deck,0,.26,.02);part(kg,cyl(.1,.1,.02,24,'z'),toon(INK),0,0,.01);
     this.dial=group(kg,0,0,.03);part(this.dial,cyl(.085,.09,.05,24,'z'),toon(CREAM),0,0,0);part(this.dial,box(.018,.06,.012),toon('#e5484d'),0,.05,.027);this.click(this.dial,'knob');
-    for(const [dy,delta,col] of [[-.2,-1,'#e5484d'],[-.2,1,'#4fbf7f']] as const){const btn=part(kg,box(.09,.09,.035),toon(col),delta*.1,dy,.02);sign(btn,delta<0?'−':'+',0,0,.019,.075,0,col,CREAM,.075);this.click(btn,'nudge',delta);}
-    this.knobPlate=part(deck,new T.PlaneGeometry(.46,.115),flatMat(label('')),0,.08,.02,false);this.knobPlate.userData.noAO=true;
+    for(const [dy,delta,col] of [[0,-1,'#e5484d'],[0,1,'#4fbf7f']] as const){const btn=part(kg,box(.09,.09,.035),toon(col),delta*.19,dy,.02);sign(btn,delta<0?'−':'+',0,0,.019,.075,0,col,CREAM,.075);this.click(btn,'nudge',delta);}
+    this.knobPlate=part(deck,new T.PlaneGeometry(.5,.14),flatMat(label('')),0,.08,.02,false);this.knobPlate.userData.noAO=true;
     // The breaker booth sits on the top rail between the source and the feed.
     const bx=group(b,XS+.15,0,ZT-.02);this.breakerBox=bx;part(bx,rbox(.2,.2,.16,.04),toon(CREAM),0,0,-.1);part(bx,box(.21,.03,.17),toon(ORANGE),0,.11,-.1);
     const lamp=new T.MeshBasicMaterial({color:'#6bd48f'});lamp.userData.outlineParameters={visible:false};this.breakerLamp=lamp;part(bx,sphere(.022,10,8),lamp,.06,.06,-.01);
     this.breakerLever=group(bx,-.03,0,-.01);part(this.breakerLever,box(.03,.1,.03),toon(INK),0,.05,0);part(this.breakerLever,box(.05,.035,.04),toon('#e5484d'),0,.1,0);
-    this.click(bx,'breaker');sign(bx,`BREAKER ${BREAKER} A`,0,.25,-.12,.34,-.35,ORANGE,CREAM);
+    this.click(bx,'breaker');
+    // Its reset key sits out front by the source knob, where the camera always sees it: the dome
+    // lamp shows on (green), off (grey) or tripped (red).
+    const rb=group(b,-2.3,0,-.36);part(rb,cyl(.1,.11,.05,24),toon(INK),0,.025,0);part(rb,sphere(.075,16,10),lamp,0,.055,0);this.click(rb,'breaker');
+    sign(b,`BREAKER ${BREAKER} A`,-2.01,.014,-.36,.34,-Math.PI/2,ORANGE,CREAM,.13);
   }
   /** Bays: barrier boom, device housing (lamp, motor, heater, or a stray crossover rail), readout plate. */
   private buildBays(){
@@ -186,22 +191,23 @@ export class DeliveryDepot implements Station {
 
   /** The meter: a chunky multimeter with a live face, probe buttons, the view switch and DISPATCH. */
   private buildMeter(){
-    const b=this.board,m=group(b,1.72,0,-.3);
+    const b=this.board,m=group(b,1.5,0,-.3);
     part(m,rbox(.62,.07,.5,.06),toon('#ffc629'),0,.035,0);
     const face=group(m,0,.07,.0);face.rotation.x=-.95;part(face,rbox(.6,.03,.62,.06),toon('#ffc629'),0,.3,0).rotation.x=Math.PI/2;
     part(face,rbox(.5,.012,.54,.04),toon(INK),0,.3,.02).rotation.x=Math.PI/2;
     const screen=part(face,new T.PlaneGeometry(.46,.5175),flatMat(this.meterFace.tex),0,.3,.03,false);screen.userData.noAO=true;
     // Leads leave from two sockets at the meter's front.
-    this.leadFrom=[new T.Vector3(1.64,.08,-.08),new T.Vector3(1.8,.08,-.08)];
-    part(b,cyl(.02,.02,.03,10),toon(INK),1.64,.075,-.08);part(b,cyl(.02,.02,.03,10),toon('#e5484d'),1.8,.075,-.08);
+    this.leadFrom=[new T.Vector3(1.42,.08,-.08),new T.Vector3(1.58,.08,-.08)];
+    part(b,cyl(.02,.02,.03,10),toon(INK),1.42,.075,-.08);part(b,cyl(.02,.02,.03,10),toon('#e5484d'),1.58,.075,-.08);
     const rows:Probe[][]=[['source','feed','return'],['bay1','bay2','bay3']];
-    rows.forEach((row,r)=>row.forEach((p,c)=>{const x=1.3+c*.27,z=.2+r*.14,btn=part(b,rbox(.25,.03,.12,.03),toon(CREAM),x,.015,z);
-      const s=sign(btn,PROBE_NAMES[p],0,.017,0,.24,-Math.PI/2,CREAM,INK,.1);s.rotation.x=-Math.PI/2;this.probeButtons.set(p,btn);this.click(btn,'probe',p);}));
+    // Probe keys in a 3 × 2 grid in front of the meter; DISPATCH sits to their right, clear of them.
+    rows.forEach((row,r)=>row.forEach((p,c)=>{const x=1.2+c*.32,z=.1+r*.18,btn=part(b,rbox(.3,.03,.16,.03),toon(CREAM),x,.015,z);
+      const s=sign(btn,PROBE_NAMES[p],0,.017,0,.29,-Math.PI/2,CREAM,INK,.14);s.rotation.x=-Math.PI/2;this.probeButtons.set(p,btn);this.click(btn,'probe',p);}));
     // View switch (trucks ↔ meter) and the DISPATCH button.
-    const vs=group(b,1.42,0,.54);part(vs,rbox(.3,.05,.16,.04),toon(NAVY),0,.025,0);this.viewSwitch=group(vs,0,.06,0);part(this.viewSwitch,rbox(.12,.04,.12,.03),toon(CREAM),0,0,0);
-    this.click(vs,'view');sign(b,'TRUCKS · METER',1.42,.014,.67,.34,-Math.PI/2,NAVY,CREAM);
-    const d=group(b,1.84,0,.5);part(d,cyl(.15,.17,.06,24),toon(INK),0,.03,0);part(d,cyl(.12,.13,.06,24),toon('#4fbf7f'),0,.085,0);this.click(d,'dispatch');
-    sign(b,'DISPATCH',1.84,.014,.69,.36,-Math.PI/2,'#4fbf7f',CREAM);
+    const vs=group(b,1.2,0,.47);part(vs,rbox(.3,.05,.14,.04),toon(NAVY),0,.025,0);this.viewSwitch=group(vs,0,.06,0);part(this.viewSwitch,rbox(.12,.04,.11,.03),toon(CREAM),0,0,0);
+    this.click(vs,'view');sign(b,'TRUCKS · METER',1.66,.014,.47,.5,-Math.PI/2,NAVY,CREAM,.13);
+    const d=group(b,2.2,0,.16);part(d,cyl(.15,.17,.06,24),toon(INK),0,.03,0);part(d,cyl(.12,.13,.06,24),toon('#4fbf7f'),0,.085,0);this.click(d,'dispatch');
+    sign(b,'DISPATCH',2.2,.014,.44,.42,-Math.PI/2,'#4fbf7f',CREAM,.14);
   }
   private leadFrom:T.Vector3[]=[];
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
@@ -288,7 +294,7 @@ export class DeliveryDepot implements Station {
     if(v.tier===0){this.mistakes++;this.say(`Sent back: ${v.problems[0]}`,'bad');a.tone(150,.3,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z-1.2},2);this.redraw();this.updatePanel();return true;}
     this.served.push({job:job.id,tier:v.tier});
     this.say(`${['','Works','Works reliably','Elegant'][v.tier]}. ${v.notes[0]??''}`,'ok');
-    a.cheer();a.bell(1319,.5,.05);this.game.burst(this.table.clone().add(new T.Vector3(OX,1,0)),'#ffb347',30,'confetti');
+    a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffb347');
     this.nextAt=this.game.time+1.4;this.redraw();this.updatePanel();return true;
   }
 
@@ -370,8 +376,11 @@ export class DeliveryDepot implements Station {
     const key=`${this.probeAt}|${A.y.toFixed(3)}|${B.y.toFixed(3)}`;if(key===this.leadKey)return;this.leadKey=key;
     for(const m of this.leads){m.removeFromParent();m.geometry.dispose();}this.leads=[];
     const ends:[T.Vector3,T.Vector3,string][]=[[this.leadFrom[1],A,'#e5484d'],[this.leadFrom[0],B,INK]];
-    for(const [from,to,col] of ends){const mid=from.clone().lerp(to,.5);mid.y=Math.max(from.y,to.y)+.25;
-      const c=new T.CatmullRomCurve3([from,from.clone().add(new T.Vector3(0,.12,.04)),mid,to.clone().add(new T.Vector3(0,.1,0)),to]);
+    // Each lead drops from the meter, runs low along the back edge (top-rail points) or between the
+    // return rail and the bay chutes (return-side points), and climbs only at the probed point.
+    for(const [from,to,col] of ends){const lane=to.z<0?-.71:.2,off=col===INK?.03:0,x0=1.02+off;
+      const pts=[from,new T.Vector3(from.x,.05,from.z+.04),new T.Vector3(x0,.03,from.z+.02),new T.Vector3(x0,.03,lane+off),new T.Vector3(to.x+.1,.03,lane+off),new T.Vector3(to.x+.03,to.y+.07,to.z+(to.z<0?-.05:.05)),to];
+      const c=new T.CatmullRomCurve3(pts,false,'centripetal');
       const m=part(this.board,new T.TubeGeometry(c,40,.009,6),toon(col),0,0,0,false);this.leads.push(m);
       const tip=part(m,cyl(.012,.004,.05,8),toon(col),to.x,to.y+.03,to.z,false);void tip;}
   }
@@ -400,7 +409,7 @@ export class DeliveryDepot implements Station {
   private visibleUp(o:T.Object3D){let p:T.Object3D|null=o;while(p){if(!p.visible)return false;p=p.parent;}return true;}
   key(code:string){
     const map:{[c:string]:[string,unknown?]}={ArrowRight:['nudge',1],ArrowUp:['nudge',1],Equal:['nudge',1],ArrowLeft:['nudge',-1],ArrowDown:['nudge',-1],Minus:['nudge',-1],
-      KeyB:['breaker'],Digit1:['barrier',1],Digit2:['barrier',2],Digit3:['barrier',3],KeyM:['view'],Enter:['dispatch'],
+      KeyB:['breaker'],KeyF:['swapRail','feed'],KeyR:['swapRail','ret'],KeyX:['remove',this.layout.bays.findIndex(b=>b.device==='jumper')+1],Digit1:['barrier',1],Digit2:['barrier',2],Digit3:['barrier',3],KeyM:['view'],Enter:['dispatch'],
       KeyP:['probe',PROBES[(PROBES.indexOf(this.probeAt)+1)%PROBES.length]]};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
@@ -470,13 +479,13 @@ export class DeliveryDepot implements Station {
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;const l=this.layout;
     switch(h.act){
-      case 'knob':return {key:'Drag',text:'Drag sideways to set the source E (energy per unit of charge)'};
-      case 'nudge':return {key:'Click',text:`${(h.arg as number)>0?'Raise':'Lower'} the source by 0.1 V`};
+      case 'knob':return {key:'←→',text:'Drag sideways (or press ← →) to set the source E (energy per unit of charge)'};
+      case 'nudge':return {key:(h.arg as number)>0?'→':'←',text:`Click to ${(h.arg as number)>0?'raise':'lower'} the source by 0.1 V`};
       case 'breaker':return {key:'B',text:this.tripped?'Reset the breaker (clear what tripped it first)':l.on?'Switch the breaker off':'Switch the breaker on'};
-      case 'rail':{const [slot,kind]=h.arg as ['feed'|'ret','thin'|'heavy'];const R=RAILS[kind];return {key:'Click',text:`Fit a ${kind} ${slot==='feed'?'feed':'return'} rail (${fmt(R.r,2)} Ω, rated ${R.rating} A)`};}
-      case 'swapRail':return {key:'Click',text:'Swap this rail section (thin ↔ heavy)'};
+      case 'rail':{const [slot,kind]=h.arg as ['feed'|'ret','thin'|'heavy'];const R=RAILS[kind];return {key:slot==='feed'?'F':'R',text:`Click to fit a ${kind} ${slot==='feed'?'feed':'return'} rail (${fmt(R.r,2)} Ω, rated ${R.rating} A)`};}
+      case 'swapRail':return {key:h.arg==='feed'?'F':'R',text:'Click to swap this rail section (thin ↔ heavy)'};
       case 'barrier':{const k=h.arg as number,b=l.bays[k-1];return {key:String(k),text:b.barrier?`Lift bay ${k}'s barrier (close its loop)`:`Lower bay ${k}'s barrier (open its loop)`};}
-      case 'deviceClick':{const k=h.arg as number;return l.bays[k-1]?.device==='jumper'?{key:'Click',text:`Remove the crossover rail from bay ${k}`}:{key:'Click',text:`Probe bay ${k} with the meter`};}
+      case 'deviceClick':{const k=h.arg as number;return l.bays[k-1]?.device==='jumper'?{key:'X',text:`Click to remove the crossover rail from bay ${k}`}:{key:'P',text:`Click to probe bay ${k} with the meter`};}
       case 'probe':return {key:'P',text:`Probe ${PROBE_NAMES[h.arg as Probe]}: volts across, amps through`};
       case 'view':return {key:'M',text:this.plain?'Back to the truck picture':'Plain meter view: no trucks, just the circuit'};
       case 'dispatch':return {key:'Enter',text:'DISPATCH: check the job'};
@@ -488,21 +497,22 @@ export class DeliveryDepot implements Station {
     if(atBench&&this.cartsReady()){const h=this.hoverHint();if(h)return h;}
     if(!atBench){const p=this.game.player.translation(),held=this.game.held?.spec.id;
       if((held==='lampcart'||held==='motorcart')&&Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<3.4)return {key:'E',text:`Park the ${held==='lampcart'?'lamp':'motor'} cart by the bench`};
-      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.cartsReady()?{key:'E',text:'Work at the dispatch bench'}:{key:'E',text:'Work at the bench (the device carts are still on the dock)'};return null;}
+      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.cartsReady()?{key:'E',text:'Work at the dispatch bench'}:{key:'E',text:'Work at the bench (the device carts are still on the dock)'};
+      return walkHint(this.game,!this.carts.lamp?'Fetch the lamp cart from the loading dock (yellow arrow)':!this.carts.motor?'Fetch the motor cart from the loading dock (yellow arrow)':'Walk to the dispatch bench (yellow arrow)');}
     if(!this.cartsReady())return {key:'E',text:'Step back and bring the lamp and motor carts from the loading dock'};
     const l=this.layout,v=judge(job,l);
     if(job.id==='socket'){
-      if(l.ret==='gap')return {key:'Click',text:'Probe RETURN: volts across the gap, no current. Then fit a return rail'};
+      if(l.ret==='gap')return this.probeAt!=='return'?{key:'P',text:'Click RETURN on the meter (P steps the probe): volts across the gap, no current'}:{key:'R',text:'Fit a return rail: click THIN or HEAVY RETURN'};
       if(v.tier===0)return {key:'←→',text:'Tune the source until the lamp reads 12 V'};
       return {key:'Enter',text:v.tier<3?'Works. Closer to 12 V and less loss would be elegant; then DISPATCH':'DISPATCH the job'};}
     if(job.id==='pair'){
       if(!l.bays[1].barrier)return {key:'2',text:'The heater isn\'t needed: lower bay 2\'s barrier'};
       if(l.bays[2].barrier)return {key:'3',text:'Lift bay 3\'s barrier to put the motor in the loop'};
       if(this.tripped)return {key:'B',text:'Reset the breaker'};
-      if(l.feed!=='heavy')return {key:'Click',text:'The thin feed rail runs hot: fit a HEAVY feed rail'};
+      if(l.feed!=='heavy')return {key:'F',text:'The thin feed rail runs hot: click HEAVY FEED'};
       if(v.tier<3)return {key:'←→',text:'Tune the source until both devices read 12 V'};
       return {key:'Enter',text:'DISPATCH the job'};}
-    if(l.bays.some(b=>b.device==='jumper'&&!b.barrier))return {key:'Click',text:'Find the short: probe the bays, then click the bare crossover rail to remove it'};
+    if(l.bays.some(b=>b.device==='jumper'&&!b.barrier))return {key:'X',text:'Find the short: probe the bays, then click the bare crossover rail to remove it'};
     if(this.tripped||!l.on)return {key:'B',text:'Short cleared: reset the breaker'};
     if(!this.plain)return {key:'M',text:'Switch to the plain METER view for the final check'};
     if(!this.probed.has('bay1')||!this.probed.has('bay3'))return {key:'P',text:'Probe BAY 1 and BAY 3 with the meter'};
@@ -510,7 +520,7 @@ export class DeliveryDepot implements Station {
     return {key:'Enter',text:'DISPATCH the job'};
   }
   complete(){return this.served.length>=JOBS.length;}
-  score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)};}
+  score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const r=this.now,pr=probe(this.layout,r,this.probeAt);
     return {index:this.index,job:this.current()?.id??null,layout:clone(this.layout),tripped:this.tripped,plain:this.plain,probe:this.probeAt,probed:[...this.probed],
       meter:{v:+pr.v.toFixed(3),i:+pr.i.toFixed(4)},current:+r.current.toFixed(4),waste:+r.waste.toFixed(3),

@@ -14,17 +14,20 @@ import {hot,glossyToon} from '../../render/actors';
 import {JOBS,SOURCES,SOURCE_IDS,DIVIDERS,TICK_HZ,GLITCH,judge,run,worstError,cost,cheapest,tickHz,dividerError,freqError,glitching,pctText,
   type SourceId,type Setup,type Job,type Verdict,type TrayResult,type Doneness} from './logic';
 import './clockwork.css';
+import {cheer,walkHint} from '../shared';
 
 const PCB='#2f8a66',COPPER='#e9a55a';
 const MOD_COLOR:Record<Exclude<SourceId,'rc'>,string>={res8:'#5b9cf0',xtal12:'#b392f0',watch:'#f2b93b'};
-const MOD_LABEL:Record<Exclude<SourceId,'rc'>,string>={res8:'CERAMIC 8 MHz',xtal12:'CRYSTAL 12 MHz',watch:'WATCH 32 kHz'};
+/** The number that decides the puzzle goes big on the module; its kind sits on the rack slot below. */
+const MOD_FREQ:Record<Exclude<SourceId,'rc'>,string>={res8:'8 MHz',xtal12:'12 MHz',watch:'32 kHz'};
+const MOD_KIND:Record<Exclude<SourceId,'rc'>,string>={res8:'CERAMIC',xtal12:'CRYSTAL',watch:'WATCH'};
 const EXTERNAL:Exclude<SourceId,'rc'>[]=['res8','xtal12','watch'];
 const FOOD:Record<string,Record<Doneness,string>>={
   eggs:{raw:'#fffaf0',golden:'#f7d98f',burnt:'#8f6b48'},oven:{raw:'#f3e2bf',golden:'#dc9a3c',burnt:'#4a3024'},pastry:{raw:'#f6e7c8',golden:'#e8a948',burnt:'#4d3226'}};
 const DONE_TEXT:Record<Doneness,[string,string]>={golden:['GOLDEN','#2f9a62'],burnt:['BURNT','#7a2a22'],raw:['RAW','#3f7fd6']};
 /** Belt timing (s): trays leave the loader this far apart; travel in, bake, travel out. */
 const GAP=1.2,IN=1,BAKE=1.1,OUT=.9,RUN_TIME=2*GAP+IN+BAKE+OUT+.4;
-const LOAD_X=-1.95,OVEN_X=-.55,OUT_X=[1.35,1.05,.75],BELT_Z=-.42,BELT_Y=.2;
+const LOAD_X=-1.95,OVEN_X=-.55,OUT_X=[1.2,.9,.6],BELT_Z=-.42,BELT_Y=.2;
 /** Table labels lean back toward the bench camera. */
 const TILT=-Math.PI/2+.45;
 /** Clock faces: one turn every REV seconds; the oven face's drift is exaggerated this much. */
@@ -48,7 +51,7 @@ function moduleMesh(id:Exclude<SourceId,'rc'>){
   if(id==='res8'){part(g,rbox(.13,.07,.05,.02),toon('#e8913f'),0,.09,-.05);}
   if(id==='xtal12'){part(g,rbox(.15,.08,.055,.025),glossyToon(CHROME,{spec:.8,size:.97}),0,.095,-.05);}
   if(id==='watch'){part(g,cyl(.022,.022,.13,14,'x'),glossyToon(CHROME,{spec:.8,size:.97}),0,.08,-.05);}
-  const tag=sign(g,MOD_LABEL[id],0,0,0,.26,-Math.PI/2+.25,CREAM,INK,72/256);tag.position.set(0,.056,.06);
+  const tag=sign(g,MOD_FREQ[id],0,0,0,.27,TILT,CREAM,INK,110/256);tag.position.set(0,.07,.06);
   return g;
 }
 /** A round dial face with 12 ticks; returns the hand to spin. */
@@ -63,14 +66,14 @@ interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 interface Belt {job:Job;trays:TrayResult[];t:number;verdict?:Verdict;replay:boolean}
 
 export class ClockworkKitchen implements Station {
-  readonly view={distance:6.9,pitch:.8,lookY:.34};
+  readonly view={distance:6.1,pitch:.9,lookY:.3};
   readonly limits={time:480,damage:1,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   setup:Setup={divider:8000,clear:false};jobIndex=0;results:{job:string;verdict:Verdict}[]=[];mistakes=0;spent=0;runs=0;
   shelfReady=false;doughReady=false;active=false;belt?:Belt;lastRun?:{job:string;trays:TrayResult[];replay:boolean};
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;private room?:KitchenRoom;
   private modules=new Map<SourceId,T.Group>();private rackAt=new Map<SourceId,T.Vector3>();private socketAt=new T.Vector3();
-  private rcLamp!:T.Mesh;private rcToggle!:T.Object3D;private knob!:T.Object3D;private divSign!:T.Mesh;private routeLever!:T.Object3D;private routeSign!:T.Mesh;
+  private rackTags:T.Mesh[]=[];private rcLamp!:T.Mesh;private rcToggle!:T.Object3D;private knob!:T.Object3D;private divSign!:T.Mesh;private routeLever!:T.Object3D;private routeSign!:T.Mesh;
   private lineNear!:T.Mesh;private lineClear!:T.Mesh;private beater!:T.Object3D;private mixerHead!:T.Object3D;private runCap!:T.Mesh;private emptyRack!:T.Mesh;
   private trays:{g:T.Group;food:T.MeshToonMaterial;badge:T.Sprite}[]=[];private foodKind='';private doughStack!:T.Group;
   private ovenWindow!:T.Mesh;private ovenGlow=0;private beltTex!:T.Texture;private refHand!:T.Object3D;private ovenHand!:T.Object3D;private refAngle=0;private ovenAngle=0;
@@ -80,7 +83,7 @@ export class ClockworkKitchen implements Station {
   private ready=false;private ovenHot=hot('#ff9c4a',1.5);private ovenDark=toon('#3a2f3a');private lampOn=hot('#3dff7a',1.25);private lampOff=toon('#4a3f5c');private beaconHot=hot('#ff6b6b',1.8);private beaconDark=toon('#8a3a3a');
   readonly job:StationJob;
   constructor(private game:Game){
-    this.limits.cost=Math.max(10,Math.ceil(JOBS.reduce((n,j)=>n+(cheapest(j)?.cost??0),0)*12.5));
+    this.limits.cost=Math.max(1,Math.ceil(JOBS.reduce((n,j)=>n+(cheapest(j)?.cost??0),0)*1.25));
     this.job={goal:'Get three kitchen timers cooking on time',
       steps:[
         {text:'Roll the clock-module shelf to the oven bench',done:()=>this.shelfReady,at:()=>this.shelf?.body.translation()??SHELF_SPOT},
@@ -111,12 +114,12 @@ export class ClockworkKitchen implements Station {
     part(g.decorRoot,rbox(.9,.95,.8,.06),toon(CHROME),DOUGH_SPOT.x,.47,DOUGH_SPOT.z);part(g.decorRoot,box(.95,.05,.85),toon('#e2c08e'),DOUGH_SPOT.x,.97,DOUGH_SPOT.z);this.solid(.9,1,.8,DOUGH_SPOT.x,.5,DOUGH_SPOT.z);
     sign(g.decorRoot,'DOUGH',DOUGH_SPOT.x,.6,DOUGH_SPOT.z+.41,.5,0,'#ffd66b');
     // ---- Conveyor along the back: frame, scrolling belt, end rollers.
-    const belt=group(top,-.2,0,BELT_Z);part(belt,rbox(3.95,.14,.36,.04),toon(DMETAL),0,.08,0);
+    const belt=group(top,-.35,0,BELT_Z);part(belt,rbox(3.65,.14,.36,.04),toon(DMETAL),0,.08,0);
     this.beltTex=repeat(canvasTex(256,64,c=>{c.fillStyle='#3a3d55';c.fillRect(0,0,256,64);c.fillStyle='#4d5170';for(let x=0;x<256;x+=32)c.fillRect(x,0,10,64);}),9,1);
-    const surf=part(belt,box(3.85,.012,.3),toon('#ffffff',{map:this.beltTex}),0,.16,0,false);surf.userData.noAO=true;
-    for(const x of [-1.95,1.95])part(belt,cyl(.08,.08,.34,16,'z'),toon(CHROME),x,.1,0);
-    for(const x of [-1.75,1.75])for(const z of [-.15,.15])part(belt,cyl(.02,.02,.1,8),toon(DMETAL),x,.03,z,false);
-    sign(top,'IN',LOAD_X,.02,BELT_Z+.27,.28,TILT,CREAM);sign(top,'OUT',OUT_X[1],.02,BELT_Z+.27,.3,TILT,CREAM);
+    const surf=part(belt,box(3.55,.012,.3),toon('#ffffff',{map:this.beltTex}),0,.16,0,false);surf.userData.noAO=true;
+    for(const x of [-1.8,1.8])part(belt,cyl(.08,.08,.34,16,'z'),toon(CHROME),x,.1,0);
+    for(const x of [-1.6,1.6])for(const z of [-.15,.15])part(belt,cyl(.02,.02,.1,8),toon(DMETAL),x,.03,z,false);
+    sign(top,'IN',LOAD_X,.02,BELT_Z+.27,.34,TILT,CREAM);sign(top,'OUT',OUT_X[1],.02,BELT_Z+.27,.36,TILT,CREAM);
     this.doughStack=group(top,LOAD_X,0,BELT_Z-.02);for(let k=0;k<3;k++){part(this.doughStack,rbox(.26,.02,.22,.01),toon(CHROME),0,.22+k*.05,0);part(this.doughStack,rbox(.18,.025,.14,.012),toon('#f3e2bf'),0,.24+k*.05,0);}
     // ---- The oven: a cherry-red tunnel with chrome bands; clock faces flank its window.
     const oven=group(top,OVEN_X,0,BELT_Z);part(oven,rbox(1.2,.56,.6,.08),glossyToon(CHERRY,{spec:.7,size:.97}),0,.44,0);
@@ -125,7 +128,7 @@ export class ClockworkKitchen implements Station {
     this.ovenWindow=part(oven,rbox(.36,.24,.02,.03),toon('#3a2f3a'),0,.44,.301,false);this.ovenWindow.userData.noAO=true;
     part(oven,rbox(.4,.28,.02,.03),toon(CHROME),0,.44,.296);
     this.refHand=dial(oven,-.38,.46,.3,.13,MINT,INK);this.ovenHand=dial(oven,.38,.46,.3,.13,CHERRY,CHERRY);
-    sign(oven,'REFERENCE',-.38,.26,.31,.28,0,MINT);sign(oven,'OVEN CLOCK',.38,.26,.31,.28,0,'#ffd66b');
+    sign(oven,'REFERENCE',-.38,.25,.31,.34,0,MINT);sign(oven,'OVEN CLOCK',.38,.25,.31,.34,0,'#ffd66b');
     for(const x of [-.45,.45])part(oven,cyl(.03,.035,.08,10),toon(INK),x,.03,.22);
     // Scope mounted on the oven: a cream cabinet with a live canvas screen.
     const scope=group(oven,0,.72,-.04);scope.rotation.x=-.3;part(scope,rbox(1.34,.7,.16,.06),toon(CREAM),0,.35,0);part(scope,box(1.24,.6,.02),toon(INK),0,.36,.08,false);
@@ -142,30 +145,31 @@ export class ClockworkKitchen implements Station {
     const chip=group(board,chipX,y,-.04);part(chip,rbox(.24,.045,.24,.02),toon('#262a40'),0,.022,0);for(let k=0;k<5;k++)for(const s of [-1,1]){part(chip,box(.012,.01,.03),toon(CHROME),-.08+k*.04,.005,s*.13,false);part(chip,box(.03,.01,.012),toon(CHROME),s*.13,.005,-.08+k*.04,false);}
     sign(chip,'MCU',0,.047,0,.16,-Math.PI/2,'#262a40','#fbf3e2',80/256);
     const rc=group(board,chipX,y,.16);part(rc,rbox(.26,.03,.1,.02),toon(INK),0,.015,0);this.rcToggle=part(rc,rbox(.08,.03,.07,.015),toon(CREAM),-.06,.04,0);
-    this.rcLamp=part(rc,sphere(.022,12,8),toon('#4a3f5c'),.09,.04,0);this.click(rc,'source','rc');sign(top,'INT RC',bx+chipX,.05,bz+.3,.26,TILT,'#ffd66b');
+    this.rcLamp=part(rc,sphere(.022,12,8),toon('#4a3f5c'),.09,.04,0);this.click(rc,'source','rc');sign(top,'INT RC',bx+chipX,.05,bz+.3,.34,TILT,'#ffd66b');
     const sock=group(board,sockX,y,-.04);part(sock,rbox(.32,.035,.28,.03),toon(CREAM),0,.018,0);part(sock,box(.2,.01,.04),toon('#262a40'),0,.038,-.06,false);
-    this.click(sock,'unplug');this.socketAt.set(t.x+bx+sockX,0,bz-.04);sign(top,'CLOCK IN',bx+sockX,.05,bz+.16,.3,TILT,'#ffd66b');
+    this.click(sock,'unplug');this.socketAt.set(t.x+bx+sockX,0,bz-.04);sign(top,'CLOCK IN',bx+sockX,.05,bz+.18,.36,TILT,'#ffd66b');
     // Clock line from CLOCK IN to the MCU: back past the mixer, or clear along the front edge.
     const tube=(pts:number[][])=>new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(([a,b,c])=>new T.Vector3(a,b,c))),36,.015,6);
     this.lineNear=part(board,tube([[sockX-.1,y+.02,-.16],[-.85,y+.03,-.3],[-1.05,y+.02,-.4],[-.85,y+.02,-.5],[-.2,y+.02,-.34],[chipX-.08,y+.02,-.16]]),toon(COPPER),0,0,0,false);
     this.lineClear=part(board,tube([[sockX+.16,y+.02,0],[-.1,y+.02,.02],[chipX-.13,y+.02,-.02]]),toon(COPPER),0,0,0,false);
     const lever=group(board,-.08,y,.16);part(lever,rbox(.14,.03,.1,.02),toon(INK),0,.015,0);this.routeLever=group(lever,0,.03,0);part(this.routeLever,cyl(.01,.01,.12,8),toon(DMETAL),0,.06,0);part(this.routeLever,sphere(.028,12,8),toon(CHERRY),0,.12,0);
-    this.click(lever,'route');this.routeSign=sign(top,'ROUTE: PAST MIXER',bx-.08,.05,bz+.3,.42,TILT,'#ffd66b');
+    this.click(lever,'route');this.routeSign=sign(top,'ROUTE: PAST MIXER',bx-.1,.05,bz+.31,.5,TILT,'#ffd66b');
     const knob=group(board,.74,y,-.02);part(knob,cyl(.11,.12,.04,24),toon(CHROME),0,.02,0);this.knob=group(knob,0,.04,0);part(this.knob,cyl(.085,.095,.07,20),toon(INK),0,.035,0);part(this.knob,box(.02,.012,.08),toon('#ffd66b'),0,.075,-.04,false);
-    this.click(knob,'divider',1);this.divSign=sign(top,'DIVIDER ÷8000',bx+.74,.05,bz+.26,.36,TILT,CREAM);
+    this.click(knob,'divider',1);this.divSign=sign(top,'DIVIDER ÷8000',bx+.8,.05,bz+.28,.46,TILT,CREAM);
     // ---- The stand mixer beside the oven (its motor is the noise source), right over the back cable run.
     const mixer=group(top,-1.5,0,-.04);mixer.rotation.y=Math.PI;const mint=glossyToon(MINT,{spec:.7,size:.97});
     part(mixer,rbox(.36,.05,.26,.03),mint,0,.025,0);part(mixer,rbox(.1,.34,.11,.04),mint,.12,.2,0);
     this.mixerHead=group(mixer,.03,.4,0);part(this.mixerHead,rbox(.36,.12,.14,.06),mint,0,0,0);part(this.mixerHead,cyl(.02,.02,.03,10,'x'),toon(CHROME),.19,0,0);
     part(mixer,cyl(.1,.07,.13,20),glossyToon(CHROME,{spec:.9,size:.97}),-.04,.12,0);this.beater=group(mixer,-.04,.28,0);part(this.beater,cyl(.008,.008,.14,6),toon(CHROME),0,0,0);part(this.beater,box(.08,.024,.012),toon(CHROME),0,-.07,0);
-    sign(top,'MIXER',-1.5,.05,.17,.28,TILT,CREAM);
+    sign(top,'MIXER',-1.5,.05,.17,.34,TILT,CREAM);
     // ---- RUN BELT, front left.
     const runB=group(top,-1.9,0,.34);part(runB,rbox(.44,.1,.36,.05),toon(CREAM),0,.05,0);part(runB,cyl(.14,.14,.03,24),toon(CHROME),0,.11,0);this.runCap=part(runB,cyl(.11,.12,.06,24),glossyToon(CHERRY,{spec:.8,size:.97}),0,.15,0);
-    this.click(runB,'run');sign(top,'RUN BELT',-1.9,.05,.6,.4,TILT,'#ffd66b');
+    this.click(runB,'run');sign(top,'RUN BELT',-1.9,.05,.6,.46,TILT,'#ffd66b');
     // ---- Module rack, front right: filled once the shelf is parked.
     part(top,rbox(1.1,.02,.42,.04),toon('#cbb488'),1.27,.01,.34);
     EXTERNAL.forEach((id,k)=>{const at=new T.Vector3(.93+k*.34,.02,.34);this.rackAt.set(id,at);part(top,rbox(.3,.008,.26,.03),toon('#b99f71'),at.x,.022,at.z,false);
-      const m=moduleMesh(id);m.position.copy(at);top.add(m);this.modules.set(id,m);this.click(m,'source',id);});
+      const m=moduleMesh(id);m.position.copy(at);top.add(m);this.modules.set(id,m);this.click(m,'source',id);
+      this.rackTags.push(sign(top,MOD_KIND[id],at.x,.03,at.z+.2,.32,TILT,MOD_COLOR[id],INK));});
     this.emptyRack=sign(top,'SHELF STILL IN THE STOREROOM',1.27,.05,.34,1,TILT,'#ffe1dc','#7a1f22',60/256);
   }
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
@@ -220,7 +224,7 @@ export class ClockworkKitchen implements Station {
     if(v.tier===0){this.say(v.problems[0]??'Some trays came out wrong.','bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);return;}
     this.results.push({job:b.job.id,verdict:v});
     this.say(`${['','Works','Works reliably','Works reliably · elegant'][v.tier]}: three golden trays. ${v.notes[0]??''}`,'ok');
-    a.cheer();a.bell(1319,.5,.05);this.game.burst(this.table.clone().add(new T.Vector3(1,.8,-.4)),'#ffcf52',28,'confetti');
+    a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffcf52');
     this.jobIndex++;const next=this.current();
     if(next){this.applyStart(next);this.trays.forEach(tr=>{tr.g.visible=false;tr.badge.visible=false;});if(next.replay)this.startBelt(next,run(next,this.setup),undefined,true);}
     this.redraw();
@@ -231,7 +235,7 @@ export class ClockworkKitchen implements Station {
     const s=this.setup,src=s.source;
     for(const id of EXTERNAL){const m=this.modules.get(id)!;m.visible=this.shelfReady;
       if(src===id)m.position.set(this.socketAt.x-this.table.x,.07,this.socketAt.z);else m.position.copy(this.rackAt.get(id)!);}
-    this.emptyRack.visible=!this.shelfReady;
+    this.emptyRack.visible=!this.shelfReady;for(const t of this.rackTags)t.visible=this.shelfReady;
     this.rcLamp.material=src==='rc'?this.lampOn:this.lampOff;this.rcToggle.position.x=src==='rc'?.06:-.06;
     this.knob.rotation.y=-DIVIDERS.indexOf(s.divider)*1.1;(this.divSign.material as T.MeshBasicMaterial).map=cachedLabel(`DIVIDER ÷${s.divider}`,CREAM);
     this.routeLever.rotation.x=s.clear?.5:-.5;(this.routeSign.material as T.MeshBasicMaterial).map=cachedLabel(s.clear?'ROUTE: CLEAR':'ROUTE: PAST MIXER',s.clear?'#8dffb0':'#ffd66b');
@@ -352,17 +356,18 @@ export class ClockworkKitchen implements Station {
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6,held=this.game.held?.spec.id;
       if(held==='shelf')return {key:'E',text:'Park the module shelf at the bench\'s right end'};
       if(held==='dough')return {key:'E',text:'Set the dough trays on the table at the belt\'s left end'};
-      if(near)return {key:'E',text:this.doughReady?'Work at the oven bench':'Work at the bench (the dough is still in the storeroom)'};return null;}
+      if(near)return {key:'E',text:this.doughReady?'Work at the oven bench':'Work at the bench (the dough is still in the storeroom)'};
+      return walkHint(this.game,!this.shelfReady?'Fetch the clock-module shelf from the storeroom (yellow arrow)':!this.doughReady?'Fetch the dough trays from the storeroom (yellow arrow)':'Walk to the oven bench (yellow arrow)');}
     if(this.belt)return {key:'Wait',text:this.belt.replay?'Night shift replay: watch tray 3 and the scope':'Belt running: watch the trays and the clock faces'};
     if(!this.doughReady)return {key:'E',text:'Step back and carry the dough trays to the belt'};
     const s=this.setup,src=s.source&&SOURCES[s.source];
-    if(!src)return {key:'Click',text:'Pick a clock: the INT RC switch, or a module from the shelf'};
-    if(Math.abs(dividerError(src,s.divider))>j.tol&&src.id!=='watch')return {key:'Click',text:'Turn the DIVIDER until the tick reads 1.000 kHz'};
-    if(glitching(j,s))return {key:'Click',text:'The clock line passes the mixer: flip ROUTE to clear'};
+    if(!src)return {key:'1',text:'Pick a clock: 1 or click the INT RC switch, or 2–4 / click a module on the shelf'};
+    if(Math.abs(dividerError(src,s.divider))>j.tol&&src.id!=='watch')return {key:'D',text:'Turn the DIVIDER (click it, or D) until the tick reads 1.000 kHz'};
+    if(glitching(j,s))return {key:'R',text:'The clock line passes the mixer: click ROUTE to run it clear'};
     return {key:'Enter',text:'RUN BELT (Enter): three trays through the oven'};
   }
   complete(){return this.results.length>=JOBS.length&&!this.belt;}
-  score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)};}
+  score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const j=this.current();return {job:this.jobIndex,setup:{...this.setup},results:this.results.map(r=>({job:r.job,tier:r.verdict.tier})),belt:this.belt?{job:this.belt.job.id,t:this.belt.t,replay:this.belt.replay}:null,
     lastRun:this.lastRun?{job:this.lastRun.job,replay:this.lastRun.replay,trays:this.lastRun.trays.map(t=>t.doneness)}:null,shelfReady:this.shelfReady,doughReady:this.doughReady,mistakes:this.mistakes,spent:this.spent,runs:this.runs,
     verdict:j?judge(j,this.setup):undefined,tickRatio:this.tickRatio()};}

@@ -5,4 +5,5 @@ import {vias,viasRush} from './vias';
 import {archive} from './archive';
 import {waterworks} from './waterworks';
 import {observatory} from './observatory';
-export const levels=[playground,meeting,lunch,vias,viasRush,archive,waterworks,observatory];
+import {arcade} from './arcade';
+export const levels=[playground,meeting,lunch,vias,viasRush,archive,waterworks,observatory,arcade];

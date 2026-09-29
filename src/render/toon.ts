@@ -48,6 +48,7 @@ export const MOODS:Record<string,Mood>={
   observatory:{key:['#fff0dc',2.1],fill:.55,rim:.55,hemi:.7,exposure:1.02,backdrop:['#2d3570','#1d2250','#0e1233','rgba(180,165,255,.22)']},
   archive:{key:['#ffe6bf',2.1],fill:.48,rim:.5,hemi:.7,exposure:1.02,backdrop:['#4a3a2c','#2e2620','#1b1612','rgba(255,200,130,.2)']},
   waterworks:{key:['#fff2dc',2.15],fill:.52,rim:.5,hemi:.74,exposure:1.02,backdrop:['#2b5566','#223a4d','#152030','rgba(140,230,255,.18)']},
+  arcade:{key:['#fff0e6',2.1],fill:.55,rim:.55,hemi:.72,exposure:1.03,backdrop:['#4a2a55','#2e1c3a','#1a1024','rgba(255,126,182,.22)']},
   lunch:{key:['#ffeccc',2.2],fill:.45,rim:.5,hemi:.72,exposure:1.02,backdrop:['#4a4466','#2b2c48','#191a2c','rgba(255,205,150,.24)']},
 };
 export function createRenderer(canvas:HTMLCanvasElement) {

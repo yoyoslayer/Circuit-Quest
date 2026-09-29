@@ -1,0 +1,9 @@
+/* QFN bench panel: net legend with colour chips (the same colours as the pads and tracks). */
+.qfn-panel .nets{list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:2px dashed var(--paper-3);display:grid;grid-template-columns:1fr 1fr;gap:3px 12px}
+.qfn-panel .nets li{display:flex;align-items:center;gap:7px}
+.qfn-panel .nets li i{flex:none;width:12px;height:12px;border-radius:4px;background:var(--c);border:2px solid var(--ink)}
+.qfn-panel .nets li span{font-weight:700}
+.qfn-panel .nets li b{margin-left:auto;font-weight:600;color:var(--ink-2);font-size:12.5px}
+.qfn-panel .nets li.ok b{color:#1f7a4d}
+.qfn-panel .build{margin-top:8px}
+@media (max-width:700px){.qfn-panel .nets{display:none}}

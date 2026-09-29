@@ -8,14 +8,20 @@ import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,can
 import {makeProp} from './props/prefabs';
 import {icon} from './render/icons';
 import {solid} from './levels/decor';
+import type {Prop} from './game';
 type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;ring:T.Mesh;capacity:number};
-type Cable={id:string;rating:number;ends:[T.Vector3,T.Vector3];ports:[string|null,string|null];rope:Rope;mesh:T.Mesh;plugs:[T.Group,T.Group];lead:Lead;points:Point[]};
-type Leaf={pivot:T.Group;body:RAPIER.RigidBody;closed:number;open:number};
-const DOOR={x:0,z:.15},PUDDLE={x:0,z:1};
+type Cable={id:string;rating:number;active:0|1;ends:[T.Vector3,T.Vector3];ports:[string|null,string|null];rope:Rope;mesh:T.Mesh;plugs:[T.Group,T.Group];lead:Lead;points:Point[]};
+type Leaf={pivot:T.Group;body:RAPIER.RigidBody;closed:number;dir:number};
+type Bot={group:T.Group;snag?:{cable:Cable;end:0|1;left:number}};
+const DOOR={x:0,z:.15};
+// Cleaner bots' painted loop in the corridor; cables heading east to the lift room cross it twice.
+const LANE={x0:-1,x1:14,z0:1.2,z1:5.4};
+// The fridge leak: a trail of puddles from the fridge out through the kitchen door.
+const PUDDLES:[number,number,number][]=[[-4.6,-1.2,.45],[-3.6,-.5,.55],[-2.4,0,.55],[-1.2,.4,.6],[-.2,.8,.7],[.4,1.4,.75],[.6,2.2,.6],[.3,2.8,.45]];
 /** Level 02 rules and visuals: supplies, cables, splitters, machines, door, puddle, bots. */
 export class LunchRuntime {
   circuit:Circuit;job=new LunchJob();ports:Port[]=[];cables:Cable[]=[];held?:{cable:Cable;end:0|1};
-  water=1;puddles:T.Mesh[]=[];leaves:Leaf[]=[];doorAngle=0;doorWasOpen=false;bots:T.Group[]=[];cooldown=0;
+  water=1;puddles:T.Mesh[]=[];leaves:Leaf[]=[];doorAngle=0;doorSide=1;doorWasOpen=false;bots:Bot[]=[];
   dark:T.Mesh;liftCar!:T.Group;eventIndex=0;bakeGauge=new Gauge([[0,.95,'#ffc94d'],[.95,1,'#3bb273']]);supplyGauges=new Map<string,{gauge:Gauge;mount:T.Group;button:T.Mesh}>();
   // Assigned by the build* helpers called from the constructor.
   thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
@@ -80,19 +86,19 @@ export class LunchRuntime {
     const shade=part(stand,new T.CylinderGeometry(.24,.42,.45,20,1,true),toon('#f7ecd0'),0,2);(shade.material as T.Material).side=T.DoubleSide;solid(this.game,.5,2,.5,-10,1,-3);
   }
   buildDoor(){const g=this.game;
-    // Double swing door: both leaves swing out into the corridor and auto-close.
+    // Double-action swing door: the leaves swing away from whoever pushes through, then auto-close.
     for(const [hinge,closed,dir] of [[-1.5,0,-1],[1.5,Math.PI,1]] as const){
       const pivot=group(g.root,hinge,0,DOOR.z,closed);part(pivot,rbox(1.45,2,.08,.06).clone().rotateX(Math.PI/2),toon('#5f8fa8'),.73,1.05,0);part(pivot,cyl(.18,.18,.04,16,'z'),toon('#bfeaf5'),.73,1.55,.05);
       const body=g.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(hinge,1.05,DOOR.z));g.world.createCollider(RAPIER.ColliderDesc.cuboid(.72,1,.05),body);
-      this.leaves.push({pivot,body,closed,open:closed+dir*Math.PI*.47});
+      this.leaves.push({pivot,body,closed,dir});
     }
     // The fridge leak runs out through the doorway into the corridor.
     const water=unlit('#7cc4ea',{transparent:true,opacity:.72,depthWrite:false});
-    for(const [x,z,r] of [[-4.6,-1.2,.45],[-3.6,-.5,.55],[-2.4,0,.55],[-1.2,.4,.6],[-.2,.8,.7],[.4,1.4,.75],[.6,2.2,.6],[.3,2.8,.45]]){const m=part(this.game.root,new T.CircleGeometry(r,24),water,x,.02,z,false);m.rotation.x=-Math.PI/2;m.scale.x=1.4;this.puddles.push(m);}
+    for(const [x,z,r] of PUDDLES){const m=part(this.game.root,new T.CircleGeometry(r,24),water,x,.02,z,false);m.rotation.x=-Math.PI/2;m.scale.x=1.4;this.puddles.push(m);}
   }
   buildCorridor(){const root=this.game.root;
-    for(let i=0;i<2;i++){const bot=group(root);part(bot,cyl(.42,.45,.2,28),toon('#f4efe6'),0,.14);part(bot,cyl(.3,.3,.06,24),toon('#3f7fd6'),0,.26);for(const ex of [-.1,.1])part(bot,sphere(.05,10,8),lit('#57e38f','#3fdc7f',.5),ex,.2,.4);part(bot,cyl(.12,.12,.04,6),toon('#ffc94d'),.3,.05,.3);this.bots.push(bot);}
-    const lane:[number,number][]=[[-5,3],[14,3],[14,7],[-5,7],[-5,3]];
+    for(let i=0;i<2;i++){const bot=group(root);this.bots.push({group:bot});part(bot,cyl(.42,.45,.2,28),toon('#f4efe6'),0,.14);part(bot,cyl(.3,.3,.06,24),toon('#3f7fd6'),0,.26);for(const ex of [-.1,.1])part(bot,sphere(.05,10,8),lit('#57e38f','#3fdc7f',.5),ex,.2,.4);part(bot,cyl(.12,.12,.04,6),toon('#ffc94d'),.3,.05,.3);}
+    const lane:[number,number][]=[[LANE.x0,LANE.z0],[LANE.x1,LANE.z0],[LANE.x1,LANE.z1],[LANE.x0,LANE.z1],[LANE.x0,LANE.z0]];
     for(let i=0;i<4;i++){const [x0,z0]=lane[i],[x1,z1]=lane[i+1],len=Math.hypot(x1-x0,z1-z0);for(let t=0;t<len;t+=.5)part(root,box(.25,.01,.08),unlit('#6aa7e8'),x0+(x1-x0)*t/len,.012,z0+(z1-z0)*t/len,false).rotation.y=Math.atan2(-(z1-z0),x1-x0);}
     const rack=group(root,-16.1,0,5,Math.PI/2);part(rack,box(3.4,.08,.5),toon(TRIM),0,1,.1);part(rack,box(3.4,.08,.5),toon(TRIM),0,2.1,.1);for(const sx of [-1.6,1.6])part(rack,box(.08,2.2,.08),toon(DMETAL),sx,1.1,.3);
     this.cord=part(root,new T.BufferGeometry(),toon('#ecE8dc'));
@@ -105,7 +111,7 @@ export class LunchRuntime {
     const ends:[T.Vector3,T.Vector3]=[from?this.ports.find(p=>p.id===from)!.pos.clone():new T.Vector3(loose[0]-.5,.18,loose[1]),to?this.ports.find(p=>p.id===to)!.pos.clone():new T.Vector3(loose[0],.18,loose[1])];
     const lead:Lead={id,from:from??'',to:to??'',rating,closed:!!from&&!!to,heat:0,dead:false};this.circuit.leads.push(lead);
     const mesh=part(this.game.root,new T.BufferGeometry(),toon(rating>3?INK:'#ecE8dc').clone());const color=rating>3?'#ffc94d':'#ecE8dc';const plugs:[T.Group,T.Group]=[makeProp('plug',color),makeProp('plug',color)];plugs.forEach(p=>this.game.root.add(p));
-    this.cables.push({id,rating,ends,ports:[from,to],rope:new Rope(ends[0],length),mesh,plugs,lead,points:[]});
+    this.cables.push({id,rating,active:1,ends,ports:[from,to],rope:new Rope(ends[0],length),mesh,plugs,lead,points:[]});
   }
   powered(id:string){return this.circuit.loads.find(l=>l.id===id)?.state==='on';}
   lit(){return this.powered('store-lamp')||(this.powered('kitchen-lamp')&&this.prop('portable-lamp')!.body.translation().x< -7.8);}
@@ -127,7 +133,7 @@ export class LunchRuntime {
     }
     if(!cableOnly){
       if(this.job.tray==='baked'&&distance(pos,this.prop('tray')!.body.translation())<1.65)return false;
-      const source=this.ports.find(p=>(p.id==='a'||p.id==='b')&&distance(pos,p.pos)<1.6&&this.circuit.sources.find(s=>s.id===p.id)!.tripped);
+      const source=this.ports.find(p=>(p.id==='a'||p.id==='b')&&distance(pos,p.pos)<2&&this.circuit.sources.find(s=>s.id===p.id)!.tripped);
       if(source){this.circuit.resetBreaker(source.id);g.audio.tone(120,.1,.09,'square');return true;}
       const switches:Record<string,Point>={oven:{x:-2.5,z:-6.9},conveyor:{x:5,z:-5},lift:{x:12,z:-4.8},'store-lamp':{x:-10,z:-3}};
       const machine=Object.entries(switches).find(([,p])=>distance(pos,p)<1.25);
@@ -146,33 +152,52 @@ export class LunchRuntime {
     cable.ends[end].y=.15;this.held=undefined;g.holdingPlug=false;
   }
   pull(){if(!this.held)return {x:0,z:0};return this.held.cable.rope.pull(this.game.player.translation());}
-  bridgeNear(p:Point){return this.game.props.some(prop=>prop.spec.kind==='bridge'&&distance(prop.body.translation(),p)<1.15&&prop.body.translation().y<.6);}
-  doorWedged(){const g=this.game,wedge=this.prop('wedge')!,p=wedge.body.translation();return g.held!==wedge&&distance(p,{x:0,z:.8})<1.9&&p.y<1.2;}
-  step(dt:number){const g=this.game,p=g.player.translation();this.cooldown=Math.max(0,this.cooldown-dt);
+  bridgeNear(p:Point,radius=1.15){return this.game.props.some(prop=>prop.spec.kind==='bridge'&&distance(prop.body.translation(),p)<radius&&prop.body.translation().y<.6);}
+  /** A cable is wet where it crosses a puddle that no cable bridge covers. */
+  wet(points:Point[]){if(this.water<=.1)return false;return PUDDLES.some(([x,z,r])=>{const c={x,z};return points.slice(1).some((b,i)=>segmentDistance(c,points[i],b)<r*1.2*this.water)&&!this.bridgeNear(c,1.3);});}
+  nearPuddle(p:Point){return PUDDLES.some(([x,z,r])=>distance(p,{x,z})<r+1.2);}
+  doorWedged(){const g=this.game,wedge=this.prop('wedge')!,p=wedge.body.translation();return g.held!==wedge&&distance(p,{x:0,z:0})<1.9&&p.y<1.2;}
+  /** Forgiving drops: a doorstop near the door jams in beside the open right leaf; a cable bridge
+   *  near the bots' line settles onto it, lined up with their direction of travel. */
+  dropped(prop:Prop){const p=prop.body.translation(),turn=(a:number)=>new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),a);
+    if(prop.spec.id==='wedge'&&distance(this.game.player.translation(),{x:0,z:.5})<2.4){prop.body.setTranslation({x:1.02,y:.2,z:this.doorAngle>.2?this.doorSide*1.25:1.25},true);prop.body.setRotation(turn(Math.PI/2),true);prop.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);}
+    if(prop.spec.kind==='bridge'){const x=T.MathUtils.clamp(p.x,LANE.x0,LANE.x1),z=T.MathUtils.clamp(p.z,LANE.z0,LANE.z1),edges=[{x,z:LANE.z0,a:0},{x,z:LANE.z1,a:0},{x:LANE.x0,z,a:Math.PI/2},{x:LANE.x1,z,a:Math.PI/2}];
+      const edge=edges.sort((a,b)=>distance(p,a)-distance(p,b))[0];if(distance(p,edge)<1.4){prop.body.setTranslation({x:edge.x,y:.12,z:edge.z},true);prop.body.setRotation(turn(edge.a),true);}}
+  }
+  step(dt:number){const g=this.game,p=g.player.translation();
     for(const port of this.ports)if(port.bodyId){const prop=this.prop(port.bodyId);if(prop){const pos=prop.body.translation();port.pos.set(pos.x,pos.y+port.lift,pos.z);}}
-    const wedged=this.doorWedged(),open=wedged||distance(p,{x:0,z:.2})<2.3;
-    this.doorAngle=T.MathUtils.lerp(this.doorAngle,open?1:0,dt*5);
-    for(const leaf of this.leaves){const angle=T.MathUtils.lerp(leaf.closed,leaf.open,this.doorAngle);leaf.pivot.rotation.y=angle;
+    const wedged=this.doorWedged(),open=wedged||distance(p,{x:0,z:.2})<2.6;
+    if(this.doorAngle<.05&&!wedged)this.doorSide=p.z>DOOR.z?-1:1;
+    this.doorAngle=T.MathUtils.lerp(this.doorAngle,open?1:0,dt*7);const shut=this.doorWasOpen&&this.doorAngle<=.15&&!wedged;
+    for(const leaf of this.leaves){const angle=leaf.closed+leaf.dir*this.doorSide*Math.PI*.47*this.doorAngle;leaf.pivot.rotation.y=angle;
       const center=new T.Vector3(.72,1.05,0).applyAxisAngle(new T.Vector3(0,1,0),angle).add(leaf.pivot.position);leaf.body.setNextKinematicTranslation(center);leaf.body.setNextKinematicRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),angle));}
-    if(g.held?.spec.id==='mop'&&distance(p,PUDDLE)<2.2)this.water=Math.max(0,this.water-dt*.3);
+    if(g.held?.spec.id==='mop'&&this.nearPuddle(p))this.water=Math.max(0,this.water-dt*.3);
     if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){this.job.cooled=true;g.audio.tone(550,.1,.03);g.held=undefined;}
     const capacitor=this.prop('capacitor')!,capPos=capacitor.body.translation();this.circuit.loads.find(l=>l.id==='lift')!.capacitor!.atLoad=distance(capPos,{x:12,z:-4.8})<2;
     if(this.held?.cable.rating===10){const dolly=this.prop('thick-dolly')!,pos=dolly.body.translation(),d=distance(pos,p);if(d>1.3)dolly.body.setLinvel({x:(p.x-pos.x)*4,y:dolly.body.linvel().y,z:(p.z-pos.z)*4},true);}
     for(const cable of this.cables){
       for(const end of [0,1] as const){const port=this.ports.find(q=>q.id===cable.ports[end]);if(port)cable.ends[end].copy(port.pos);}
       if(this.held?.cable===cable)cable.ends[this.held.end].set(p.x+Math.sin(g.heading)*.6,p.y+.1,p.z+Math.cos(g.heading)*.6);
-      const active=this.held?.cable===cable?this.held.end:1,other=(1-active) as 0|1;cable.rope.anchor=cable.ends[other];cable.points=cable.rope.update(cable.ends[active],g.level.obstacles);
+      const active=this.held?.cable===cable?this.held.end:cable.active,other=(1-active) as 0|1;
+      if(active!==cable.active){cable.rope.flip(cable.ends[other]);cable.active=active;}
+      cable.rope.anchor=cable.ends[other];cable.points=cable.rope.update(cable.ends[active],g.level.obstacles);
       const port0=this.ports.find(q=>q.id===cable.ports[0]);const reversed=port0?.role==='in'||(port0?.role==='both'&&this.ports.find(q=>q.id===cable.ports[1])?.role==='out');
       cable.lead.from=(reversed?cable.ports[1]:cable.ports[0])??'';cable.lead.to=(reversed?cable.ports[0]:cable.ports[1])??'';cable.lead.closed=!!cable.lead.from&&!!cable.lead.to;
-      const crossing=cable.points.slice(1).some((b,i)=>segmentDistance(PUDDLE,cable.points[i],b)<1.5);
-      cable.lead.wet=this.water>.1&&crossing&&!this.bridgeNear(PUDDLE);
-      if(this.doorWasOpen&&!open&&!wedged&&cable.points.slice(1).some((b,i)=>segmentHits(cable.points[i],b,{id:'door',minX:-1.4,maxX:1.4,minZ:-.15,maxZ:.45}))){cable.lead.dead=true;g.audio.tone(80,.2,.08,'sawtooth');g.burst({x:0,y:.5,z:.15},'#fff3a3',16,'spark');g.alarm(DOOR);}
+      cable.lead.wet=this.wet(cable.points);
+      // The leaves snap shut across the whole opening and cut any cable left through it.
+      if(shut&&cable.points.slice(1).some((b,i)=>segmentHits(cable.points[i],b,{id:'door',minX:-1.55,maxX:1.55,minZ:-.2,maxZ:.5}))){cable.lead.dead=true;g.audio.tone(80,.2,.08,'sawtooth');g.burst({x:0,y:.5,z:.15},'#fff3a3',16,'spark');g.alarm(DOOR);}
       if(cable.rope.strain>1.25&&cable.lead.closed){cable.ports[1]=null;cable.lead.closed=false;g.audio.tone(110,.2,.05);}
     }
-    this.doorWasOpen=open;
-    this.bots.forEach((bot,i)=>{const t=(g.time*.8+i*23)%46;const pos=t<19?new T.Vector3(-5+t,0,3):t<23?new T.Vector3(14,0,3+t-19):t<42?new T.Vector3(14-(t-23),0,7):new T.Vector3(-5,0,7-(t-42));
-      bot.rotation.y=t<19?Math.PI/2:t<23?0:t<42?-Math.PI/2:Math.PI;bot.position.copy(pos);
-      if(this.cooldown===0&&!this.bridgeNear(pos))for(const cable of this.cables)if(cable.lead.closed&&cable.points.slice(1).some((b,j)=>segmentDistance(pos,cable.points[j],b)<.35)){cable.ports[1]=null;cable.ends[1].copy(pos);this.cooldown=3;g.audio.tone(140,.2,.06);g.burst({x:pos.x,y:.3,z:pos.z},'#fff3a3',8,'spark');break;}
+    this.doorWasOpen=this.doorAngle>.15;
+    // Cleaner bots snag a live cable lying across their line and drag its plug along for a while.
+    const w=LANE.x1-LANE.x0,h=LANE.z1-LANE.z0,loop=2*(w+h);
+    this.bots.forEach((bot,i)=>{const t=(g.time*.8+i*loop/2)%loop;
+      const pos=t<w?new T.Vector3(LANE.x0+t,0,LANE.z0):t<w+h?new T.Vector3(LANE.x1,0,LANE.z0+t-w):t<2*w+h?new T.Vector3(LANE.x1-(t-w-h),0,LANE.z1):new T.Vector3(LANE.x0,0,LANE.z1-(t-2*w-h));
+      bot.group.rotation.y=t<w?Math.PI/2:t<w+h?0:t<2*w+h?-Math.PI/2:Math.PI;bot.group.position.copy(pos);
+      if(bot.snag){bot.snag.left-=dt;bot.snag.cable.ends[bot.snag.end].set(pos.x,.18,pos.z);if(bot.snag.left<=0||this.held?.cable===bot.snag.cable)bot.snag=undefined;return;}
+      if(this.bridgeNear(pos))return;
+      for(const cable of this.cables){if(!cable.lead.closed||this.bots.some(b=>b.snag?.cable===cable)||!cable.points.slice(1).some((b,j)=>segmentDistance(pos,cable.points[j],b)<.35))continue;
+        const end=(cable.ports[1]&&this.ports.find(q=>q.id===cable.ports[1])?.role!=='out'?1:0) as 0|1;cable.ports[end]=null;bot.snag={cable,end,left:4};g.audio.tone(140,.2,.06);g.burst({x:pos.x,y:.3,z:pos.z},'#fff3a3',8,'spark');g.alarm(pos);break;}
     });
     this.circuit.tick(dt);
     for(const event of this.circuit.events.slice(this.eventIndex)){
@@ -210,7 +235,7 @@ export class LunchRuntime {
     const holding=!!this.held;
     for(const port of this.ports){port.ring.position.copy(port.pos);port.ring.position.y=Math.max(.05,port.pos.y-.25);const source=this.circuit.sources.find(s=>s.id===port.id);const material=port.ring.material as T.MeshBasicMaterial;
       material.color.set(source?.tripped?'#f35b66':'#63d8d0');material.opacity=holding?.95:.35;port.ring.visible=this.lit()||!this.inStore(port.pos);port.ring.scale.setScalar(holding?1+Math.sin(g.time*5)*.08:1);}
-    for(const cable of this.cables){const active=this.held?.cable===cable?this.held.end:1;const pts=cable.points.map((p,i)=>new T.Vector3(p.x,i===0?cable.ends[(1-active) as 0|1].y:i===cable.points.length-1?cable.ends[active].y:.1,p.z));
+    for(const cable of this.cables){const active=cable.active;const pts=cable.points.map((p,i)=>new T.Vector3(p.x,i===0?cable.ends[(1-active) as 0|1].y:i===cable.points.length-1?cable.ends[active].y:.1,p.z));
       if(pts.length>1){const sampled:T.Vector3[]=[];for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];for(let j=0;j<8;j++){const t=j/8,v=a.clone().lerp(b,t);v.y=Math.max(.09,v.y-Math.sin(t*Math.PI)*.35*Math.max(0,1-cable.rope.strain));sampled.push(v);}}sampled.push(pts.at(-1)!);cable.mesh.geometry.dispose();cable.mesh.geometry=new T.TubeGeometry(new T.CatmullRomCurve3(sampled),Math.max(24,sampled.length*2),cable.rating>3?.085:.045,5,false);}
       const heat=cable.lead.heat;(cable.mesh.material as T.MeshToonMaterial).color.set(cable.lead.dead?'#262833':heat>1.2?'#ff5a3a':heat>.4?'#ffa04a':this.held?.cable===cable?strainColor(cable.rope.strain):cable.rating>3?'#2b2d42':'#ecE8dc');
       (cable.mesh.material as T.MeshToonMaterial).emissive.set(heat>.4&&!cable.lead.dead?'#ff6a2a':'#000000');
@@ -221,5 +246,5 @@ export class LunchRuntime {
     g.hud.querySelector('#oven-stage')?.classList.toggle('done',this.job.tray!=='raw');g.hud.querySelector('#belt-stage')?.classList.toggle('done',this.job.transport>=1);g.hud.querySelector('#lift-stage')?.classList.toggle('done',this.job.done);
     (g.hud.querySelector('#fridge-stage') as HTMLElement).style.color=temp>.8?'#e85c65':'#528979';
   }
-  snapshot(){return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,heat:c.lead.heat,strain:c.rope.strain})),events:this.circuit.events};}
+  snapshot(){return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),door:{angle:this.doorAngle,side:this.doorSide},bots:this.bots.map(b=>({x:+b.group.position.x.toFixed(2),z:+b.group.position.z.toFixed(2),snag:b.snag?.cable.id})),cablePoints:Object.fromEntries(this.cables.map(c=>[c.id,c.points.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)}))])),lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,heat:c.lead.heat,strain:c.rope.strain})),events:this.circuit.events};}
 }

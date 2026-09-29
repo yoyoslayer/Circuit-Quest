@@ -25,12 +25,14 @@ test('intended Lunch Rush solution delivers the tray upstairs',async({page})=>{
   await route(page,[[-8.8,-5],[-11.2,-6.8]]);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('capacitor');
   await route(page,[[-8.8,-5],[-5,-5],[.3,-1.3],[.3,2.4],[10,1],[11.3,-4.4]]);await page.keyboard.press('KeyE');await wait(page,.1);
   expect(load(await snapshot(page),'lift').capacitor.atLoad).toBe(true);
+  // Two cable bridges where the lift feed will cross the bots' line.
+  for(const [bx,drop] of [[7,[-1.4,1.8]],[9,[1.5,.9]]] as const){await route(page,[[10,1],[bx,7.3]],.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toMatch(/bridge/);await walk(page,drop[0],drop[1],.4);await page.keyboard.press('KeyE');}
   // Conveyor first, then move the fridge feed over to the lift.
   await route(page,[[10,1],[-9.8,3.5]]);await page.keyboard.press('KeyF');expect((await snapshot(page)).lunch.held.id).toBe('thin-2');
   await route(page,[[.3,2.4],[.3,-1.3],[4.7,-4.8]]);await page.keyboard.press('KeyF');await page.keyboard.press('KeyE');
   await wait(page,1.3);await expectLoad(page,'conveyor','on');
   await walk(page,-3.8,-1.7,.4);await page.keyboard.press('KeyF');expect((await snapshot(page)).lunch.held.id).toBe('thin-1');
   await route(page,[[.3,-1.3],[.3,2.4],[10,1],[11.8,-4.4]]);await page.keyboard.press('KeyF');await page.keyboard.press('KeyE');
-  await wait(page,16);s=await snapshot(page);expect(s.lunch.job.done,JSON.stringify(s.lunch)).toBe(true);
+  await wait(page,16);s=await snapshot(page);expect(s.lunch.job.done,JSON.stringify({bridges:s.items.filter((i:any)=>i.id.startsWith('bridge')),bots:s.lunch.bots,cables:s.lunch.cablePoints,events:s.lunch.events.slice(-6)})).toBe(true);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true');expect(errors).toEqual([]);await page.screenshot({path:'artifacts/lunch-complete.png'});
 });

@@ -24,6 +24,7 @@ const symbols:Record<string,string>={
   via:`<path ${A} d="M5 8.5h22v5H5zM5 18.5h22v5H5z"/><path d="M13 5v22M19 5v22" style="stroke:var(--ic,#FAF3E3);stroke-width:3.4"/><path d="M13 5v22M19 5v22"/>`,
   signal:`<path ${A} d="M16 13.5l6.5 15h-13z"/><circle ${F} cx="16" cy="11" r="3"/><path d="M10.5 5.5a8 8 0 0 0 0 11M21.5 5.5a8 8 0 0 1 0 11M6.5 2.5a13 13 0 0 0 0 17M25.5 2.5a13 13 0 0 1 0 17"/>`,
   archive:`<path ${F} d="M6 4.5h14l6 6v17H6z"/><path d="M20 4.5v6h6M10 14h8M10 18.5h5"/><circle ${A} cx="19.5" cy="21" r="4.6"/><path d="M22.8 24.3l4.4 4.4" stroke-width="3"/>`,
+  led:`<path ${F} d="M9.5 16a6.5 6.5 0 0 1 13 0v5h-13z"/><path ${A} d="M7.5 21h17v3.2h-17z"/><path d="M13 24.2v5M19 24.2v3.2M5.5 9.5l-2-1.5M26.5 9.5l2-1.5M16 5.5V3"/>`,
   waterwheel:`<circle ${F} cx="15" cy="13.5" r="9.5"/><circle ${A} cx="15" cy="13.5" r="3"/><path d="M15 4v19M5.5 13.5h19M8.3 6.8l13.4 13.4M21.7 6.8L8.3 20.2"/><path d="M3.5 27c2.2-1.6 4.3-1.6 6.5 0s4.3 1.6 6.5 0 4.3-1.6 6.5 0 4.3 1.6 6.5 0" style="stroke:#43B8C4"/>`,
   qfn:`<rect ${F} x="8" y="8" width="16" height="16" rx="2.6"/><rect ${A} x="12.5" y="12.5" width="7" height="7" rx="1.2"/><path d="M12 3.5v3M16 3.5v3M20 3.5v3M12 25.5v3M16 25.5v3M20 25.5v3M3.5 12h3M3.5 16h3M3.5 20h3M25.5 12h3M25.5 16h3M25.5 20h3"/>`,
   kitchenclock:`<circle ${F} cx="16" cy="17" r="11.5"/><path d="M16 10.5v6.5l4.5 3"/><path ${A} d="M4.5 8.5l4.5-4.5M27.5 8.5L23 4"/><circle ${K} cx="16" cy="17" r="1.6"/>`,

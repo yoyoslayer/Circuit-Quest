@@ -6,6 +6,7 @@ import {QfnBench} from './qfn/station';
 import {ArchiveDesk} from './archive/station';
 import {Waterworks} from './waterworks/station';
 import {ObservatoryBench} from './observatory/station';
+import {ArcadeBench} from './arcade/station';
 import {ClockworkKitchen} from './clockwork/station';
 export function makeStation(id:StationId,game:Game):Station{
   switch(id){
@@ -14,6 +15,7 @@ export function makeStation(id:StationId,game:Game):Station{
     case 'archive':return new ArchiveDesk(game);
     case 'waterworks':return new Waterworks(game);
     case 'observatory':return new ObservatoryBench(game);
+    case 'arcade':return new ArcadeBench(game);
     case 'clockwork':return new ClockworkKitchen(game);
   }
 }

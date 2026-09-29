@@ -28,6 +28,7 @@ const symbols:Record<string,string>={
   waterwheel:`<circle ${F} cx="15" cy="13.5" r="9.5"/><circle ${A} cx="15" cy="13.5" r="3"/><path d="M15 4v19M5.5 13.5h19M8.3 6.8l13.4 13.4M21.7 6.8L8.3 20.2"/><path d="M3.5 27c2.2-1.6 4.3-1.6 6.5 0s4.3 1.6 6.5 0 4.3-1.6 6.5 0 4.3 1.6 6.5 0" style="stroke:#43B8C4"/>`,
   qfn:`<rect ${F} x="8" y="8" width="16" height="16" rx="2.6"/><rect ${A} x="12.5" y="12.5" width="7" height="7" rx="1.2"/><path d="M12 3.5v3M16 3.5v3M20 3.5v3M12 25.5v3M16 25.5v3M20 25.5v3M3.5 12h3M3.5 16h3M3.5 20h3M25.5 12h3M25.5 16h3M25.5 20h3"/>`,
   kitchenclock:`<circle ${F} cx="16" cy="17" r="11.5"/><path d="M16 10.5v6.5l4.5 3"/><path ${A} d="M4.5 8.5l4.5-4.5M27.5 8.5L23 4"/><circle ${K} cx="16" cy="17" r="1.6"/>`,
+  truck:`<path ${A} d="M3.5 8h15.5v14.5H3.5z"/><path ${F} d="M19 12.5h5.2l4.3 5v5H19z"/><path d="M21.5 12.5v5h7"/><circle ${K} cx="9" cy="24.5" r="3"/><circle ${K} cx="23" cy="24.5" r="3"/><path d="M8 13.5h6.5l-2 3.2h3" style="stroke:var(--ink-c,#262A40)"/>`,
   tray:`<path d="M16 9.6V7.4M13.6 7h4.8"/><path ${A} d="M5 22a11 11 0 0 1 22 0z"/><path d="M3 22.5h26M6 26.5h20"/><path d="M10 17.5a6.5 6.5 0 0 1 3-3.6" style="stroke:var(--ic,#FAF3E3)"/>`,
   projector:`<path d="M23.5 13.5l5.5-3v12l-5.5-3"/><rect ${F} x="3" y="10" width="21" height="13.5" rx="4"/><circle ${A} cx="16.5" cy="16.75" r="3.8"/><path d="M7 14.5h3.5M7 18.5h2"/><path d="M8 27.5l1.5-4M19 27.5l-1.5-4"/>`,
   bolt:`<path ${A} d="M18.5 2.5L6.5 18h8.2l-2.2 11.5L25.5 13.5h-8.3z"/>`,

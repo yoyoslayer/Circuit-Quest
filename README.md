@@ -1,8 +1,11 @@
 # Circuit Crew
 
-A solo physics-comedy repair game: Pip drags springy power cables through crowded
-office floors to get machines running. Truthful, simplified electricity; chaos is
-graded, never punished with failure. Status and milestone notes: `docs/PROGRESS.md`.
+A solo physics-comedy repair game set in Circuit Crew HQ. Pip drags springy power cables
+through crowded office floors, and works electronics benches in the building's wings: via
+fabrication, PCB layout, datasheets, Thevenin/Norton, filters and antennas, LED resistors,
+motor kickback, clock sources, V/I/P and propagation. Truthful, simplified electronics;
+chaos is graded, never punished with failure. Status: `docs/PROGRESS.md`; the station plan
+and audit: `docs/EXPANSION_PLAN.md`.
 
 ## Play
 
@@ -11,8 +14,18 @@ npm install
 npm run dev          # http://127.0.0.1:5173
 ```
 
-The title screen leads to a jobs board: 00 Cable Playground, 01 Big Meeting, 02 Lunch
-Rush. `?level=<id>` opens that job directly; `?lowfx` turns off the expensive effects.
+Play opens the **HQ lobby**: walk to a job's door and press E. Doors show your best medal,
+and a lamp over a door lights once that job is done. The **Workshop** arch practises any
+station without recording a grade. The jobs board is still one click away on the title
+screen. `?level=<id>` opens a job directly (`lobby`, `playground`, `meeting`, `lunch`,
+`vias`, `vias-rush`, `qfn`, `archive`, `waterworks`, `observatory`, `arcade`, `clockwork`
+and the rest of the stations); `&practice` plays it unrecorded; `?lowfx` turns off the
+expensive effects.
+
+**Stations:** walk up to the bench and press E; the camera eases onto the tabletop. Click
+the tools (each station also has keys, shown on the table and in the prompt), E or Esc
+steps back. The job card lists the steps; the panel on the right shows the order and a
+live readout; each station grades works / works reliably / elegant.
 
 | Input | Keyboard / mouse | Gamepad |
 |---|---|---|

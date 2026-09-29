@@ -8,4 +8,5 @@ import {waterworks} from './waterworks';
 import {observatory} from './observatory';
 import {arcade} from './arcade';
 import {clockwork} from './clockwork';
-export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,arcade,clockwork];
+import {depot} from './depot';
+export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,arcade,clockwork,depot];

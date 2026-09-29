@@ -8,6 +8,7 @@ import {Waterworks} from './waterworks/station';
 import {ObservatoryBench} from './observatory/station';
 import {ArcadeBench} from './arcade/station';
 import {ClockworkKitchen} from './clockwork/station';
+import {DeliveryDepot} from './depot/station';
 export function makeStation(id:StationId,game:Game):Station{
   switch(id){
     case 'vias':return new ViaCounter(game);
@@ -17,5 +18,6 @@ export function makeStation(id:StationId,game:Game):Station{
     case 'observatory':return new ObservatoryBench(game);
     case 'arcade':return new ArcadeBench(game);
     case 'clockwork':return new ClockworkKitchen(game);
+    case 'depot':return new DeliveryDepot(game);
   }
 }

@@ -23,6 +23,7 @@ const symbols:Record<string,string>={
   fridge:`<rect ${F} x="8" y="3" width="16" height="26.5" rx="3.2"/><path d="M8 12.5h16M12.2 6.8v2.6M12.2 16v4.4"/>`,
   via:`<path ${A} d="M5 8.5h22v5H5zM5 18.5h22v5H5z"/><path d="M13 5v22M19 5v22" style="stroke:var(--ic,#FAF3E3);stroke-width:3.4"/><path d="M13 5v22M19 5v22"/>`,
   signal:`<path ${A} d="M16 13.5l6.5 15h-13z"/><circle ${F} cx="16" cy="11" r="3"/><path d="M10.5 5.5a8 8 0 0 0 0 11M21.5 5.5a8 8 0 0 1 0 11M6.5 2.5a13 13 0 0 0 0 17M25.5 2.5a13 13 0 0 1 0 17"/>`,
+  archive:`<path ${F} d="M6 4.5h14l6 6v17H6z"/><path d="M20 4.5v6h6M10 14h8M10 18.5h5"/><circle ${A} cx="19.5" cy="21" r="4.6"/><path d="M22.8 24.3l4.4 4.4" stroke-width="3"/>`,
   tray:`<path d="M16 9.6V7.4M13.6 7h4.8"/><path ${A} d="M5 22a11 11 0 0 1 22 0z"/><path d="M3 22.5h26M6 26.5h20"/><path d="M10 17.5a6.5 6.5 0 0 1 3-3.6" style="stroke:var(--ic,#FAF3E3)"/>`,
   projector:`<path d="M23.5 13.5l5.5-3v12l-5.5-3"/><rect ${F} x="3" y="10" width="21" height="13.5" rx="4"/><circle ${A} cx="16.5" cy="16.75" r="3.8"/><path d="M7 14.5h3.5M7 18.5h2"/><path d="M8 27.5l1.5-4M19 27.5l-1.5-4"/>`,
   bolt:`<path ${A} d="M18.5 2.5L6.5 18h8.2l-2.2 11.5L25.5 13.5h-8.3z"/>`,

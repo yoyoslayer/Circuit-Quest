@@ -238,7 +238,7 @@ export class Waterworks implements Station {
   /** Small models for loads: a shut valve, a U-hose, and wheels sized by restriction. */
   private loadModel(l:Load){
     const g=new T.Group();
-    if(l==='open'){part(g,cyl(.03,.03,.12,10),toon(COPPER),0,-.08,0);const hw=part(g,new T.TorusGeometry(.07,.016,8,24),toon('#e5484d'),0,0,0);hw.rotation.x=0;part(g,box(.14,.018,.018),toon('#e5484d'),0,0,0);part(g,box(.018,.14,.018),toon('#e5484d'),0,0,0);}
+    if(l==='open'){part(g,cyl(.03,.03,.12,10),toon(COPPER),0,-.08,0);part(g,new T.TorusGeometry(.07,.016,8,24),toon('#e5484d'),0,0,0);part(g,box(.14,.018,.018),toon('#e5484d'),0,0,0);part(g,box(.018,.14,.018),toon('#e5484d'),0,0,0);}
     else if(l==='short'){const c=new T.CatmullRomCurve3([new T.Vector3(-.08,-.12,0),new T.Vector3(-.09,.06,0),new T.Vector3(0,.12,0),new T.Vector3(.09,.06,0),new T.Vector3(.08,-.12,0)]);part(g,new T.TubeGeometry(c,24,.025,8),toon(AQUA));}
     else{const rad=l===2?.08:l===6?.105:.13,wheel=new T.Group();g.add(wheel);wheel.name='wheel';
       part(wheel,new T.TorusGeometry(rad,.014,8,28),toon(l===2?'#9fd8a0':l===6?BRASS:'#e5684d'),0,0,0);part(wheel,cyl(.025,.025,.05,12,'z'),toon(INK));

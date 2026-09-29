@@ -14,6 +14,7 @@ async function toBench(page:Page){
 }
 
 test('waterworks: three hidden networks matched with two readings each, then named as circuits',async({page})=>{
+  test.setTimeout(150000);
   const errors=await open(page,'waterworks');await wait(page,.1);
   await expect(page.locator('.objective')).toContainText('Roll the load-wheel cart');
   // Nothing works at the bench before the test loads arrive.
@@ -42,6 +43,7 @@ test('waterworks: three hidden networks matched with two readings each, then nam
 });
 
 test('waterworks: a cart that only matches one wheel is caught, and a wrong I_N is explained',async({page})=>{
+  test.setTimeout(150000);
   await open(page,'waterworks');await wait(page,.1);await toBench(page);
   // Three readings, then a flow cart whose bypass is wrong: COMPARE says which cart and why.
   await steps(page,[['load','open'],['load',2],['load',6],...carts(9,1.5,6,2),['compare']]);

@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {NETS,KNOBS,WHEELS,solve,reading,thevenin,pressureCart,flowCart,compare,same,solution,twoMeasurement,estimate,tier,checkAnswer,electrical,clampKnob,blankRecord,type Knob,type Net} from './logic';
+import {NETS,KNOBS,WHEELS,solve,reading,thevenin,pressureCart,flowCart,compare,same,solution,twoMeasurement,estimate,tier,checkAnswer,electrical,clampKnob,blankRecord,type Knob,type Net,type Pt} from './logic';
 
 const net=(id:string)=>NETS.find(n=>n.id===id)!;
 const near=(a:number,b:number,eps=1e-9)=>expect(Math.abs(a-b)).toBeLessThan(eps);
@@ -16,6 +16,22 @@ describe('network solver (modified nodal analysis)',()=>{
     for(const n of NETS)for(const load of WHEELS){
       const parts=[...n.parts.map(d=>d.part),{kind:'R' as const,a:n.port,b:0,r:load}],s=solve(n.nodes,parts);
       for(let node=1;node<n.nodes;node++){let sum=0;parts.forEach((p,k)=>{if(p.a===node)sum+=p.kind==='R'?-s.i[k]:s.i[k];if(p.b===node)sum+=p.kind==='R'?s.i[k]:-s.i[k];});near(sum,0,1e-9);}
+    }
+  });
+});
+
+describe('the drawings (pipes and the reveal share them)',()=>{
+  // Two drawn points are the same node when they coincide or sit on one wire run.
+  const onSeg=(p:Pt,a:Pt,b:Pt)=>Math.abs((b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]))<1e-9&&p[0]>=Math.min(a[0],b[0])-1e-9&&p[0]<=Math.max(a[0],b[0])+1e-9&&p[1]>=Math.min(a[1],b[1])-1e-9&&p[1]<=Math.max(a[1],b[1])+1e-9;
+  it('each part is drawn from its node a to its node b, and the ports sit on the right nodes',()=>{
+    for(const n of NETS){
+      const pts:{p:Pt;node:number}[]=[];n.parts.forEach(d=>{pts.push({p:d.path[0],node:d.part.a},{p:d.path[d.path.length-1],node:d.part.b});});
+      pts.push({p:n.ports.a,node:n.port},{p:n.ports.b,node:0});
+      const parent=pts.map((_,i)=>i),find=(i:number):number=>parent[i]===i?i:(parent[i]=find(parent[i]));
+      const join=(i:number,j:number)=>{parent[find(i)]=find(j);};
+      pts.forEach((x,i)=>pts.forEach((y,j)=>{if(i<j&&x.p[0]===y.p[0]&&x.p[1]===y.p[1])join(i,j);}));
+      for(const w of n.wires){const on=pts.map((x,i)=>w.slice(1).some((b,k)=>onSeg(x.p,w[k],b))?i:-1).filter(i=>i>=0);on.slice(1).forEach(i=>join(on[0],i));}
+      pts.forEach((x,i)=>pts.forEach((y,j)=>expect(find(i)===find(j),`${n.id}: ${JSON.stringify(x)} vs ${JSON.stringify(y)}`).toBe(x.node===y.node)));
     }
   });
 });

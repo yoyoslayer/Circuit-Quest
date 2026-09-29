@@ -233,14 +233,14 @@ const I=(a:number,b:number,i:number,...path:Pt[]):Drawn=>({part:{kind:'I',a,b,i}
 export const NETS:Net[]=[
   {id:'header',name:'Header tank',nodes:3,port:2,story:'A tank on the roof feeds the ports through a narrow main, with a drain leak across them.',
     // Pump 12 kPa — series 2 — node A — leak 6 to return.  V_th 9, R_th 1.5, I_N 6.
-    parts:[V(1,0,12,[1,0],[1,3]),R(1,2,2,[1,3],[5,3]),R(2,0,6,[5,3],[5,0])],
+    parts:[V(1,0,12,[1,3],[1,0]),R(1,2,2,[1,3],[5,3]),R(2,0,6,[5,3],[5,0])],
     wires:[[[1,0],[5,0]],[[5,3],[8,3]],[[5,0],[8,0]]],ports:{a:[8,3],b:[8,0]}},
   {id:'twin',name:'Twin pumps',nodes:5,port:4,story:'Two pumps at different pressures push into one junction, then a long pipe to the ports.',
     // 18 kPa behind 3, 6 kPa behind 6, into a junction, then 2 in series.  V_th 14, R_th 4, I_N 3.5.
-    parts:[V(1,0,18,[0,0],[0,3]),R(1,3,3,[0,3],[3,3]),V(2,0,6,[4.5,0],[4.5,1.4]),R(2,3,6,[4.5,1.4],[4.5,3]),R(3,4,2,[4.5,3],[7,3])],
+    parts:[V(1,0,18,[0,3],[0,0]),R(1,3,3,[0,3],[3,3]),V(2,0,6,[4.5,1.4],[4.5,0]),R(2,3,6,[4.5,1.4],[4.5,3]),R(3,4,2,[4.5,3],[7,3])],
     wires:[[[0,0],[8,0]],[[3,3],[4.5,3]],[[7,3],[8,3]]],ports:{a:[8,3],b:[8,0]}},
   {id:'booster',name:'Booster loop',nodes:5,port:4,story:'A fixed-flow booster, a leak, a mains pump and a long pipe, all hidden behind two ports.',
     // Flow 4 into N1 with a 5 leak, 3 to N2; 30 kPa behind 12 into N2; then 1.2 to A.  V_th 24, R_th 6, I_N 4.
-    parts:[I(1,0,4,[0,0],[0,3]),R(1,0,5,[2,3],[2,0]),R(1,2,3,[2,3],[4.5,3]),V(3,0,30,[6,0],[6,1.3]),R(3,2,12,[6,1.3],[6,3]),R(2,4,1.2,[6,3],[7.6,3])],
-    wires:[[[0,0],[8,0]],[[0,3],[2,3]],[[4.5,3],[6,3]],[[7.6,3],[8,3]]],ports:{a:[8,3],b:[8,0]}},
+    parts:[I(1,0,4,[0,3],[0,0]),R(1,0,5,[2.4,3],[2.4,0]),R(1,2,3,[2.4,3],[4.5,3]),V(3,0,30,[6,1.3],[6,0]),R(3,2,12,[6,1.3],[6,3]),R(2,4,1.2,[6,3],[7.6,3])],
+    wires:[[[0,0],[8,0]],[[0,3],[2.4,3]],[[4.5,3],[6,3]],[[7.6,3],[8,3]]],ports:{a:[8,3],b:[8,0]}},
 ];

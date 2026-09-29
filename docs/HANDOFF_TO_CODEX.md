@@ -2,7 +2,7 @@
 
 Codex built M0–M2 and started M3. Claude Code then finished M3–M5 and did two rounds of
 visual and design work at the product owner's request. This file is where to start. After
-it, read `docs/PROGRESS.md` (what works, decisions taken, what is still unverified).
+it, read `docs/NEXT_STEPS.md` (the ordered to-do list at the stopping point) and `docs/PROGRESS.md` (what works, decisions taken, what is still unverified).
 
 ## State in one paragraph
 

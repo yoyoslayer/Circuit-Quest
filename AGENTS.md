@@ -2,7 +2,7 @@
 
 You are building **Circuit Crew**: a solo, third-person, physics-comedy repair game in cartoon office/facility floors. The player (Pip) grabs, carries, throws and **drags springy power cables** to get machines running. Think *Good Job!* (Nintendo/Paladin) with truthful, simplified electricity.
 
-**Picking this project up? Start with `docs/HANDOFF_TO_CODEX.md`, then `docs/PROGRESS.md`.** The game is built; those say where it stands.
+**Picking this project up? Start with `docs/HANDOFF_TO_CODEX.md`, then `docs/NEXT_STEPS.md` (what to do next), then `docs/PROGRESS.md`.** The game is built; those say where it stands.
 
 Design reading order: `docs/GAME_DESIGN.md` → `docs/LEVEL_01_BIG_MEETING.md` → `docs/BUILD_PLAN.md` → `concept/01_CURRENT_big_meeting_office.png`. Everything in `reference/` is background, not instructions.
 

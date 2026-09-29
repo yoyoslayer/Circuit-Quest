@@ -233,3 +233,12 @@ body[data-screen="play"] .won .station-panel,body[data-screen="play"] .won .stat
 @media (max-width:700px){.station-panel{top:auto;bottom:calc(330px + var(--safe-b));font-size:12px;padding:10px 12px}.station-panel .build,.station-panel .profile{display:none}.station-toast{bottom:calc(300px + var(--safe-b));font-size:13px}}
 body[data-hub] .jobplate,body[data-hub] .strain{display:none}
 .station-panel .patience{display:block;height:8px;margin:6px 0 4px;border-radius:4px;background:linear-gradient(90deg,var(--hat) calc(var(--p)*100%),var(--paper-3) 0);border:2px solid var(--ink)}
+/* Workshop: a practice picker in the lobby and a tag on practice runs. */
+.workshop-picker{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(620px,calc(100vw - 32px));padding:20px 22px;border-radius:24px;z-index:5}
+.workshop-picker h3{margin:0 0 4px;font-size:22px}.workshop-picker p{margin:0 0 14px;color:var(--ink-2)}
+.workshop-picker .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.workshop-picker .grid .btn{justify-content:flex-start;gap:8px;border-left:10px solid var(--lvl)}
+.workshop-picker .grid small{font-size:12px;color:var(--ink-2)}
+.workshop-picker .close{margin-top:14px}
+.practice-tag{display:inline-block;margin-left:8px;padding:4px 10px;border-radius:12px;background:var(--hat);border:2px solid var(--ink);font-size:12px;font-weight:700}
+body[data-practice] .jobplate::after{content:"PRACTICE";position:absolute;left:18px;bottom:-12px;padding:2px 8px;border-radius:8px;background:var(--hat);border:2px solid var(--ink);font-size:11px;font-weight:700}

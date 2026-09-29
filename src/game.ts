@@ -56,6 +56,8 @@ export class Game {
   hub?:Lobby;
   // ?manual lets automated tests advance simulated time deterministically.
   manual=new URLSearchParams(location.search).has('manual');stick?:Point;
+  /** Workshop practice (?practice): the whole job plays, but no grade is recorded. */
+  practice=new URLSearchParams(location.search).has('practice');
   constructor(public level:Level){
     try{const saved=Number(localStorage.getItem('circuit-crew-quality'));if(saved===0||saved===1)this.view.setQuality(saved);}catch{/* storage unavailable */}
     const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=this.homeZoom();

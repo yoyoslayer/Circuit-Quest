@@ -17,3 +17,14 @@ test('the bare URL opens the HQ lobby: a door per job, and E at a door walks int
   expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().level)).toBe('vias');
   expect(errors).toEqual([]);
 });
+
+test('the Workshop arch opens a practice picker; practice runs are flagged and never recorded',async({page})=>{
+  await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+  await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);
+  await walk(page,7.5,5.5,.5);await wait(page,.1);
+  await expect(page.locator('.prompt-pill')).toContainText('Workshop');
+  await page.keyboard.press('KeyE');await expect(page.locator('.workshop-picker')).toBeVisible();
+  await expect(page.locator('.workshop-picker [data-practice]')).not.toHaveCount(0);
+  await Promise.all([page.waitForURL(/level=vias&practice/),page.locator('.workshop-picker [data-practice="vias"]').click()]);
+  await expect(page.locator('body')).toHaveAttribute('data-practice','true');
+});

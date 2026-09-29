@@ -27,6 +27,8 @@ function slots(width:number,depth:number){
 }
 export class Lobby {
   doors:Door[]=[];readonly job:StationJob;
+  /** The Workshop arch: practise any station without recording a grade. */
+  workshopAt:Point={x:7.5,z:5.5};private picker?:HTMLElement;
   constructor(private game:Game){
     const jobs=levels;
     this.job={goal:'Circuit Crew HQ: pick a door, fix what\'s behind it',
@@ -46,12 +48,14 @@ export class Lobby {
     part(desk,box(3.6,.5,.06),toon('#5ED6CC'),0,.55,.57);signPlate(desk,'CIRCUIT CREW HQ',0,.6,.61,2.2,{bg:'#ffc629'});solid(g,4,1.05,1.1,0,.52,-.6);
     for(const x of [-1.2,1.2])part(desk,rbox(.5,.35,.4,.05),toon(INK),x,1.25,-.1);
     // Directory board: every job with its number, on the reception's back.
-    const board=group(r,0,0,-1.3);part(board,box(3.2,1.3,.08),toon(INK),0,1.9,0);
-    levels.forEach((lv,i)=>signPlate(board,`${lv.number}  ${title(lv)}`,(i%2?.8:-.8),2.4-Math.floor(i/2)*.3,.05,1.5,{bg:LOOK[lv.id]?.color??'#fffaf0',h:64}));
+    const board=group(r,0,0,-1.3),rows=Math.ceil(levels.length/2),h=.3+rows*.26;part(board,box(3.3,h,.08),toon(INK),0,1.25+h/2,0);
+    levels.forEach((lv,i)=>signPlate(board,`${lv.number}  ${title(lv)}`,(i%2?.8:-.8),1.25+h-.28-Math.floor(i/2)*.26,.05,1.5,{bg:LOOK[lv.id]?.color??'#fffaf0',h:64}));
     pendant(g.root,-3,.2,{y:2.8,color:'#ffc94d'});pendant(g.root,3,.2,{y:2.8,color:'#ffc94d',light:false});lampPool(g.root,0,.2,4,.16);
     // Benches, plants and a water cooler around the ring.
     for(const [x,z,ry] of [[-6.5,3.6,0],[6.5,3.6,0]] as const){const b=group(r,x,0,z,ry);part(b,rbox(2,.12,.6,.05),toon('#c98a55'),0,.46,0);for(const s of [-.8,.8])part(b,box(.1,.44,.5),toon(INK),s,.22,0);solid(g,2,.5,.6,x,.25,z);}
     wallArt(kit.back,'bolt',-W+1.4,1.9,.18,0,.8);wallArt(kit.side,'mountain',-(D-1.6),1.9,.16,0,.8);
+    // The Workshop arch, free-standing on the right of the atrium.
+    this.workshop();
     // The doors.
     const sl=slots(l.width,l.depth);
     levels.forEach((lv,i)=>{const s=sl[i];if(!s)return;this.doors.push(this.door(kit,lv,s));});
@@ -78,9 +82,27 @@ export class Lobby {
     if(done){const w=f.getWorldPosition(new T.Vector3());glow(g.root,'rgba(255,220,140,1)',1.4,.35).position.set(w.x,3.35,w.z+(s.wall==='back'?.4:0));}
     return {level,at,leaf,open:0,lamp,done,locked};
   }
+  private workshop(){
+    const g=this.game,w=this.workshopAt,a=group(g.root,w.x+1,0,w.z,-Math.PI/2);
+    for(const x of [-1,1])part(a,rbox(.3,2.6,.4,.06),toon('#5ED6CC'),x,1.3,0);part(a,rbox(2.4,.36,.44,.08),toon('#5ED6CC'),0,2.7,0);
+    signPlate(a,'WORKSHOP',0,2.7,.23,1.8,{bg:'#ffc629'});signPlate(a,'practice any station',0,2.35,.23,1.5,{bg:'#fffaf0',h:56});
+    part(a,box(1.7,.02,1.2),toon('#e3d5bd'),0,.01,.4,false);for(const [x,c] of [[-.5,'#e98a42'],[0,'#7B6FE0'],[.5,'#43B8C4']] as const)part(a,rbox(.36,.3,.3,.05),toon(c),x,.15,-.5);
+    solid(g,.4,2.6,.3,w.x+1,1.3,w.z-1);solid(g,.4,2.6,.3,w.x+1,1.3,w.z+1);
+  }
+  nearWorkshop(pos:Point){return Math.hypot(pos.x-this.workshopAt.x,pos.z-this.workshopAt.z)<1.6;}
+  /** A small picker of every station job, opened at the Workshop arch. */
+  openPicker(){
+    if(this.picker){this.picker.hidden=false;return;}
+    const el=document.createElement('section');el.className='workshop-picker panel';el.setAttribute('aria-label','Workshop');
+    const jobs=levels.filter(l=>l.station&&l.id!=='vias-rush');
+    el.innerHTML=`<h3>Workshop</h3><p>Practise any station. The whole job plays, nothing is graded or recorded.</p><div class="grid">${jobs.map(l=>`<button class="btn" data-practice="${l.id}" style="--lvl:${LOOK[l.id]?.color??'#5ED6CC'}"><small>${l.number}</small>${title(l)}</button>`).join('')}</div><button class="btn close" data-close>Close <span class="key">Esc</span></button>`;
+    el.addEventListener('click',e=>{const t=(e.target as Element).closest<HTMLElement>('[data-practice],[data-close]');if(!t)return;if(t.dataset.close!==undefined){el.hidden=true;return;}flagAutostart(t.dataset.practice as Level['id']);location.href=`?level=${t.dataset.practice}&practice`;});
+    addEventListener('keydown',e=>{if(e.code==='Escape'&&!el.hidden){el.hidden=true;e.stopPropagation();}},true);
+    document.querySelector('[data-layer="hud"]')?.append(el);this.picker=el;
+  }
   near(pos:Point){return this.doors.find(d=>Math.hypot(pos.x-d.at.x,pos.z-d.at.z)<1.5);}
   /** E at a door walks through it into that job. */
-  interact(pos:Point){const d=this.near(pos);if(!d)return false;
+  interact(pos:Point){if(this.nearWorkshop(pos)){this.game.audio.pop();this.openPicker();return true;}const d=this.near(pos);if(!d)return false;
     if(d.locked){this.game.audio.tone(140,.2,.06,'square');d.leaf.rotation.y=-.08;return true;}
     this.game.audio.pop();this.enter(d.level);return true;}
   enter(level:Level){flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;location.href=`?level=${level.id}`;}
@@ -88,6 +110,6 @@ export class Lobby {
     const p=this.game.player.translation();
     for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=-d.open*1.2;}
   }
-  prompt():Prompt|null{const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: finish ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
+  prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practise any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: finish ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
   snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}
 }

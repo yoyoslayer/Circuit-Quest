@@ -25,7 +25,7 @@ export class GameUI {
   private keyboard=false;
   objectives!:ObjectivesHUD;
   constructor(public game:Game){
-    installIcons();if(game.hub)document.body.dataset.hub='true';
+    installIcons();if(game.hub)document.body.dataset.hub='true';if(game.practice)document.body.dataset.practice='true';
     const hud=game.hud,params=new URLSearchParams(location.search),bests=levels.map(l=>bestFor(l.id));
     this.sel=Math.max(0,levels.findIndex(l=>l.id===game.level.id));
     hud.innerHTML=hudMarkup(game.level)+titleMarkup(game.level)+jobsMarkup(levels,bests)+pauseMarkup(game.level);
@@ -200,12 +200,13 @@ export class GameUI {
 
   // ---------- end of job ----------
   won(result:{parts:Grade[];overall:Grade}){
-    const g=this.game,{improved}=record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost});
+    const g=this.game,{improved}=g.practice?{improved:false}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost});
     const next=levels.find(l=>l.id===g.level.next),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next};
     // Let the camera push in on the machine coming to life before the card lands.
     setTimeout(()=>{
       g.hud.insertAdjacentHTML('beforeend',resultMarkup(view));this.show('result');document.body.dataset.complete='true';
       const screen=g.hud.querySelector<HTMLElement>('.result-screen')!;this.countUp(screen);
+      if(g.practice)screen.querySelector('.result .head')?.insertAdjacentHTML('beforeend','<span class="practice-tag">Practice · not recorded</span>');
       // Bonus goals under the grade rows: a star for each one achieved.
       const rows=screen.querySelector('.result .rows');const bonus=this.objectives.results();if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
       if(this.keyboard)requestAnimationFrame(()=>screen.querySelector<HTMLElement>('.btn.primary')?.focus({preventScroll:true}));

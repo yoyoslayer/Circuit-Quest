@@ -311,7 +311,7 @@ export class Game {
     if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.level.id==='meeting'?8:9;pitch=this.level.id==='meeting'?.32:.6;}
     // Title: a hero shot of Pip beside the logo (Pip sits in the right half of the frame).
     const titling=!this.running&&document.body.dataset.screen==='title';
-    if(titling){const right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=new T.Vector3(p.x,p.y+.3,p.z).addScaledVector(right,-2.6);distanceTo=8;pitch=.32;}
+    if(titling){const right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));const portrait=cam.aspect<1;target=new T.Vector3(p.x,p.y+(portrait?1.5:.3),p.z).addScaledVector(right,portrait?0:-2.6);distanceTo=portrait?10.5:8;pitch=.32;}
     this.focus.lerp(target,this.survey||pushing?ease*.6:titling?1:ease);
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo);
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;

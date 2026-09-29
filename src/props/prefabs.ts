@@ -1,7 +1,9 @@
 import * as T from 'three';
-import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,reel,wheels,handle,glyph,decal,cachedTexture,lit} from '../render/kit';
+import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached} from '../render/kit';
+import {screen,keyboardTex,SCREENS,type ScreenKind} from '../render/textures';
 export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong'|'bridge'|'mop'|'tray'|'lamp'|'dolly'|'supply'|'capcart'|'coolbox'|'splitter'|'plug'|'wedge'|'beanbag';
-export interface PropSpec {kind:PropKind;x:number;z:number;y?:number;color?:string;rotation?:number;id?:string}
+/** variant picks a dressing (desk clutter, monitor screen); desks add 10 when the chair is on -z. */
+export interface PropSpec {kind:PropKind;x:number;z:number;y?:number;color?:string;rotation?:number;id?:string;variant?:number}
 export interface Prefab {size:[number,number,number];mass:number;cost:number;color:string}
 // size is the physics box; models below are drawn to fit inside it, centred on the origin.
 export const prefabs:Record<PropKind,Prefab>={
@@ -25,26 +27,43 @@ export const prefabs:Record<PropKind,Prefab>={
 };
 const templates=new Map<string,T.Group>();
 /** Returns a copy of the prop's model; copies share geometry and materials so they batch. */
-export function makeProp(kind:PropKind,color?:string):T.Group{
-  const key=`${kind}|${color??''}`;let template=templates.get(key);
-  if(!template){template=build(kind,color??prefabs[kind].color);templates.set(key,template);}
+export function makeProp(kind:PropKind,color?:string,variant=0):T.Group{
+  const key=`${kind}|${color??''}|${variant}`;let template=templates.get(key);
+  if(!template){template=build(kind,color??prefabs[kind].color,variant);templates.set(key,template);}
   return template.clone();
 }
 const scribble=()=>cachedTexture('scribble',()=>glyph(c=>{c.strokeStyle='#3f7fd6';c.lineWidth=10;c.beginPath();c.moveTo(20,200);c.lineTo(80,120);c.lineTo(140,160);c.lineTo(230,40);c.stroke();c.strokeStyle='#e5484d';c.beginPath();c.arc(70,60,30,0,7);c.stroke();}));
+const screenMaterials=new Map<string,T.MeshBasicMaterial>();
+function screenMaterial(kind:ScreenKind){let m=screenMaterials.get(kind);if(!m){m=new T.MeshBasicMaterial({map:screen(kind)});m.color.setScalar(1.05);m.userData.outlineParameters={visible:false};screenMaterials.set(kind,m);}return m;}
+/** Per-desk dressing (mockups/look/room.js deskClutter): keyboard, mouse, a personal item and a
+ *  cable tail, on whichever side the chair is (variant >= 10 means the chair is on -z). */
+function deskClutter(g:T.Group,top:number,variant:number){
+  const c=new T.Group();c.rotation.y=variant>=10?Math.PI:0;g.add(c);const v=variant%10;
+  part(c,box(.46,.025,.15),toon('#ffffff',{map:keyboardTex()}),-.05,top+.013,.2,false);part(c,rbox(.07,.03,.11,.03),toon('#e9e6dd'),.3,top+.015,.2,false);
+  if(v===0){part(c,cyl(.05,.045,.1,8),toon('#e07a4f'),-.55,top+.05,-.05);for(const [dx,dy] of [[0,.07],[.02,.12]])part(c,cyl(.018,.022,.1,6),toon('#6cc58a'),-.55+dx,top+dy+.02,-.05);}
+  if(v===1){const f=part(c,box(.14,.18,.02),toon(['#3f7fd6','#e5484d','#b392f0'][variant%3]),-.6,top+.09,-.1);f.rotation.set(-.2,.4,0);}
+  if(v===2){part(c,cyl(.04,.04,.1,10),toon('#3a3d55'),-.62,top+.05,0);for(let k=0;k<3;k++)part(c,cyl(.006,.006,.14,4),toon(['#e5484d','#3f7fd6','#ffc94d'][k]),-.62+(k-1)*.015,top+.12,0,false).rotation.z=(k-1)*.2;}
+  if(v===3)for(let k=0;k<3;k++)part(c,box(.24,.03,.17),toon(['#fffaf0','#e9f0f2','#ffe36e'][k]),-.5,top+.016+k*.03,.05,false).rotation.y=(k-1)*.2;
+  if(v===4){const lamp=new T.Group();lamp.position.set(.62,top,-.18);lamp.rotation.y=-Math.PI/2-.5;c.add(lamp);const col=['#e5484d','#3f7fd6','#ffc94d','#6cc58a'][variant%4];
+    part(lamp,cyl(.1,.12,.03,14),toon(INK),0,.015,0);part(lamp,cyl(.018,.018,.38,6),toon(col),0,.2,0).rotation.z=.35;part(lamp,cyl(.018,.018,.3,6),toon(col),.12,.42,0).rotation.z=-1;
+    const sh=part(lamp,new T.ConeGeometry(.1,.16,14,1,true),toon(col),.26,.46,0);sh.rotation.z=2.3;}
+  const tail=new T.CatmullRomCurve3([[0,top+.02,-.25],[.1,top-.05,-.36],[.18,.05,-.4],[.3,-top+.03,-.3],[.55,-top+.03,-.15]].map(p=>new T.Vector3(...p)));part(c,cached(`deskTail${top}`,()=>new T.TubeGeometry(tail,20,.014,5)),toon(INK),0,0,0,false);
+}
 const books=['#e5484d','#3f7fd6','#6cc58a','#ffc94d','#b392f0','#8fd3c8'];
-function build(kind:PropKind,c:string):T.Group{
+function build(kind:PropKind,c:string,variant=0):T.Group{
   const g=new T.Group(),[w,h,d]=prefabs[kind].size,bottom=-h/2,m=toon(c);
   switch(kind){
     case 'box':part(g,rbox(w,h,d,.05),m);part(g,box(w*1.01,h*.12,d*1.01),toon(new T.Color(c).offsetHSL(0,0,-.1).getStyle()),0,h*.2);break;
     case 'desk':
       part(g,rbox(w,.07,d,.05),m,0,h/2-.035);for(const s of [-1,1])part(g,box(.06,h-.07,d*.85),toon(METAL),s*(w/2-.08),-.035);
-      part(g,rbox(.3,.45,d*.72,.05),toon('#d9d2c3'),w*.28,bottom+.25);part(g,box(.5,.03,.16),toon('#dcdfe6'),0,h/2+.015,d*.12);break;
+      part(g,rbox(.3,.45,d*.72,.05),toon('#d9d2c3'),w*.28,bottom+.25);deskClutter(g,h/2,variant);break;
     case 'chair':
       part(g,rbox(.55,.1,.55,.1),m,0,bottom+.48);part(g,rbox(.55,.5,.1,.08),m,0,bottom+.78,-.24);
       part(g,cyl(.03,.03,.4,8),toon(INK),0,bottom+.26);
       for(let i=0;i<5;i++){const a=i/5*Math.PI*2;part(g,box(.32,.04,.05),toon(INK),Math.cos(a)*.15,bottom+.05,Math.sin(a)*.15).rotation.y=-a;}break;
     case 'monitor':
-      part(g,box(w,h*.8,.05),toon(INK),0,.05,-.04);part(g,box(w*.88,h*.64,.01),toon(c===INK?'#5b9cf0':c),0,.05,-.01,false);
+      part(g,box(w,h*.8,.05),toon(INK),0,.05,-.04);part(g,new T.PlaneGeometry(w*.88,h*.64),screenMaterial(SCREENS[variant%SCREENS.length]),0,.05,-.013,false);
+      if(variant%3===1)for(let k=0;k<2;k++)part(g,box(.07,.07,.005),toon(['#ffe36e','#f7a8c4'][k]),w*.36-k*.09,.2-k*.05,-.012,false).rotation.z=(k-.5)*.3;
       part(g,box(.06,h*.35,.06),toon(INK),0,bottom+.1,-.05);part(g,box(.3,.03,.15),toon(INK),0,bottom+.015,-.03);break;
     case 'mug':part(g,cyl(w/2,w*.45,h,10),m);part(g,cyl(w*.36,w*.36,.012,10),toon('#6b4a2e'),0,h/2+.002);break;
     case 'paper':part(g,box(w,h,d),m,0,0,0,false);break;

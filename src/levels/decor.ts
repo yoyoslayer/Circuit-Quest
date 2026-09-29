@@ -1,135 +1,155 @@
-// Static set dressing per level: floors, walls, fixtures. Palette and staging follow
-// mockups/review/REVIEW.md; colliders are separate, invisible boxes.
+// Static set dressing per level: floors, walls, fixtures. Staging follows the look-dev target
+// (mockups/look/meeting.js, lunch.js); colliders are separate, invisible boxes.
+// Anything the AO pass must ignore (additive shafts, glows, glass) goes on game.root, not
+// decorRoot: freeze() merges decorRoot and would drop the userData.noAO flag.
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../game';
 import type {Obstacle} from '../sim/cable';
-import {INK,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,repeat,planks,tiles,stripes,skyView,concrete,glow,lit,unlit,glyph,decal,cachedTexture} from '../render/kit';
+import {DMETAL,TRIM,WOOD,toon,rbox,box,cyl,sphere,part,group,glow} from '../render/kit';
+import {INK} from '../render/toon';
+import {glossyToon,hot} from '../render/actors';
+import * as TX from '../render/textures';
+import {windowUnit,windowShaft,wallArt,pendant,pointLamp,lampPool,rug,shadowDecal,type WallArt} from './dressing';
 
 export interface Decor {screen?:T.Mesh;beam?:T.Object3D;clock?:{hand:T.Object3D;minute:T.Object3D;face:T.Mesh}}
-const CREAM='#f4e7cf',WAINSCOT='#d9774a',BASE='#7a4a33';
+const WALL_UP='#efe2c8',WALL_LOW='#c7b08e',RAIL='#a8734a',BASE='#7a4f33',CAP='#c98a55',CAP_DARK='#8e5a36';
 // Big flat wall faces skip OutlineEffect: its hull pokes through them at grazing angles as stripes.
 const plainMaterials=new Map<string,T.Material>();
-const plain=(color:string)=>{let m=plainMaterials.get(color);if(!m){m=toon(color).clone();m.userData.outlineParameters={visible:false};plainMaterials.set(color,m);}return m;};
+const plain=(color:string,map?:T.Texture)=>{const key=color+(map?.uuid??'');let m=plainMaterials.get(key);if(!m){m=toon(color,{map}).clone();m.userData.outlineParameters={visible:false};plainMaterials.set(key,m);}return m;};
 /** Invisible static collider; interior walls are taller than they look so Pip can't hop them. */
 export function solid(game:Game,w:number,h:number,d:number,x:number,y:number,z:number,ry=0){
   const body=game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z).setRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),ry)));
   game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2).setFriction(.7),body);
 }
 function floor(game:Game,x0:number,x1:number,z0:number,z1:number,map:T.Texture,tile=4,y=0){
-  const w=x1-x0,d=z1-z0,m=part(game.decorRoot,new T.PlaneGeometry(w,d),toon('#ffffff',{map:repeat(map.clone(),w/tile,d/tile)}),(x0+x1)/2,y+.001,(z0+z1)/2,false);
-  m.rotation.x=-Math.PI/2;return m;
+  const w=x1-x0,d=z1-z0,t=map.clone();t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(w/tile,d/tile);t.needsUpdate=true;
+  const m=part(game.decorRoot,new T.PlaneGeometry(w,d),toon('#ffffff',{map:t}),(x0+x1)/2,y+.002,(z0+z1)/2,false);m.rotation.x=-Math.PI/2;return m;
 }
-/** Back/side wall: terracotta wainscot and baseboard below 0.9 m, cream above. When the camera
- *  swings behind it the upper part folds away (cutaway). Returns the upper group, in wall-local
- *  coordinates with +z (or +x) pointing into the room. */
-function shellWall(game:Game,w:number,d:number,x:number,z:number,normal:[number,number],h=3){
-  const wall=group(game.root,x,0,z),upper=group(wall,0,.9,0);
-  part(wall,box(w,.9,d),plain(WAINSCOT),0,.45,0);part(wall,box(w+.02,.14,d+.06),toon(BASE),0,.07,0);part(wall,box(w+.02,.05,d+.05),toon(TRIM),0,.9,0);
-  part(upper,box(w,h-.9,d),plain(CREAM),0,(h-.9)/2-.05,0);part(upper,box(w+.02,.09,d+.06),toon(TRIM),0,h-.95,0);
-  // Grazing sun on the long wall faces only produces acne; walls don't need to receive shadows.
+/** Dressed back/side wall: wallpaper, wainscot, rail, baseboard and a thick cap. The upper part
+ *  (above the rail) folds away when the camera swings behind it. The returned group's local +z
+ *  points into the room and y=0 is the floor, for windows and wall art. */
+function shellWall(game:Game,length:number,x:number,z:number,normal:[number,number],h=3,thick=.25){
+  const wall=group(game.root,x,0,z,normal[0]!==0?-Math.PI/2*normal[0]:normal[1]<0?0:Math.PI);
+  const face=thick/2,upper=group(wall,0,1.06,0),inside=group(upper,0,-1.06,0);
+  part(wall,box(length,1.06,thick),plain(WALL_LOW),0,.53,0);part(wall,box(length,.16,.07),toon(BASE),0,.08,face+.035);part(wall,box(length,1,.05),toon(WALL_LOW),0,.55,face+.025);
+  part(wall,box(length,.07,.09),toon(RAIL),0,1.06,face+.04);
+  part(inside,box(length,h-1.06,thick),plain(WALL_UP),0,1.06+(h-1.06)/2,0);part(inside,box(length,h-1.05,.02),plain('#ffffff',TX.wallpaper(WALL_UP)),0,1.05+(h-1.05)/2,face+.011);
+  part(inside,box(length+.04,.14,thick+.22),toon(CAP),0,h+.07,.02);part(inside,box(length+.06,.04,thick+.26),toon(CAP_DARK),0,h+.16,.02);
   wall.traverse(o=>{o.receiveShadow=false;});
-  game.shellWalls.push({group:upper,normal:new T.Vector3(normal[0],0,normal[1]),height:h});solid(game,w,h,d,x,h/2,z);
-  return upper;
+  game.shellWalls.push({group:upper,normal:new T.Vector3(normal[0],0,normal[1]),height:h});
+  solid(game,normal[0]!==0?thick:length,h,normal[0]!==0?length:thick,x,h/2,z);
+  return inside;
 }
-function interiorWall(game:Game,o:Obstacle,upperColor=CREAM,lowerColor=WAINSCOT,h=1.35){
+function interiorWall(game:Game,o:Obstacle,upperColor=WALL_UP,lowerColor=WALL_LOW,h=1.35){
   const w=o.maxX-o.minX,d=o.maxZ-o.minZ,x=(o.minX+o.maxX)/2,z=(o.minZ+o.maxZ)/2,r=game.decorRoot;
   part(r,box(w,.8,d),plain(lowerColor),x,.4,z);part(r,box(w,h-.8,d),plain(upperColor),x,.8+(h-.8)/2,z);part(r,box(w+.03,.12,d+.05),toon(BASE),x,.06,z);
-  part(r,box(w+.05,.1,d+.07),toon(TRIM),x,h,z);solid(game,w,2.6,d,x,1.3,z);
+  part(r,box(w+.05,.1,d+.07),toon(CAP),x,h,z);part(r,box(w+.06,.04,d+.08),toon(CAP_DARK),x,h+.06,z);solid(game,w,2.6,d,x,1.3,z);
 }
-function pillar(game:Game,o:Obstacle,hazard=false){
-  const w=o.maxX-o.minX,d=o.maxZ-o.minZ,x=(o.minX+o.maxX)/2,z=(o.minZ+o.maxZ)/2;
-  const material=(hazard?toon('#ffffff',{map:repeat(stripes(),1,3)}):toon('#efe2c8')).clone();material.transparent=true;const m=part(game.root,box(w,3,d),material,x,1.5,z);game.occluders.push(m);
-  part(game.decorRoot,box(w+.12,.22,d+.12),toon(hazard?INK:BASE),x,.11,z);part(game.decorRoot,box(w+.12,.08,d+.12),toon(TRIM),x,.26,z);solid(game,w,3,d,x,1.5,z);
-}
-/** Deep-framed windows looking out on a sky and skyline, mounted on a wall's upper group. */
-function windows(upper:T.Group,width:number,skip:(x:number)=>boolean=()=>false){
-  for(let x=-width/2+2.2,i=0;x<width/2-1.5;x+=3.2,i++){if(skip(x))continue;
-    part(upper,box(2.4,1.5,.04),toon('#ffffff',{map:cachedTexture(`sky${i%4}`,()=>skyView(i%4))}),x,1,.12,false);
-    for(const [w,h,dx,dy] of [[2.56,.1,0,.8],[2.56,.14,0,-.8],[.1,1.6,-1.25,0],[.1,1.6,1.25,0],[.06,1.5,0,0]] as const)part(upper,box(w,h,.18),toon('#fbf5ea'),x+dx,1+dy,.16);
-    part(upper,box(2.6,.06,.26),toon('#e8dcc4'),x,.2,.22);
-  }
-}
-function poster(parent:T.Object3D,x:number,y:number,z:number,ry:number,kind:number){
-  const tex=cachedTexture(`poster${kind}`,()=>glyph(c=>{const bg=['#ff7a6b','#4fcfa6','#5ba8f0','#ffc629'][kind%4];c.fillStyle=bg;c.fillRect(0,0,256,256);c.fillStyle='#fff6e6';
-    if(kind%4===0){c.beginPath();c.moveTo(150,30);c.lineTo(80,140);c.lineTo(126,140);c.lineTo(104,230);c.lineTo(180,110);c.lineTo(134,110);c.closePath();c.fill();}
-    else if(kind%4===1){c.beginPath();c.arc(128,120,70,0,7);c.fill();c.fillStyle=bg;c.beginPath();c.arc(128,120,40,0,7);c.fill();c.fillStyle='#fff6e6';c.fillRect(60,210,136,18);}
-    else if(kind%4===2){for(let i=0;i<4;i++)c.fillRect(50+i*42,190-i*40,28,40+i*40);}
-    else{c.beginPath();c.arc(128,110,64,0,7);c.fill();c.fillStyle=bg;c.fillRect(100,100,56,10);c.beginPath();c.arc(108,86,8,0,7);c.arc(148,86,8,0,7);c.fill();}}));
-  const g=group(parent,x,y,z,ry);part(g,box(.9,1.2,.03),toon('#fbf5ea'),0,0,0);decal(g,tex,.78,1.08,0,0,.02);
+/** Pillars: capped and trimmed; alternate ones carry a poster or an extinguisher. The fading
+ *  pillar body stays on root (it is an occluder). */
+function pillar(game:Game,o:Obstacle,i:number,hazard=false){
+  const w=o.maxX-o.minX,d=o.maxZ-o.minZ,x=(o.minX+o.maxX)/2,z=(o.minZ+o.maxZ)/2,r=game.decorRoot;
+  const material=(hazard?toon('#ffffff',{map:TX.hazardStripe()}):toon('#e6dac4')).clone();material.transparent=true;const m=part(game.root,box(w,3,d),material,x,1.5,z);game.occluders.push(m);
+  part(r,box(w+.1,.16,d+.1),toon(BASE),x,.08,z);part(r,box(w+.12,.12,d+.12),toon(CAP),x,3.02,z);part(r,box(w+.03,.06,d+.03),toon(RAIL),x,1.06,z);
+  const face=z+d/2+.01;
+  if(!hazard){if(i%2===0)wallArt(r,(['sun','cat','mountain'] as const)[i%3],x,1.9,face+.02,0,.7);else{part(r,cyl(.1,.1,.45,12),toon('#e5484d'),x+.25,.45,face+.1);part(r,cyl(.04,.04,.08,8),toon(INK),x+.25,.72,face+.1);}}
+  part(r,rbox(.18,.22,.03,.03),toon('#f0ece2'),x-.22,.35,face+.01,false);
+  solid(game,w,3,d,x,1.5,z);
 }
 function slab(game:Game){
-  const l=game.level;part(game.decorRoot,box(l.width+.5,.7,l.depth+.5),toon('#5a5f7a'),0,-.37,0,false);part(game.decorRoot,box(l.width+.54,.12,l.depth+.54),toon('#cfc6b4'),0,-.06,0,false);
+  const l=game.level;part(game.decorRoot,box(l.width+.5,.5,l.depth+.5),toon('#3b3852'),0,-.27,0,false);shadowDecal(game.root,l.width*1.5,l.depth*1.7,.8,-.6,1.2,.7);
 }
-function frontRails(game:Game){
+function frontLips(game:Game){
   const l=game.level,r=game.decorRoot;
-  part(r,box(l.width,.3,.22),toon(WAINSCOT),0,.15,l.depth/2);part(r,box(l.width+.02,.06,.26),toon(TRIM),0,.31,l.depth/2);solid(game,l.width,1,.22,0,.5,l.depth/2);
-  part(r,box(.22,.3,l.depth),toon(WAINSCOT),l.width/2,.15,0);part(r,box(.26,.06,l.depth+.02),toon(TRIM),l.width/2,.31,0);solid(game,.22,1,l.depth,l.width/2,.5,0);
+  part(r,box(l.width,.32,.22),toon('#e3d6c0'),0,.12,l.depth/2);part(r,box(l.width+.02,.06,.28),toon(CAP),0,.31,l.depth/2);solid(game,l.width,1,.22,0,.5,l.depth/2);
+  part(r,box(.22,.32,l.depth),toon('#e3d6c0'),l.width/2,.12,0);part(r,box(.28,.06,l.depth+.02),toon(CAP),l.width/2,.31,0);solid(game,.22,1,l.depth,l.width/2,.5,0);
 }
+const windowXs=(width:number)=>{const xs:number[]=[];for(let x=-width/2+2.2;x<width/2-1.5;x+=3.2)xs.push(x);return xs;};
 export function decorate(game:Game):Decor{
-  const l=game.level;slab(game);frontRails(game);
-  const back=shellWall(game,l.width,.25,0,-l.depth/2,[0,-1]),side=shellWall(game,.25,l.depth,-l.width/2,0,[-1,0]);
-  // The side wall's upper group is rotated so its local +z points into the room, like the back wall.
-  const sideFace=group(side,0,0,0,Math.PI/2);
-  if(l.id==='meeting')return meeting(game,back,sideFace);
-  if(l.id==='lunch')return lunch(game,back,sideFace);
-  return playground(game,back,sideFace);
+  const l=game.level;slab(game);frontLips(game);
+  const back=shellWall(game,l.width,0,-l.depth/2,[0,-1]),side=shellWall(game,l.depth,-l.width/2,0,[-1,0]);
+  if(l.id==='meeting')return meeting(game,back,side);
+  if(l.id==='lunch')return lunch(game,back,side);
+  return playground(game,back,side);
+}
+/** Back-wall windows with blinds, each throwing a warm shaft into the room. */
+function backWindows(game:Game,back:T.Group,skip:(x:number)=>boolean=()=>false,shaftOpacity=.18){
+  const l=game.level;for(const x of windowXs(l.width)){if(skip(x))continue;windowUnit(back,x,1.95,.16);windowShaft(game.root,x,-l.depth/2+.2,{opacity:shaftOpacity});}
 }
 function playground(game:Game,back:T.Group,side:T.Group):Decor{
-  const l=game.level,r=game.decorRoot;floor(game,-l.width/2,l.width/2,-l.depth/2,l.depth/2,concrete('#d8cdb8'),4);windows(back,l.width);
+  const l=game.level,r=game.decorRoot;floor(game,-l.width/2,l.width/2,-l.depth/2,l.depth/2,TX.concreteFloor('#d8cdb8'),4);backWindows(game,back);
   // Painted lane lines lead from the reel to the lamp socket.
-  const lane=unlit('#ffc629');for(const [x0,z0,x1,z1] of [[-9.6,5.8,9.6,5.8],[-9.6,-8.2,9.6,-8.2],[-9.6,5.8,-9.6,-8.2]]){const len=Math.hypot(x1-x0,z1-z0);const m=part(r,box(len,.01,.12),lane,(x0+x1)/2,.006,(z0+z1)/2,false);m.rotation.y=-Math.atan2(z1-z0,x1-x0);}
-  for(const o of l.obstacles)pillar(game,o,true);
+  const lane=toon('#ffc629');for(const [x0,z0,x1,z1] of [[-9.6,5.8,9.6,5.8],[-9.6,-8.2,9.6,-8.2],[-9.6,5.8,-9.6,-8.2]]){const len=Math.hypot(x1-x0,z1-z0);const m=part(r,box(len,.01,.12),lane,(x0+x1)/2,.006,(z0+z1)/2,false);m.rotation.y=-Math.atan2(z1-z0,x1-x0);}
+  l.obstacles.forEach((o,i)=>pillar(game,o,i,true));
   part(r,box(.14,1.7,.14),toon(DMETAL),l.target.x,.85,l.target.z);part(r,cyl(.3,.36,.12,18),toon(INK),l.target.x,.06,l.target.z);
-  const screen=part(game.root,sphere(.45,18,14),toon('#495469'),l.target.x,1.9,l.target.z);
-  // Pallets and cones make the empty test room read as a warehouse training bay.
+  const screen=part(game.root,sphere(.45,18,14),glossyToon('#495469'),l.target.x,1.9,l.target.z);
   for(const [x,z] of [[8,8],[8.8,8.2],[-8.5,-8.5]]){part(r,box(1.1,.14,.9),toon('#c9925e'),x,.07,z);part(r,rbox(.8,.6,.7,.08),toon('#d7a56d'),x,.44,z);}
   solid(game,1.9,.74,.9,8.4,.37,8.1);solid(game,1.1,.74,.9,-8.5,.37,-8.5);
   for(const [x,z] of [[6,-2],[6.6,-1.2],[-6,7.5]]){part(r,box(.5,.05,.5),toon('#ff8a3d'),x,.025,z);part(r,cyl(.03,.22,.6,14),toon('#ff8a3d'),x,.33,z);part(r,cyl(.13,.16,.1,14),toon('#fff6e6'),x,.4,z);}
-  poster(side,-4,.9,.14,0,0);poster(side,3,.9,.14,0,1);
+  wallArt(side,'bolt',-4,1.9,.16);wallArt(side,'cork',2,1.85,.16,0,1.1);wallArt(back,'graph',8.4,1.9,.18,0,.8);
   return {screen};
 }
 function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   const l=game.level,r=game.decorRoot;
-  floor(game,-l.width/2,9.1,-l.depth/2,l.depth/2,tiles('#4f7fb8','#5b8cc4','rgba(20,30,60,0.22)',4),4);
-  floor(game,9.1,l.width/2,-l.depth/2,-2,planks('#d39a5b','rgba(110,70,35,0.35)'),3);floor(game,9.1,l.width/2,-2,l.depth/2,planks('#e2b477','rgba(110,70,35,0.3)'),3);
-  windows(back,l.width,x=>x< -11.5);
-  // Deadline clock between two windows: the minute hand sweeps the four-minute meeting.
-  const clock=group(back,-3.1,1.45,.16);const face=part(clock,cyl(.36,.36,.06,32,'z'),toon('#fbf5ea'),0,0,0);part(clock,cyl(.4,.4,.05,32,'z'),toon(INK),0,0,-.02);
-  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;part(clock,box(.03,.07,.02),toon(INK),Math.sin(a)*.29,Math.cos(a)*.29,.04,false).rotation.z=-a;}
-  const hand=group(clock,0,0,.05);part(hand,box(.035,.2,.02),toon(INK),0,.09,0,false);const minute=group(clock,0,0,.06);part(minute,box(.025,.3,.02),toon('#e5484d'),0,.14,0,false);
-  poster(side,-8,.95,.14,0,2);poster(side,-1,.95,.14,0,3);poster(side,6,.95,.14,0,0);
-  for(const o of l.obstacles)if(o.id.startsWith('pillar'))pillar(game,o);else interiorWall(game,o,'#c9c2d9','#5a5f7a');
-  // Server closet: blue-lit racks with LEDs (animated by game), UPS, and the one live outlet.
-  for(let i=0;i<4;i++){const x=-15.9+i*1.0;part(r,rbox(.8,2.3,.9,.05),toon('#3a3d55'),x,1.15,-9.4);for(let k=0;k<7;k++)part(r,box(.06,.04,.02),lit(['#57e38f','#ffc94d','#5b9cf0'][(i+k)%3],['#3fdc7f','#ffb020','#4a8cff'][(i+k)%3]),x-.2+(k%3)*.2,.4+k*.28,-8.94,false);}
-  part(r,new T.PlaneGeometry(4.3,4.3).rotateX(-Math.PI/2),unlit('#3a5ab0',{transparent:true,opacity:.18,depthWrite:false}),-14.2,.004,-7.8,false);
+  floor(game,-l.width/2,9.1,-l.depth/2,l.depth/2,TX.carpetTiles('#8395ab'),2.4);floor(game,9.1,l.width/2,-l.depth/2,l.depth/2,TX.woodPlanks('#c99a64'),3.2);
+  // Walkway runner through the aisle and a rug island under each desk pod.
+  floor(game,-9.5,8.6,-2.1,-.4,TX.carpetTiles('#a7a2a0'),2.4,.004);
+  for(const [px,pz] of [[-6,-4.5],[-1,-4.5],[4,-4.5],[-6,1.5],[-1,1.5],[4,1.5],[-6,7.6],[-.8,7.6]])floor(game,px-2.05,px+2.05,pz-1.75,pz+1.75,TX.carpetTiles('#6c7f99'),2.4,.006);
+  floor(game,-l.width/2,-11.9,-l.depth/2,-5.5,TX.concreteFloor('#9aa3b2'),3,.008);
+  rug(r,12.4,5.4,4.2,4.2,'#d98c5f','#f6d49b');floor(game,10.4,13.9,-9.2,-3.6,TX.rugTex('#5f7fa8','#bcd3ee'),3.5,.01);
+  backWindows(game,back,x=>x< -11.5,.2);
+  // Deadline clock between two windows: its red minute hand sweeps the four-minute meeting.
+  const clock=group(back,-3.1,2.55,.18);const face=part(clock,cyl(.3,.3,.06,32,'z'),toon('#fbf5ea'));part(clock,cyl(.34,.34,.05,32,'z'),toon(INK),0,0,-.02);
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;part(clock,box(.03,.06,.02),toon(INK),Math.sin(a)*.24,Math.cos(a)*.24,.04,false).rotation.z=-a;}
+  const hand=group(clock,0,0,.05);part(hand,box(.035,.17,.02),toon(INK),0,.075,0,false);const minute=group(clock,0,0,.06);part(minute,box(.025,.25,.02),toon('#e5484d'),0,.12,0,false);
+  wallArt(back,'graph',15.2,1.9,.18,0,.9);
+  // The side wall's local x runs along the level's z axis.
+  for(const [kind,wz,s] of [['cork',.2,1.2],['bolt',-3.2,1],['plant',7.6,1],['mountain',2.7,.9],['sun',4.6,.9]] as [WallArt,number,number][])wallArt(side,kind,-wz,1.9,.16,0,s);
+  const pillars=l.obstacles.filter(o=>o.id.startsWith('pillar'));pillars.forEach((o,i)=>pillar(game,o,i));
+  for(const o of l.obstacles.filter(o=>!o.id.startsWith('pillar')))interiorWall(game,o,'#bfb4a2','#8f8574');
+  // Server closet: racks with hot LEDs, cable spaghetti, a green glow, the one live outlet.
+  for(let i=0;i<4;i++){const x=-15.9+i*1.0;part(r,rbox(.8,2.3,.9,.05),toon('#3a3d55'),x,1.15,-9.4);part(r,box(.66,2,.02),toon('#2a2c40'),x,1.2,-8.945,false);
+    for(let k=0;k<9;k++)part(r,box(.07,.04,.02),hot(['#57e38f','#ffc94d','#5b9cf0'][(i+k)%3],2.2),x-.22+(k%3)*.2,.45+k*.2,-8.93,false);}
+  for(let k=0;k<4;k++){const c=new T.CatmullRomCurve3([[-16+k,1.9,-8.95],[-15.7+k,.6,-8.6],[-15.2+k*.9,.04,-7.9+k*.2],[-14.6,.04,-6.9]].map(p=>new T.Vector3(...p)));part(r,new T.TubeGeometry(c,30,.03,5),toon(['#3f7fd6','#e5484d','#ffc94d',INK][k]),0,0,0,false);}
+  glow(game.root,'rgba(90,255,150,1)',3.2,.12).position.set(-14.4,1.4,-8.4);pointLamp(game.root,-14.3,1.8,-7.6,{color:'#7dffb5',intensity:3.5,distance:5});
   solid(game,4,2.3,.9,-14.4,1.15,-9.4);
   part(r,rbox(.8,.5,.6,.06),toon(DMETAL),-14.6,.25,-6.6);solid(game,.8,.5,.6,-14.6,.25,-6.6);
-  part(r,rbox(.4,.4,.12,.06).clone().rotateY(Math.PI/2),toon('#f0ece2'),-11.72,.55,-7.8);glow(game.root,'rgba(120,255,160,1)',.8,.5).position.set(-11.6,.55,-7.8);
+  part(r,rbox(.4,.4,.12,.06).clone().rotateY(Math.PI/2),toon('#f0ece2'),-11.72,.55,-7.8);glow(game.root,'rgba(120,255,160,1)',.9,.5).position.set(-11.55,.55,-7.8);
   part(r,cyl(.12,.12,.5,14),toon('#e5484d'),-11.6,.3,-5.2);part(r,box(.08,.14,.08),toon(INK),-11.6,.62,-5.2);
-  // Boardroom: frosted-banded glass front, honey-wood table, dark projector and screen.
-  for(const [x0,x1] of [[9.3,11],[13.8,l.width/2]]){const w=x1-x0,x=(x0+x1)/2;part(r,box(w,2.5,.06),toon('#bfe6f5',{opacity:.28}),x,1.3,-2,false);part(r,box(w,.3,.07),toon('#f4f8fb',{opacity:.7}),x,1.2,-2,false);part(r,box(w,.08,.1),toon(DMETAL),x,2.6,-2);part(r,box(w,.1,.1),toon(DMETAL),x,.05,-2);solid(game,w,2.6,.14,x,1.3,-2);}
+  // Boardroom: frosted-banded glass front, table with papers, dark projector and screen, pendants.
+  for(const [x0,x1] of [[9.3,11],[13.8,l.width/2]]){const w=x1-x0,x=(x0+x1)/2;part(game.root,box(w,2.5,.06),toon('#bfe6f5',{opacity:.24}),x,1.3,-2,false);part(game.root,box(w,.18,.07),toon('#ffffff',{opacity:.55}),x,1.25,-2,false);
+    part(r,box(w,.08,.1),toon(DMETAL),x,2.6,-2);part(r,box(w,.1,.1),toon(DMETAL),x,.05,-2);solid(game,w,2.6,.14,x,1.3,-2);}
   for(const x of [11,13.8])part(r,box(.1,2.6,.1),toon(DMETAL),x,1.3,-2);
-  part(r,rbox(1.7,.12,4.7,.45),toon('#b8773b'),12,.78,-6.4);for(const z of [-8,-4.8])part(r,cyl(.1,.25,.75,12),toon(INK),12,.38,z);solid(game,1.6,.8,4.6,12,.4,-6.4);
+  part(r,rbox(1.6,.1,4.6,.4),toon('#8a5a2b'),12,.78,-6.4);for(const z of [-8,-4.8])part(r,cyl(.1,.25,.75,12),toon(INK),12,.38,z);solid(game,1.6,.8,4.6,12,.4,-6.4);
+  for(let k=0;k<6;k++)part(r,box(.28,.02,.2),toon('#fffaf0'),11.6+(k%2)*.8,.84,-7.8+Math.floor(k/2)*1.3,false).rotation.y=(k*.37)%1-.5;
   const projector=group(r,12,0,-4.5);part(projector,rbox(.6,.25,.5,.06),toon('#dcdfe6'),0,.96,0);part(projector,cyl(.1,.1,.1,14,'z'),toon(INK),0,.96,-.28);
   const lead=new T.CatmullRomCurve3([[12.1,.9,-4.3],[12.2,.3,-3.9],[12.4,.05,-3.2],[12.3,.05,-2.4]].map(p=>new T.Vector3(...p)));part(r,new T.TubeGeometry(lead,40,.035,6),toon(INK));
-  const screen=part(game.root,box(4.2,2.3,.05),toon('#2a2c42'),12.2,1.9,-9.8);
-  const beam=part(game.root,new T.CylinderGeometry(1.4,.1,5.1,20,1,true).rotateX(Math.PI/2),unlit('#fff3c8',{transparent:true,opacity:.14,depthWrite:false,side:T.DoubleSide}),12.1,1.4,-7.2,false);beam.lookAt(12.2,1.9,-9.8);beam.visible=false;
-  // Lounge rug and coffee counter.
-  part(r,new T.CircleGeometry(2.1,40).rotateX(-Math.PI/2),toon('#f2b541'),12.5,.012,5.3,false);part(r,new T.RingGeometry(1.8,1.95,40).rotateX(-Math.PI/2),toon('#e59a2e'),12.5,.014,5.3,false);
-  part(r,rbox(.8,.95,3.4,.06),toon('#b98552'),-15.9,.47,4.6);part(r,box(.85,.06,3.5),toon('#f1ebe0'),-15.9,.97,4.6);solid(game,.8,.97,3.4,-15.9,.48,4.6);
+  part(r,box(4.4,2.5,.08),toon(INK),12.2,1.9,-9.82);const screen=part(game.root,box(4.2,2.3,.05),toon('#34364f'),12.2,1.9,-9.76);
+  const beam=part(game.root,new T.CylinderGeometry(1.4,.1,5.1,20,1,true).rotateX(Math.PI/2),new T.MeshBasicMaterial({color:'#fff3c8',transparent:true,opacity:.14,depthWrite:false,side:T.DoubleSide}),12.1,1.4,-7.2,false);
+  (beam.material as T.Material).userData.outlineParameters={visible:false};beam.userData.noAO=true;beam.lookAt(12.2,1.9,-9.8);beam.visible=false;
+  pendant(game.root,12,-7.6,{y:2.35,color:'#3f7fd6'});pendant(game.root,12,-5.2,{y:2.35,color:'#3f7fd6',light:false});lampPool(game.root,12,-6.4,2.4,.14);
+  // Lounge and coffee corner.
+  part(r,rbox(.8,.95,3.4,.06),toon(WOOD),-15.9,.47,4.6);part(r,box(.85,.06,3.5),toon('#f1ebe0'),-15.9,.97,4.6);solid(game,.8,.97,3.4,-15.9,.48,4.6);
+  for(let k=0;k<5;k++)part(r,cyl(.07,.06,.15,10),toon(['#fffaf0','#e5484d','#3f7fd6','#ffc94d','#6cc58a'][k]),-15.8,1.08,3.3+k*.2);
+  part(r,cyl(.2,.14,.1,16),toon('#f4efe6'),-15.8,1.05,6);for(let k=0;k<4;k++)part(r,sphere(.08,10,8),toon(['#e5484d','#ffc94d','#6cc58a','#f08a4b'][k]),-15.8+(k%2)*.08-.04,1.12+(k>1?.06:0),6+(k%3-1)*.07);
+  pendant(game.root,12.4,5.4,{y:2.3,color:'#ffc94d'});lampPool(game.root,12.4,5.4,2.2,.18);
+  const fl=group(r,15.4,0,7.6);part(fl,cyl(.22,.26,.05,16),toon(INK),0,.03,0);part(fl,cyl(.025,.025,1.7,6),toon(TRIM),0,.9,0);const fs=part(fl,new T.CylinderGeometry(.22,.34,.38,18,1,true),glossyToon('#f7ecd0'),0,1.8,0);(fs.material as T.Material).side=T.DoubleSide;
+  glow(game.root,'rgba(255,210,140,1)',1.3,.35).position.set(15.4,1.72,7.6);lampPool(game.root,15.2,7.4,1.6,.22);
+  // Floor clutter: paper drift, stacked boxes.
+  for(const [x,z,ry] of [[-8.6,-1.2,.3],[7.2,3.6,-.4],[-2.6,5.1,.8],[2.2,-.8,.2],[-7.8,4.6,1.2],[6.8,-6.9,.5]])part(r,box(.3,.012,.23),toon('#fffaf0'),x,.01,z,false).rotation.y=ry;
+  for(const [x,z] of [[-8.9,9.1],[7.8,9.2],[-9.2,-7.9]]){part(r,rbox(.7,.6,.7,.05),toon('#c98f5a'),x,.3,z).rotation.y=.3;part(r,rbox(.6,.5,.6,.05),toon('#d7a56d'),x+.1,.85,z-.05).rotation.y=.8;}
   return {screen,beam,clock:{hand,minute,face}};
 }
 function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   const l=game.level;
-  floor(game,-l.width/2,-7.8,0,l.depth/2,concrete('#cbbfa8'),4);floor(game,-l.width/2,-7.8,-l.depth/2,0,concrete('#8f8aa0'),4);
-  floor(game,-7.8,8,-l.depth/2,0,tiles('#f4ecd8','#6cc3b4','rgba(40,60,60,0.16)',4),2.4);
-  floor(game,8,l.width/2,-l.depth/2,0,concrete('#7d8aa3'),3);
-  floor(game,-7.8,l.width/2,0,l.depth/2,planks('#e2b477','rgba(110,70,35,0.32)'),3);
-  // Hazard edge around the lift shaft.
-  part(game.decorRoot,new T.PlaneGeometry(3.4,.3).rotateX(-Math.PI/2),toon('#ffffff',{map:repeat(stripes(),6,1)}),12,.006,-5.6,false);
-  windows(back,l.width);poster(side,3,.95,.14,0,1);
-  const colors:Record<string,[string,string]>={store:['#b9b3c9','#6a6488'],kitchen:[CREAM,'#6cc3b4'],lift:['#c9d1db','#5a6378']};
-  for(const o of l.obstacles){const [u,d]=colors[o.id.split('-')[0]]??[CREAM,WAINSCOT];interiorWall(game,o,u,d);}
+  floor(game,-l.width/2,-7.8,0,l.depth/2,TX.concreteFloor('#cbbfa8'),4);floor(game,-l.width/2,-7.8,-l.depth/2,0,TX.concreteFloor('#8f8aa0'),4);
+  floor(game,-7.8,8,-l.depth/2,0,TX.kitchenTiles('#f4ecd8','#8fcac0',8),4);
+  floor(game,8,l.width/2,-l.depth/2,0,TX.concreteFloor('#9aa3b2'),3);
+  floor(game,-7.8,l.width/2,0,l.depth/2,TX.woodPlanks('#d9ab6e'),3.2);
+  floor(game,10.4,13.6,-5.9,-5.45,TX.hazardStripe(),.6,.006);
+  backWindows(game,back,()=>false,.14);wallArt(side,'sun',-3,1.9,.16);wallArt(back,'plant',-8.5,1.95,.18,0,.8);
+  const colors:Record<string,[string,string]>={store:['#b9b3c9','#6a6488'],kitchen:[WALL_UP,'#6cc3b4'],lift:['#c9d1db','#5a6378']};
+  for(const o of l.obstacles){const [u,d]=colors[o.id.split('-')[0]]??[WALL_UP,WALL_LOW];interiorWall(game,o,u,d);}
   return {};
 }

@@ -6,13 +6,15 @@ import {LunchJob,BURN_WARNING} from './sim/lunch';
 import {Rope,distance,segmentDistance,segmentHits,strainColor,type Point} from './sim/cable';
 import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge,paint} from './render/kit';
 import {makeProp} from './props/prefabs';
+import {hoseGeometry,hoseMaterial,Pulses} from './render/actors';
+const DEAD=new T.Color('#262833'),HOT=new T.Color('#ff5a3a'),WARM=new T.Color('#ffa04a'),THICK=new T.Color('#ffc94d'),THIN=new T.Color('#ecE8dc');
 import {lunchHud} from './ui/lunch-hud';
 import {gameUI} from './ui/game-ui';
 import {solid} from './levels/decor';
 const warningTexture=()=>cachedTexture('warning',()=>glyph(c=>{c.fillStyle='#e5484d';c.beginPath();c.arc(128,128,112,0,7);c.fill();c.lineWidth=14;c.strokeStyle='#2b2d42';c.stroke();c.fillStyle='#fff6e6';c.beginPath();c.moveTo(150,40);c.lineTo(84,138);c.lineTo(126,138);c.lineTo(106,216);c.lineTo(176,112);c.lineTo(134,112);c.closePath();c.fill();}));
-import type {Prop} from './game';
+import {cablePath,type Prop} from './game';
 type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;ring:T.Mesh;capacity:number};
-type Cable={id:string;rating:number;active:0|1;ends:[T.Vector3,T.Vector3];ports:[string|null,string|null];rope:Rope;mesh:T.Mesh;plugs:[T.Group,T.Group];lead:Lead;points:Point[]};
+type Cable={pulses:Pulses;id:string;rating:number;active:0|1;ends:[T.Vector3,T.Vector3];ports:[string|null,string|null];rope:Rope;mesh:T.Mesh;plugs:[T.Group,T.Group];lead:Lead;points:Point[]};
 type Leaf={pivot:T.Group;body:RAPIER.RigidBody;closed:number;dir:number};
 type Bot={group:T.Group;snag?:{cable:Cable;end:0|1;left:number}};
 const DOOR={x:0,z:.15};
@@ -115,8 +117,8 @@ export class LunchRuntime {
   addCable(id:string,rating:number,length:number,from:string|null,to:string|null,loose:[number,number]){
     const ends:[T.Vector3,T.Vector3]=[from?this.ports.find(p=>p.id===from)!.pos.clone():new T.Vector3(loose[0]-.5,.18,loose[1]),to?this.ports.find(p=>p.id===to)!.pos.clone():new T.Vector3(loose[0],.18,loose[1])];
     const lead:Lead={id,from:from??'',to:to??'',rating,closed:!!from&&!!to,heat:0,dead:false};this.circuit.leads.push(lead);
-    const mesh=part(this.game.root,new T.BufferGeometry(),toon(rating>3?INK:'#ecE8dc').clone());const color=rating>3?'#ffc94d':'#ecE8dc';const plugs:[T.Group,T.Group]=[makeProp('plug',color),makeProp('plug',color)];plugs.forEach(p=>this.game.root.add(p));
-    this.cables.push({id,rating,active:1,ends,ports:[from,to],rope:new Rope(ends[0],length),mesh,plugs,lead,points:[]});
+    const mesh=part(this.game.root,new T.BufferGeometry(),hoseMaterial());const color=rating>3?'#ffc94d':'#ecE8dc';const plugs:[T.Group,T.Group]=[makeProp('plug',color),makeProp('plug',color)];plugs.forEach(p=>this.game.root.add(p));
+    this.cables.push({pulses:new Pulses(this.game.root,3,rating>3?.1:.065),id,rating,active:1,ends,ports:[from,to],rope:new Rope(ends[0],length),mesh,plugs,lead,points:[]});
   }
   powered(id:string){return this.circuit.loads.find(l=>l.id===id)?.state==='on';}
   lit(){return this.powered('store-lamp')||(this.powered('kitchen-lamp')&&this.prop('portable-lamp')!.body.translation().x< -7.8);}
@@ -251,11 +253,15 @@ export class LunchRuntime {
     const holding=!!this.held;
     for(const port of this.ports){port.ring.position.copy(port.pos);port.ring.position.y=Math.max(.05,port.pos.y-.25);const source=this.circuit.sources.find(s=>s.id===port.id);const material=port.ring.material as T.MeshBasicMaterial;
       material.color.set(source?.tripped?'#f35b66':'#63d8d0');material.opacity=holding?.95:.35;port.ring.visible=this.lit()||!this.inStore(port.pos);port.ring.scale.setScalar(holding?1+Math.sin(g.time*5)*.08:1);}
-    for(const cable of this.cables){const active=cable.active;const pts=cable.points.map((p,i)=>new T.Vector3(p.x,i===0?cable.ends[(1-active) as 0|1].y:i===cable.points.length-1?cable.ends[active].y:.1,p.z));
-      if(pts.length>1){const sampled:T.Vector3[]=[];for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];for(let j=0;j<8;j++){const t=j/8,v=a.clone().lerp(b,t);v.y=Math.max(.09,v.y-Math.sin(t*Math.PI)*.35*Math.max(0,1-cable.rope.strain));sampled.push(v);}}sampled.push(pts.at(-1)!);cable.mesh.geometry.dispose();cable.mesh.geometry=new T.TubeGeometry(new T.CatmullRomCurve3(sampled),Math.max(24,sampled.length*2),cable.rating>3?.085:.045,5,false);}
-      const heat=cable.lead.heat;(cable.mesh.material as T.MeshToonMaterial).color.set(cable.lead.dead?'#262833':heat>1.2?'#ff5a3a':heat>.4?'#ffa04a':this.held?.cable===cable?strainColor(cable.rope.strain):cable.rating>3?'#2b2d42':'#ecE8dc');
-      (cable.mesh.material as T.MeshToonMaterial).emissive.set(heat>.4&&!cable.lead.dead?'#ff6a2a':'#000000');
-      cable.plugs.forEach((plug,i)=>{plug.position.copy(cable.ends[i]);const toward=cable.points[i===1-cable.active?1:cable.points.length-2];if(toward)plug.rotation.y=Math.atan2(-(toward.z-cable.ends[i].z),toward.x-cable.ends[i].x)+Math.PI;});
+    for(const cable of this.cables){const active=cable.active,held=this.held?.cable===cable;
+      if(cable.points.length>1){const end=held?g.handPosition():cable.ends[active].clone();if(held)cable.plugs[active].position.copy(end);
+        const sampled=cablePath(cable.points,end,cable.ends[(1-active) as 0|1].y,cable.rope.strain);
+        // Hose look: dead cables go black, overheating ones glow orange then red, a held one shows
+        // strain, the thick one keeps its black bands; live cables carry current pulses.
+        const heat=cable.lead.heat,tint=cable.lead.dead?DEAD:heat>1.2?HOT:heat>.4?WARM:held?undefined:cable.rating>3?THICK:THIN;
+        const hose=hoseGeometry(sampled,{radius:cable.rating>3?.1:.06,bands:cable.rating>3,tint,strain:u=>cable.rope.strain*(.6+.4*u)});cable.mesh.geometry.dispose();cable.mesh.geometry=hose.geo;
+        const current=(this.circuit.draw.get(cable.id)??0)>0&&!cable.lead.dead,fromAnchor=cable.lead.from===cable.ports[(1-active) as 0|1];cable.pulses.update(hose.curve,hose.length,g.time,current,!fromAnchor);}
+      cable.plugs.forEach((plug,i)=>{if(!(held&&i===active))plug.position.copy(cable.ends[i]);const toward=cable.points[i===1-cable.active?1:cable.points.length-2];if(toward)plug.rotation.y=Math.atan2(-(toward.z-cable.ends[i].z),toward.x-cable.ends[i].x)+Math.PI;});
     }
     for(const m of [...this.smoke]){m.userData.life-=dt;m.position.y+=dt*.8;m.scale.setScalar(1+(1.4-m.userData.life));if(m.userData.life<=0){this.game.root.remove(m);this.smoke.splice(this.smoke.indexOf(m),1);}}
     if(this.held)g.rope=this.held.cable.rope;g.audio.strain(this.held&&!g.paused&&!g.won?g.rope.strain:0);

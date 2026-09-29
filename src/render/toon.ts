@@ -41,7 +41,7 @@ export const MOODS:Record<string,Mood>={
 };
 export function createRenderer(canvas:HTMLCanvasElement) {
   // Automated tests (?manual) and ?lowfx skip the expensive passes; software rendering can't afford them.
-  const params=new URLSearchParams(location.search),low=params.has('lowfx')||params.has('manual'),pixelRatio=Math.min(devicePixelRatio,1.5);
+  const params=new URLSearchParams(location.search),low=params.has('lowfx')||(params.has('manual')&&!params.has('fullfx')),pixelRatio=Math.min(devicePixelRatio,1.5);
   const renderer = new T.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(pixelRatio);
   renderer.shadowMap.enabled = true;

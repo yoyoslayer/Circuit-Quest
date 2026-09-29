@@ -2,7 +2,21 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon} from './render/toon';
-import {BLOBC,bangTexture,freeze,blobMesh} from './render/kit';
+import {BLOBC,bangTexture,freeze,glyph,cachedTexture} from './render/kit';
+import {blob,hoseGeometry,hoseMaterial,Pulses,type Accessory,type Mood} from './render/actors';
+const GOLD=new T.Color('#ffd451');
+/** Samples a rope polyline for drawing: it lies on the floor (sagging a little when slack) and
+ *  only rises over the last metre to the end point (a hand or a socket). */
+export function cablePath(route:Point[],end:T.Vector3,startY:number,strain:number){
+  const points:T.Vector3[]=[],total=route.slice(1).reduce((n,b,i)=>n+distance(route[i],b),0);let walked=0;
+  for(let i=0;i<route.length-1;i++){const a=route[i],b=i===route.length-2?{x:end.x,z:end.z}:route[i+1],len=distance(a,b),steps=Math.max(2,Math.ceil(len*2));
+    for(let j=0;j<steps;j++){const t=j/steps,along=walked+len*t,left=total-along;
+      const rise=left<1.2?T.MathUtils.smoothstep(1.2-left,0,1.2)*(end.y-.09):0,lift=along<.8?(1-along/.8)*(startY-.09):0,sag=Math.max(0,1-strain)*.05;
+      points.push(new T.Vector3(T.MathUtils.lerp(a.x,b.x,t),Math.max(.09,.09+rise+lift-sag),T.MathUtils.lerp(a.z,b.z,t)));}
+    walked+=len;}
+  points.push(end.clone());return points;
+}
+const sweatTexture=()=>cachedTexture('sweat',()=>glyph(c=>{c.fillStyle='#9fdcff';c.beginPath();c.moveTo(128,20);c.bezierCurveTo(200,120,210,170,128,230);c.bezierCurveTo(46,170,56,120,128,20);c.fill();c.lineWidth=14;c.stroke();}));
 import {Sound} from './render/audio';
 import {setupGameUI,gameUI} from './ui/game-ui';
 import {makeProp,prefabs,type PropSpec} from './props/prefabs';
@@ -16,12 +30,15 @@ import {decorate,solid,type Decor} from './levels/decor';
 import {levels} from './levels';
 
 export interface Prop {spec:PropSpec;body:RAPIER.RigidBody;collider:RAPIER.Collider;mesh:T.Group;damaged:boolean;home:T.Vector3;lastSpeed:number}
-interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number}
+interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.Mesh;startled:T.Mesh;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number}
+// Each coworker gets a personality: accessories and a resting mood (look-dev meeting.js).
+const ACCESSORIES:Accessory[][]=[['tuft'],['headphones'],['glasses','tie'],['mug'],['bun'],['cap'],['sprout'],['glasses'],['headphones','tuft'],[],['tie'],['bun','glasses']];
+const MOODS:Mood[]=['calm','calm','happy','calm','sleepy','calm','happy','calm'];
 interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
@@ -48,7 +65,7 @@ export class Game {
     this.target=new T.Mesh(new T.TorusGeometry(.42,.07,8,28),new T.MeshBasicMaterial({color:'#64ddd4'}));this.target.rotation.x=-Math.PI/2;this.target.position.set(level.target.x,.15,level.target.z);this.root.add(this.target);
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
     const anchor=makeProp('reel');anchor.position.set(level.anchor.x,.6,level.anchor.z);this.root.add(anchor);
-    this.ropeMesh=new T.Mesh(new T.BufferGeometry(),toon('#f5f1dc').clone());this.ropeMesh.castShadow=true;this.root.add(this.ropeMesh);
+    this.ropeMesh=new T.Mesh(new T.BufferGeometry(),hoseMaterial());this.ropeMesh.castShadow=true;this.root.add(this.ropeMesh);this.pulses=new Pulses(this.root);
     this.reticle=new T.Mesh(new T.TorusGeometry(.5,.06,8,32),new T.MeshBasicMaterial({color:'#ffd84a',depthTest:false,transparent:true,opacity:.9}));this.reticle.visible=false;
     // A soft ring under Pip keeps the hero findable among coworkers.
     this.pipRing=new T.Mesh(new T.RingGeometry(.42,.58,40).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#ffc629',transparent:true,opacity:.55,depthWrite:false}));this.pipRing.userData.outlineParameters={visible:false};this.root.add(this.pipRing);this.reticle.rotation.x=-Math.PI/2;this.reticle.renderOrder=10;this.root.add(this.reticle);
@@ -71,7 +88,7 @@ export class Game {
     const decor=decorate(this);this.screen=decor.screen;this.beam=decor.beam;this.clock=decor.clock;
   }
   addProp(spec:PropSpec){
-    const p=prefabs[spec.kind],mesh=makeProp(spec.kind,spec.color),pos=new T.Vector3(spec.x,spec.y??p.size[1]/2+.025,spec.z);
+    const p=prefabs[spec.kind],mesh=makeProp(spec.kind,spec.color,spec.variant),pos=new T.Vector3(spec.x,spec.y??p.size[1]/2+.025,spec.z);
     mesh.position.copy(pos);mesh.rotation.y=spec.rotation??0;this.root.add(mesh);
     const body=this.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(pos.x,pos.y,pos.z).setRotation(mesh.quaternion).setLinearDamping(.6).setAngularDamping(.8).setCanSleep(true).setCcdEnabled(p.mass<4));
     const collider=this.world.createCollider(RAPIER.ColliderDesc.cuboid(p.size[0]/2,p.size[1]/2,p.size[2]/2).setMass(p.mass).setFriction(.65).setRestitution(.12),body);
@@ -79,10 +96,11 @@ export class Game {
   }
   addNpc(p:NpcSpot){
     const g=new T.Group(),seated=this.level.id==='meeting'&&!p.standing,body=new T.Group();body.position.y=seated?.35:0;g.add(body);
-    body.add(blobMesh(BLOBC[this.npcs.length%BLOBC.length]));
+    const i=this.npcs.length,color=BLOBC[i%BLOBC.length],acc=ACCESSORIES[i%ACCESSORIES.length],calm=blob(color,MOODS[i%MOODS.length],acc),startled=blob(color,'alarm',acc);startled.visible=false;body.add(calm,startled);
+    const sweat=new T.Sprite(new T.SpriteMaterial({map:sweatTexture(),toneMapped:false}));sweat.scale.set(.22,.22,1);sweat.position.set(.32,(seated?.35:0)+1.02,.1);sweat.visible=false;g.add(sweat);
     const bubble=new T.Sprite(new T.SpriteMaterial({map:bangTexture(),depthTest:false}));bubble.scale.set(.7,.7,1);bubble.position.y=(seated?.35:0)+1.55;bubble.renderOrder=9;bubble.visible=false;g.add(bubble);
     g.position.set(p.x,0,p.z);const desk=this.props.filter(q=>q.spec.kind==='desk').sort((a,b)=>distance(p,a.spec)-distance(p,b.spec))[0],restYaw=seated&&desk?Math.atan2(desk.spec.x-p.x,desk.spec.z-p.z):Math.atan2(-p.x,-p.z);g.rotation.y=restYaw;
-    this.npcs.push({group:g,body,bubble,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0,seated,restYaw});this.root.add(g);
+    this.npcs.push({group:g,body,bubble,sweat,calm,startled,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0,seated,restYaw});this.root.add(g);
   }
   /** Coworkers near a crash or snap flinch and show a "!" bubble. */
   alarm(at:Point,radius=4.5){let startled=0;for(const npc of this.npcs)if(distance(npc.group.position,at)<radius){if(npc.alarm<=0)startled++;npc.alarm=1;}
@@ -106,7 +124,7 @@ export class Game {
     new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=toon('#'+old.color.getHexString());o.castShadow=true;}});this.avatar.add(gltf.scene);
       // Limbs are separate nodes (tools/create_assets.py); hang them on hip and shoulder pivots to animate.
       const pivot=(x:number,y:number,names:string[])=>{const g=new T.Group();g.position.set(x,y,0);gltf.scene.add(g);gltf.scene.updateMatrixWorld(true);for(const n of names){const o=gltf.scene.getObjectByName(n);if(o)g.attach(o);}return g;};
-      this.rig={legs:[pivot(-.17,.62,['LegL','BootL']),pivot(.17,.62,['LegR','BootR'])],arms:[pivot(-.39,1.12,['ArmL','GloveL']),pivot(.39,1.12,['ArmR','GloveR'])]};},undefined,()=>{document.body.dataset.assetFallback='true';});
+      this.rig={legs:[pivot(-.17,.62,['LegL','BootL']),pivot(.17,.62,['LegR','BootR'])],arms:[pivot(-.39,1.12,['ArmL','GloveL']),pivot(.39,1.12,['ArmR','GloveR'])]};this.hand.position.set(.03,-.5,.04);this.rig.arms[1].add(this.hand);},undefined,()=>{document.body.dataset.assetFallback='true';});
   }
   /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
   setupUI(){setupGameUI(this);}
@@ -212,17 +230,15 @@ export class Game {
     // A taut rope whipping off a corner slingshots whatever lies along it.
     if(this.running&&this.holdingPlug&&swungClear&&this.rope.bends.length<before&&overBefore>.3)this.slingshot(overBefore**2*60*.6);
   }
+  /** Where a held plug is drawn: Pip's right glove (gameplay keeps using plugPosition). */
+  handPosition(){return this.rig?this.hand.getWorldPosition(new T.Vector3()):this.plugPosition.clone();}
   drawCable(){
-    this.plug.position.copy(this.plugPosition);
-    const points:T.Vector3[]=[];
-    for(let i=0;i<this.ropePoints.length-1;i++){
-      const a=this.ropePoints[i],b=this.ropePoints[i+1],steps=Math.max(2,Math.ceil(distance(a,b)*2));
-      for(let j=0;j<steps;j++){const t=j/steps;const endY=i===this.ropePoints.length-2?this.plugPosition.y:.18;const startY=i===0?.5:.18;
-        points.push(new T.Vector3(T.MathUtils.lerp(a.x,b.x,t),Math.max(.085,T.MathUtils.lerp(startY,endY,t)-Math.sin(t*Math.PI)*Math.max(0,1-this.rope.strain)*.7),T.MathUtils.lerp(a.z,b.z,t)));}
-    }
-    points.push(this.plugPosition.clone());
-    if(points.length>1){const geometry=new T.TubeGeometry(new T.CatmullRomCurve3(points,false,'centripetal'),Math.max(12,points.length*2),.065,5,false);this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=geometry;}
-    (this.ropeMesh.material as T.MeshToonMaterial).color.set(this.connected?'#ffd451':strainColor(this.rope.strain));
+    const end=this.holdingPlug?this.handPosition():this.plugPosition.clone();this.plug.position.copy(end);
+    const points=cablePath(this.ropePoints,end,.5,this.rope.strain);
+    // The hero cable: strain builds from the reel toward Pip's hand; gold once it is plugged in,
+    // with current pulses flowing to the load.
+    if(points.length>1){const hose=hoseGeometry(points,{radius:.1,strain:u=>this.rope.strain*(.6+.4*u),tint:this.connected?GOLD:undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
+      this.pulses.update(hose.curve,hose.length,this.last/1000,this.circuit.loads[0].state==='on');}
     this.audio.strain(this.holdingPlug&&!this.paused&&!this.won?this.rope.strain:0);
   }
   burst(pos:{x:number;y:number;z:number},color:string,count:number,kind:Fx='debris'){this.fx.spawn(kind,pos,count,color);}
@@ -282,7 +298,7 @@ export class Game {
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
     // Cutaway: shell walls whose outside faces the camera drop to 0.9 m stubs.
-    for(const wall of this.shellWalls){const toCam=new T.Vector3(cam.position.x-wall.group.position.x,0,cam.position.z-wall.group.position.z).normalize();const stub=wall.normal.dot(toCam)>.2;
+    for(const wall of this.shellWalls){const at=wall.group.parent!.getWorldPosition(new T.Vector3()),toCam=new T.Vector3(cam.position.x-at.x,0,cam.position.z-at.z).normalize();const stub=wall.normal.dot(toCam)>.2;
       wall.group.scale.y=T.MathUtils.lerp(wall.group.scale.y,stub?.01:1,.15);wall.group.visible=wall.group.scale.y>.03;}
     const start=cam.position,end=new T.Vector3(p.x,p.y+.4,p.z),ray=new T.Raycaster(start,end.clone().sub(start).normalize(),0,start.distanceTo(end));const hit=new Set(ray.intersectObjects(this.occluders).map(h=>h.object));
     for(const mesh of this.occluders){const material=mesh.material as T.MeshToonMaterial;material.opacity=T.MathUtils.lerp(material.opacity,hit.has(mesh)?.15:1,.15);material.depthWrite=material.opacity>.8;}
@@ -299,7 +315,7 @@ export class Game {
     const pulling=plug&&this.rope.strain>.7,lean=pulling?-.3*Math.min(1,(this.rope.strain-.7)/.3):amount*.14;const body=this.rig.legs[0].parent!;body.rotation.x+=(lean-body.rotation.x)*ease;
     to(this.rig.legs[0],air?-.5:swing);to(this.rig.legs[1],air?.35:-swing);
     const reach=carrying?-1.45:0,sway=air?-2.3:-swing*.8;
-    to(this.rig.arms[0],carrying?reach:plug?sway*.4:sway,air?-.5:carrying?.18:0);to(this.rig.arms[1],carrying?reach:plug?-1.25:-sway,air?.5:carrying?-.18:0);
+    to(this.rig.arms[0],carrying?reach:plug?sway*.4:sway,air?-.5:carrying?.18:0);const taut=plug&&(this.lunch?.held?this.lunch.held.cable.rope.strain:this.rope.strain)>.85;to(this.rig.arms[1],carrying?reach:taut?2.45:plug?-1.25:-sway,air?.5:carrying?-.18:taut?-.35:0);
   }
   render(dt:number){
     const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);this.avatar.rotation.y=this.heading;const moving=(this.keys.size>0||!!this.stick)&&this.running&&!this.paused;this.squash=T.MathUtils.lerp(this.squash,0,1-Math.exp(-dt*9));
@@ -315,7 +331,7 @@ export class Game {
       const cheer=this.won?Math.abs(Math.sin(clock*9+npc.seed)):0,duck=npc.alarm>0?.72:near?.88:1,breathe=Math.sin(clock*1.3*Math.PI*2+npc.seed)*.025;
       const typing=npc.seated&&!watch?Math.abs(Math.sin(clock*16+npc.seed*3))*.012:0;
       npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
-      const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
+      const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
     if(this.lunch)this.lunch.render(dt);else this.drawCable();this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);
     // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;

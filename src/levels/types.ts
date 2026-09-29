@@ -4,7 +4,7 @@ import type {Accessory,Mood} from '../render/actors';
 import type {StationId} from '../stations/types';
 /** A coworker: seated at a desk in the office unless standing; optional look and facing. */
 export interface NpcSpot {x:number;z:number;standing?:boolean;color?:string;acc?:Accessory[];mood?:Mood;yaw?:number;chef?:boolean}
-export type LevelId='playground'|'meeting'|'lunch'|'vias'|'vias-rush'|'lobby'|'qfn'|'archive'|'waterworks'|'observatory'|'arcade'|'clockwork'|'depot';
+export type LevelId='playground'|'meeting'|'lunch'|'vias'|'vias-rush'|'lobby'|'qfn'|'archive'|'waterworks'|'observatory'|'arcade'|'garage'|'clockwork'|'depot';
 /** name/number/tagline appear only on the intro card; nothing in play needs reading. */
 export interface Level {id:LevelId;name:string;number:string;tagline:string;badge:string;next?:LevelId;deadline?:number;
   /** Where the machine's on/off switch is (E); it only runs once powered and switched on. */

@@ -7,6 +7,7 @@ import {ArchiveDesk} from './archive/station';
 import {Waterworks} from './waterworks/station';
 import {ObservatoryBench} from './observatory/station';
 import {ArcadeBench} from './arcade/station';
+import {GarageBench} from './garage/station';
 import {ClockworkKitchen} from './clockwork/station';
 import {DeliveryDepot} from './depot/station';
 export function makeStation(id:StationId,game:Game):Station{
@@ -17,6 +18,7 @@ export function makeStation(id:StationId,game:Game):Station{
     case 'waterworks':return new Waterworks(game);
     case 'observatory':return new ObservatoryBench(game);
     case 'arcade':return new ArcadeBench(game);
+    case 'garage':return new GarageBench(game);
     case 'clockwork':return new ClockworkKitchen(game);
     case 'depot':return new DeliveryDepot(game);
   }

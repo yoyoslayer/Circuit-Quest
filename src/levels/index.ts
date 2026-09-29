@@ -7,6 +7,7 @@ import {archive} from './archive';
 import {waterworks} from './waterworks';
 import {observatory} from './observatory';
 import {arcade} from './arcade';
+import {garage} from './garage';
 import {clockwork} from './clockwork';
 import {depot} from './depot';
-export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,arcade,clockwork,depot];
+export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,arcade,garage,clockwork,depot];

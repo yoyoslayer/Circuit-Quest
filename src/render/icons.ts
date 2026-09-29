@@ -29,6 +29,7 @@ const symbols:Record<string,string>={
   qfn:`<rect ${F} x="8" y="8" width="16" height="16" rx="2.6"/><rect ${A} x="12.5" y="12.5" width="7" height="7" rx="1.2"/><path d="M12 3.5v3M16 3.5v3M20 3.5v3M12 25.5v3M16 25.5v3M20 25.5v3M3.5 12h3M3.5 16h3M3.5 20h3M25.5 12h3M25.5 16h3M25.5 20h3"/>`,
   kitchenclock:`<circle ${F} cx="16" cy="17" r="11.5"/><path d="M16 10.5v6.5l4.5 3"/><path ${A} d="M4.5 8.5l4.5-4.5M27.5 8.5L23 4"/><circle ${K} cx="16" cy="17" r="1.6"/>`,
   truck:`<path ${A} d="M3.5 8h15.5v14.5H3.5z"/><path ${F} d="M19 12.5h5.2l4.3 5v5H19z"/><path d="M21.5 12.5v5h7"/><circle ${K} cx="9" cy="24.5" r="3"/><circle ${K} cx="23" cy="24.5" r="3"/><path d="M8 13.5h6.5l-2 3.2h3" style="stroke:var(--ink-c,#262A40)"/>`,
+  robot:`<path d="M16 7.5V4.6"/><circle ${A} cx="16" cy="3.6" r="1.9"/><rect ${F} x="7" y="7.5" width="18" height="11" rx="3.5"/><circle ${K} cx="12.5" cy="13" r="1.7"/><circle ${K} cx="19.5" cy="13" r="1.7"/><rect ${A} x="4.5" y="18.5" width="23" height="6.2" rx="2.5"/><circle ${F} cx="10" cy="26.4" r="2.8"/><circle ${F} cx="22" cy="26.4" r="2.8"/>`,
   tray:`<path d="M16 9.6V7.4M13.6 7h4.8"/><path ${A} d="M5 22a11 11 0 0 1 22 0z"/><path d="M3 22.5h26M6 26.5h20"/><path d="M10 17.5a6.5 6.5 0 0 1 3-3.6" style="stroke:var(--ic,#FAF3E3)"/>`,
   projector:`<path d="M23.5 13.5l5.5-3v12l-5.5-3"/><rect ${F} x="3" y="10" width="21" height="13.5" rx="4"/><circle ${A} cx="16.5" cy="16.75" r="3.8"/><path d="M7 14.5h3.5M7 18.5h2"/><path d="M8 27.5l1.5-4M19 27.5l-1.5-4"/>`,
   bolt:`<path ${A} d="M18.5 2.5L6.5 18h8.2l-2.2 11.5L25.5 13.5h-8.3z"/>`,

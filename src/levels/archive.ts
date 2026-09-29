@@ -27,4 +27,4 @@ const npcs:NpcSpot[]=[
   {x:-8.3,z:1.6,standing:true,acc:['glasses','tie'],yaw:0},{x:9.4,z:-4.7,standing:true,acc:['cap'],yaw:-Math.PI/2},
 ];
 export const archive:Level={id:'archive',name:'THE ARCHIVE',number:'05',tagline:'Three work orders. Read the fine print.',badge:'archive',station:'archive',
-  width:22,depth:16,spawn:{x:-6.5,z:5.6},anchor:{x:-10,z:6},target:{x:-2,z:-4.35},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-6.2,z:4.4},anchor:{x:-10,z:6},target:{x:-2,z:-4.35},length:10,obstacles:[],props,npcs};

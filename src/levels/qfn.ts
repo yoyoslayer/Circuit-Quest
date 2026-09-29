@@ -19,4 +19,4 @@ const npcs:NpcSpot[]=[
   {x:6.6,z:5.6,standing:true,acc:['headphones'],yaw:Math.PI},{x:-6.8,z:.6,standing:true,acc:['bun'],yaw:-Math.PI/2,mood:'sleepy'},
 ];
 export const qfn:Level={id:'qfn',name:'FABRICATION BAY',number:'04',tagline:'Slide the parts, draw the tracks, ship three boards.',badge:'qfn',station:'qfn',
-  width:22,depth:16,spawn:{x:-6,z:3.6},anchor:{x:-10,z:6},target:{x:0,z:-.5},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-6.6,z:3.2},anchor:{x:-10,z:6},target:{x:0,z:-.5},length:10,obstacles:[],props,npcs};

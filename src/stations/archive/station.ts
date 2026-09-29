@@ -12,6 +12,7 @@ import {hot,glossyToon} from '../../render/actors';
 import {solid} from '../../levels/decor';
 import {binSpot,CASES,DOCS,GLOSSARY,KIND_LABEL,SLOT_LABEL,check,citeNote,clue,docById,needText,part as partOf,search,tierFor,cheapest,type Case,type Clue,type Doc,type Install,type Param} from './logic';
 import './archive.css';
+import {cheer,walkHint} from '../shared';
 
 const RIG_TIME=3.4;
 const MAKER_COLOR:Record<string,string>={'The Archive':WALNUT,'Brambleworth Passives':'#b0822c','Fenwick Thin Film':'#4f6b8a','Quillon Semiconductor':'#6a4c7a','Ottery Microsystems':'#3f6b5a','Harrowgate Microdevices':'#a44a3f'};
@@ -222,7 +223,7 @@ export class ArchiveDesk implements Station {
       this.drawRig();this.shown='';return;}
     const v=tierFor(k,rig.mpn,this.cites,this.fails);this.served.push({case:k.id,mpn:rig.mpn,tier:v.tier,notes:v.notes});
     this.say(`${k.who}: “${['','It runs, thanks.','Solid work, and I can see why it works.','Perfect: right part, right price, first try.'][v.tier]}” ${TIER_WORD[v.tier]}.${v.notes[0]?` ${v.notes[0]}`:''}`,'ok');
-    a.cheer();a.bell(1319,.5,.05);g.burst({x:this.rigAt.x,y:1.8,z:this.rigAt.z-.4},'#ffcf52',30,'confetti');
+    a.cheer();a.bell(1319,.5,.05);cheer(g,this,'#ffcf52',{x:this.rigAt.x,y:1.8,z:this.rigAt.z-.4});
     this.caseIdx++;this.cites={};this.evidence=[];this.selected=undefined;this.requested=undefined;this.fails=0;this.lightBins();this.drawRig();this.shown='';
   }
   update(dt:number){
@@ -329,17 +330,17 @@ export class ArchiveDesk implements Station {
       if(held?.spec.id==='orders'&&Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<2.4)return {key:'E',text:'Set the work orders on the desk'};
       const hb=held&&this.boxOf(held);
       if(hb){const near=Math.hypot(p.x-this.rigAt.x,p.z-this.rigAt.z)<2.1;return {key:'E',text:near?`Set ${hb.mpn} in the test rig`:hb.mpn===this.requested?'Carry it to the test rig (left of the desk)':`${hb.mpn} is not on the work order · E puts it down`};}
-      if(this.rig)return {key:'…',text:`The rig is testing ${this.rig.mpn}`};
+      if(this.rig)return {key:'⏳',text:`The rig is testing ${this.rig.mpn}: watch its lamp`};
       if(!held&&Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.trayReady?{key:'E',text:'Sit at the datasheet desk'}:{key:'E',text:'Sit at the desk (the work orders are still at the post desk)'};
       const near=!held?g.nearest():undefined,nb=near&&this.boxOf(near);
       if(nb)return {key:'E',text:nb.mpn===this.requested?`Pick up ${nb.mpn} (bin ${partOf(nb.mpn)!.bin})`:`Pick up ${nb.mpn} (not requested)`};
       if(near?.spec.id==='orders')return {key:'E',text:'Pick up the work-order tray'};
-      return null;}
+      return walkHint(g,this.trayReady?'Walk to the datasheet desk (yellow arrow)':'Fetch the work-order tray from the post desk (yellow arrow)');}
     if(!this.trayReady)return {key:'E',text:'Stand up and fetch the work-order tray from the post desk'};
     if(this.rig)return {key:'E',text:'The rig is testing: stand up to watch'};
     if(this.requested)return {key:'E',text:`Stand up and fetch ${this.requested} from lit bin ${partOf(this.requested)!.bin}`};
-    if(!this.screenOpen)return {key:'M',text:'Open the terminal (or click the monitor)'};
-    if(!this.cites.mpn)return {key:'Drag',text:'Find the right part and drag its part number onto the work order'};
+    if(!this.screenOpen)return {key:'M',text:'The terminal is hidden: press M (or click the monitor) to open it again'};
+    if(!this.cites.mpn)return {key:'/',text:'Search (/) for the right part, then drag its part number onto the work order'};
     return {key:'Enter',text:'Request the part (fill every slot for a reliable grade)'};
   }
   complete(){return this.served.length>=CASES.length;}

@@ -15,6 +15,7 @@ import {hot} from '../../render/actors';
 import {NETS,KNOBS,WHEELS,SCALE,COST,blankRecord,bestCost,clampKnob,compare,checkAnswer,readDevice,solveWith,tier,fmt,
   type Carts,type Comparison,type Device,type Knob,type Load,type Net,type NetRecord,type Pt,type Reading} from './logic';
 import './waterworks.css';
+import {cheer,walkHint} from '../shared';
 
 const BRASS='#d9a441',COPPER='#c9773f',NAVY='#2c3e66',AQUA='#43b8c4',CREAM='#fbf3e2',WATER='#5fd0e0';
 /** The bench sits a little left of the camera's centre (the order panel is on the right). */
@@ -26,7 +27,7 @@ const DECK=1.0,PORTS={x:1.16,z:-.1};
 const grid=(p:Pt)=>new T.Vector3(-.8+p[0]*.2,.15+p[1]*.25,.07);
 const LOAD_NAMES:{[k:string]:string}={open:'Shut valve',short:'Bypass hose',2:'Wheel 2',6:'Wheel 6',12:'Wheel 12'};
 const loadName=(l?:Load)=>l===undefined?'nothing fitted':LOAD_NAMES[String(l)];
-const KNOB_NAMES:{[k in Knob]:string}={pP:'the pressure cart\'s pump pressure',pR:'the pressure cart\'s series restriction',fQ:'the flow cart\'s pump flow',fR:'the flow cart\'s bypass restriction',eV:'V_th (volts)',eR:'R_th (ohms)',eI:'I_N (milliamps)'};
+const KNOB_NAMES:{[k in Knob]:string}={pP:'the pressure cart\'s pump pressure',pR:'the pressure cart\'s series restriction',fQ:'the flow cart\'s pump flow',fR:'the flow cart\'s bypass restriction',eV:'V<sub>th</sub> (volts)',eR:'R<sub>th</sub> (ohms)',eI:'I<sub>N</sub> (milliamps)'};
 const LOAD_HINTS:{[k:string]:string}={open:'Shut valve: closes the ports, so the gauge reads the open-port pressure',short:'Bypass hose: joins A to B, so the meter reads the short-port flow',2:'Wheel 2: a light load (restriction 2)',6:'Wheel 6: a medium load (restriction 6)',12:'Wheel 12: a heavy load (restriction 12)'};
 const DEVICE_NAMES:{[d in Device]:string}={net:'Hidden network',pcart:'Pressure cart',fcart:'Flow cart'};
 const UP=new T.Vector3(0,1,0);
@@ -37,10 +38,21 @@ const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-
 function label(text:string,bg=CREAM,fg=INK,w=256,h=80){
   return canvasTex(w,h,c=>{drawPlate(c,text,bg,fg,w,h);});
 }
+/** V_th, R_th and I_N as written in the rules become a letter with a small lowered subscript. */
+const SUB=/([VRI])_(th|N)/g;
+function runs(text:string){const out:{t:string;sub:boolean}[]=[];let at=0;for(const m of text.matchAll(SUB)){out.push({t:text.slice(at,m.index)+m[1],sub:false},{t:m[2],sub:true});at=m.index!+m[0].length;}out.push({t:text.slice(at),sub:false});return out;}
+function richWidth(c:CanvasRenderingContext2D,text:string,size:number){return runs(text).reduce((n,r)=>{c.font=FONT(r.sub?Math.round(size*.62):size);return n+c.measureText(r.t).width;},0);}
+/** Draws centred text, subscripts included. */
+function richText(c:CanvasRenderingContext2D,text:string,cx:number,cy:number,size:number){
+  let x=cx-richWidth(c,text,size)/2;c.textAlign='left';c.textBaseline='middle';
+  for(const r of runs(text)){const n=r.sub?Math.round(size*.62):size;c.font=FONT(n);c.fillText(r.t,x,cy+(r.sub?size*.28:0));x+=c.measureText(r.t).width;}
+}
+/** HTML for panels, toasts and prompts: escaped, with V<sub>th</sub>, R<sub>th</sub>, I<sub>N</sub>. */
+const html=(text:string)=>text.replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]!)).replace(SUB,'$1<sub>$2</sub>');
 function drawPlate(c:CanvasRenderingContext2D,text:string,bg:string,fg:string,w:number,h:number){
   c.clearRect(0,0,w,h);c.fillStyle=bg;c.beginPath();c.roundRect(4,4,w-8,h-8,Math.min(18,h*.25));c.fill();c.lineWidth=6;c.strokeStyle=fg;c.stroke();
-  let size=Math.round(h*.46);c.font=FONT(size);while(size>10&&c.measureText(text).width>w-30){size--;c.font=FONT(size);}
-  c.fillStyle=fg;c.textAlign='center';c.textBaseline='middle';c.fillText(text,w/2,h/2+2);
+  let size=Math.round(h*.5);while(size>10&&richWidth(c,text,size)>w-30)size--;
+  c.fillStyle=fg;richText(c,text,w/2,h/2+2,size);
 }
 const labels=new Map<string,T.Texture>();
 const cachedLabel=(text:string,bg=CREAM,fg=INK,w=256,h=80)=>{const k=`${text}|${bg}|${fg}|${w}|${h}`;let t=labels.get(k);if(!t){t=label(text,bg,fg,w,h);labels.set(k,t);}return t;};
@@ -105,7 +117,7 @@ interface KnobView {id:Knob;dial:T.Object3D;plate:T.Mesh;name:string}
 interface Bubble {mesh:T.Mesh;part:number;t:number;pts:T.Vector3[];len:number}
 
 export class Waterworks implements Station {
-  readonly view={distance:9,pitch:.95,lookY:.58};
+  readonly view={distance:7.2,pitch:1.02,lookY:.74};
   readonly limits={time:540,damage:1,cost:Math.ceil(NETS.length*bestCost()*1.25)};
   readonly table=new T.Vector3(0,1,-2.7);readonly stand={x:0,z:-1.5};readonly facing=Math.PI;
   index=0;device:Device='net';load?:Load;wheelsReady=false;active=false;revealed=false;mistakes=0;spent=0;
@@ -212,27 +224,27 @@ export class Waterworks implements Station {
     part(g,cyl(.085,.085,.02,24,'z'),toon(INK),0,.02,.01);
     const dial=group(g,0,.02,.03);part(dial,cyl(.07,.076,.05,24,'z'),toon(CREAM),0,0,0);part(dial,box(.016,.055,.012),toon('#e5484d'),0,.04,.027);
     for(const [dx,delta,col] of [[-.15,-1,'#e5484d'],[.15,1,'#4fbf7f']] as const){const btn=part(g,box(.075,.075,.035),toon(col),dx,.02,.02);sign(btn,delta<0?'−':'+',0,0,.019,.065,0,col,CREAM,.065);this.click(btn,'nudge',[id,delta]);}
-    const plate=part(g,new T.PlaneGeometry(.44,.1),flatMat(cachedLabel('')),0,-.1,.02,false);plate.userData.noAO=true;
+    const plate=part(g,new T.PlaneGeometry(.5,.13),flatMat(cachedLabel('')),0,-.115,.02,false);plate.userData.noAO=true;
     this.knobs.push({id,dial,plate,name});this.click(dial,'knob',id);
   }
   private buildFrontRow(){
     const r=this.frontRow,z=.4;
     const loads:Load[]=['open','short',...WHEELS],short:{[k:string]:string}={open:'VALVE',short:'HOSE',2:'WHEEL 2',6:'WHEEL 6',12:'WHEEL 12'};
     loads.forEach((l,k)=>{const x=-1.26+k*.3,tok=group(r,x,0,z);part(tok,cyl(.115,.125,.035,22),toon('#e8dcc4'),0,.018,0);const m=this.loadModel(l);m.position.y=.16;m.scale.setScalar(.85);tok.add(m);
-      this.click(tok,'load',l);this.loadTokens.push(tok);sign(r,short[String(l)],x,.012,z+.19,.28,-1.2);});
+      this.click(tok,'load',l);this.loadTokens.push(tok);sign(r,short[String(l)],x,.05,z+.2,.29,-.85,CREAM,INK,.12);});
     // What's on the ports: three lever valves.
     (['net','pcart','fcart'] as Device[]).forEach((d,k)=>{const x=.24+k*.27,v=group(r,x,0,z);part(v,cyl(.075,.09,.05,18),toon(DMETAL),0,.025,0);const lever=group(v,0,.05,0);part(lever,cyl(.017,.017,.2,8),toon(INK),0,.1,0);part(lever,sphere(.048,12,10),toon(d==='net'?BRASS:d==='pcart'?NAVY:AQUA),0,.21,0);
-      this.selectors.push(lever);this.click(v,'device',d);sign(r,d==='net'?'NETWORK':d==='pcart'?'P-CART':'F-CART',x,.012,z+.19,.26,-1.2);});
+      this.selectors.push(lever);this.click(v,'device',d);sign(r,d==='net'?'NETWORK':d==='pcart'?'P-CART':'F-CART',x,.05,z+.2,.265,-.85,CREAM,INK,.12);});
     const cmp=group(r,1.1,0,z-.02);part(cmp,cyl(.17,.19,.07,24),toon(INK),0,.035,0);part(cmp,cyl(.14,.15,.07,24),toon('#ffc629'),0,.095,0);this.compareBtn=cmp;this.click(cmp,'compare');
-    sign(r,'COMPARE',1.1,.012,z+.2,.36,-1.2,'#ffc629');
+    sign(r,'COMPARE',1.1,.05,z+.22,.38,-.85,'#ffc629',INK,.12);
   }
   /** Electrical console: rises in the front middle when the glass clears. */
   private buildConsole(){
     const c=this.console,deck=group(c,-.25,.05,.36);deck.rotation.x=-DECK;
     part(deck,rbox(2.1,.03,.46,.06),toon(NAVY),0,.2,-.015).rotation.x=Math.PI/2;
         this.knob(deck,'eV',-.68,.17,'V_th');this.knob(deck,'eR',0,.17,'R_th');this.knob(deck,'eI',.68,.17,'I_N');
-    const check=group(c,1.08,0,.38);part(check,cyl(.17,.19,.07,24),toon(INK),0,.035,0);part(check,cyl(.14,.15,.07,24),toon('#4fbf7f'),0,.095,0);this.click(check,'check');
-    sign(c,'CHECK',1.08,.012,.6,.36,-1.2,'#4fbf7f',CREAM);
+    const check=group(c,1.08,0,.28);part(check,cyl(.17,.19,.07,24),toon(INK),0,.035,0);part(check,cyl(.14,.15,.07,24),toon('#4fbf7f'),0,.095,0);this.click(check,'check');
+    sign(c,'CHECK',1.08,.05,.58,.38,-.85,'#4fbf7f',CREAM,.12);
     c.visible=false;
   }
   /** Small models for loads: a shut valve, a U-hose, and wheels sized by restriction. */
@@ -297,14 +309,14 @@ export class Waterworks implements Station {
       case 'compare':{const rec=this.record();rec.tries++;this.spent+=COST.compare;const c=compare(net,this.carts);this.lastCompare=c;
         if(c.pOk&&c.fOk){rec.matchedAfter=rec.measured.length;const tr=tier(rec);this.revealT=1;this.revealed=true;this.device='net';
           this.say(`Both carts match under every wheel. ${['','Works','Works reliably','Elegant: two readings did it'][tr]}. The glass clears: here is the same network as a circuit.`,'ok');
-          a.bell(1175,.5,.05);a.jingle();this.game.burst(this.table.clone().add(new T.Vector3(OX+CASE.x,.9,CASE.z-.3)),'#9ff3ea',24,'confetti');}
+          a.bell(1175,.5,.05);a.jingle();cheer(this.game,this,'#9ff3ea');}
         else{this.say(c.problems.slice(0,1).join(' '),'bad');a.tone(170,.25,.06,'square');}
         break;}
       case 'check':{const rec=this.record();rec.elecTries++;const v=checkAnswer(net,{v:this.answer.eV,r:this.answer.eR,mA:this.answer.eI});
         if(!v.ok){this.mistakes++;this.say(v.problems[0],'bad');a.tone(150,.3,.06,'square');this.game.alarm({x:this.table.x,z:this.table.z-1.2},2);break;}
         rec.elecOk=true;const tr=tier(rec);this.served.push({net:net.id,tier:tr,elecFirst:rec.elecTries===1});
         this.say(`Right: V_th ${fmt(this.answer.eV)} V behind R_th ${ohms(this.answer.eR)}, or I_N ${fmt(this.answer.eI)} mA across the same R_th. Same equivalent the carts found.`,'ok');
-        a.cheer();a.bell(1319,.5,.05);this.game.burst(this.table.clone().add(new T.Vector3(OX,1,0)),'#ffcf52',30,'confetti');
+        a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffcf52');
         this.nextAt=this.game.time+1.2;break;}
       default:return false;
     }
@@ -328,7 +340,7 @@ export class Waterworks implements Station {
   // ---------- drawing ----------
   private redraw(){
     for(const k of this.knobs){const s=KNOBS[k.id],v=this.knobValue(k.id);k.dial.rotation.z=-((v-s.min)/(s.max-s.min)-.5)*Math.PI*1.5;
-      (k.plate.material as T.MeshBasicMaterial).map=cachedLabel(`${k.name}  ${k.id==='eR'?ohms(v):`${fmt(v)}${s.unit?' '+s.unit:''}`}`,CREAM,INK,256,64);}
+      (k.plate.material as T.MeshBasicMaterial).map=cachedLabel(`${k.name}  ${k.id==='eR'?ohms(v):`${fmt(v)}${s.unit?' '+s.unit:''}`}`,CREAM,INK,320,83);}
     this.selectors.forEach((l,k)=>{const on=(['net','pcart','fcart'] as Device[])[k]===this.device;l.rotation.z=on?0:.7;l.position.y=on?.06:.05;});
     this.loadTokens.forEach((t,k)=>{const on=(['open','short',...WHEELS] as Load[])[k]===this.load;t.position.y=on?.03:0;t.visible=this.wheelsReady;});
     for(const h of this.hoses)for(const m of h.mesh)m.material=toon(h.d===this.device?WATER:COPPER);
@@ -402,7 +414,7 @@ export class Waterworks implements Station {
   // ---------- panels ----------
   private say(text:string,tone:'ok'|'bad'|'info'='info'){
     if(!this.toast){this.toast=document.createElement('div');this.toast.className='station-toast';this.layer()?.append(this.toast);}
-    this.toast.textContent=text;this.toast.dataset.tone=tone;this.toast.hidden=false;this.toastUntil=this.game.time+Math.max(4,text.length*.06);
+    this.toast.innerHTML=html(text);this.toast.dataset.tone=tone;this.toast.hidden=false;this.toastUntil=this.game.time+Math.max(4,text.length*.06);
   }
   private layer(){return document.querySelector<HTMLElement>('[data-layer="hud"]');}
   private updatePanel(){
@@ -415,7 +427,7 @@ export class Waterworks implements Station {
     const head=`<header><small>NETWORK ${this.index+1}/${NETS.length} · ${net.name.toUpperCase()}</small>`;
     if(this.revealed&&!this.pipes.visible){
       this.panel.innerHTML=`${head}<h4>Name it in electronics</h4><p>The case shows the same network as a circuit. Set the console: the source and resistor a load would see (Thevenin), and the matching Norton current.</p></header>`+
-        (this.active?`<ul class="build">${row('V_th',`${fmt(this.answer.eV)} V`)}${row('R_th',ohms(this.answer.eR))}${row('I_N',`${fmt(this.answer.eI)} mA`)}${row('V_th / R_th',`${fmt(this.answer.eV/this.answer.eR*1000)} mA`)}</ul>`+
+        (this.active?`<ul class="build">${row(html('V_th'),`${fmt(this.answer.eV)} V`)}${row(html('R_th'),ohms(this.answer.eR))}${row(html('I_N'),`${fmt(this.answer.eI)} mA`)}${row(html('V_th ÷ R_th'),`${fmt(this.answer.eV/this.answer.eR*1000)} mA`)}</ul>`+
         `<p class="profile">Scale used here: 1 kPa → 1 V, 1 restriction unit → 100 Ω, 1 L/min → 10 mA. Your carts read ${fmt(this.carts.pP)} kPa behind ${fmt(this.carts.pR)}, and ${fmt(this.carts.fQ)} L/min across ${fmt(this.carts.fR)}.</p>`:'');
       return;}
     const log=rec.measured.map(l=>{const x=readDevice(net,this.carts,'net',l);return `<tr><td>${loadName(l)}</td><td>${fmt(x.p)}</td><td>${fmt(x.q)}</td></tr>`;}).join('');
@@ -431,12 +443,12 @@ export class Waterworks implements Station {
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;
     switch(h.act){
-      case 'load':return {key:'Click',text:LOAD_HINTS[String(h.arg)]};
-      case 'device':return {key:'Click',text:`Put the ${DEVICE_NAMES[h.arg as Device].toLowerCase()} on the ports`};
-      case 'knob':return {key:'Drag',text:`Drag sideways to set ${KNOB_NAMES[h.arg as Knob]}`};
-      case 'nudge':{const [k,d]=h.arg as [Knob,number];return {key:'Click',text:`${d>0?'Raise':'Lower'} ${KNOB_NAMES[k]} one step`};}
+      case 'load':return {key:String((['open','short',...WHEELS] as Load[]).indexOf(h.arg as Load)+1),text:`Click to fit it. ${LOAD_HINTS[String(h.arg)]}`};
+      case 'device':return {key:h.arg==='net'?'N':h.arg==='pcart'?'P':'F',text:`Click to put the ${DEVICE_NAMES[h.arg as Device].toLowerCase()} on the ports`};
+      case 'knob':return {key:'←→',text:`Drag sideways (or press ← →) to set ${KNOB_NAMES[h.arg as Knob]}`};
+      case 'nudge':{const [k,d]=h.arg as [Knob,number];return {key:d>0?'→':'←',text:`Click to ${d>0?'raise':'lower'} ${KNOB_NAMES[k]} one step`};}
       case 'compare':return {key:'C',text:'COMPARE: run all three wheels on the network and on both carts'};
-      case 'check':return {key:'Enter',text:'CHECK your V_th, R_th and I_N'};
+      case 'check':return {key:'Enter',text:html('CHECK your V_th, R_th and I_N')};
     }
     return null;
   }
@@ -445,12 +457,13 @@ export class Waterworks implements Station {
     if(atBench&&this.wheelsReady){const h=this.hoverHint();if(h)return h;}
     if(!atBench){const p=this.game.player.translation(),park=this.parkAt();
       if(this.game.held?.spec.id==='wheels'&&(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<2.4||Math.hypot(p.x-park.x,p.z-park.z)<2.4))return {key:'E',text:'Park the load-wheel cart by the bench'};
-      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.wheelsReady?{key:'E',text:'Work at the test bench'}:{key:'E',text:'Work at the bench (the load wheels are still in the store)'};return null;}
+      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.wheelsReady?{key:'E',text:'Work at the test bench'}:{key:'E',text:'Work at the bench (the load wheels are still in the store)'};
+      return walkHint(this.game,this.wheelsReady?'Walk to the test bench (yellow arrow)':'Fetch the load-wheel cart from the store (yellow arrow)');}
     if(!this.wheelsReady)return {key:'E',text:'Step back and fetch the load-wheel cart from the store'};
-    if(this.revealed)return {key:'Enter',text:'Set V_th, R_th and I_N (drag a knob or − / +), then CHECK'};
+    if(this.revealed)return {key:'Enter',text:html('Set V_th, R_th and I_N (drag a knob or − / +), then CHECK')};
     const rec=this.record();
-    if(!rec.measured.length)return {key:'Click',text:'Fit a load to the ports (shut valve, hose or a wheel) and read the gauges'};
-    if(rec.measured.length<2)return {key:'Click',text:'Take one more reading: the shut valve plus one wheel is enough'};
+    if(!rec.measured.length)return {key:'1–5',text:'Click a load to fit it to the ports (shut valve, hose or a wheel) and read the gauges'};
+    if(rec.measured.length<2)return {key:'1–5',text:'Take one more reading: the shut valve plus one wheel is enough'};
     return {key:'C',text:'Tune both carts (drag a knob or − / +), try them on the ports, then COMPARE'};
   }
   complete(){return this.served.length>=NETS.length;}

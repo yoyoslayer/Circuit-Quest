@@ -70,9 +70,9 @@ export class Lobby {
     part(f,box(1.7,2.3,.04),toon('#262A40'),0,1.15,-.06,false);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
     const leaf=group(f,-.84,0,0);part(leaf,rbox(1.66,2.26,.08,.03),glossyToon('#fffaf0',{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.07);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.1);
     signPlate(leaf,level.number,.83,1.55,.085,.7,{bg:color,h:80,w:160});
-    signPlate(f,title(level),0,2.95,.03,2.1,{bg:'#fffaf0'});
+    signPlate(f,title(level),0,2.56,.16,1.95,{bg:'#fffaf0'});
     if(locked){signPlate(leaf,'LOCKED',.83,.95,.085,.9,{bg:'#262A40',fg:'#fffaf0',w:200,h:64});part(leaf,rbox(.3,.26,.08,.05),toon('#ffc629'),.83,1.2,.1);}
-    if(best)signPlate(f,best.grade,.95,2.2,.16,.34,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});
+    if(best)signPlate(f,best.grade,1.08,2.12,.18,.34,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});
     // The wing lamp: dark until the job is done.
     const lamp=part(f,sphere(.13,14,10),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),0,3.35,.12,false);part(f,cyl(.05,.07,.12,10),toon(DMETAL),0,3.5,.1,false);
     if(done){const w=f.getWorldPosition(new T.Vector3());glow(g.root,'rgba(255,220,140,1)',1.4,.35).position.set(w.x,3.35,w.z+(s.wall==='back'?.4:0));}

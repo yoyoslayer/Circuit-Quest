@@ -259,7 +259,7 @@ export class ViaCounter implements Station {
     if(this.rush){for(const l of this.leaving)if(l.t>4.5){l.g.visible=true;l.g.position.set(this.table.x+8,0,this.table.z-2.1);}this.leaving=this.leaving.filter(l=>l.t<=4.5);
       // Patience only runs while a customer is at the window and the counter is stocked.
       if(this.blanksReady&&this.current()){this.patience-=dt;if(this.patience<=0){const o=this.current()!;this.misses++;this.say(`${o.customer} gave up waiting.`,'bad');this.game.audio.voice('groan',.9);this.sendOff(this.order);this.order++;this.build=blank();this.press=0;this.pressTarget=0;this.placeQueue();this.redraw();}}}
-    const cur=this.customer(this.order);if(cur&&this.bubble.visible)this.bubble.position.set(cur.group.position.x+.75,2.05+Math.sin(this.game.last*.004)*.05,cur.group.position.z);
+    const cur=this.customer(this.order);if(cur&&this.bubble.visible)this.bubble.position.set(cur.group.position.x+1.35,1.85+Math.sin(this.game.last*.004)*.05,cur.group.position.z);
     this.updatePanel();
   }
   private redrawBoardOnly(){this.redraw();}

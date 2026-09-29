@@ -29,14 +29,14 @@ function buildBlob(color:string,mood:Mood,acc:Accessory[]):T.BufferGeometry{
   const parts:{g:T.BufferGeometry;c:string;m:T.Matrix4}[]=[];
   const add=(g:T.BufferGeometry,c:string,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{parts.push({g,c,m:new T.Matrix4().compose(new T.Vector3(x,y,z),new T.Quaternion().setFromEuler(new T.Euler(rx,ry,rz)),new T.Vector3(sx,sy,sz))});};
   const dark=shadeHex(color,-.12),alarm=mood==='alarm';
-  add(new T.CapsuleGeometry(.33,.35,8,20),color,0,.55,0,0,0,0,1,1,.96);
+  add(new T.CapsuleGeometry(.33,.35,12,36),color,0,.55,0,0,0,0,1,1,.96);
   for(const s of [-1,1]){
-    add(new T.SphereGeometry(alarm?.105:.088,14,10),'#ffffff',s*.105,.8,.285);
-    add(new T.SphereGeometry(alarm?.03:.045,10,8),INK,s*.105,.8,.365);
+    add(new T.SphereGeometry(alarm?.105:.088,24,16),'#ffffff',s*.105,.8,.285);
+    add(new T.SphereGeometry(alarm?.03:.045,16,12),INK,s*.105,.8,.365);
     add(new T.SphereGeometry(.015,6,4),'#ffffff',s*.105+.02,.82,.405);
     if(mood==='sleepy')add(new T.SphereGeometry(.094,14,8,0,Math.PI*2,0,Math.PI/2),color,s*.105,.8,.29,.35,0,0,1.06,1.06,1.06);
     add(new T.SphereGeometry(.05,10,6),'#ff9fb4',s*.2,.68,.265,0,0,0,1,.6,.35);
-    add(new T.CapsuleGeometry(.07,.14,4,10),color,s*.35,.44,.02,0,0,s*(alarm?-2.3:.35));
+    add(new T.CapsuleGeometry(.07,.14,6,16),color,s*.35,.44,.02,0,0,s*(alarm?-2.3:.35));
   }
   if(mood==='happy'||mood==='calm'){const k=mood==='happy'?1:.7;add(new T.TorusGeometry(.055,.014,6,14,Math.PI),INK,0,.7,.318,0,0,Math.PI,k,mood==='happy'?1:.6,1);}
   if(alarm)add(new T.TorusGeometry(.035,.014,6,14),INK,0,.67,.325,0,0,0,1,1.3,1);

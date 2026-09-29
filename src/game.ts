@@ -3,7 +3,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon} from './render/toon';
 import {BLOBC,bangTexture,freeze,glyph,cachedTexture,part,cyl,sphere} from './render/kit';
-import {blob,hoseGeometry,hoseMaterial,Pulses,type Accessory,type Mood} from './render/actors';
+import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type Mood} from './render/actors';
 const GOLD=new T.Color('#ffd451');
 /** Samples a rope polyline for drawing: it lies on the floor (sagging a little when slack) and
  *  only rises over the last metre to the end point (a hand or a socket). */
@@ -25,6 +25,7 @@ import {Circuit} from './sim/electrical';
 import {grade} from './sim/grade';
 import type {Level,NpcSpot} from './levels/types';
 import {LunchRuntime} from './lunch-runtime';
+import {PipRig} from './render/pipRig';
 import {Particles,type Fx} from './render/particles';
 import {decorate,solid,type Decor} from './levels/decor';
 import {levels} from './levels';
@@ -38,7 +39,7 @@ interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];hat?:T.Group;hatTilt=new T.Vector2();hatVel=new T.Vector2();lastVel=new T.Vector2();twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];lastHeading=0;twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:PipRig;stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
@@ -127,10 +128,9 @@ export class Game {
     const head=new T.Mesh(new T.SphereGeometry(.3,16,10),toon('#eab387'));head.position.y=1.43;this.avatar.add(head);
     const hat=new T.Mesh(new T.SphereGeometry(.33,16,8,0,Math.PI*2,0,Math.PI/2),toon('#ffc44b'));hat.position.y=1.52;this.avatar.add(hat);
     this.root.add(this.avatar);
-    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=toon('#'+old.color.getHexString());o.castShadow=true;}});this.avatar.add(gltf.scene);
-      // Limbs are separate nodes (tools/create_assets.py); hang them on hip and shoulder pivots to animate.
-      const pivot=(x:number,y:number,names:string[])=>{const g=new T.Group();g.position.set(x,y,0);gltf.scene.add(g);gltf.scene.updateMatrixWorld(true);for(const n of names){const o=gltf.scene.getObjectByName(n);if(o)g.attach(o);}return g;};
-      this.rig={legs:[pivot(-.17,.62,['LegL','BootL']),pivot(.17,.62,['LegR','BootR'])],arms:[pivot(-.39,1.12,['ArmL','GloveL']),pivot(.39,1.12,['ArmR','GloveR'])]};this.hand.position.set(.03,-.5,.04);this.rig.arms[1].add(this.hand);this.hat=pivot(0,1.5,['Helmet','Helmet_brim']);},undefined,()=>{document.body.dataset.assetFallback='true';});
+    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=/lens/i.test(old.name)?hot('#fff0b8',2):/hat|gloves|boots/i.test(old.name)?glossyToon('#'+old.color.getHexString(),{spec:.6,size:.975}):toon('#'+old.color.getHexString());o.castShadow=true;o.receiveShadow=true;}});this.avatar.add(gltf.scene);
+      // Parts are grouped by name prefix onto pivots (src/render/pipRig.ts).
+      this.rig=new PipRig(gltf.scene);this.hand=this.rig.hand;},undefined,()=>{document.body.dataset.assetFallback='true';});
   }
   /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
   setupUI(){setupGameUI(this);}
@@ -333,24 +333,17 @@ export class Game {
   winFocus(){const l=this.level;return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
+  /** Feeds Pip's rig (src/render/pipRig.ts) with movement, poses and what to glance at. */
   animateRig(dt:number){
-    if(!this.rig)return;const p=this.player.translation(),speed=dt>0?Math.hypot(p.x-this.lastPos.x,p.z-this.lastPos.z)/dt:0;this.lastPos.set(p.x,p.y,p.z);
-    const amount=Math.min(1,speed/4),carrying=!!this.held,plug=this.holdingPlug,air=!this.grounded&&this.airborne>.08;const lastStride=this.stride;this.stride+=dt*speed*2.1;if(this.grounded&&speed>1&&Math.floor(lastStride/Math.PI)!==Math.floor(this.stride/Math.PI))this.audio.step();
-    const swing=Math.sin(this.stride)*.75*amount,ease=1-Math.exp(-dt*14),to=(g:T.Group,x:number,z=0)=>{g.rotation.x+=(x-g.rotation.x)*ease;g.rotation.z+=(z-g.rotation.z)*ease;};
-    // Lean into a run; lean back hauling a taut cable.
-    const pulling=plug&&this.rope.strain>.7,lean=pulling?-.3*Math.min(1,(this.rope.strain-.7)/.3):amount*.14;const body=this.rig.legs[0].parent!;body.rotation.x+=(lean-body.rotation.x)*ease;
-    to(this.rig.legs[0],air?-.5:swing);to(this.rig.legs[1],air?.35:-swing);
-    const reach=carrying?-1.45:0,sway=air?-2.3:-swing*.8;
-    to(this.rig.arms[0],carrying?reach:plug?sway*.4:sway,air?-.5:carrying?.18:0);const taut=plug&&(this.lunch?.held?this.lunch.held.cable.rope.strain:this.rope.strain)>.85;to(this.rig.arms[1],carrying?reach:taut?2.45:plug?-1.25:-sway,air?.5:carrying?-.18:taut?-.35:0);
-    // The hard hat sits on a spring: it tips against acceleration and wobbles back.
-    if(this.hat&&dt>0){const vx=Math.sin(this.heading)*speed,vz=Math.cos(this.heading)*speed,ax=(vx-this.lastVel.x)/dt,az=(vz-this.lastVel.y)/dt;this.lastVel.set(vx,vz);
-      const fwd=Math.sin(this.heading)*ax+Math.cos(this.heading)*az,side=Math.cos(this.heading)*ax-Math.sin(this.heading)*az,kick=this.squash*6;
-      this.hatVel.x+=(-120*this.hatTilt.x-10*this.hatVel.x-fwd*.08-kick)*dt;this.hatVel.y+=(-120*this.hatTilt.y-10*this.hatVel.y+side*.08)*dt;this.hatTilt.addScaledVector(this.hatVel,dt);
-      this.hatTilt.clampScalar(-.35,.35);this.hat.rotation.set(this.hatTilt.x,0,this.hatTilt.y);}
-    // Win: face the camera and cheer with both arms up; title: face the camera and wave.
+    if(!this.rig)return;const p=this.player.translation(),speed=dt>0?Math.min(9,Math.hypot(p.x-this.lastPos.x,p.z-this.lastPos.z)/dt):0;this.lastPos.set(p.x,p.y,p.z);
+    const lastStride=this.stride;this.stride+=dt*speed*2.2;if(this.grounded&&speed>1&&Math.floor(lastStride/Math.PI)!==Math.floor(this.stride/Math.PI))this.audio.step();
+    const turn=dt>0?Math.atan2(Math.sin(this.heading-this.lastHeading),Math.cos(this.heading-this.lastHeading))/dt:0;this.lastHeading=this.heading;
     const titling=!this.running&&document.body.dataset.screen==='title';
-    if(this.won||titling){this.heading+=Math.atan2(Math.sin(this.yaw-this.heading),Math.cos(this.yaw-this.heading))*Math.min(1,dt*6);const wave=Math.sin(this.last*.012);
-      if(this.won){to(this.rig.arms[0],-2.9+wave*.15,-.35);to(this.rig.arms[1],-2.9-wave*.15,.35);}else{to(this.rig.arms[1],-2.7,.5+wave*.35);to(this.rig.arms[0],0,0);}}
+    if(this.won||titling)this.heading+=Math.atan2(Math.sin(this.yaw-this.heading),Math.cos(this.yaw-this.heading))*Math.min(1,dt*6);
+    const held=this.held?prefabs[this.held.spec.kind].mass>=15?'heavy':'light':'none',lunchHeld=this.lunch?.held;
+    const near=this.running&&!this.won&&!this.held&&!this.holdingPlug?this.nearest():undefined;
+    this.rig.update({dt,time:this.last/1000,speed,grounded:this.grounded,rising:this.vertical>0,airborne:this.airborne,turnRate:turn,carrying:held,holdingPlug:this.holdingPlug,
+      strain:lunchHeld?lunchHeld.cable.rope.strain:this.rope.strain,won:this.won,waving:titling,lookAt:near?new T.Vector3().copy(near.body.translation()):undefined});
   }
   render(dt:number){
     const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);this.avatar.rotation.y=this.heading;const moving=(this.keys.size>0||!!this.stick)&&this.running&&!this.paused;this.squash=T.MathUtils.lerp(this.squash,0,1-Math.exp(-dt*9));
@@ -416,5 +409,5 @@ export class Game {
     };
     return {advance,walkTo};
   }
-  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),alarmed:this.npcs.filter(n=>n.alarm>0).length,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
+  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),alarmed:this.npcs.filter(n=>n.alarm>0).length,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
 }

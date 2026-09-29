@@ -2,6 +2,7 @@
 // copy of a prop shares buffers and can be drawn as one instanced mesh.
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {INK,toon,type ToonOptions} from './toon';
 export {INK,toon};
 export const METAL='#9aa3b2',DMETAL='#6b7385',WOOD='#b98552',TRIM='#a8734a';
@@ -10,21 +11,24 @@ export const BLOBC=['#b392f0','#6cc58a','#5b9cf0','#f08a4b','#f78fd0','#ffc94d',
 
 const geometries=new Map<string,T.BufferGeometry>();
 export function cached<G extends T.BufferGeometry>(key:string,make:()=>G):G{let g=geometries.get(key) as G|undefined;if(!g){g=make();geometries.set(key,g);}return g;}
+/** Rounded-corner slab with softly bevelled top and bottom edges (higher-poly look). */
 export function rbox(w:number,h:number,d:number,r=.08):T.BufferGeometry{
   return cached(`rbox:${w}:${h}:${d}:${r}`,()=>{
-    const s=new T.Shape(),x=-w/2,y=-d/2;r=Math.min(r,w/2,d/2);
-    s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y+r);s.lineTo(x+w,y+d-r);
-    s.quadraticCurveTo(x+w,y+d,x+w-r,y+d);s.lineTo(x+r,y+d);s.quadraticCurveTo(x,y+d,x,y+d-r);
+    const bevel=Math.min(.02,h*.2,w*.15,d*.15),iw=w-bevel*2,id=d-bevel*2,s=new T.Shape(),x=-iw/2,y=-id/2;r=Math.max(.001,Math.min(r,iw/2,id/2));
+    s.moveTo(x+r,y);s.lineTo(x+iw-r,y);s.quadraticCurveTo(x+iw,y,x+iw,y+r);s.lineTo(x+iw,y+id-r);
+    s.quadraticCurveTo(x+iw,y+id,x+iw-r,y+id);s.lineTo(x+r,y+id);s.quadraticCurveTo(x,y+id,x,y+id-r);
     s.lineTo(x,y+r);s.quadraticCurveTo(x,y,x+r,y);
-    const g=new T.ExtrudeGeometry(s,{depth:h,bevelEnabled:false,curveSegments:5});
-    g.rotateX(-Math.PI/2);g.translate(0,-h/2,0);g.computeVertexNormals();return g;
+    const g=new T.ExtrudeGeometry(s,{depth:Math.max(.001,h-bevel*2),bevelEnabled:bevel>.002,bevelThickness:bevel,bevelSize:bevel,bevelSegments:3,curveSegments:10});
+    g.rotateX(-Math.PI/2);g.translate(0,-h/2+bevel,0);g.computeVertexNormals();return g;
   });
 }
-export const box=(w:number,h:number,d:number)=>cached(`box:${w}:${h}:${d}`,()=>new T.BoxGeometry(w,h,d));
-export const cyl=(rt:number,rb:number,h:number,seg=16,axis:'y'|'x'|'z'='y')=>cached(`cyl:${rt}:${rb}:${h}:${seg}:${axis}`,()=>{const g=new T.CylinderGeometry(rt,rb,h,seg);if(axis==='x')g.rotateZ(Math.PI/2);if(axis==='z')g.rotateX(Math.PI/2);return g;});
-export const sphere=(r:number,w=14,h=10)=>cached(`sph:${r}:${w}:${h}`,()=>new T.SphereGeometry(r,w,h));
-export const ico=(r:number)=>cached(`ico:${r}`,()=>new T.IcosahedronGeometry(r,1));
-export const capsule=(r:number,l:number)=>cached(`cap:${r}:${l}`,()=>new T.CapsuleGeometry(r,l,6,16));
+/** Boxes get a small rounded edge (RoundedBoxGeometry) unless they are paper-thin. */
+export const box=(w:number,h:number,d:number)=>cached(`box:${w}:${h}:${d}`,()=>{const m=Math.min(w,h,d);return m<.03?new T.BoxGeometry(w,h,d):new RoundedBoxGeometry(w,h,d,2,Math.min(.025,m*.2));});
+// Round shapes use at least twice the segments they ask for (smoother silhouettes under outlines).
+export const cyl=(rt:number,rb:number,h:number,seg=16,axis:'y'|'x'|'z'='y')=>cached(`cyl:${rt}:${rb}:${h}:${seg}:${axis}`,()=>{const g=new T.CylinderGeometry(rt,rb,h,Math.max(24,seg*2));if(axis==='x')g.rotateZ(Math.PI/2);if(axis==='z')g.rotateX(Math.PI/2);return g;});
+export const sphere=(r:number,w=14,h=10)=>cached(`sph:${r}:${w}:${h}`,()=>new T.SphereGeometry(r,Math.max(24,w*2),Math.max(16,h*2)));
+export const ico=(r:number)=>cached(`ico:${r}`,()=>new T.IcosahedronGeometry(r,2));
+export const capsule=(r:number,l:number)=>cached(`cap:${r}:${l}`,()=>new T.CapsuleGeometry(r,l,10,28));
 
 export function part(parent:T.Object3D,geometry:T.BufferGeometry,material:T.Material,x=0,y=0,z=0,shadow=true):T.Mesh{
   const m=new T.Mesh(geometry,material);m.position.set(x,y,z);m.castShadow=shadow;m.receiveShadow=true;parent.add(m);return m;

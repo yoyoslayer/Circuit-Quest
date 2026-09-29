@@ -7,8 +7,12 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { OutlineRenderPass, toonGTAO, GradeShader } from './post';
 
 export const INK = '#2b2d42';
-const ramp = new T.DataTexture(new Uint8Array([90,90,90,255,185,185,185,255,255,255,255,255]),3,1,T.RGBAFormat);
-ramp.minFilter = ramp.magFilter = T.NearestFilter;
+// Soft-cel ramp: three readable bands whose edges are blended over a few texels, so forms read
+// rounded instead of posterised (?hardcel restores the original 3-step ramp).
+const hard=new URLSearchParams(location.search).has('hardcel');
+const bands=hard?[90,185,255]:[92,96,120,168,196,226,246,255];
+const ramp = new T.DataTexture(new Uint8Array(bands.flatMap(v=>[v,v,v,255])),bands.length,1,T.RGBAFormat);
+ramp.minFilter = ramp.magFilter = hard?T.NearestFilter:T.LinearFilter;
 ramp.needsUpdate = true;
 export const toonRamp = ramp;
 export interface ToonOptions {emissive?:string;ei?:number;map?:T.Texture;opacity?:number}
@@ -35,9 +39,10 @@ function backdrop(top:string,mid:string,bottom:string,glowColor:string){
 export interface Mood {key:[string,number];fill:number;rim:number;hemi:number;exposure:number;backdrop:[string,string,string,string]}
 // One lighting rig (mockups/look/LOOK.md) with small per-level shifts in key colour and exposure.
 export const MOODS:Record<string,Mood>={
-  playground:{key:['#fff0d8',1.8],fill:.45,rim:.3,hemi:.9,exposure:1.02,backdrop:['#3f4a72','#2a2d4a','#181a2b','rgba(255,200,150,.2)']},
-  meeting:{key:['#ffe2b8',1.75],fill:.45,rim:.35,hemi:.85,exposure:1,backdrop:['#4b4169','#2c2b4a','#191a2c','rgba(255,190,140,.22)']},
-  lunch:{key:['#fff1d6',1.85],fill:.4,rim:.35,hemi:.9,exposure:1.03,backdrop:['#4a4466','#2b2c48','#191a2c','rgba(255,205,150,.24)']},
+  // Warm key vs cool sky fill gives form; the ground bounce keeps undersides from going muddy.
+  playground:{key:['#ffe9c8',2.15],fill:.5,rim:.45,hemi:.7,exposure:1.02,backdrop:['#3f4a72','#2a2d4a','#181a2b','rgba(255,200,150,.2)']},
+  meeting:{key:['#ffdcaa',2.1],fill:.5,rim:.5,hemi:.68,exposure:1,backdrop:['#4b4169','#2c2b4a','#191a2c','rgba(255,190,140,.22)']},
+  lunch:{key:['#ffeccc',2.2],fill:.45,rim:.5,hemi:.72,exposure:1.02,backdrop:['#4a4466','#2b2c48','#191a2c','rgba(255,205,150,.24)']},
 };
 export function createRenderer(canvas:HTMLCanvasElement) {
   // Automated tests (?manual) and ?lowfx skip the expensive passes; software rendering can't afford them.
@@ -50,11 +55,11 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   renderer.toneMappingExposure = 1;
   const effect = new OutlineEffect(renderer,{defaultThickness:.0036,defaultColor:[.13,.135,.2]});
   const scene = new T.Scene();
-  const hemi = new T.HemisphereLight('#e4ebff','#9c7f66',.85);const ambient=new T.AmbientLight('#fff4e6',.18);scene.add(hemi,ambient);
+  const hemi = new T.HemisphereLight('#dbe6ff','#b08a6a',.7);const ambient=new T.AmbientLight('#fff4e6',.12);scene.add(hemi,ambient);
   const sun = new T.DirectionalLight('#ffe2b8',1.75); sun.position.set(-11,21,13); sun.castShadow=true;
   sun.shadow.mapSize.setScalar(low?1024:4096);
   Object.assign(sun.shadow.camera,{left:-20.5,right:20.5,top:19,bottom:-19,near:1,far:70});sun.shadow.camera.updateProjectionMatrix();
-  sun.shadow.bias = -.0006; sun.shadow.normalBias=.035; sun.shadow.radius=2.5; scene.add(sun,sun.target);
+  sun.shadow.bias = -.0006; sun.shadow.normalBias=.035; sun.shadow.radius=4; sun.shadow.blurSamples=12; scene.add(sun,sun.target);
   const fill = new T.DirectionalLight('#9db8ff',.45); fill.position.set(16,9,8);
   const rim = new T.DirectionalLight('#ffd6f0',.35); rim.position.set(6,12,-18); scene.add(fill,rim);
   const camera = new T.PerspectiveCamera(30,1,.1,200);

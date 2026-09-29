@@ -207,7 +207,7 @@ body[data-screen="fail"] canvas#game{filter:saturate(.35) brightness(.5) blur(3p
   .title{left:56px;top:84px;transform:scale(.8)}
   .controls{left:56px;gap:16px}
 }
-@media (max-height:860px){.result,.fail{transform-origin:50% 0;scale:.86}.result{top:64px}.fail{top:96px}}
+@media (max-height:980px){.result,.fail{transform-origin:50% 0;scale:.86}.result{top:56px}.fail{top:96px}}
 @media (max-height:720px){.result,.fail{scale:.74}.result{top:40px}}
 
 /* ---------- phone ---------- */

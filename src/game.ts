@@ -224,8 +224,8 @@ export class Game {
     return true;
   }
   nearBench(pos:Point){return !!this.station&&distance(pos,this.station.stand)<1.6;}
-  enterBench(){if(!this.station)return;this.atBench=true;this.survey=false;this.station.setActive(true);this.audio.pop();this.keys.clear();this.stick=undefined;}
-  leaveBench(){if(!this.station)return;this.atBench=false;this.station.setActive(false);this.audio.tone(260,.08,.03,'triangle');}
+  enterBench(){if(!this.station)return;this.atBench=true;document.body.dataset.bench='true';this.survey=false;this.station.setActive(true);this.audio.pop();this.keys.clear();this.stick=undefined;}
+  leaveBench(){if(!this.station)return;this.atBench=false;delete document.body.dataset.bench;this.station.setActive(false);this.audio.tone(260,.08,.03,'triangle');}
   nearSwitch(pos:Point){return !this.lunch&&!this.holdingPlug&&!!this.level.switchAt&&distance(pos,this.level.switchAt)<1.9;}
   /** The power strip must sit by the boardroom door before the reel can feed the projector. */
   needsStrip(){return this.props.some(q=>q.spec.id==='strip');}

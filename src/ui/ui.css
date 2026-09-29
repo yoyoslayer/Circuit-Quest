@@ -242,3 +242,18 @@ body[data-hub] .jobplate,body[data-hub] .strain{display:none}
 .workshop-picker .close{margin-top:14px}
 .practice-tag{display:inline-block;margin-left:8px;padding:4px 10px;border-radius:12px;background:var(--hat);border:2px solid var(--ink);font-size:12px;font-weight:700}
 body[data-practice] .jobplate::after{content:"PRACTICE";position:absolute;left:18px;bottom:-12px;padding:2px 8px;border-radius:8px;background:var(--hat);border:2px solid var(--ink);font-size:11px;font-weight:700}
+/* Bench mode (body[data-bench]): walking controls step aside, a chip says how to stand up,
+   and on phones the cards collapse so the table stays visible. */
+body[data-bench] .hud .actions,body[data-bench] .stick{display:none}
+body[data-bench] .prompt-pill{bottom:calc(24px + var(--safe-b))}
+body[data-bench] .station-toast{bottom:calc(84px + var(--safe-b))}
+.bench-chip{position:absolute;left:calc(var(--inset) + var(--safe-l));bottom:calc(24px + var(--safe-b));display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:24px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-weight:700;cursor:pointer}
+.bench-chip kbd{display:grid;place-items:center;min-width:38px;height:30px;padding:0 6px;border-radius:8px;background:var(--paper-3);border:2px solid var(--ink);font:inherit;font-size:13px}
+@media (max-width:700px){
+  body[data-bench] .objective{display:none}
+  body[data-bench] .station-panel{top:calc(84px + var(--safe-t));bottom:auto;padding:8px 12px;max-height:30vh;overflow:hidden}
+  body[data-bench] .station-panel header p{display:none}
+  body[data-bench] .station-toast{bottom:auto;top:calc(84px + 30vh + var(--safe-t));font-size:12px}
+  body[data-bench] .prompt-pill{bottom:calc(64px + var(--safe-b));font-size:13px}
+  body[data-bench] .bench-chip{bottom:calc(12px + var(--safe-b))}
+}

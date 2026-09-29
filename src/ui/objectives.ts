@@ -83,11 +83,14 @@ export function promptFor(g:Game):Prompt|null{
 
 /** The job card (top left, under the timer) and the prompt pill (above the action bar). */
 export class ObjectivesHUD{
-  card:HTMLElement;prompt:HTMLElement;marker:T.Mesh;private shown='';private promptShown='';private job:Job;private flash=new Set<number>();
+  card:HTMLElement;prompt:HTMLElement;stand:HTMLElement;marker:T.Mesh;private shown='';private promptShown='';private job:Job;private flash=new Set<number>();
   constructor(private g:Game,layer:HTMLElement){
     this.job=g.station||g.hub?stationJob(g):JOBS[g.level.id]??JOBS.playground;
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
     this.prompt=document.createElement('div');this.prompt.className='prompt-pill';this.prompt.hidden=true;layer.append(this.prompt);
+    // At a bench the walking controls hide; this chip says how to step back.
+    this.stand=document.createElement('div');this.stand.className='bench-chip';this.stand.hidden=true;this.stand.innerHTML='<kbd>Esc</kbd><span>Stand up</span>';layer.append(this.stand);
+    this.stand.addEventListener('pointerdown',e=>{e.stopPropagation();g.leaveBench();});
     const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.color.multiplyScalar(1.5);m.userData.outlineParameters={visible:false};
     this.marker=new T.Mesh(new T.ConeGeometry(.22,.42,20).rotateX(Math.PI),m);this.marker.userData.noAO=true;this.marker.visible=false;g.root.add(this.marker);
   }
@@ -107,6 +110,7 @@ export class ObjectivesHUD{
     // A bouncing arrow over whatever the current step needs.
     const at=current>=0&&g.running&&!g.won&&!g.atBench?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;
     if(at){this.marker.position.set(at.x,2.1+Math.sin(g.last*.006)*.18,at.z);this.marker.rotation.y=g.last*.002;}
+    this.stand.hidden=!g.atBench;
     const p=promptFor(g),pk=p?`${p.key}|${p.text}`:'';
     if(pk!==this.promptShown){this.promptShown=pk;this.prompt.hidden=!p;if(p)this.prompt.innerHTML=`<kbd>${p.key}</kbd><span>${p.text}</span>`;}
   }

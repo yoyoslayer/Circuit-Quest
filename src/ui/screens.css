@@ -127,9 +127,9 @@ body[data-screen="fail"] canvas#game{filter:saturate(.35) brightness(.5) blur(3p
 .result-screen .scrim{background:radial-gradient(ellipse 60% 70% at 50% 50%,rgba(29,31,43,.72),rgba(29,31,43,.35) 70%);animation:fadein .5s both}
 .result-screen .string{height:120px;animation:stringdrop .7s var(--ease-thud) both}
 @keyframes stringdrop{from{transform:translateY(-760px)}}
-.result{position:fixed;left:50%;top:92px;width:548px;margin-left:-274px;padding:66px 34px 30px;--r:-1.5deg;transform-origin:50% 0;
-  animation:tagdrop .7s var(--ease-thud) both,swing 4s 1s ease-in-out infinite}
-.result.thud{animation:tagdrop .7s var(--ease-thud) both,swing 4s 1s ease-in-out infinite,thud .12s linear}
+.result{position:fixed;left:50%;top:92px;width:548px;margin-left:-274px;padding:66px 34px 30px;--r:-1.5deg;transform:rotate(var(--r));transform-origin:50% 0;
+  animation:tagdrop .7s var(--ease-thud) both,swing 3.6s 1s ease-in-out 1}
+.result.thud{animation:tagdrop .7s var(--ease-thud) both,swing 3.6s 1s ease-in-out 1,thud .12s linear}
 @keyframes tagdrop{from{transform:translateY(-760px) rotate(8deg)}}
 @keyframes thud{25%{translate:0 5px}75%{translate:0 -2px}}
 .result .head,.fail .head{display:flex;align-items:center;gap:12px}

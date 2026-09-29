@@ -11,9 +11,8 @@ npm install
 npm run dev          # http://127.0.0.1:5173
 ```
 
-Levels: `?level=playground` (cable playground, default), `?level=meeting` (01 Big
-Meeting), `?level=lunch` (02 Lunch Rush). The intro card and result card also link
-between them.
+The title screen leads to a jobs board: 00 Cable Playground, 01 Big Meeting, 02 Lunch
+Rush. `?level=<id>` opens that job directly; `?lowfx` turns off the expensive effects.
 
 | Input | Keyboard / mouse | Gamepad |
 |---|---|---|
@@ -23,6 +22,7 @@ between them.
 | Pick up / plug a cable end | F | B |
 | Throw / let go of a taut cable (slingshot) | Q | Y |
 | Orbit / zoom camera | Right-drag / wheel | Right stick |
+| Survey the whole floor / reset camera | Tab / C | L3 / Back |
 | Pause / restart | Esc / R | Start |
 
 ## Develop

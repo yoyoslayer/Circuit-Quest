@@ -13,9 +13,40 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M4 Juice | Done | Sounds, particles, shake, squash/stretch, coworker reactions |
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
-Verification on the last commit: `npm run build`, `npm test` (18 unit tests) and
-`npm run smoke` (20 browser tests) all pass. Browser tests run twice in a row with
+Verification on the last commit: `npm run build`, `npm test` (19 unit tests) and
+`npm run smoke` (21 browser tests) all pass. Browser tests run twice in a row with
 identical results (simulation is deterministic in `?manual` mode).
+
+## Visual and UI overhaul (after product-owner feedback)
+
+The first complete build played correctly but looked like a blockout. A design pass
+followed, with the artefacts kept in `mockups/`:
+
+- `mockups/review/REVIEW.md`: art-direction critique and prioritised plan.
+- `mockups/look/`: rendered target frames in real three.js, built from the game's own
+  props and levels, plus `LOOK.md` (renderer, lighting, post, camera numbers).
+- `mockups/ui/`: HTML mockups and `UI.md` design system; `mockups/ui/impl/` shows the
+  implemented screens.
+
+What is now in the game:
+- **Rendering:** toon + outlines inside an EffectComposer (`src/render/post.ts`) with
+  ambient occlusion, bloom for hot emissives and a colour grade; a warm key / cool fill
+  / pink rim rig; gradient backdrop and diorama slab. Quality steps down automatically
+  on slow machines (`Game.adaptQuality`); `?lowfx` forces the cheap path.
+- **Camera:** FOV 30; zoomed out it frames the floor like a diorama, zooming in drops
+  to Pip's eye line; Tab surveys the floor; a push-in on the machine on success.
+- **Rooms:** dressed walls (wallpaper, wainscot, rail, cap) that fold away when the
+  camera swings behind them, windows with blinds and light shafts, carpet tiles, rugs,
+  posters, pendants and lamp pools, closet LEDs, per-desk clutter and live monitor
+  screens, a deadline clock whose red hand sweeps the meeting.
+- **Characters:** personality blobs (accessories, moods, startled faces, sweat drops,
+  typing, breathing); Pip walks, leans, carries and hauls a taut cable over the shoulder.
+- **The cable:** a glossy hose with a strain gradient toward Pip's hand, gold when
+  connected, current pulses when live; Lunch cables glow when overheating and scorch.
+- **UI:** Fredoka type, title screen, jobs board with saved best grades, contextual
+  HUD, Lunch objective chain with fridge thermometer and breaker dials, pause,
+  stamped result tag and a failure tag; phone layout with a virtual stick.
+- **Audio:** procedural music per level, room tone, coworker gibberish, foley.
 
 ## What works
 

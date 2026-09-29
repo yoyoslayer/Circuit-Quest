@@ -54,7 +54,7 @@ export function pendant(parent:T.Object3D,x:number,z:number,{y=2.55,color='#ffc9
   part(g,cyl(.05,.06,.08,10),toon(INK),0,y+.35,0,false);
   const bulb=part(g,sphere(.1,12,8),hot('#ffe6b0',2.2),0,y+.02,0,false);bulb.userData.noAO=true;
   glow(g,'rgba(255,200,120,1)',1,.22).position.y=y-.05;
-  if(light)pointLamp(g,0,y-.25,0,{intensity:4.5,distance:6});
+  if(light)pointLamp(g,0,y-.25,0,{intensity:2.5,distance:5});
   return g;
 }
 export function deskLamp(parent:T.Object3D,x:number,y:number,z:number,ry=0,color='#e5484d'){

@@ -151,5 +151,20 @@ function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   backWindows(game,back,()=>false,.14);wallArt(side,'sun',-3,1.9,.16);wallArt(back,'plant',-8.5,1.95,.18,0,.8);
   const colors:Record<string,[string,string]>={store:['#b9b3c9','#6a6488'],kitchen:[WALL_UP,'#6cc3b4'],lift:['#c9d1db','#5a6378']};
   for(const o of l.obstacles){const [u,d]=colors[o.id.split('-')[0]]??[WALL_UP,WALL_LOW];interiorWall(game,o,u,d);}
+  const r=game.decorRoot;
+  wallArt(back,'graph',15.2,1.95,.18,0,.8);wallArt(side,'bolt',-3.6,1.95,.16);wallArt(side,'cork',-7.8,1.8,.16,0,1.1);
+  // Kitchen: pots on the prep table, trays waiting on the belt, pendant lamps over the line.
+  for(let k=0;k<4;k++)part(r,cyl(.16,.14,.22,14),toon(k%2?'#c7ccd6':'#e5484d'),-6.7+k*.5,1.12,-8.5);
+  for(const x of [-5.5,-1,3.5])pendant(game.root,x,-5.2,{y:2.3,color:'#e9f0f2',light:x===-1});
+  // Storeroom rack with stock boxes, lift room coolboxes waiting to go up.
+  const rack=group(r,-16.1,0,5,Math.PI/2);part(rack,box(3.4,.08,.5),toon(TRIM),0,1,.1);part(rack,box(3.4,.08,.5),toon(TRIM),0,2.1,.1);for(const sx of [-1.6,1.6])part(rack,box(.08,2.2,.08),toon(DMETAL),sx,1.1,.3);
+  for(let k=0;k<6;k++)part(r,rbox(.6,.5,.6,.05),toon(k%2?'#d7a56d':'#c98f5a'),-15.8,k<3?1.3:2.4,3.6+(k%3)*1.1).rotation.y=(k*.13)%.4;
+  // Corridor: vending machine, water cooler, benches, a dining table with chairs, rugs, plants.
+  part(r,rbox(1,2,.8,.08),toon('#e5484d'),-6.9,1,9.3);part(r,box(.66,1.24,.05),toon('#bfeaf5'),-6.98,1.12,8.88);solid(game,1,2,.8,-6.9,1,9.3);
+  part(r,rbox(.5,1,.5,.06),toon('#f4efe6'),-5.6,.5,9.4);part(r,cyl(.2,.2,.55,16),toon('#8fd0f0'),-5.6,1.3,9.4);solid(game,.5,1.5,.5,-5.6,.75,9.4);
+  for(const x of [-4.2,-2.6]){part(r,rbox(1.3,.1,.45,.06),toon('#c98a55'),x,.46,9.45);for(const s of [-.5,.5])part(r,box(.08,.44,.36),toon(INK),x+s,.22,9.45);}
+  rug(r,13.2,8.1,3.4,3.2,'#d98c5f','#f6d49b');part(r,cyl(.7,.7,.06,24),toon('#f4efe6'),13.2,.76,8.1);part(r,cyl(.08,.3,.74,12),toon(INK),13.2,.38,8.1);solid(game,1.4,.8,1.4,13.2,.4,8.1);
+  for(let k=0;k<3;k++){const a=k*2.1+.4,cx=13.2+Math.cos(a)*1.1,cz=8.1+Math.sin(a)*1.1,chair=group(r,cx,0,cz,-a-Math.PI/2);part(chair,rbox(.55,.1,.55,.1),toon(['#e5484d','#3f7fd6','#ffc94d'][k]),0,.48,0);part(chair,rbox(.55,.5,.1,.08),toon(['#e5484d','#3f7fd6','#ffc94d'][k]),0,.78,-.24);part(chair,cyl(.03,.03,.4,8),toon(INK),0,.26,0);}
+  for(const [x,z] of [[15.6,5.2],[-7.2,1.2],[15.8,-1.5]]){part(r,cyl(.26,.2,.42,14),toon('#e07a4f'),x,.21,z);for(const [dx,dy,dz,rr] of [[0,.66,0,.3],[.16,.5,.08,.24],[-.16,.54,-.05,.25]])part(r,sphere(rr,10,8),toon('#5cbf6a'),x+dx,dy,z+dz);}
   return {};
 }

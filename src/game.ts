@@ -2,7 +2,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon} from './render/toon';
-import {BLOBC,bangTexture,freeze,glyph,cachedTexture} from './render/kit';
+import {BLOBC,bangTexture,freeze,glyph,cachedTexture,part,cyl,sphere} from './render/kit';
 import {blob,hoseGeometry,hoseMaterial,Pulses,type Accessory,type Mood} from './render/actors';
 const GOLD=new T.Color('#ffd451');
 /** Samples a rope polyline for drawing: it lies on the floor (sagging a little when slack) and
@@ -96,10 +96,11 @@ export class Game {
   }
   addNpc(p:NpcSpot){
     const g=new T.Group(),seated=this.level.id==='meeting'&&!p.standing,body=new T.Group();body.position.y=seated?.35:0;g.add(body);
-    const i=this.npcs.length,color=BLOBC[i%BLOBC.length],acc=ACCESSORIES[i%ACCESSORIES.length],calm=blob(color,MOODS[i%MOODS.length],acc),startled=blob(color,'alarm',acc);startled.visible=false;body.add(calm,startled);
+    const i=this.npcs.length,color=p.color??BLOBC[i%BLOBC.length],acc=p.acc??ACCESSORIES[i%ACCESSORIES.length],calm=blob(color,p.mood??MOODS[i%MOODS.length],acc),startled=blob(color,'alarm',acc);
+    if(p.chef){const hat=new T.Group();hat.position.y=1.05;body.add(hat);part(hat,cyl(.2,.18,.22,16),toon('#ffffff'),0,.1,0);part(hat,sphere(.24,14,10),toon('#ffffff'),0,.28,0).scale.y=.6;}startled.visible=false;body.add(calm,startled);
     const sweat=new T.Sprite(new T.SpriteMaterial({map:sweatTexture(),toneMapped:false}));sweat.scale.set(.22,.22,1);sweat.position.set(.32,(seated?.35:0)+1.02,.1);sweat.visible=false;g.add(sweat);
     const bubble=new T.Sprite(new T.SpriteMaterial({map:bangTexture(),depthTest:false}));bubble.scale.set(.7,.7,1);bubble.position.y=(seated?.35:0)+1.55;bubble.renderOrder=9;bubble.visible=false;g.add(bubble);
-    g.position.set(p.x,0,p.z);const desk=this.props.filter(q=>q.spec.kind==='desk').sort((a,b)=>distance(p,a.spec)-distance(p,b.spec))[0],restYaw=seated&&desk?Math.atan2(desk.spec.x-p.x,desk.spec.z-p.z):Math.atan2(-p.x,-p.z);g.rotation.y=restYaw;
+    g.position.set(p.x,0,p.z);const desk=this.props.filter(q=>q.spec.kind==='desk').sort((a,b)=>distance(p,a.spec)-distance(p,b.spec))[0],restYaw=p.yaw??(seated&&desk?Math.atan2(desk.spec.x-p.x,desk.spec.z-p.z):Math.atan2(-p.x,-p.z));g.rotation.y=restYaw;
     this.npcs.push({group:g,body,bubble,sweat,calm,startled,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0,seated,restYaw});this.root.add(g);
   }
   /** Coworkers near a crash or snap flinch and show a "!" bubble. */

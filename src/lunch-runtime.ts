@@ -6,8 +6,8 @@ import {LunchJob,BURN_WARNING} from './sim/lunch';
 import {Rope,distance,segmentDistance,segmentHits,strainColor,type Point} from './sim/cable';
 import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge,paint} from './render/kit';
 import {makeProp} from './props/prefabs';
-import {hoseGeometry,hoseMaterial,Pulses} from './render/actors';
-const DEAD=new T.Color('#262833'),HOT=new T.Color('#ff5a3a'),WARM=new T.Color('#ffa04a'),THICK=new T.Color('#ffc94d'),THIN=new T.Color('#ecE8dc');
+import {hoseGeometry,hoseMaterial,Pulses,hot,glossyToon} from './render/actors';
+const OVEN_WINDOW=hot('#ff9a3c',1.6),HOT_WINDOW=hot('#ff4a2a',2),DEAD=new T.Color('#262833'),HOT=new T.Color('#ff5a3a'),WARM=new T.Color('#ffa04a'),THICK=new T.Color('#ffc94d'),THIN=new T.Color('#ecE8dc');
 import {lunchHud} from './ui/lunch-hud';
 import {gameUI} from './ui/game-ui';
 import {solid} from './levels/decor';
@@ -28,7 +28,7 @@ export class LunchRuntime {
   water=1;puddles:T.Mesh[]=[];leaves:Leaf[]=[];doorAngle=0;doorSide=1;doorWasOpen=false;bots:Bot[]=[];
   dark:T.Mesh;liftCar!:T.Group;eventIndex=0;bakeGauge=new Gauge([[0,.95,'#ffc94d'],[.95,1,'#3bb273']]);supplyGauges=new Map<string,{gauge:Gauge;mount:T.Group;button:T.Mesh}>();
   // Assigned by the build* helpers called from the constructor.
-  thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
+  thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenLight!:T.PointLight;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
   liftRope!:T.Mesh;alerts=new Map<string,T.Sprite>();scars:{mark:T.Object3D;life:number;at:T.Vector3}[]=[];wetAt?:Point;
   lamps=new Map<string,{bulb:T.Mesh;glow:T.Sprite;light:T.PointLight}>();smoke:T.Mesh[]=[];
   constructor(public game:Game){
@@ -45,7 +45,11 @@ export class LunchRuntime {
     for(let i=1;i<=3;i++)this.port(`splitter-${i}`,-14+(i-1)*.7,0,'both',4,`splitter-${i}`,-.15);
     for(const id of ['a','b']){const gauge=new Gauge(),mount=gauge.mount(root,0,0,0,.9);mount.rotation.x=-.5;const button=part(root,cyl(.1,.1,.12,12),toon('#d63a3f',{emissive:'#ff3a3a',ei:0}).clone());this.supplyGauges.set(id,{gauge,mount,button});}
     this.addCable('thin-1',3,32,'a',null,[-11,2]);this.addCable('thin-2',3,30,'a',null,[-10,3.5]);this.addCable('thin-3',3,32,null,null,[-11,7]);this.addCable('thick',10,30,'b',null,[-10,7.5]);
-    this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#141726',{transparent:true,opacity:.88,depthWrite:false}),-12.1,2.7,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;
+    // The unlit storeroom: a dim blue-violet lid with a soft hole where the lamp would pool
+    // (look-dev lunch.js); it lifts away once a lamp in there is powered.
+    const darkTex=cachedTexture('store-dark',()=>{const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d')!;x.fillStyle='rgba(16,18,40,1)';x.fillRect(0,0,512,512);x.globalCompositeOperation='destination-out';
+      const hx=(-10+16.55)/8.9*512,hy=(-3+10)/10*512,gr=x.createRadialGradient(hx,hy,0,hx,hy,150);gr.addColorStop(0,'rgba(0,0,0,.35)');gr.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=gr;x.fillRect(0,0,512,512);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;});
+    this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#ffffff',{map:darkTex,transparent:true,opacity:.84,depthWrite:false}),-12.1,2.72,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;this.dark.userData.noAO=true;
     const tray=this.prop('tray');if(tray){tray.mesh.visible=false;tray.body.setEnabled(false);}
     // HUD: objective chain, fridge thermometer and breaker dials (src/ui/lunch-hud.ts).
     lunchHud(game.hud);
@@ -55,10 +59,11 @@ export class LunchRuntime {
   buildKitchen(){const g=this.game,root=g.decorRoot;
     // Oven with a window that glows while baking and a dial that fills to 20 s.
     const oven=group(root,-2.5,0,-8.1);part(oven,rbox(2.6,1.7,1.3,.12),toon('#c7ccd6'),0,.85);part(oven,box(2.8,.35,1.5),toon(DMETAL),0,1.88,-.05);part(oven,cyl(.25,.25,1.1,14),toon(METAL),.6,2.6,-.3);
-    this.ovenWindow=part(g.root,box(1.5,.75,.06),toon('#3a3d55'),-2.75,.85,-7.44,false);this.ovenGlow=glow(g.root,'rgba(255,150,60,1)',2.4,0);this.ovenGlow.position.set(-2.75,.9,-7.3);
+    this.ovenWindow=part(g.root,box(1.5,.75,.06),toon('#3a3d55'),-2.75,.85,-7.44,false);this.ovenWindow.userData.noAO=true;this.ovenGlow=glow(g.root,'rgba(255,150,60,1)',3.2,0);this.ovenGlow.position.set(-2.75,.9,-7.1);
+    this.ovenLight=new T.PointLight('#ff9c4a',0,5,1.6);this.ovenLight.position.set(-2.7,.9,-6.6);g.root.add(this.ovenLight);for(let k=0;k<3;k++)part(oven,cyl(.07,.07,.06,12,'z'),toon(INK),-.9+k*.3,1.45,.66);
     this.bakeGauge.mount(oven,.9,1.35,.68,.7);this.socketPlate(oven,.95,.4,.66);solid(g,2.6,1.7,1.3,-2.5,.85,-8.1);
     // Fridge with a live thermometer; a sad-food icon warns before it spoils.
-    const fridge=group(root,-5.6,0,-2.3,Math.PI/2);part(fridge,rbox(1.3,2.3,1.0,.12),toon('#e9f0f2'),0,1.15);part(fridge,box(.06,.9,.06),toon(DMETAL),.5,1.4,.52);part(fridge,box(1.25,.04,.02),toon(DMETAL),0,1.6,.51);
+    const fridge=group(root,-5.6,0,-2.3,Math.PI/2);part(fridge,rbox(1.3,2.3,1.0,.12),glossyToon('#e9f0f2',{spec:.5,size:.985}),0,1.15);for(const [x,y,c] of [[-.3,1.9,'#e5484d'],[.1,1.8,'#ffc94d'],[-.1,2,'#3f7fd6']] as const)part(fridge,box(.14,.14,.02),toon(c),x,y,.52,false);part(fridge,box(.06,.9,.06),toon(DMETAL),.5,1.4,.52);part(fridge,box(1.25,.04,.02),toon(DMETAL),0,1.6,.51);
     part(fridge,rbox(.22,1.1,.08,.1),toon('#fffaf0'),-.4,1.2,.54);this.thermoFill=part(group(g.root,-5.6,0,-2.3,Math.PI/2),box(.1,1,.04),toon('#ffc94d'),-.4,.72,.59,false);part(fridge,sphere(.1,12,10),toon('#ffc94d'),-.4,.68,.59);
     this.socketPlate(fridge,.3,.35,.52);solid(g,1.0,2.3,1.3,-5.6,1.15,-2.3);
     this.sad=new T.Sprite(new T.SpriteMaterial({map:cachedTexture('sad-food',()=>glyph(c=>{c.fillStyle='#fffaf0';c.beginPath();c.arc(128,128,110,0,7);c.fill();c.lineWidth=14;c.stroke();c.fillStyle='#8bbf5a';c.beginPath();c.arc(128,140,62,0,7);c.fill();c.stroke();c.fillStyle=INK;for(const x of [104,152]){c.beginPath();c.arc(x,128,9,0,7);c.fill();}c.beginPath();c.arc(128,178,24,Math.PI*1.15,Math.PI*1.85);c.stroke();})),depthTest:false}));
@@ -87,7 +92,7 @@ export class LunchRuntime {
   }
   buildLamps(){const root=this.game.root,decor=this.game.decorRoot;
     for(const id of ['store-lamp','kitchen-lamp']){
-      const bulb=part(root,sphere(.14,12,10),toon('#bbb6a8'),0,-10,0,false);const halo=glow(root,'rgba(255,210,120,1)',2.4,0);const light=new T.PointLight('#ffcf7a',0,9,1.5);root.add(light);this.lamps.set(id,{bulb,glow:halo,light});}
+      const bulb=part(root,sphere(.14,12,10),toon('#bbb6a8'),0,-10,0,false);const halo=glow(root,'rgba(255,210,120,1)',1.4,0);const light=new T.PointLight('#ffcf7a',0,7,1.6);root.add(light);this.lamps.set(id,{bulb,glow:halo,light});}
     const stand=group(decor,-10,0,-3);part(stand,cyl(.3,.36,.1,18),toon(INK),0,.05);part(stand,cyl(.035,.035,1.8,8),toon(TRIM),0,1);
     const shade=part(stand,new T.CylinderGeometry(.24,.42,.45,20,1,true),toon('#f7ecd0'),0,2);(shade.material as T.Material).side=T.DoubleSide;solid(this.game,.5,2,.5,-10,1,-3);
   }
@@ -234,13 +239,13 @@ export class LunchRuntime {
   render(dt:number){const g=this.game;this.updateScars(dt);
     for(const [i,m] of this.puddles.entries())m.scale.setScalar(Math.max(.001,this.water*(1-i*.02)));this.puddles.forEach(m=>m.scale.x*=1.4);this.dark.visible=!this.lit();
     for(const id of ['capacitor','cooler-box']){const prop=this.prop(id);if(prop)prop.mesh.visible=this.lit()||!this.inStore(prop.body.translation());}
-    this.bakeGauge.set(this.job.bake/20);const oven=this.powered('oven');const hot=this.job.tray==='burned'||this.job.ovenWait>BURN_WARNING;this.ovenWindow.material=oven?(hot?lit('#ff5a3a','#ff2a1a',.8):lit('#ffb35a','#ff8a2a',.6)):toon('#3a3d55');this.ovenGlow.material.opacity=oven?.45:0;
+    this.bakeGauge.set(this.job.bake/20);const oven=this.powered('oven');const hot=this.job.tray==='burned'||this.job.ovenWait>BURN_WARNING;this.ovenWindow.material=oven?(hot?HOT_WINDOW:OVEN_WINDOW):toon('#3a3d55');this.ovenLight.intensity=oven?5:0;this.ovenGlow.material.opacity=oven?.45:0;
     const temp=this.job.temperature;this.thermoFill.scale.y=Math.max(.02,temp);this.thermoFill.position.y=.68+Math.max(.02,temp)*.5;this.thermoFill.material=toon(temp>.8?'#e5484d':temp>.6?'#ff8a3d':'#ffc94d');
     this.sad.visible=temp>.8||(this.job.failed&&this.job.tray!=='burned');this.sad.position.y=2.9+Math.sin(g.time*6)*.05;
     if(this.powered('conveyor'))this.belt.offset.x-=dt*.2;
     this.liftCar.position.y=1.12+this.job.height*2.5;const ropeLength=3.5-this.liftCar.position.y;this.liftRope.scale.y=Math.max(.05,ropeLength);this.liftRope.position.y=this.liftCar.position.y+ropeLength/2;
     const lampTops:Record<string,T.Vector3>={'store-lamp':new T.Vector3(-10,1.9,-3),'kitchen-lamp':(()=>{const t=this.prop('portable-lamp')!.mesh;return new T.Vector3(0,.55,0).applyQuaternion(t.quaternion).add(t.position);})()};
-    for(const [id,lamp] of this.lamps){const on=this.powered(id),top=lampTops[id];lamp.bulb.position.copy(top);lamp.bulb.material=on?lit('#fff3c8','#ffe7a8',1):toon('#bbb6a8');lamp.glow.position.copy(top);lamp.glow.material.opacity=on?.55:0;lamp.light.position.copy(top).setY(top.y+.2);lamp.light.intensity=on?14:0;}
+    for(const [id,lamp] of this.lamps){const on=this.powered(id),top=lampTops[id];lamp.bulb.position.copy(top);lamp.bulb.material=on?lit('#fff3c8','#ffe7a8',1):toon('#bbb6a8');lamp.glow.position.copy(top);lamp.glow.material.opacity=on?.35:0;lamp.light.position.copy(top).setY(top.y+.2);lamp.light.intensity=on?5:0;}
     const lamp=this.prop('portable-lamp')!.mesh.position;const cordPts=[new T.Vector3(-4,.4,-3.15),new T.Vector3((lamp.x-4)/2,.05,(lamp.z-3.15)/2),new T.Vector3(lamp.x,.05,lamp.z)];
     if(distance(lamp,{x:-4,z:-3.15})>.3){this.cord.geometry.dispose();this.cord.geometry=new T.TubeGeometry(new T.CatmullRomCurve3(cordPts),24,.025,5);}
     let tripped=false;

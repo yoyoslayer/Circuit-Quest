@@ -59,7 +59,7 @@ test('emptying the fridge into the cooler box is a valid alternative',async({pag
   await open(page,'lunch');await wedgeDoor(page);await mopPuddle(page);await takeThick(page);await feedKitchen(page);
   await walk(page,-6.5,-4.8);await page.keyboard.press('KeyE');await walk(page,-5.7,-3.3);await page.keyboard.press('KeyE');
   await route(page,[[-8.8,-5],[-10,-7.2]],.45);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('cooler-box');
-  await route(page,[[-8.8,-5],[-6.5,-3.5],[-4.4,-1.8]],.5);await wait(page,.2);expect((await lunch(page)).job.cooled).toBe(true);
+  await route(page,[[-8.8,-5],[-6.5,-3.8],[-4.4,-3.6],[-4.4,-1.8]],.5);await wait(page,.2);expect((await lunch(page)).job.cooled).toBe(true);
   const before=(await lunch(page)).job.temperature;await wait(page,10);expect((await lunch(page)).job.temperature).toBeLessThan(before);
 });
 test('an unpowered fridge eventually spoils lunch and offers a retry',async({page})=>{

@@ -171,7 +171,7 @@ export class ArcadeBench implements Station {
     const lv=group(p,0,.2,-.04);part(lv,rbox(.2,.04,.16,.03),toon(INK),0,.02,0);this.lever=group(lv,0,.04,0);part(this.lever,cyl(.018,.018,.2,10),toon('#c9ced8'),0,.1,0);part(this.lever,sphere(.05,14,10),toon('#e5484d'),0,.21,0);
     this.powerLamp=part(p,sphere(.035,12,8),toon('#5a4a60'),-.16,.23,.12);
     this.click(p,'power');sign(p,'POWER',0,.1,.205,.34,0,MINT,INK,.11);
-    const s=group(this.top,POWERAT.x+.55,.04,POWERAT.z-.08);part(s,cyl(.17,.19,.06,24),toon(INK),0,.03,0);this.signBtn=part(s,cyl(.13,.13,.06,24),toon('#8a9a8e'),0,.08,0);this.click(s,'signoff');
+    const s=group(this.top,POWERAT.x+.52,.04,POWERAT.z+.14);part(s,cyl(.17,.19,.06,24),toon(INK),0,.03,0);this.signBtn=part(s,cyl(.13,.13,.06,24),toon('#8a9a8e'),0,.08,0);this.click(s,'signoff');
     sign(s,'SIGN OFF',0,.112,0,.24,-Math.PI/2,'#fffaf0',INK,.09);
   }
   /** The cabinet being serviced stands at the bench's left end, back open, ribbon cable to the board. */
@@ -263,7 +263,7 @@ export class ArcadeBench implements Station {
     this.link.visible=!this.setup.series;
     const hk=this.held?`${this.held.r}|${this.held.rating}`:'';
     if(hk!==this.heldKey){this.heldKey=hk;if(this.heldMesh){this.rackGroup.remove(this.heldMesh);this.heldMesh=undefined;}
-      if(this.held){const at=this.rackBlocks.get(this.held.r)!.position;this.heldMesh=blockMesh(this.held.r,this.held.rating);this.heldMesh.position.set(at.x,.2,at.z);this.rackGroup.add(this.heldMesh);}}
+      if(this.held){const at=this.rackBlocks.get(this.held.r)!.position;this.heldMesh=blockMesh(this.held.r,this.held.rating);this.heldMesh.position.set(at.x,.24,at.z);this.heldMesh.scale.setScalar(1.15);const ring=part(this.heldMesh,new T.TorusGeometry(.13,.012,8,32),hot(LEMON,1.2),0,-.16,0,false);ring.rotation.x=Math.PI/2;this.rackGroup.add(this.heldMesh);}}
     this.rackBlocks.forEach((b,v)=>b.visible=this.held?.r!==v);
     this.ratingBtns.forEach((b,k)=>{b.position.y=RATINGS[k]===this.rating?.02:.04;b.scale.setScalar(RATINGS[k]===this.rating?1.08:1);b.userData.baseScale=b.scale.clone();});
     this.ledGroup.rotation.y=this.setup.reversed?Math.PI:0;
@@ -364,7 +364,7 @@ export class ArcadeBench implements Station {
         (j.battery&&on&&r.lifeH?row('Battery life',`≈ ${Math.round(r.lifeH)} h`):'')+
         row('Run in spec',this.soakDone?'10 s ✓':`${Math.floor(this.soak)} / ${HOUSE.soak} s`,this.soakDone||undefined)+
         `${row('Parts cost',`${partsCost(this.setup)} credit${partsCost(this.setup)===1?'':'s'}`)}</ul>`+
-        `<p class="profile">R = (V − V<sub>f</sub>) / I and P = I²R. Simplified LED: fixed V<sub>f</sub>, light ∝ current. House rule: resistors under ${HOUSE.margin*100} % of their rating.</p>`:'');
+        `<p class="profile">${isLed?'R = (V − V<sub>f</sub>) / I and P = I²R. Simplified LED: fixed V<sub>f</sub>, light ∝ current.':'R = (5 V − 0.7 V) / I and P = I²R. Simplified: the base–emitter junction drops a fixed 0.7 V, β ≈ 100.'} House rule: resistors under ${HOUSE.margin*100} % of their rating.</p>`:'');
   }
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;

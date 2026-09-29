@@ -93,7 +93,7 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   [[-9.9,-3.4],[-9.9,-1.5],[-9.9,.4]].forEach(([x,z],k)=>{cabinet(game.root,x,z,Math.PI/2,['#ffe08a','#9ff0d2','#ff9fc8'][k],['SNAKE','SPACE ROCKS','PONG'][k],true,k+1);solid(game,.9,2.2,1,x,1.1,z,Math.PI/2);});
   // ---- Back wall: the neon sign between the cabinets, and the LED basics poster.
   const bw=kit.back;
-  const neon=new T.Mesh(new T.PlaneGeometry(4.6,.9),flat(canvasTex(1024,200,c=>{c.clearRect(0,0,1024,200);c.textAlign='center';c.textBaseline='middle';c.font=FONT(96);
+  const neon=new T.Mesh(new T.PlaneGeometry(4.6,.9),flat(canvasTex(1024,200,c=>{c.clearRect(0,0,1024,200);c.textAlign='center';c.textBaseline='middle';let fs=96;c.font=FONT(fs);while(c.measureText('OVERHEATING ARCADE').width>940){fs--;c.font=FONT(fs);}
     c.shadowColor=PINK;c.shadowBlur=26;c.lineWidth=8;c.strokeStyle=PINK;c.strokeText('OVERHEATING ARCADE',512,104);c.shadowBlur=0;c.fillStyle='#fff0f7';c.fillText('OVERHEATING ARCADE',512,104);}),{toneMapped:false}));
   neon.position.set(0,2.45,.2);bw.add(neon);part(bw,rbox(4.9,1.05,.08,.1),toon(PLUM),0,2.45,.15);glow(game.root,'rgba(255,126,182,1)',5,.18).position.set(0,2.4,-D+.8);
   const poster=group(bw,1.9,1.35,.16);part(poster,box(.84,1.12,.04),toon(INK));const pf=new T.Mesh(new T.PlaneGeometry(.78,1.06),toon('#ffffff',{map:basicsPoster()}));pf.position.z=.025;poster.add(pf);

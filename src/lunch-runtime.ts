@@ -4,7 +4,7 @@ import type {Game} from './game';
 import {Circuit,type Lead,type Load} from './sim/electrical';
 import {LunchJob} from './sim/lunch';
 import {Rope,distance,segmentDistance,segmentHits,strainColor,type Point} from './sim/cable';
-import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge} from './render/kit';
+import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge,paint} from './render/kit';
 import {makeProp} from './props/prefabs';
 import {icon} from './render/icons';
 import {solid} from './levels/decor';
@@ -46,17 +46,17 @@ export class LunchRuntime {
   }
   prop(id:string){return this.game.props.find(p=>p.spec.id===id);}
   socketPlate(parent:T.Object3D,x:number,y:number,z:number,ry=0){const g=group(parent,x,y,z,ry);part(g,rbox(.38,.1,.38,.06).clone().rotateX(Math.PI/2),toon('#f0ece2'));part(g,cyl(.11,.11,.06,14,'z'),toon(INK),0,0,.05);return g;}
-  buildKitchen(){const g=this.game,root=g.root;
+  buildKitchen(){const g=this.game,root=g.decorRoot;
     // Oven with a window that glows while baking and a dial that fills to 20 s.
     const oven=group(root,-2.5,0,-8.1);part(oven,rbox(2.6,1.7,1.3,.12),toon('#c7ccd6'),0,.85);part(oven,box(2.8,.35,1.5),toon(DMETAL),0,1.88,-.05);part(oven,cyl(.25,.25,1.1,14),toon(METAL),.6,2.6,-.3);
-    this.ovenWindow=part(oven,box(1.5,.75,.06),toon('#3a3d55'),-.25,.85,.66,false);this.ovenGlow=glow(root,'rgba(255,150,60,1)',2.4,0);this.ovenGlow.position.set(-2.75,.9,-7.3);
+    this.ovenWindow=part(g.root,box(1.5,.75,.06),toon('#3a3d55'),-2.75,.85,-7.44,false);this.ovenGlow=glow(g.root,'rgba(255,150,60,1)',2.4,0);this.ovenGlow.position.set(-2.75,.9,-7.3);
     this.bakeGauge.mount(oven,.9,1.35,.68,.7);this.socketPlate(oven,.95,.4,.66);solid(g,2.6,1.7,1.3,-2.5,.85,-8.1);
     // Fridge with a live thermometer; a sad-food icon warns before it spoils.
     const fridge=group(root,-5.6,0,-2.3,Math.PI/2);part(fridge,rbox(1.3,2.3,1.0,.12),toon('#e9f0f2'),0,1.15);part(fridge,box(.06,.9,.06),toon(DMETAL),.5,1.4,.52);part(fridge,box(1.25,.04,.02),toon(DMETAL),0,1.6,.51);
-    part(fridge,rbox(.22,1.1,.08,.1).clone().rotateX(Math.PI/2),toon('#fffaf0'),-.4,1.2,.54);this.thermoFill=part(fridge,box(.1,1,.04),toon('#ffc94d'),-.4,.72,.59,false);part(fridge,sphere(.1,12,10),toon('#ffc94d'),-.4,.68,.59);
+    part(fridge,rbox(.22,1.1,.08,.1).clone().rotateX(Math.PI/2),toon('#fffaf0'),-.4,1.2,.54);this.thermoFill=part(group(g.root,-5.6,0,-2.3,Math.PI/2),box(.1,1,.04),toon('#ffc94d'),-.4,.72,.59,false);part(fridge,sphere(.1,12,10),toon('#ffc94d'),-.4,.68,.59);
     this.socketPlate(fridge,.3,.35,.52);solid(g,1.0,2.3,1.3,-5.6,1.15,-2.3);
     this.sad=new T.Sprite(new T.SpriteMaterial({map:cachedTexture('sad-food',()=>glyph(c=>{c.fillStyle='#fffaf0';c.beginPath();c.arc(128,128,110,0,7);c.fill();c.lineWidth=14;c.stroke();c.fillStyle='#8bbf5a';c.beginPath();c.arc(128,140,62,0,7);c.fill();c.stroke();c.fillStyle=INK;for(const x of [104,152]){c.beginPath();c.arc(x,128,9,0,7);c.fill();}c.beginPath();c.arc(128,178,24,Math.PI*1.15,Math.PI*1.85);c.stroke();})),depthTest:false}));
-    this.sad.scale.set(.8,.8,1);this.sad.position.set(-5.3,2.9,-2.1);this.sad.renderOrder=9;this.sad.visible=false;root.add(this.sad);
+    this.sad.scale.set(.8,.8,1);this.sad.position.set(-5.3,2.9,-2.1);this.sad.renderOrder=9;this.sad.visible=false;g.root.add(this.sad);
     // Kitchen feed post: the one inlet for oven + lamps (a thin cable here overheats).
     const post=group(root,-4,0,-3.35);part(post,rbox(.6,1.1,.4,.08),toon('#ffc94d'),0,.55);this.socketPlate(post,0,.35,.21);
     decal(post,cachedTexture('bolt-glyph',()=>glyph(c=>{c.beginPath();c.moveTo(150,20);c.lineTo(70,140);c.lineTo(125,140);c.lineTo(100,236);c.lineTo(190,104);c.lineTo(134,104);c.closePath();c.fill();})),.3,.3,0,.85,.21);solid(g,.6,1.1,.4,-4,.55,-3.35);
@@ -72,17 +72,17 @@ export class LunchRuntime {
     // Prep table the tray is baked for, plus pots and pans to knock about.
     const table=group(root,-5.9,0,-8.55);part(table,rbox(2.2,.1,.9,.06),toon('#e9f0f2'),0,.95);for(const [lx,lz] of [[-1,-.38],[1,-.38],[-1,.38],[1,.38]])part(table,box(.07,.95,.07),toon(METAL),lx,.48,lz);solid(g,2.2,1,.9,-5.9,.5,-8.55);
   }
-  buildLift(){const g=this.game,root=g.root;
+  buildLift(){const g=this.game,root=g.decorRoot;
     for(const x of [10.6,13.4])part(root,box(.2,3.7,.2),toon(DMETAL),x,1.85,-8.3);part(root,box(3.2,.25,.5),toon(DMETAL),12,3.6,-8.3);
-    this.liftCar=group(root,12,0,-7);part(this.liftCar,rbox(2.6,.12,2.2,.08),toon(METAL),0,0);part(this.liftCar,box(2.6,1.1,.08),toon('#c7ccd6'),0,.6,-1.1);part(this.liftCar,box(.08,1.1,2.2),toon('#c7ccd6'),1.3,.6,0);
+    this.liftCar=group(g.root,12,0,-7);part(this.liftCar,rbox(2.6,.12,2.2,.08),toon(METAL),0,0);part(this.liftCar,box(2.6,1.1,.08),toon('#c7ccd6'),0,.6,-1.1);part(this.liftCar,box(.08,1.1,2.2),toon('#c7ccd6'),1.3,.6,0);
     part(this.liftCar,cyl(.02,.02,4,6),toon(INK),0,2.6,-.4);
     const winch=group(root,13.3,0,-4.8,-Math.PI/2);part(winch,rbox(1.4,.3,1.1,.08),toon(DMETAL),0,.15);part(winch,cyl(.4,.4,.9,22,'x'),toon('#e0b25a'),0,.85);
     for(const sx of [-.55,.55])part(winch,box(.12,1.1,.8),toon(DMETAL),sx,.65);this.socketPlate(root,12.62,.38,-4.8,-Math.PI/2);solid(g,1.1,1.3,1.4,13.3,.65,-4.8);
   }
-  buildLamps(){const root=this.game.root;
+  buildLamps(){const root=this.game.root,decor=this.game.decorRoot;
     for(const id of ['store-lamp','kitchen-lamp']){
       const bulb=part(root,sphere(.14,12,10),toon('#bbb6a8'),0,-10,0,false);const halo=glow(root,'rgba(255,210,120,1)',2.4,0);const light=new T.PointLight('#ffcf7a',0,9,1.5);root.add(light);this.lamps.set(id,{bulb,glow:halo,light});}
-    const stand=group(root,-10,0,-3);part(stand,cyl(.3,.36,.1,18),toon(INK),0,.05);part(stand,cyl(.035,.035,1.8,8),toon(TRIM),0,1);
+    const stand=group(decor,-10,0,-3);part(stand,cyl(.3,.36,.1,18),toon(INK),0,.05);part(stand,cyl(.035,.035,1.8,8),toon(TRIM),0,1);
     const shade=part(stand,new T.CylinderGeometry(.24,.42,.45,20,1,true),toon('#f7ecd0'),0,2);(shade.material as T.Material).side=T.DoubleSide;solid(this.game,.5,2,.5,-10,1,-3);
   }
   buildDoor(){const g=this.game;
@@ -96,11 +96,11 @@ export class LunchRuntime {
     const water=unlit('#7cc4ea',{transparent:true,opacity:.72,depthWrite:false});
     for(const [x,z,r] of PUDDLES){const m=part(this.game.root,new T.CircleGeometry(r,24),water,x,.02,z,false);m.rotation.x=-Math.PI/2;m.scale.x=1.4;this.puddles.push(m);}
   }
-  buildCorridor(){const root=this.game.root;
+  buildCorridor(){const root=this.game.root,decor=this.game.decorRoot;
     for(let i=0;i<2;i++){const bot=group(root);this.bots.push({group:bot});part(bot,cyl(.42,.45,.2,28),toon('#f4efe6'),0,.14);part(bot,cyl(.3,.3,.06,24),toon('#3f7fd6'),0,.26);for(const ex of [-.1,.1])part(bot,sphere(.05,10,8),lit('#57e38f','#3fdc7f',.5),ex,.2,.4);part(bot,cyl(.12,.12,.04,6),toon('#ffc94d'),.3,.05,.3);}
     const lane:[number,number][]=[[LANE.x0,LANE.z0],[LANE.x1,LANE.z0],[LANE.x1,LANE.z1],[LANE.x0,LANE.z1],[LANE.x0,LANE.z0]];
-    for(let i=0;i<4;i++){const [x0,z0]=lane[i],[x1,z1]=lane[i+1],len=Math.hypot(x1-x0,z1-z0);for(let t=0;t<len;t+=.5)part(root,box(.25,.01,.08),unlit('#6aa7e8'),x0+(x1-x0)*t/len,.012,z0+(z1-z0)*t/len,false).rotation.y=Math.atan2(-(z1-z0),x1-x0);}
-    const rack=group(root,-16.1,0,5,Math.PI/2);part(rack,box(3.4,.08,.5),toon(TRIM),0,1,.1);part(rack,box(3.4,.08,.5),toon(TRIM),0,2.1,.1);for(const sx of [-1.6,1.6])part(rack,box(.08,2.2,.08),toon(DMETAL),sx,1.1,.3);
+    for(let i=0;i<4;i++){const [x0,z0]=lane[i],[x1,z1]=lane[i+1],len=Math.hypot(x1-x0,z1-z0);for(let t=0;t<len;t+=.5)part(decor,box(.25,.01,.08),paint('#6aa7e8'),x0+(x1-x0)*t/len,.012,z0+(z1-z0)*t/len,false).rotation.y=Math.atan2(-(z1-z0),x1-x0);}
+    const rack=group(decor,-16.1,0,5,Math.PI/2);part(rack,box(3.4,.08,.5),toon(TRIM),0,1,.1);part(rack,box(3.4,.08,.5),toon(TRIM),0,2.1,.1);for(const sx of [-1.6,1.6])part(rack,box(.08,2.2,.08),toon(DMETAL),sx,1.1,.3);
     this.cord=part(root,new T.BufferGeometry(),toon('#ecE8dc'));
   }
   port(id:string,x:number,z:number,role:Port['role'],capacity:number,bodyId?:string,lift=.45){

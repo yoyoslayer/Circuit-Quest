@@ -1,6 +1,7 @@
 // Typed port of reference/render_kit/lib.js. Geometry is cached by shape so every
 // copy of a prop shares buffers and can be drawn as one instanced mesh.
 import * as T from 'three';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {INK,toon,type ToonOptions} from './toon';
 export {INK,toon};
 export const METAL='#9aa3b2',DMETAL='#6b7385',WOOD='#b98552',TRIM='#a8734a';
@@ -56,6 +57,32 @@ export function glow(parent:T.Object3D,color:string,size:number,opacity=.5){
   const s=new T.Sprite(new T.SpriteMaterial({map,blending:T.AdditiveBlending,depthWrite:false,transparent:true,opacity,toneMapped:false}));s.scale.set(size,size,1);parent.add(s);return s;
 }
 export const unlit=(color:string,opts:T.MeshBasicMaterialParameters={})=>{const m=new T.MeshBasicMaterial({color,...opts});m.userData.outlineParameters={visible:false};return m;};
+const sharedUnlit=new Map<string,T.MeshBasicMaterial>();
+/** Shared unlit material for static decor that never changes colour. */
+export const paint=(color:string)=>{let m=sharedUnlit.get(color);if(!m){m=unlit(color);sharedUnlit.set(color,m);}return m;};
+/** Merges every static mesh under `group` into one mesh per material (and shadow flag).
+ *  Level decor is hundreds of small parts; merged it costs a handful of draw calls. */
+export function freeze(group:T.Object3D){
+  group.updateMatrixWorld(true);const inverse=group.matrixWorld.clone().invert(),buckets=new Map<string,{material:T.Material;cast:boolean;geometries:T.BufferGeometry[]}>(),done:T.Mesh[]=[];
+  group.traverse(o=>{if(!(o instanceof T.Mesh)||Array.isArray(o.material))return;
+    let g:T.BufferGeometry=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();for(const name of Object.keys(g.attributes))if(!['position','normal','uv'].includes(name))g.deleteAttribute(name);
+    if(!g.attributes.uv)g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!g.attributes.normal)g.computeVertexNormals();
+    g=g.applyMatrix4(inverse.clone().multiply(o.matrixWorld));const key=`${o.material.uuid}|${o.castShadow}`;const b=buckets.get(key)??{material:o.material,cast:o.castShadow,geometries:[] as T.BufferGeometry[]};b.geometries.push(g);buckets.set(key,b);done.push(o);});
+  for(const m of done)m.removeFromParent();for(const child of [...group.children])if(child.children.length===0&&!(child instanceof T.Sprite)&&!(child instanceof T.Light))group.remove(child);
+  for(const b of buckets.values()){const merged=mergeGeometries(b.geometries,false);if(!merged)continue;const mesh=new T.Mesh(merged,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=true;group.add(mesh);b.geometries.forEach(g=>g.dispose());}
+  return buckets.size;
+}
+/** One coworker blob (body, eye whites, pupils) as a single vertex-coloured mesh. */
+const blobGeometries=new Map<string,T.BufferGeometry>();let blobMaterial:T.MeshToonMaterial|undefined;
+export function blobMesh(color:string){
+  let geometry=blobGeometries.get(color);
+  if(!geometry){const parts:[T.BufferGeometry,string,number,number,number][]=[[new T.CapsuleGeometry(.33,.35,6,16),color,0,.55,0]];
+    for(const x of [-.1,.1])parts.push([new T.SphereGeometry(.085,12,10),'#ffffff',x,.78,.29],[new T.SphereGeometry(.042,10,8),INK,x,.78,.36]);
+    geometry=mergeGeometries(parts.map(([g,c,x,y,z])=>{const n=(g.index?g.toNonIndexed():g).translate(x,y,z),col=new T.Color(c),a=new Float32Array(n.attributes.position.count*3);for(let i=0;i<a.length;i+=3){a[i]=col.r;a[i+1]=col.g;a[i+2]=col.b;}n.setAttribute('color',new T.BufferAttribute(a,3));return n;}),false)!;
+    blobGeometries.set(color,geometry);}
+  if(!blobMaterial){blobMaterial=toon('#ffffff').clone();blobMaterial.vertexColors=true;}
+  const m=new T.Mesh(geometry,blobMaterial);m.castShadow=true;m.receiveShadow=true;return m;
+}
 export const lit=(color:string,glowColor:string,ei=.9)=>toon(color,{emissive:glowColor,ei} as ToonOptions);
 /** Live needle gauge drawn on a canvas; call set() when the value changes. */
 export class Gauge{

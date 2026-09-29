@@ -65,14 +65,15 @@ export class Rope {
     }
     routed.push(end);this.lastEnd={x:end.x,z:end.z};
     this.bends=routed.slice(1,-1);this.length=pathLength(routed);this.strain=this.length/this.maxLength;
-    this.energy=Math.max(0,this.length-this.maxLength)**2*18;
+    // Elastic energy is what the slingshot throws: a sprint can stretch the rope ~0.85 m past its length.
+    this.energy=Math.max(0,this.length-this.maxLength)**2*60;
     return routed;
   }
   /** Swap which end is anchored (e.g. the player picks up the other plug). */
   flip(anchor:Point){this.anchor=anchor;this.bends.reverse();this.lastEnd=undefined;}
   reset(anchor:Point,maxLength=this.maxLength){this.anchor=anchor;this.maxLength=maxLength;this.bends=[];this.lastEnd=undefined;}
   pull(end:Point):Point {
-    const p=this.bends.at(-1)??this.anchor,d=Math.max(.01,distance(p,end)),force=Math.min(35,Math.max(0,this.length-this.maxLength)*16);
+    const p=this.bends.at(-1)??this.anchor,d=Math.max(.01,distance(p,end)),force=Math.min(35,Math.max(0,this.length-this.maxLength)*8);
     return {x:(p.x-end.x)/d*force,z:(p.z-end.z)/d*force};
   }
   release(){const energy=this.energy;this.energy=0;return energy;}

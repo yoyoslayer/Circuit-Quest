@@ -1,14 +1,14 @@
-import type {Level} from './types';
+import type {Level,NpcSpot} from './types';
 import type {PropSpec} from '../props/prefabs';
 import {CHAIRC} from '../render/kit';
-const props:PropSpec[]=[],npcs:{x:number;z:number}[]=[];
+const props:PropSpec[]=[],npcs:NpcSpot[]=[{x:-12.4,z:5.9,standing:true},{x:-12.7,z:2.8,standing:true}];
 for(const [px,pz] of [[-6,-4.5],[-1,-4.5],[4,-4.5],[-6,1.5],[-1,1.5],[4,1.5],[-6,7.6],[-.8,7.6]]){
   for(const dx of [-.85,.85])for(const dz of [-.48,.48]){
     const x=px+dx,z=pz+dz;props.push({kind:'desk',x,z});
     props.push({kind:'monitor',x,z:z+(dz<0?.17:-.17),y:1.2,rotation:dz<0?Math.PI:0});
     props.push({kind:'chair',x,z:z+(dz<0?-1:1),rotation:dz<0?Math.PI:0,color:CHAIRC[props.length%CHAIRC.length]});
     props.push({kind:'mug',x:x+.55,z,y:1.08},{kind:'paper',x:x-.38,z,y:.99},{kind:'paper',x:x+.22,z:z+.16,y:1.01},{kind:'bin',x:x+.66,z:z+.64});
-    if(npcs.length<20)npcs.push({x,z:z+(dz<0?-1:1)});
+    if(npcs.length<22)npcs.push({x,z:z+(dz<0?-1:1)});
   }
 }
 for(let i=0;i<18;i++){props.push({kind:'cabinet',x:-9+i*.85,z:-9.2});props.push({kind:'box',x:-9+i*.85,z:-9.2,y:1.9});}

@@ -9,7 +9,8 @@ export const LOOK:Record<LevelId,{color:string;thumb:string;size:string;pos:stri
   playground:{color:'#5ED6CC',thumb:'thumb-playground.jpg',size:'175%',pos:'52% 42%'},
   meeting:{color:'#6E9BEA',thumb:'thumb-meeting.jpg',size:'165%',pos:'52% 45%'},
   lunch:{color:'#FF8A3D',thumb:'thumb-lunch.jpg',size:'160%',pos:'50% 45%'},
-  vias:{color:'#2F9A62',thumb:'thumb-vias.jpg',size:'160%',pos:'50% 45%'}
+  vias:{color:'#2F9A62',thumb:'thumb-vias.jpg',size:'160%',pos:'50% 45%'},
+  observatory:{color:'#7B6FE0',thumb:'thumb-observatory.jpg',size:'160%',pos:'50% 45%'}
 };
 export const thumbUrl=(id:LevelId)=>`${import.meta.env.BASE_URL}ui/${LOOK[id].thumb}`;
 /** Level data keeps names upper-case for the old intro card; menus use title case. */

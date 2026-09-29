@@ -1,4 +1,4 @@
-﻿import {describe,expect,it} from 'vitest';
+import {describe,expect,it} from 'vitest';
 import {JOBS,MODULES,CIRCUIT,CART_SAFE,impedance,transfer,gain,dB,latchVolts,read,judge,solutions,cheapest,stepResponse,
   quarterWave,wavelength,antennaFactor,morse,decoded,type Setup} from './logic';
 

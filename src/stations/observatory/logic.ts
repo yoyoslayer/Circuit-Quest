@@ -1,4 +1,4 @@
-﻿// Signal Observatory rules. The rooftop receiver feeds a Morse decoder over one cable, which also
+// Signal Observatory rules. The rooftop receiver feeds a Morse decoder over one cable, which also
 // carries 12 V DC for a latch (the dome-shutter relay). Motors couple noise into that cable.
 // Pip plugs filter modules into two slots between the receiver and the decoder: one in SERIES
 // with the line, one in SHUNT across the decoder (to ground).
@@ -142,19 +142,21 @@ export function judge(job:Job,s:Setup):Verdict{
   if(job.beacon&&r.antenna<.3)problems.push(s.vertical||RODS[s.rod].length/quarterWave(job.beacon)<.7||RODS[s.rod].length/quarterWave(job.beacon)>1.4
     ?`A ${RODS[s.rod].label} whip is far from a quarter wave at ${job.beacon/1e6} MHz (λ = c/f = ${wavelength(job.beacon).toFixed(1)} m, so λ/4 ≈ ${quarterWave(job.beacon).toFixed(2)} m). Most of the signal reflects.`
     :'The beacon is vertically polarised; a horizontal whip catches only a sliver of it. Stand the rod upright.');
-  if(r.level<SPEC.minLevel&&!problems.length)problems.push(`The tone itself is down to ${Math.round(r.level*100)}% at ${job.fs} Hz: this filter cuts the message too. Pick a higher cut-off.`);
   if(job.latch&&!r.latchOk)problems.push(sm?.kind==='C'
     ?`The latch dropped out: a series capacitor passes changes but no steady DC, so only ${r.latch} V reaches it (needs ${CIRCUIT.latchMin} V).`
     :sm?.kind==='R'?`The latch dropped out: the 470 Ω resistor and the 600 Ω load split the 12 V, leaving ${r.latch} V (needs ${CIRCUIT.latchMin} V).`
     :pm?.kind==='L'?`The latch dropped out: a shunt inductor carries steady DC straight to ground, leaving ${r.latch} V.`
     :`Only ${r.latch} V reaches the latch; it needs ${CIRCUIT.latchMin} V.`);
+  // The latch is checked before the tone: it is the lesson of the DC-fed jobs.
+  if(r.level<SPEC.minLevel&&!problems.length)problems.push(`The tone itself is down to ${Math.round(r.level*100)}% at ${job.fs} Hz: this filter cuts the message too. Pick a higher cut-off.`);
   if(r.snr<SPEC.decodeSnr&&!problems.length)problems.push(sm?.kind==='C'||pm?.kind==='L'
     ?`Signal/noise is ${r.snr} dB. A high-pass lets the motor noise straight through: it sits above the ${job.fs} Hz tone.`
     :`Signal/noise is ${r.snr} dB; the decoder needs ${SPEC.decodeSnr} dB. ${job.cart&&s.cartDistance<CART_SAFE?'Move the motor cart away, ':''}${job.cart&&!s.rerouted?'reroute the cable, ':''}or filter harder above ${job.fs} Hz.`);
   if(problems.length)return {tier:0,problems,notes,snr:r.snr,cost:c};
   if(r.snr<SPEC.reliableSnr){notes.push(`It decodes, but ${r.snr} dB leaves little margin (reliable is ${SPEC.reliableSnr} dB).`);return {tier:1,problems,notes,snr:r.snr,cost:c};}
-  const best=cheapest(job,s);
-  if(best&&c>best.cost){notes.push(`Reliable. A leaner filter does it too (cost ${best.cost} vs ${c}): ${best.hint}.`);return {tier:2,problems,notes,snr:r.snr,cost:c};}
+  // The lean answer assumes the room step was done (the motor cart moved away).
+  const best=cheapest(job,{cartDistance:Math.max(s.cartDistance,CART_SAFE)});
+  if(best&&c>best.cost){notes.push(`Reliable. A leaner filter does it too (cost ${best.cost} vs ${c}): ${best.hint}${job.cart&&s.cartDistance<CART_SAFE?', with the motor cart moved away':''}.`);return {tier:2,problems,notes,snr:r.snr,cost:c};}
   return {tier:3,problems,notes,snr:r.snr,cost:c};
 }
 /** Every filter, route and antenna the bench offers that passes this job reliably, cheapest

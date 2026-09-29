@@ -36,7 +36,6 @@ export class LunchRuntime {
     this.addCable('thin-1',3,32,'a',null,[-11,2]);this.addCable('thin-2',3,30,'a',null,[-10,3.5]);this.addCable('thin-3',3,32,null,null,[-11,7]);this.addCable('thick',10,30,'b',null,[-10,7.5]);
     this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#141726',{transparent:true,opacity:.88,depthWrite:false}),-12.1,2.7,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;
     const tray=this.prop('tray');if(tray){tray.mesh.visible=false;tray.body.setEnabled(false);}
-    game.hud.querySelector('.badge>svg')!.outerHTML=icon('tray');
     const objective=document.createElement('div');objective.className='lunch-chain';objective.innerHTML=`<span id="oven-stage">${icon('oven')}</span>${icon('arrow')}<span id="belt-stage">${icon('conveyor')}</span>${icon('arrow')}<span id="lift-stage">${icon('lift')}</span><span id="fridge-stage">${icon('thermometer')}</span>`;game.hud.append(objective);
   }
   prop(id:string){return this.game.props.find(p=>p.spec.id===id);}
@@ -65,7 +64,7 @@ export class LunchRuntime {
     part(root,rbox(.7,.6,.6,.08),toon('#3f7fd6'),5,.3,-6.1);this.socketPlate(root,5,.38,-5.78);solid(g,8.5,.3,.9,3.5,.95,-7);solid(g,.7,.6,.6,5,.3,-6.1);
     for(const dz of [-.35,.35])part(root,box(.06,.8,.4),toon('#5f8fa8'),8.15,1.4,-7+dz);
     // Prep table the tray is baked for, plus pots and pans to knock about.
-    const table=group(root,-5,0,-6.2,Math.PI/2);part(table,rbox(2.2,.1,.9,.06),toon('#e9f0f2'),0,.95);for(const [lx,lz] of [[-1,-.38],[1,-.38],[-1,.38],[1,.38]])part(table,box(.07,.95,.07),toon(METAL),lx,.48,lz);solid(g,.9,1,2.2,-5,.5,-6.2);
+    const table=group(root,-5.9,0,-8.55);part(table,rbox(2.2,.1,.9,.06),toon('#e9f0f2'),0,.95);for(const [lx,lz] of [[-1,-.38],[1,-.38],[-1,.38],[1,.38]])part(table,box(.07,.95,.07),toon(METAL),lx,.48,lz);solid(g,2.2,1,.9,-5.9,.5,-8.55);
   }
   buildLift(){const g=this.game,root=g.root;
     for(const x of [10.6,13.4])part(root,box(.2,3.7,.2),toon(DMETAL),x,1.85,-8.3);part(root,box(3.2,.25,.5),toon(DMETAL),12,3.6,-8.3);
@@ -122,7 +121,7 @@ export class LunchRuntime {
         const otherPort=this.ports.find(p=>p.id===cable.ports[other]);
         const count=this.cables.reduce((n,c)=>n+c.ports.filter(id=>id===target.id).length,0);
         const validRole=!otherPort||!(target.role==='out'&&otherPort.role==='out')&&!(target.role==='in'&&otherPort.role==='in');
-        if(count<target.capacity&&validRole){cable.ports[end]=target.id;cable.ends[end].copy(target.pos);g.audio.tone(610,.13,.045);g.burst(target.pos.clone(),'#6ce6d3',8);this.held=undefined;g.holdingPlug=false;return true;}
+        if(count<target.capacity&&validRole){cable.ports[end]=target.id;cable.ends[end].copy(target.pos);g.audio.tone(610,.13,.045);g.burst(target.pos,'#fff3a3',12,'spark');g.audio.noise(.05,.05,3000);this.held=undefined;g.holdingPlug=false;return true;}
       }
       this.release();return true;
     }
@@ -167,24 +166,24 @@ export class LunchRuntime {
       cable.lead.from=(reversed?cable.ports[1]:cable.ports[0])??'';cable.lead.to=(reversed?cable.ports[0]:cable.ports[1])??'';cable.lead.closed=!!cable.lead.from&&!!cable.lead.to;
       const crossing=cable.points.slice(1).some((b,i)=>segmentDistance(PUDDLE,cable.points[i],b)<1.5);
       cable.lead.wet=this.water>.1&&crossing&&!this.bridgeNear(PUDDLE);
-      if(this.doorWasOpen&&!open&&!wedged&&cable.points.slice(1).some((b,i)=>segmentHits(cable.points[i],b,{id:'door',minX:-1.4,maxX:1.4,minZ:-.15,maxZ:.45}))){cable.lead.dead=true;g.audio.tone(80,.2,.08,'sawtooth');g.burst(new T.Vector3(0,.5,.15),'#f7d967',10);g.alarm(DOOR);}
+      if(this.doorWasOpen&&!open&&!wedged&&cable.points.slice(1).some((b,i)=>segmentHits(cable.points[i],b,{id:'door',minX:-1.4,maxX:1.4,minZ:-.15,maxZ:.45}))){cable.lead.dead=true;g.audio.tone(80,.2,.08,'sawtooth');g.burst({x:0,y:.5,z:.15},'#fff3a3',16,'spark');g.alarm(DOOR);}
       if(cable.rope.strain>1.25&&cable.lead.closed){cable.ports[1]=null;cable.lead.closed=false;g.audio.tone(110,.2,.05);}
     }
     this.doorWasOpen=open;
     this.bots.forEach((bot,i)=>{const t=(g.time*.8+i*23)%46;const pos=t<19?new T.Vector3(-5+t,0,3):t<23?new T.Vector3(14,0,3+t-19):t<42?new T.Vector3(14-(t-23),0,7):new T.Vector3(-5,0,7-(t-42));
       bot.rotation.y=t<19?Math.PI/2:t<23?0:t<42?-Math.PI/2:Math.PI;bot.position.copy(pos);
-      if(this.cooldown===0&&!this.bridgeNear(pos))for(const cable of this.cables)if(cable.lead.closed&&cable.points.slice(1).some((b,j)=>segmentDistance(pos,cable.points[j],b)<.35)){cable.ports[1]=null;cable.ends[1].copy(pos);this.cooldown=3;g.audio.tone(140,.2,.06);g.burst(pos.clone().setY(.3),'#f7d967',6);break;}
+      if(this.cooldown===0&&!this.bridgeNear(pos))for(const cable of this.cables)if(cable.lead.closed&&cable.points.slice(1).some((b,j)=>segmentDistance(pos,cable.points[j],b)<.35)){cable.ports[1]=null;cable.ends[1].copy(pos);this.cooldown=3;g.audio.tone(140,.2,.06);g.burst({x:pos.x,y:.3,z:pos.z},'#fff3a3',8,'spark');break;}
     });
     this.circuit.tick(dt);
     for(const event of this.circuit.events.slice(this.eventIndex)){
-      if(event.kind==='trip'||event.kind==='short'){g.audio.tone(75,.25,.1,'square');const source=this.ports.find(q=>q.id===event.id);if(source){g.burst(source.pos.clone(),'#fff3a3',14);g.alarm(source.pos);}g.shake=.15;}
-      if(event.kind==='scorch'){const cable=this.cables.find(c=>c.id===event.id);const at=cable?.points[Math.floor(cable.points.length/2)]??{x:0,z:0};g.audio.tone(60,.4,.08,'sawtooth');this.puff(new T.Vector3(at.x,.3,at.z));}
+      if(event.kind==='trip'||event.kind==='short'){g.audio.tone(75,.25,.1,'square');const source=this.ports.find(q=>q.id===event.id);if(source){g.burst(source.pos,'#fff3a3',18,'spark');g.burst(source.pos,'#8d8a96',5,'dust');g.alarm(source.pos);}g.audio.noise(.25,.1,300);g.shake=.15;}
+      if(event.kind==='scorch'){const cable=this.cables.find(c=>c.id===event.id);const at=cable?.points[Math.floor(cable.points.length/2)]??{x:0,z:0};g.audio.tone(60,.4,.08,'sawtooth');this.puff(new T.Vector3(at.x,.3,at.z));g.burst({x:at.x,y:.3,z:at.z},'#ff9a3d',10,'spark');}
       if(event.kind==='start')g.audio.tone(event.id==='lift'?180:260,.15,.03,'triangle');
     }
     this.eventIndex=this.circuit.events.length;
     this.job.tick(dt,{oven:this.powered('oven'),fridge:this.powered('fridge'),conveyor:this.powered('conveyor'),lift:this.powered('lift')});
     const tray=this.prop('tray')!;
-    if(this.job.tray==='baked'&&!tray.mesh.visible){tray.mesh.visible=true;tray.body.setEnabled(true);tray.body.setTranslation({x:-2.5,y:1,z:-6.4},true);g.audio.tone(700,.3,.06);g.burst(new T.Vector3(-2.5,1.2,-6.6),'#ffd27a',12);}
+    if(this.job.tray==='baked'&&!tray.mesh.visible){tray.mesh.visible=true;tray.body.setEnabled(true);tray.body.setTranslation({x:-2.5,y:1,z:-6.4},true);g.audio.tone(700,.3,.06);g.burst({x:-2.5,y:1.2,z:-6.6},'#fffaf0',8,'dust');}
     if(g.held===tray)this.job.pickTray();
     if(this.job.tray==='carried'&&g.held!==tray&&distance(tray.body.translation(),{x:0,z:-7})<2){this.job.placeTray();tray.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);}
     if(['conveyor','lift','delivered'].includes(this.job.tray)){const along=this.job.transport;tray.body.setNextKinematicTranslation({x:along<1?-.5+along*12.5:12,y:1.18+this.job.height*2.5,z:-7});}

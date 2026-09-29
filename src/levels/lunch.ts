@@ -12,7 +12,7 @@ const props:PropSpec[]=[
 ];
 for(let i=0;i<10;i++)props.push({kind:'box',x:-14+(i%3)*.9,z:-3-Math.floor(i/3)*.8});
 for(let i=0;i<8;i++)props.push({kind:'mug',x:-1+i*.45,z:-6,y:1.1},{kind:'paper',x:-1+i*.45,z:-5.8,y:.98});
-export const lunch:Level={id:'lunch',width:33,depth:20,spawn:{x:-10,z:5},anchor:{x:-13,z:7},target:{x:12,z:-6},length:27,props,npcs:[{x:13,z:0}],obstacles:[
+export const lunch:Level={id:'lunch',name:'LUNCH RUSH',number:'02',tagline:'Hot trays, a warm fridge and five bars per cart.',badge:'tray',width:33,depth:20,spawn:{x:-10,z:5},anchor:{x:-13,z:7},target:{x:12,z:-6},length:27,props,npcs:[{x:13,z:0}],obstacles:[
   {id:'store-divider-1',minX:-7.9,maxX:-7.6,minZ:-10,maxZ:-6.5},
   {id:'store-divider-2',minX:-7.9,maxX:-7.6,minZ:-3.5,maxZ:0},
   {id:'kitchen-front-left',minX:-7.8,maxX:-1.5,minZ:0,maxZ:.3},

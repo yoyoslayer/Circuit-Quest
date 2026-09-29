@@ -43,6 +43,14 @@ export function planks(base='#f2cf94',line='rgba(170,120,60,0.35)'){
 export function checker(a:string,b:string,n=8){return canvasTex(256,256,c=>{const s=256/n;for(let j=0;j<n;j++)for(let i=0;i<n;i++){c.fillStyle=(i+j)%2?a:b;c.fillRect(i*s,j*s,s,s);}});}
 export function carpet(base:string){return canvasTex(256,256,c=>{c.fillStyle=base;c.fillRect(0,0,256,256);c.fillStyle='rgba(255,255,255,0.05)';for(let y=0;y<256;y+=32)for(let x=0;x<256;x+=32)if((x+y)%64===0)c.fillRect(x,y,32,32);});}
 export function concrete(base:string){return canvasTex(256,256,c=>{c.fillStyle=base;c.fillRect(0,0,256,256);c.fillStyle='rgba(0,0,0,0.06)';for(let i=0;i<60;i++)c.fillRect((i*173)%256,(i*97)%256,4,4);c.fillStyle='rgba(0,0,0,0.12)';c.fillRect(0,127,256,2);c.fillRect(127,0,2,256);});}
+/** Floor tiles with grout lines; `n` tiles per texture edge. */
+export function tiles(a:string,b:string,grout='rgba(40,40,60,0.18)',n=4){return canvasTex(256,256,c=>{const s=256/n;for(let j=0;j<n;j++)for(let i=0;i<n;i++){c.fillStyle=(i+j)%2?a:b;c.fillRect(i*s,j*s,s,s);c.fillStyle='rgba(255,255,255,0.06)';c.fillRect(i*s+4,j*s+4,s*.4,3);}c.fillStyle=grout;for(let k=0;k<=n;k++){c.fillRect(k*s-1,0,2,256);c.fillRect(0,k*s-1,256,2);}});}
+/** Diagonal hazard stripes. */
+export function stripes(a='#ffc629',b='#2b2d42'){return canvasTex(128,128,c=>{c.fillStyle=a;c.fillRect(0,0,128,128);c.fillStyle=b;for(let x=-128;x<256;x+=48){c.beginPath();c.moveTo(x,128);c.lineTo(x+24,128);c.lineTo(x+152,0);c.lineTo(x+128,0);c.fill();}});}
+/** Window view: warm-to-cool sky with three parallax skyline layers. */
+export function skyView(seed=0){return canvasTex(256,160,c=>{const g=c.createLinearGradient(0,0,0,160);g.addColorStop(0,'#bfe3ff');g.addColorStop(1,'#ffe6c2');c.fillStyle=g;c.fillRect(0,0,256,160);
+  ['#9fb6d6','#7d9cc4','#5a77a0'].forEach((col,layer)=>{c.fillStyle=col;const mod=(a:number,n:number)=>((a%n)+n)%n;let x=-mod(seed*37+layer*23,40),k=0;while(x<256){const w=18+mod(k*7+layer*13+seed,5)*8,h=30+layer*18+mod(k*3+seed*11+layer,6)*9;c.fillRect(x,160-h,w,h);x+=w+2+layer*2;k++;}});
+  c.fillStyle='rgba(255,255,255,0.35)';c.fillRect(20,18,90,6);c.fillRect(140,30,70,5);});}
 export function glyph(draw:(c:CanvasRenderingContext2D)=>void,bg?:string){return canvasTex(256,256,c=>{if(bg){c.fillStyle=bg;c.fillRect(0,0,256,256);}c.fillStyle=INK;c.strokeStyle=INK;c.lineWidth=16;c.lineCap=c.lineJoin='round';draw(c);});}
 export const boltGlyph=(c:CanvasRenderingContext2D)=>{c.beginPath();c.moveTo(150,20);c.lineTo(70,140);c.lineTo(125,140);c.lineTo(100,236);c.lineTo(190,104);c.lineTo(134,104);c.closePath();c.fill();};
 // Flat unlit sprite-like quads never get outlines.

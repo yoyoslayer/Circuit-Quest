@@ -12,7 +12,7 @@ import {grade} from './sim/grade';
 import type {Level,NpcSpot} from './levels/types';
 import {LunchRuntime} from './lunch-runtime';
 import {Particles,type Fx} from './render/particles';
-import {decorate} from './levels/decor';
+import {decorate,solid,type Decor} from './levels/decor';
 import {levels} from './levels';
 
 export interface Prop {spec:PropSpec;body:RAPIER.RigidBody;collider:RAPIER.Collider;mesh:T.Group;damaged:boolean;home:T.Vector3;lastSpeed:number}
@@ -23,7 +23,7 @@ export class Game {
   world=new RAPIER.World({x:0,y:-18,z:0});
   props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];lastVoice=-9;wrapped=new Set<Prop>();rig?:{legs:T.Group[];arms:T.Group[]};stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
-  avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;
+  avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
   yaw=.12;pitch=.92;zoom=18;survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
@@ -33,7 +33,7 @@ export class Game {
   // ?manual lets automated tests advance simulated time deterministically.
   manual=new URLSearchParams(location.search).has('manual');stick?:Point;
   constructor(public level:Level){
-    const {scene}=this.view;scene.add(this.root);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=level.id==='playground'?15:18;this.view.camera.fov=34;this.view.camera.updateProjectionMatrix();
+    const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=level.id==='playground'?15:18;this.view.camera.fov=34;this.view.camera.updateProjectionMatrix();dispatchEvent(new Event('resize'));
     this.rope=new Rope({...level.anchor},level.length);this.obstacles=[...level.obstacles];
     this.buildRoom();
     for(const spec of level.props)this.addProp(spec);
@@ -67,8 +67,8 @@ export class Game {
   }
   buildRoom(){
     const l=this.level;
-    this.box(l.width,.35,l.depth,0,-.2,0,'#6b7385');
-    const decor=decorate(this);this.screen=decor.screen;this.beam=decor.beam;
+    solid(this,l.width,.35,l.depth,0,-.2,0);
+    const decor=decorate(this);this.screen=decor.screen;this.beam=decor.beam;this.clock=decor.clock;
   }
   addProp(spec:PropSpec){
     const p=prefabs[spec.kind],mesh=makeProp(spec.kind,spec.color),pos=new T.Vector3(spec.x,spec.y??p.size[1]/2+.025,spec.z);
@@ -288,7 +288,7 @@ export class Game {
     cam.position.lerp(wanted,1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
     // Cutaway: shell walls whose outside faces the camera drop to 0.9 m stubs.
     for(const wall of this.shellWalls){const toCam=new T.Vector3(cam.position.x-wall.group.position.x,0,cam.position.z-wall.group.position.z).normalize();const stub=wall.normal.dot(toCam)>.2;
-      const want=stub?.9/wall.height:1;wall.group.scale.y=T.MathUtils.lerp(wall.group.scale.y,want,.15);}
+      wall.group.scale.y=T.MathUtils.lerp(wall.group.scale.y,stub?.01:1,.15);wall.group.visible=wall.group.scale.y>.03;}
     const start=cam.position,end=new T.Vector3(p.x,p.y+.4,p.z),ray=new T.Raycaster(start,end.clone().sub(start).normalize(),0,start.distanceTo(end));const hit=new Set(ray.intersectObjects(this.occluders).map(h=>h.object));
     for(const mesh of this.occluders){const material=mesh.material as T.MeshToonMaterial;material.opacity=T.MathUtils.lerp(material.opacity,hit.has(mesh)?.15:1,.15);material.depthWrite=material.opacity>.8;}
   }
@@ -328,6 +328,8 @@ export class Game {
     this.reticle.visible=this.running&&!this.won&&!!mark;if(mark){this.reticle.position.copy(mark);this.reticle.position.y=Math.max(.08,mark.y-.2);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.08);}
     this.pipRing.position.set(p.x,.03,p.z);
     this.fx.update(dt);
+    // The meeting clock reads 9:55 and its red minute hand sweeps the four minutes to the meeting.
+    if(this.clock){const late=this.level.deadline!==undefined&&this.time>this.level.deadline;this.clock.hand.rotation.z=-(9+55/60)/12*Math.PI*2-this.time/3600/12*Math.PI*2;this.clock.minute.rotation.z=-(55/60)*Math.PI*2-Math.min(this.time,this.level.deadline??240)/60/60*Math.PI*2;this.clock.face.material=toon(late&&Math.floor(this.last/300)%2?'#ff7a6b':'#fbf5ea');}
     // Steam from the coffee machine until its extension is borrowed.
     const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'dust');}
     // After a while a dotted ghost line traces the clean way round walls and pillars to the socket.

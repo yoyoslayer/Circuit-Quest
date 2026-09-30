@@ -1,4 +1,4 @@
-// Characters and the star cable (ported from mockups/look/actors.js): coworker blobs with
+// Characters and the star cable: formally dressed coworkers with
 // personality, glossy toon plastic, and the cable as a thick hose with a strain gradient.
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
@@ -20,46 +20,53 @@ export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965}={
 /** HDR unlit colour for bloom (colour * k survives the 1.3 bloom threshold). */
 export function hot(color:string,k=3){const m=new T.MeshBasicMaterial({color});m.color.multiplyScalar(k);m.userData.outlineParameters={visible:false};return m;}
 
-// ------------------------------------------------------------------ coworker blobs
+// ------------------------------------------------------------------ formally dressed coworkers
 export type Mood='calm'|'alarm'|'sleepy'|'happy';
 export type Accessory='tuft'|'headphones'|'glasses'|'tie'|'mug'|'bun'|'cap'|'sprout';
-const shadeHex=(hex:string,l:number)=>{const c=new T.Color(hex);c.offsetHSL(0,0,l);return '#'+c.getHexString();};
-/** Builds a blob's parts, then bakes them into one vertex-coloured mesh (one draw call). */
-function buildBlob(color:string,mood:Mood,acc:Accessory[]):T.BufferGeometry{
+/** Baked formal worker, one vertex-coloured mesh per pose (one draw call). */
+function buildWorker(color:string,mood:Mood,acc:Accessory[],seated:boolean):T.BufferGeometry{
   const parts:{g:T.BufferGeometry;c:string;m:T.Matrix4}[]=[];
   const add=(g:T.BufferGeometry,c:string,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{parts.push({g,c,m:new T.Matrix4().compose(new T.Vector3(x,y,z),new T.Quaternion().setFromEuler(new T.Euler(rx,ry,rz)),new T.Vector3(sx,sy,sz))});};
-  const dark=shadeHex(color,-.12),alarm=mood==='alarm';
-  add(new T.CapsuleGeometry(.33,.35,12,36),color,0,.55,0,0,0,0,1,1,.96);
-  for(const s of [-1,1]){
-    add(new T.SphereGeometry(.1,12,8),dark,s*.13,.07,.1,0,0,0,1.1,.7,1.5);
-    add(new T.SphereGeometry(alarm?.105:.088,24,16),'#ffffff',s*.105,.8,.285);
-    add(new T.SphereGeometry(alarm?.03:.045,16,12),INK,s*.105,.8,.365);
-    add(new T.SphereGeometry(.015,6,4),'#ffffff',s*.105+.02,.82,.405);
-    if(mood==='sleepy')add(new T.SphereGeometry(.094,14,8,0,Math.PI*2,0,Math.PI/2),color,s*.105,.8,.29,.35,0,0,1.06,1.06,1.06);
-    add(new T.SphereGeometry(.05,10,6),'#ff9fb4',s*.2,.68,.265,0,0,0,1,.6,.35);
-    add(new T.CapsuleGeometry(.07,.14,6,16),color,s*.35,.44,.02,0,0,s*(alarm?-2.3:.35));
+  const alarm=mood==='alarm',skin=['#e6bc9b','#d5a27e','#efc9aa'][acc.length%3],suit=['#293747','#42464e','#354352'][Math.round(new T.Color(color).r*10)%3];
+  const hip=seated?.04:.74,chest=hip+.3,head=hip+.77;
+  // A recognisable formal silhouette: jacket, white collar, tie, separate limbs,
+  // trousers, shoes, ears, nose, and restrained dark hair. No mascot accessories.
+  add(new T.BoxGeometry(.43,.5,.24),suit,0,chest,0);
+  add(new T.BoxGeometry(.18,.36,.025),'#f2f0e9',0,chest+.02,.132);
+  for(const side of [-1,1])add(new T.BoxGeometry(.07,.3,.035),suit,side*.11,chest+.08,.15,0,0,side*.28);
+  add(new T.BoxGeometry(.045,.22,.022),color,0,chest+.02,.158);
+  add(new T.BoxGeometry(.065,.06,.025),color,0,chest+.16,.159,0,0,Math.PI/4);
+  add(new T.CylinderGeometry(.06,.065,.11,10),skin,0,hip+.59,0);
+  add(new T.SphereGeometry(.18,18,12),skin,0,head,0,0,0,0,.88,1.08,.86);
+  add(new T.SphereGeometry(.18,16,10,0,Math.PI*2,0,Math.PI*.52),'#25292e',0,head+.04,-.015,0,0,0,.94,.94,.93);
+  add(new T.BoxGeometry(.18,.06,.06),'#25292e',-.045,head+.14,.11,0,0,-.12);
+  add(new T.SphereGeometry(.025,8,6),skin,0,head-.02,.16);
+  for(const side of [-1,1]){
+    add(new T.SphereGeometry(.035,8,6),skin,side*.16,head-.01,0,0,0,0,.6,1,.8);
+    add(new T.SphereGeometry(alarm?.023:.015,10,8),INK,side*.063,head+.035,.144,0,0,0,1,alarm?1.3:.8,.5);
+    add(new T.BoxGeometry(.045,.008,.01),'#25292e',side*.064,head+.075,.142,0,0,side*(alarm?.2:0));
+    if(acc.includes('glasses'))add(new T.TorusGeometry(.035,.006,5,14),INK,side*.064,head+.032,.158,0,0,0,1,.75,1);
+    add(new T.CapsuleGeometry(.06,.3,5,12),suit,side*.27,chest-.03,.015,seated?-1.05:0,0,side*.06);
+    add(new T.SphereGeometry(.062,10,8),skin,side*.27,chest-.24,seated?.2:.02);
+    if(seated){
+      add(new T.CapsuleGeometry(.075,.24,5,12),suit,side*.11,-.005,.15,Math.PI/2);
+      add(new T.CapsuleGeometry(.068,.43,5,12),suit,side*.11,-.3,.34);
+      add(new T.BoxGeometry(.15,.09,.27),INK,side*.11,-.55,.42);
+    }else{
+      add(new T.CapsuleGeometry(.075,.51,5,12),suit,side*.11,.39,0);
+      add(new T.BoxGeometry(.15,.09,.28),INK,side*.11,.045,.07);
+    }
   }
-  if(mood==='happy'||mood==='calm'){const k=mood==='happy'?1:.7;add(new T.TorusGeometry(.055,.014,6,14,Math.PI),INK,0,.7,.318,0,0,Math.PI,k,mood==='happy'?1:.6,1);}
-  if(alarm)add(new T.TorusGeometry(.035,.014,6,14),INK,0,.67,.325,0,0,0,1,1.3,1);
-  for(const a of acc){
-    if(a==='tuft')for(const [x,z,r] of [[0,0,0],[-.07,.03,.5],[.07,.02,-.5]])add(new T.ConeGeometry(.06,.2,8),dark,x,1.1,z,0,0,r);
-    if(a==='bun')add(new T.SphereGeometry(.13,12,10),dark,0,1.1,-.08);
-    if(a==='sprout'){add(new T.CylinderGeometry(.012,.012,.16,6),'#4caf50',0,1.13,0);add(new T.SphereGeometry(.07,10,6),'#6cc58a',.06,1.22,0,0,0,-.4,1.3,.45,.8);}
-    if(a==='headphones'){add(new T.TorusGeometry(.35,.035,8,24,Math.PI),'#3a3d55',0,.8,0);for(const s of [-1,1])add(new T.CylinderGeometry(.1,.1,.08,16),'#e5484d',s*.35,.8,0,0,0,Math.PI/2);}
-    if(a==='glasses'){for(const s of [-1,1])add(new T.TorusGeometry(.1,.016,6,18),INK,s*.105,.8,.37);add(new T.BoxGeometry(.06,.016,.016),INK,0,.81,.38);}
-    if(a==='tie'){add(new T.BoxGeometry(.08,.22,.03),'#e5484d',0,.44,.325,-.15);add(new T.BoxGeometry(.1,.06,.04),'#c53a3f',0,.57,.318);}
-    if(a==='cap'){add(new T.SphereGeometry(.34,16,8,0,Math.PI*2,0,Math.PI/2),'#3f7fd6',0,.93,0,0,0,0,1,.7,1);add(new T.CylinderGeometry(.2,.2,.03,16),'#3f7fd6',0,.95,.28,0,0,0,1,1,.7);}
-    if(a==='mug'){add(new T.CylinderGeometry(.075,.065,.16,12),'#fffaf0',.34,.55,.2);add(new T.TorusGeometry(.04,.012,6,10),'#fffaf0',.42,.55,.2,0,Math.PI/2);add(new T.CylinderGeometry(.062,.062,.01,12),'#6b4a2e',.34,.63,.2);}
-  }
+  add(new T.BoxGeometry(.055,.008,.008),INK,0,head-.075,.148);
   const baked=parts.map(({g,c,m})=>{const n=(g.index?g.toNonIndexed():g).applyMatrix4(m);for(const k of Object.keys(n.attributes))if(!['position','normal','uv'].includes(k))n.deleteAttribute(k);
     const col=new T.Color(c),a=new Float32Array(n.attributes.position.count*3);for(let i=0;i<a.length;i+=3){a[i]=col.r;a[i+1]=col.g;a[i+2]=col.b;}n.setAttribute('color',new T.BufferAttribute(a,3));return n;});
   return mergeGeometries(baked,false)!;
 }
-const blobGeometries=new Map<string,T.BufferGeometry>();let blobMaterial:T.MeshToonMaterial|undefined;
-export function blob(color:string,mood:Mood='calm',acc:Accessory[]=[]){
-  const key=`${color}|${mood}|${acc.join(',')}`;let g=blobGeometries.get(key);if(!g){g=buildBlob(color,mood,acc);blobGeometries.set(key,g);}
-  if(!blobMaterial){blobMaterial=toon('#ffffff').clone();blobMaterial.vertexColors=true;}
-  const m=new T.Mesh(g,blobMaterial);m.castShadow=true;m.receiveShadow=true;return m;
+const workerGeometries=new Map<string,T.BufferGeometry>();let workerMaterial:T.MeshToonMaterial|undefined;
+export function worker(color:string,mood:Mood='calm',acc:Accessory[]=[],seated=false){
+  const key=`${color}|${mood}|${acc.join(',')}|${seated}`;let g=workerGeometries.get(key);if(!g){g=buildWorker(color,mood,acc,seated);workerGeometries.set(key,g);}
+  if(!workerMaterial){workerMaterial=toon('#ffffff').clone();workerMaterial.vertexColors=true;}
+  const m=new T.Mesh(g,workerMaterial);m.castShadow=true;m.receiveShadow=true;return m;
 }
 
 // ------------------------------------------------------------------ cable hose

@@ -14,7 +14,8 @@ npm install
 npm run dev          # http://127.0.0.1:5173
 ```
 
-Play opens the **HQ lobby**: walk to a job's door and press E. Doors show your best medal,
+Play opens the **HQ lobby**: approach a job's door to open a portal, then walk into it
+to enter the job automatically. E also enters. Doors show your best medal,
 and a lamp over a door lights once that job is done. The **Workshop** arch practises any
 station without recording a grade. The jobs board is still one click away on the title
 screen. `?level=<id>` opens a job directly (`lobby`, `playground`, `meeting`, `lunch`,
@@ -26,6 +27,18 @@ expensive effects.
 the tools (each station also has keys, shown on the table and in the prompt), E or Esc
 steps back. The job card lists the steps; the panel on the right shows the order and a
 live readout; each station grades works / works reliably / elegant.
+
+**Via workshop:** inspect the customer requirements, then carry the same sample
+between the inspection bench, laminate press, drill press, plating bath and
+customer-hardware tester. Walk to each machine and press E. Pull the press lever
+down, hold the drill feed wheel, or lower the plating basket with the mouse.
+P / D / L and the on-screen cycle button offer alternatives. Select layers, pads
+and finish at inspection; TEST and SEND are at the hardware table. Esc steps away.
+Measurements and the explanation of each manufacturing choice expand on demand.
+
+**Mopping:** grab the mop, walk onto the spill and hold Space to scrub. On touch
+or gamepad, the jump control becomes Scrub while holding the mop. Holding it alone
+does not clean. Mouse-wheel zoom now permits a close view of the work.
 
 The job card shows the current step; **Job details** expands the full checklist and
 bonus goals. The camera follows Pip; **Tab** switches to a survey of the whole room.
@@ -54,6 +67,7 @@ bonus goals. The camera follows Pip; **Tab** switches to a survey of the whole r
 | `tools/debug/*.mjs` | Error catcher, pose logger, crops and scripted scene shots |
 | `node tools/bench-review.mjs` | Prepare each station and capture desktop/phone benches; optional `BASE_URL` and `REVIEW_OUT` |
 | `node tools/design-review.mjs after` | Capture all 15 rooms in play/survey/close views, with rig and physics diagnostics (default port 4174) |
+| `node tools/experience-review.mjs` | Capture hub portals, rendered walk frames, each Via work area and active mopping (default port 4174) |
 
 Browser tests open levels with `?manual`, which advances simulated time only when a
 test asks, so routes are deterministic even under software rendering.
@@ -66,6 +80,7 @@ test asks, so routes are deterministic even under software rendering.
 | `docs/screenshots/` | Screenshots of the current build |
 | `docs/REVIEW_FIXES.md` | Codex continuation: merged review fixes, phone checks and remaining work |
 | `docs/DESIGN_REVIEW_4.md` | Movement, collisions, camera and room-design review, fixes and before/after evidence |
+| `docs/DESIGN_REVIEW_5.md` | Current hands-on redesign, evidence, limitations and a distinct puzzle plan for every room |
 | `AGENTS.md` | Hard rules, stack, done criteria (Codex reads this automatically) |
 | `docs/GAME_DESIGN.md` | Current design (wins over older docs) |
 | `docs/LEVEL_01_BIG_MEETING.md` | First level spec |

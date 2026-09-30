@@ -270,3 +270,12 @@ body[data-bench] .objective .bonus,body[data-bench] .objective li.done,body[data
 body[data-bench] .station-panel{width:min(290px,calc(100vw - 32px));font-size:13px}
 .workshop-picker{max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 0 0 100vmax rgba(20,22,40,.45),var(--drop-lg)}
 .workshop-picker .grid .btn{text-align:left}
+
+/* Spatial Via workshop: explanations stay optional and scroll when opened. */
+.via-panel{pointer-events:auto}
+.via-panel details{margin-top:10px;border-top:1px solid #adb9b1;padding-top:8px}
+.via-panel summary{cursor:pointer;font-weight:700;font-size:13px}
+.via-panel details p{font-size:13px;line-height:1.4;margin:8px 0}
+.via-panel .workcell-name{font-weight:700;color:#416568;margin:10px 0 0}
+body[data-bench] .via-panel{max-height:65vh;overflow-y:auto}
+@media(max-width:700px){body[data-bench] .via-panel{max-height:32vh}}

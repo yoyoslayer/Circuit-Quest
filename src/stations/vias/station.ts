@@ -9,6 +9,11 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressViaFoundry} from './room';
 import {toon,box,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot} from '../../render/actors';
+import {equipment} from './equipment';
+import {CELLS,cellFor,type Workcell} from './workflow';
+import {DeviceFixture} from './devices';
+import {sectionSlab,sectionBarrel,CHOICES} from './section';
+import {sectionLayout} from './sectionLayout';
 import {rng} from '../../render/textures';
 import {SHIFT,rushOrder,PADS,FINISHES,PROFILE,blank,judge,kindOf,ring,cost,cheapest,drillSize,isLaser,type Build,type Drill,type Finish,type Layer,type Order,type Verdict} from './logic';
 
@@ -16,7 +21,7 @@ const COPPER='#e98a42',PREPREG='#b7c77c',CORE='#86ad64',MASK='#2f9a62',FILL='#9a
 // Display thicknesses (world units) for the cutaway, top to bottom: L1, prepreg, L2, core, L3, prepreg, L4.
 const SLABS:{kind:'cu'|'pp'|'core';layer?:Layer;h:number;group:number}[]=[
   {kind:'cu',layer:1,h:.028,group:0},{kind:'pp',h:.05,group:1},{kind:'cu',layer:2,h:.028,group:2},{kind:'core',h:.15,group:2},{kind:'cu',layer:3,h:.028,group:2},{kind:'pp',h:.05,group:3},{kind:'cu',layer:4,h:.028,group:4}];
-const BOARD_W=.9,BOARD_D=.34,BASE_Y=.14,GAP=.06,SCALE=.3;
+const BOARD_W=1.2,BOARD_D=.7,BASE_Y=.14,GAP=.06;
 const DRILL_NAMES:Record<Drill,string>={'mech-0.30':'0.30 mm bit','mech-0.20':'0.20 mm bit','laser-0.10':'Laser 0.10 mm'};
 const FINISH_NAMES:Record<Finish,string>={open:'Open','tented':'Tented','plugged':'Plugged','filled-capped':'Filled + capped'};
 /** Rush mode: a three-minute shift of endless orders; each customer waits this long. */
@@ -27,14 +32,16 @@ const countLabels=new Map<number,T.Texture>();
 const countLabel=(n:number)=>{let t=countLabels.get(n);if(!t){t=label(`×${n}`,'#fffaf0',INK,128,80);countLabels.set(n,t);}return t;};
 
 /** Label decal texture for the counter (short words are fine now: see PROGRESS "on-screen text"). */
-function label(text:string,bg='#fffaf0',fg=INK,w=256,h=80){
+function makeLabel(text:string,bg='#fffaf0',fg=INK,w=256,h=80){
   return canvasTex(w,h,c=>{c.fillStyle=bg;c.beginPath();c.roundRect(4,4,w-8,h-8,18);c.fill();c.lineWidth=6;c.strokeStyle=fg;c.stroke();
     // Shrink the type until the words fit the plate.
     let size=Math.round(h*.46);const font=(n:number)=>`700 ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;c.font=font(size);while(size>10&&c.measureText(text).width>w-30){size--;c.font=font(size);}
     c.fillStyle=fg;c.textAlign='center';c.textBaseline='middle';c.fillText(text,w/2,h/2+2);});
 }
+const labelCache=new Map<string,T.Texture>();
+function label(text:string,bg='#fffaf0',fg=INK,w=256,h=80){const key=JSON.stringify([text,bg,fg,w,h]);let t=labelCache.get(key);if(!t){t=makeLabel(text,bg,fg,w,h);labelCache.set(key,t);}return t;}
 function sign(parent:T.Object3D,text:string,x:number,y:number,z:number,w=.46,tilt=-.75,bg?:string,fg?:string){
-  const m=new T.MeshBasicMaterial({map:label(text,bg,fg),transparent:true});m.userData.outlineParameters={visible:false};
+  const m=new T.MeshBasicMaterial({map:label(text,bg,fg),transparent:true});m.userData.outlineParameters={visible:false};m.userData.transient=true;
   const p=part(parent,new T.PlaneGeometry(w,w*80/256),m,x,y,z,false);p.rotation.x=tilt;p.userData.noAO=true;return p;
 }
 /** Order ticket art: the 4-layer stack with the span to join, plus badges. */
@@ -51,10 +58,12 @@ function ticketTexture(o:Order){
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 export class ViaCounter implements Station {
-  readonly view={distance:6.7,pitch:.8,lookY:.02,lookX:.2};
+  readonly view={distance:7.8,pitch:.7,lookY:.3,lookX:.2};
   readonly limits={time:420,damage:1,cost:0};
-  readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
-  build:Build=blank();order=0;served:{order:string;verdict:Verdict}[]=[];mistakes=0;spent=0;blanksReady=false;active=false;
+  readonly stand={x:0,z:-.85};readonly inspectionTable=new T.Vector3(0,1,-2.45);readonly table=this.inspectionTable.clone();get facing(){const c=CELLS[this.cell];return Math.atan2(c.table.x-c.at.x,c.table.z-c.at.z);}
+  readonly showsWorker=true;private actionTime=0;private actionKind='inspect';
+  private cell:Workcell='inspect';private machines!:ReturnType<typeof equipment>;private devices!:DeviceFixture;private plateAnim=0;private help='layers';private gesture?:{kind:'press'|'plate'|'drill';plane:T.Plane;startY:number;progress:number};
+  build:Build=blank();order=0;served:{order:string;verdict:Verdict}[]=[];mistakes=0;spent=0;blanksReady=true;active=false;
   private root=new T.Group();private boardGroup=new T.Group();private viaGroup=new T.Group();private press=0;private pressTarget=0;
   private clickables:Clickable[]=[];private hovered?:Clickable;private drillHead=new T.Group();private drillAnim=0;private testGlow=0;private testOk=false;
   private tabs:T.Mesh[]=[];private padButtons:T.Mesh[]=[];private finishJars:T.Mesh[]=[];private bitButtons:T.Mesh[]=[];private countText!:T.Mesh;
@@ -70,16 +79,16 @@ export class ViaCounter implements Station {
     if(this.rush){this.limits.damage=2;this.limits.time=RUSH_TIME+10;}
     this.job=this.rush?{goal:`Via Rush: serve as many orders as you can in ${RUSH_TIME/60} minutes`,
       steps:[
-        {text:'Bring the crate of board blanks to the counter',done:()=>this.blanksReady,at:()=>this.crate?.body.translation()??this.stand},
+        {text:'Inspect the customer board requirements',done:()=>this.active||this.served.length>0,at:()=>CELLS.inspect.at},
         {text:'Step up to the via counter (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand},
         {text:'Serve 3 orders',done:()=>this.served.length>=3},{text:'Serve 6 orders',done:()=>this.served.length>=6},
         {text:'Keep serving until the whistle',done:()=>this.complete()}],
       bonuses:[{text:'Serve 8 orders',ok:()=>this.served.length>=8},{text:'Every via works reliably',ok:()=>this.served.every(s=>s.verdict.tier>=2)},{text:'Nobody gives up waiting',ok:()=>this.misses===0}]}:
     {goal:'Run the via counter: fill five customer orders',
       steps:[
-        {text:'Bring the crate of board blanks to the counter',done:()=>this.blanksReady,at:()=>this.crate?.body.translation()??this.stand},
+        {text:'Inspect the customer board requirements',done:()=>this.active||this.served.length>0,at:()=>CELLS.inspect.at},
         {text:'Step up to the via counter (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand},
-        ...SHIFT.map((o,i)=>({text:`Order ${i+1} · ${o.customer}: ${this.orderTitle(o)}`,done:()=>this.served.length>i,at:()=>this.stand}))],
+        ...SHIFT.map((o,i)=>({text:`Order ${i+1} · ${o.customer}: ${this.orderTitle(o)}`,done:()=>this.served.length>i,at:()=>CELLS.inspect.at}))],
       bonuses:[
         {text:'Every via works reliably',ok:()=>this.served.every(s=>s.verdict.tier>=2)},
         {text:'Elegant: no process a via didn\'t need',ok:()=>this.served.every(s=>s.verdict.tier===3)},
@@ -90,7 +99,7 @@ export class ViaCounter implements Station {
   dress(kit:RoomKit){return dressViaFoundry(this.game,kit);}
   /** Coworkers and props are added after the room, so the queue is set up on the first update. */
   private ready=false;
-  private setup(){this.ready=true;this.crate=this.game.props.find(p=>p.spec.id==='blanks');this.buildQueue();}
+  private setup(){this.ready=true;this.crate=this.game.props.find(p=>p.spec.id==='blanks');this.buildQueue();this.setActive(false);}
   orderTitle(o:Order){const k=kindOf(o.from,o.to);return `L${o.from}→L${o.to} ${KIND_NAMES[k]}${o.inPad?' in a pad':''}${o.stitch?`, row of ${o.stitch}`:''}`;}
   current():Order|undefined{if(this.rush){if(this.complete())return undefined;while(this.orders.length<=this.order+5)this.orders.push(rushOrder(this.random,this.orders.length));}return this.orders[this.order];}
   /** The coworker playing the customer for an order (rush reuses the five in a loop). */
@@ -98,44 +107,32 @@ export class ViaCounter implements Station {
 
   // ---------- the counter ----------
   private buildCounter(){
-    const g=this.game,t=this.table,top=group(this.root,t.x,t.y,t.z);
+    const g=this.game,t=this.inspectionTable,top=group(this.root,t.x,t.y,t.z);
     // Counter body, worktop, and the glass service window behind it.
-    part(g.decorRoot,box(4.4,1,1.1),toon('#e0cfb0'),t.x,.5,t.z);part(g.decorRoot,box(4.5,.06,1.2),toon('#f4ead6'),t.x,1.0,t.z);part(g.decorRoot,box(4.42,.1,.04),toon('#c98a55'),t.x,.95,t.z+.57);
-    this.solid(4.4,1.05,1.1,t.x,.52,t.z);
-    for(const x of [-2.2,2.2])part(g.decorRoot,box(.12,1.4,.12),toon(DMETAL),t.x+x,1.7,t.z-.5);
-    part(g.decorRoot,box(4.5,.12,.14),toon('#c98a55'),t.x,2.42,t.z-.5);
-    const glass=part(g.root,box(4.3,1.3,.04),toon('#bfe6f5',{opacity:.18}),t.x,1.72,t.z-.5,false);glass.userData.noAO=true;
-    this.solid(4.4,2.6,.14,t.x,1.3,t.z-.5);
-    sign(g.root,'VIA COUNTER',t.x,2.62,t.z-.43,1.4,0,'#ffc629');
+    part(g.decorRoot,box(6.2,1,1.7),toon('#e0cfb0'),t.x,.5,t.z);part(g.decorRoot,box(6.3,.08,1.8),toon('#f4ead6'),t.x,1.0,t.z);part(g.decorRoot,box(6.22,.1,.04),toon('#c98a55'),t.x,.95,t.z+.57);
+    this.solid(6.2,1.05,1.7,t.x,.52,t.z);
+    sign(g.root,'SAMPLE INSPECTION',t.x,1.7,t.z-.8,1.8,0,'#d1dfd3');
     // Fixture: a vice-like base under the cutaway board, with the layer tabs on its left.
-    part(top,box(1.2,.1,.6),toon('#3a3d55'),0,.05,0);part(top,box(1.1,.02,.02),toon('#ffc629'),0,.1,.3);
-    for(const x of [-.5,.5])part(top,box(.06,.5,.06),toon(DMETAL),x,.3,-.2);
-    top.add(this.boardGroup);this.boardGroup.add(this.viaGroup);
+    part(top,box(1.8,.1,.7),toon('#3a3d55'),0,.05,0);part(top,box(1.7,.02,.02),toon('#ffc629'),0,.1,.3);
+    for(const x of [-.8,.8])part(top,box(.06,.5,.06),toon(DMETAL),x,.3,-.2);
+    top.add(this.boardGroup);this.boardGroup.scale.setScalar(1.65);this.boardGroup.add(this.viaGroup);
     sign(top,'CUTAWAY · NOT TO SCALE',0,.08,.4,.7);
-    SLABS.forEach((s,i)=>{if(s.kind!=='cu')return;const tab=part(top,box(.2,.07,.14),toon('#fffaf0'),-.57,0,.1);tab.userData.slab=i;this.tabs.push(tab);this.click(tab,'layer',s.layer);
+    SLABS.forEach((s,i)=>{if(s.kind!=='cu')return;const tab=part(top,box(.2,.07,.14),toon('#fffaf0'),-.96,0,.1);tab.userData.slab=i;this.tabs.push(tab);this.click(tab,'layer',s.layer);
       const tl=sign(tab,`L${s.layer}`,0,0,.072,.2,0);tl.position.set(0,0,.072);});
-    // Left tools: scrap bin, press, drill press with its bits, plating tank.
-    const scrap=group(top,-1.95,0,.1);part(scrap,cyl(.14,.12,.3,18),toon('#6b7385'),0,.15,0);part(scrap,cyl(.15,.15,.03,18),toon(INK),0,.31,0);this.click(scrap,'scrap');sign(top,'SCRAP',-2.02,.08,.4,.4);
-    const press=group(top,-1.55,0,-.05);part(press,box(.36,.08,.3),toon('#3f7fd6'),0,.04,0);part(press,box(.36,.08,.3),toon('#3f7fd6'),0,.42,0);
-    for(const x of [-.15,.15])part(press,cyl(.025,.025,.42,10),toon(DMETAL),x,.23,-.1);const lever=group(press,.2,.46,0);part(lever,cyl(.02,.02,.3,8,'x'),toon(DMETAL),.15,0,0);part(lever,sphere(.05,12,10),toon('#e5484d'),.3,0,0);
-    this.click(press,'press');sign(top,'PRESS',-1.56,.08,.4,.4);
-    const drill=group(top,-1.14,0,-.12);part(drill,box(.34,.06,.34),toon('#3a3d55'),0,.03,0);part(drill,cyl(.035,.035,.8,12),toon(DMETAL),-.1,.43,-.12);
-    drill.add(this.drillHead);this.drillHead.position.set(0,.62,0);part(this.drillHead,box(.24,.14,.2),toon('#ffc629'),0,0,0);part(this.drillHead,cyl(.012,.004,.16,8),toon('#dfe3ea'),0,-.14,0);
-    this.click(drill,'drill');sign(top,'DRILL',-1.08,.62,-.12,.46,0,'#ffc629');
-    (['mech-0.30','mech-0.20','laser-0.10'] as Drill[]).forEach((d,k)=>{const b=part(top,cyl(.045,.045,.03,16),toon(isLaser(d)?'#e5484d':'#dfe3ea'),-1.22+k*.14,.015,.14);b.userData.drill=d;this.bitButtons.push(b);this.click(b,'bit',d);});
-    sign(top,'BIT 0.30 · 0.20 · LASER',-1.08,.08,.4,.5);
-    const tank=group(top,-.84,0,-.05);part(tank,box(.26,.2,.26),toon('#3f7fd6',{opacity:.55}),0,.1,0);part(tank,box(.26,.02,.26),toon('#7fd3ff'),0,.19,0);part(tank,box(.3,.03,.3),toon(DMETAL),0,.01,0);
-    this.click(tank,'plate');sign(tank,'PLATE',0,.36,0,.34,0,'#7fd3ff');
+    // Full-size physical equipment in separate work areas; none of these process
+    // controls remain available remotely from the inspection counter.
+    this.machines=equipment(g,(obj,act,arg)=>this.click(obj,act,arg));
+    this.devices=new DeviceFixture(g,(obj,act)=>this.click(obj,act));
+    this.drillHead=this.machines.drillHead;this.bitButtons=this.machines.bits;
+    const scrap=group(top,-2.35,0,.1);part(scrap,cyl(.2,.18,.4,18),toon('#6b7385'),0,.2,0);this.click(scrap,'scrap');sign(top,'SCRAP',-2.35,.1,.5,.5);
     // Right tools: pad sizes, finish jars, stitch row count, tester, serve bell.
-    PADS.forEach((p,k)=>{const b=part(top,cyl(p*.28,p*.28,.03,24),toon(COPPER),.72+k*.2,.015,.05);b.userData.pad=p;this.padButtons.push(b);this.click(b,'pad',p);});
-    sign(top,'PAD 0.30 · 0.45 · 0.60',.92,.08,.34,.62);
-    FINISHES.forEach((f,k)=>{const jar=group(top,1.3+(k%2)*.16,0,-.12+Math.floor(k/2)*.18);const m=part(jar,cyl(.055,.055,.12,16),toon(f==='open'?'#fffaf0':f==='tented'?MASK:f==='plugged'?FILL:COPPER),0,.06,0);part(jar,cyl(.058,.058,.025,16),toon(INK),0,.13,0);this.finishJars.push(m);this.click(jar,'finish',f);});
-    sign(top,'FINISH',1.38,.08,.4,.4);
-    const row=group(top,1.72,0,.56);for(const [x,a] of [[-.12,-1],[.12,1]] as const){const b=part(row,box(.09,.05,.09),toon(a>0?'#6cc58a':'#e5484d'),x,.025,0);this.click(b,'count',a);}
+    PADS.forEach((p,k)=>{const b=part(top,cyl(p*.28,p*.28,.03,24),toon(COPPER),1.05+k*.25,.015,.05);b.userData.pad=p;this.padButtons.push(b);this.click(b,'pad',p);});
+    sign(top,'PAD 0.30 · 0.45 · 0.60',1.3,.08,.38,.85);
+    FINISHES.forEach((f,k)=>{const jar=group(top,1.8+(k%2)*.25,0,-.12+Math.floor(k/2)*.18);const m=part(jar,cyl(.055,.055,.12,16),toon(f==='open'?'#fffaf0':f==='tented'?MASK:f==='plugged'?FILL:COPPER),0,.06,0);part(jar,cyl(.058,.058,.025,16),toon(INK),0,.13,0);this.finishJars.push(m);this.click(jar,'finish',f);});
+    sign(top,'FINISH',1.92,.08,.4,.5);
+    const row=group(top,2.45,0,.56);for(const [x,a] of [[-.12,-1],[.12,1]] as const){const b=part(row,box(.09,.05,.09),toon(a>0?'#6cc58a':'#e5484d'),x,.025,0);this.click(b,'count',a);}
     this.countText=part(row,new T.PlaneGeometry(.12,.08),new T.MeshBasicMaterial({map:label('×1','#fffaf0',INK,128,80),transparent:true}),0,.06,0,false);this.countText.rotation.x=-1.1;(this.countText.material as T.Material).userData.outlineParameters={visible:false};
-    sign(top,'ROW',1.72,.08,.73,.3,-.75);
-    const tester=group(top,1.72,0,.16);part(tester,box(.22,.14,.14),toon('#ffc94d'),0,.07,0);part(tester,box(.15,.07,.01),toon('#bfeaf5'),0,.1,.072);this.click(tester,'test');sign(tester,'TEST',0,.24,0,.3,0,'#ffc629');
-    const bell=group(top,2.04,0,.16);part(bell,cyl(.09,.11,.03,18),toon(INK),0,.015,0);part(bell,sphere(.08,14,10,),toon('#ffc629'),0,.07,0).scale.y=.8;part(bell,cyl(.012,.012,.04,8),toon(INK),0,.14,0);this.click(bell,'serve');sign(top,'SERVE',2.04,.08,.42,.34,-.75,'#6cc58a');
+    sign(top,'ROW',2.45,.08,.73,.3,-.75);
     // The crate of blanks sits at the counter's end once delivered.
     part(g.decorRoot,box(.9,.06,.8),toon('#c98a55'),t.x+2.75,.9,t.z);
   }
@@ -148,7 +145,7 @@ export class ViaCounter implements Station {
     this.placeQueue(true);
   }
   private placeQueue(instant=false){
-    for(let k=0;k<5;k++){const i=this.order+k,n=this.customer(i);if(!n||(!this.rush&&i>=this.orders.length))continue;const x=k===0?this.table.x:this.table.x+1.3+k*1.05,z=k===0?this.table.z-1.2:this.table.z-2.1;
+    for(let k=0;k<5;k++){const i=this.order+k,n=this.customer(i);if(!n||(!this.rush&&i>=this.orders.length))continue;const x=k===0?6.6:8.4+k*.9,z=k===0?-2.9:-3.8;
       n.group.userData.goal=new T.Vector3(x,0,z);n.restYaw=0;if(instant)n.group.position.set(x,0,z);}
     const o=this.current(),cur=o&&this.customer(this.order);this.bubble.visible=!!cur;if(o&&cur)(this.bubble.material as T.SpriteMaterial).map=ticketTexture(o);this.patience=PATIENCE;
   }
@@ -157,6 +154,7 @@ export class ViaCounter implements Station {
   act(name:string,arg?:unknown):boolean{
     const b=this.build,o=this.current(),a=this.game.audio;
     if(!o)return false;
+    if(!this.active||cellFor(name)!==this.cell){this.say(`Use ${CELLS[cellFor(name)].label} in the room for this operation.`);return false;}
     if(!this.blanksReady&&name!=='test'){this.say('No board blanks yet: bring the crate from the rack to the counter.');a.voice('hm',1.4);return false;}
     switch(name){
       case 'layer':{const l=arg as Layer;if(b.drill){this.say('Already drilled. Scrap the blank to start a different via.');return false;}
@@ -167,28 +165,28 @@ export class ViaCounter implements Station {
       case 'drill':{if(b.from===undefined||b.to===undefined){this.say('Click two layer tabs (L1–L4) to choose what the via joins.');return false;}
         if(b.drill){this.say('This blank already has its hole. Scrap it to try again.');return false;}
         b.drill=this.bit;b.drilledPressed=b.pressed;this.drillAnim=1;if(isLaser(b.drill)){a.tone(1800,.25,.03,'sawtooth');}else{a.noise(.5,.06,1800,'bandpass');a.tone(140,.5,.03,'sawtooth');}
-        const at=this.table.clone().add(new T.Vector3(0,.5,0));this.game.burst(at,isLaser(b.drill)?'#ff8a8a':'#fff3a3',10,'spark');break;}
-      case 'plate':{if(!b.drill){this.say('Drill the hole first, then plate its barrel.');return false;}if(b.plated){this.say('Already plated.');return false;}b.plated=true;b.platedPressed=b.pressed;a.noise(.6,.03,900,'lowpass');a.bell(660,.4,.03,.3);break;}
+        const at=this.inspectionTable.clone().add(new T.Vector3(0,.5,0));this.game.burst(at,isLaser(b.drill)?'#ff8a8a':'#fff3a3',10,'spark');break;}
+      case 'plate':{if(!b.drill){this.say('Drill the hole first, then plate its barrel.');return false;}if(b.plated){this.say('Already plated.');return false;}b.plated=true;b.platedPressed=b.pressed;this.plateAnim=1;a.noise(.6,.03,900,'lowpass');a.bell(660,.4,.03,.3);break;}
       case 'pad':{b.pad=arg as number;a.tone(420+(b.pad*400),.06,.04,'triangle');break;}
       case 'finish':{const f=arg as Finish;if(f!=='open'&&!b.plated){this.say('Finish comes after plating.');return false;}b.finish=f;a.pop();break;}
       case 'count':{b.count=Math.max(1,Math.min(8,b.count+(arg as number)));a.tone(b.count*90+300,.05,.03);break;}
-      case 'test':{const v=this.verdict();this.testGlow=1.2;this.testOk=v.tier>0;
+      case 'test':{const v=this.verdict();this.devices.test(v.tier);this.testGlow=1.2;this.testOk=v.tier>0;
         this.say(v.tier>0?`${['','Works','Works reliably','Works reliably · elegant'][v.tier]}. ${v.notes[0]??''}`:v.problems.slice(0,2).join(' '),v.tier>0?'ok':'bad');
         if(v.tier>0)a.bell(1175,.4,.04);else a.tone(160,.25,.06,'square');break;}
-      case 'serve':{const v=this.verdict();
-        if(v.tier===0){this.returned=true;this.mistakes++;this.spent+=v.cost;this.say(`${o.customer} sends it back: ${v.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z-1.2},2);return true;}
+      case 'serve':{const v=this.verdict();this.devices.test(v.tier);
+        if(v.tier===0){this.returned=true;this.mistakes++;this.spent+=v.cost;this.say(`${o.customer} sends it back: ${v.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.inspectionTable.x,z:this.inspectionTable.z-1.2},2);return true;}
         this.served.push({order:o.id,verdict:v});this.spent+=v.cost;
         this.say(`${o.customer}: “${['','Thanks!','Lovely work.','Perfect, and cheap too!'][v.tier]}” · ${['','Works','Reliable','Elegant'][v.tier]}${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
         a.cheer();a.bell(1319,.5,.05);this.sendOff(this.order);
-        this.game.burst(this.table.clone().add(new T.Vector3(0,.8,-1)),'#ffcf52',30,'confetti');
+        this.game.burst(this.inspectionTable.clone().add(new T.Vector3(0,.8,-1)),'#ffcf52',30,'confetti');
         this.returned=false;this.order++;this.build=blank();this.press=0;this.pressTarget=0;this.placeQueue();break;}
       case 'scrap':{this.returned=false;if(b.drill)this.spent+=cost(b);this.build=blank();this.press=0;this.pressTarget=0;a.thud(2);a.clatter();break;}
       default:return false;
     }
-    this.redraw();if(name==='test')this.glowVia();return true;
+    this.actionTime=1;this.actionKind=name;this.redraw();this.updatePanel();if(name==='test')this.glowVia();return true;
   }
   /** Test result: the via's copper lights gold if the layers connect, red if not. */
-  private glowVia(){const m=this.testOk?GLOW_OK:GLOW_BAD;this.viaGroup.traverse(o=>{if(o instanceof T.Mesh)o.material=m;});}
+  private glowVia(){const m=this.testOk?GLOW_OK:GLOW_BAD;this.viaGroup.traverse(o=>{if(o instanceof T.Mesh){if(!Array.isArray(o.material)&&o.material.userData.transient)o.material.dispose();o.material=m;}});}
   private bit:Drill='mech-0.30';private returned=false;
   /** A served (or fed-up) customer walks off to the right; in rush they rejoin the back of the queue. */
   private sendOff(i:number){const npc=this.customer(i);if(npc){npc.alarm=0;this.leaving.push({g:npc.group,t:0});}}
@@ -198,33 +196,42 @@ export class ViaCounter implements Station {
   private slabY(i:number){let y=BASE_Y;for(let k=SLABS.length-1;k>i;k--)y+=SLABS[k].h+(SLABS[k].group!==SLABS[k-1].group?GAP*(1-this.press):0);return y+SLABS[i].h/2;}
   private layerY(l:Layer){return this.slabY(SLABS.findIndex(s=>s.layer===l));}
   redraw(){
-    const b=this.build;
-    // Board slabs (rebuilt each redraw; they are few).
-    this.boardGroup.children.filter(c=>c!==this.viaGroup).forEach(c=>this.boardGroup.remove(c));
-    SLABS.forEach((s,i)=>{const col=s.kind==='cu'?COPPER:s.kind==='pp'?PREPREG:CORE;const inSpan=s.layer&&(s.layer===b.from||s.layer===b.to);
-      const m=part(this.boardGroup,box(BOARD_W,s.h,BOARD_D),toon(inSpan?'#ffb35a':col),0,this.slabY(i),0);m.userData.slab=i;});
-    this.tabs.forEach(t=>{const i=t.userData.slab as number,l=SLABS[i].layer!;t.position.y=this.slabY(i);(t.material as T.Material)=toon(l===b.from||l===b.to?'#ffc629':'#fffaf0');});
-    // The via(s), drawn on the cutaway face.
-    this.viaGroup.clear();
+    const o=this.current();if(o)this.devices.order(o);const b=this.build;
+    const clear=(g:T.Group,keep?:T.Object3D)=>{for(const c of [...g.children]){if(c===keep)continue;c.traverse(o=>{if(o instanceof T.Mesh){if(o.geometry.userData.transient)o.geometry.dispose();if(!Array.isArray(o.material)&&o.material.userData.transient)o.material.dispose();}});g.remove(c);}};
+    clear(this.boardGroup,this.viaGroup);clear(this.viaGroup);
+    const layout=sectionLayout(b.count,BOARD_W),xs=layout.xs;
+    const lo=Math.min(b.from??1,b.to??1) as Layer,hi=Math.max(b.from??1,b.to??1) as Layer,r=b.drill?drillSize(b.drill)*layout.scale/2:0;
+    SLABS.forEach((s,i)=>{
+      const layer=SLABS.findIndex(q=>q.layer===lo),end=SLABS.findIndex(q=>q.layer===hi);
+      const holes=b.drill&&i>=layer&&i<=end?xs.map(x=>({x,r})):[];
+      const col=s.kind==='cu'?COPPER:s.kind==='pp'?PREPREG:CORE,inSpan=s.layer&&(s.layer===b.from||s.layer===b.to);
+      const material=toon(inSpan?'#ffb35a':col).clone();material.side=T.DoubleSide;material.userData.transient=true;material.userData.outlineParameters={visible:false};
+      const m=part(this.boardGroup,sectionSlab(BOARD_W,BOARD_D,s.h,holes),material,0,this.slabY(i),0);m.userData.slab=i;m.name=`section-${i}`;
+      if(s.layer)sign(this.boardGroup,`L${s.layer}`,-.39,this.slabY(i)+.003,-.12,.13,-Math.PI/2,col,INK);
+    });
+    this.tabs.forEach(t=>{const i=t.userData.slab as number,l=SLABS[i].layer!;t.position.y=this.slabY(i)*1.65;t.material=toon(l===b.from||l===b.to?'#ffc629':'#fffaf0');});
     if(b.drill&&b.from!==undefined&&b.to!==undefined){
-      const [a,z]=b.from<b.to?[b.from,b.to]:[b.to,b.from],ia=SLABS.findIndex(s=>s.layer===a),iz=SLABS.findIndex(s=>s.layer===z);
-      const w=Math.max(.035,drillSize(b.drill)*SCALE),n=Math.max(1,b.count),face=BOARD_D/2+.004;
-      for(let k=0;k<n;k++){const x=n===1?0:-.34+.68*k/(n-1);
-        for(let i=ia;i<=iz;i++){const s=SLABS[i],y=this.slabY(i),loose=!b.drilledPressed&&s.group!==SLABS[ia].group;
-          // Holes drilled before the press don't line up once the loose layers are stacked.
-          const dx=loose?(i%2?.035:-.035):0;
-          part(this.viaGroup,box(w,s.h+.001,.006),toon('#1d1f30'),x+dx,y,face,false);
-          if(b.plated&&!(kindOf(a,z)==='buried'&&b.platedPressed)){for(const sx of [-1,1])part(this.viaGroup,box(.012,s.h+.002,.008),toon(COPPER),x+dx+sx*(w/2),y,face+.001,false);
-            if(b.finish==='filled-capped'||b.finish==='plugged')part(this.viaGroup,box(w-.01,s.h,.007),toon(b.finish==='plugged'&&i>ia?'#1d1f30':FILL),x+dx,y,face+.002,false);}
+      const ia=SLABS.findIndex(s=>s.layer===lo),iz=SLABS.findIndex(s=>s.layer===hi);
+      const top=this.slabY(ia)+SLABS[ia].h/2,bottom=this.slabY(iz)-SLABS[iz].h/2;
+      for(const x of xs){
+        if(b.plated&&!(kindOf(lo,hi)==='buried'&&b.platedPressed)){
+          const g=sectionBarrel(r,top-bottom);
+          const copper=toon(COPPER).clone();copper.side=T.DoubleSide;copper.userData.transient=true;copper.userData.outlineParameters={visible:false};
+          part(this.viaGroup,g,copper,x,(top+bottom)/2,0).name='copper-barrel';
+          if(b.finish==='filled-capped'||b.finish==='plugged'){const fill=new T.CylinderGeometry(r*.9,r*.9,(top-bottom)*(b.finish==='plugged'?.25:1),24,1,false,Math.PI/2,Math.PI);fill.userData.transient=true;part(this.viaGroup,fill,toon(FILL),x,top-(top-bottom)*(b.finish==='plugged'?.125:.5),0);}
         }
-        const top=this.slabY(ia)+SLABS[ia].h/2,bottom=this.slabY(iz)-SLABS[iz].h/2;
-        if(b.pad!==undefined){const pw=b.pad*SCALE;for(const [yy,d] of [[top,1],[bottom,-1]] as const)part(this.viaGroup,box(pw,.012,.01),toon(COPPER),x,yy+d*.006,face+.003,false);
-          if(b.finish==='filled-capped')part(this.viaGroup,box(pw,.014,.012),toon('#f3a15c'),x,top+.018,face+.004,false);
-          if(b.finish==='tented'){const tent=part(this.viaGroup,sphere(pw*.55,14,8),toon(MASK),x,top+.01,face+.004,false);tent.scale.set(1,.35,.2);}}
+        if(b.pad!==undefined){const outer=b.pad*layout.scale/2;
+          for(const y of [top+.003,bottom-.003]){const g=new T.RingGeometry(r,outer,32,1,Math.PI,Math.PI);g.rotateX(Math.PI/2);g.userData.transient=true;const pad=part(this.viaGroup,g,toon(COPPER),x,y,0);(pad.material as T.Material).side=T.DoubleSide;}
+          if(b.finish==='filled-capped'||b.finish==='tented'){const g=new T.CircleGeometry(outer,32,Math.PI,Math.PI);g.rotateX(Math.PI/2);g.userData.transient=true;part(this.viaGroup,g,toon(b.finish==='tented'?MASK:COPPER),x,top+.012,0);}
+        }
       }
     }
+    // Recognisable package bodies and leads on the untouched rear surface.
+    if(b.pressed){const top=this.slabY(0)+.02;
+      for(const x of [-.24,.24]){part(this.boardGroup,box(.12,.045,.08),toon(INK),x,top,-.105);for(const side of [-1,1])for(let k=0;k<3;k++)part(this.boardGroup,box(.015,.01,.035),toon('#c6cbd0'),x-.04+k*.04,top-.015,-.105+side*.047);}
+    }
     // Tool states.
-    this.bitButtons.forEach(m=>m.position.y=m.userData.drill===this.bit?.035:.015);
+    this.bitButtons.forEach(m=>m.scale.setScalar(m.userData.drill===this.bit?1.2:1));
     this.padButtons.forEach(m=>m.position.y=m.userData.pad===b.pad?.04:.015);
     this.finishJars.forEach((m,k)=>m.parent!.position.y=FINISHES[k]===b.finish?.04:0);
     (this.countText.material as T.MeshBasicMaterial).map=countLabel(b.count);
@@ -232,32 +239,58 @@ export class ViaCounter implements Station {
   }
   /** Tabletop hits: clicks run the action; hover lifts the tool a touch. */
   pointer(e:Pointer){
+    if(this.gesture){const g=this.gesture,point=e.ray.ray.intersectPlane(g.plane,new T.Vector3());
+      if(point&&g.kind!=='drill')g.progress=T.MathUtils.clamp((g.startY-point.y)/.3,0,1);
+      if(e.kind==='up'){if(g.kind!=='drill'&&g.progress>.75)this.act(g.kind);this.gesture=undefined;return;}
+      if(e.kind==='move')return;
+    }
     const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true);let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
-    if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);if(found)found.obj.scale.copy(found.obj.userData.baseScale).multiplyScalar(1.12);this.hovered=found;}
+    if(this.hovered!==found){if(found){this.help=found.act==='layer'?'layers':found.act==='bit'?'drill':found.act;this.shown='';}if(this.hovered)this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);if(found)found.obj.scale.copy(found.obj.userData.baseScale).multiplyScalar(1.12);this.hovered=found;}
     document.body.style.cursor=found&&this.active?'pointer':'';
-    if(e.kind==='down'&&e.button===0&&found)this.act(found.act,found.arg);
+    if(e.kind==='down'&&e.button===0&&found){
+      if(['press','plate','drill'].includes(found.act)&&cellFor(found.act)===this.cell){
+        const point=found.obj.getWorldPosition(new T.Vector3()),normal=this.game.view.camera.getWorldDirection(new T.Vector3()),plane=new T.Plane().setFromNormalAndCoplanarPoint(normal,point);
+        const hit=e.ray.ray.intersectPlane(plane,new T.Vector3());if(hit)this.gesture={kind:found.act as 'press'|'plate'|'drill',plane,startY:hit.y,progress:0};
+      }else this.act(found.act,found.arg);
+    }
   }
   key(code:string){
     const map:Record<string,[string,unknown?]>={Digit1:['layer',1],Digit2:['layer',2],Digit3:['layer',3],Digit4:['layer',4],KeyP:['press'],KeyD:['drill'],KeyL:['plate'],KeyT:['test'],Enter:['serve'],Backspace:['scrap'],Equal:['count',1],Minus:['count',-1]};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
+  selectWorkplace(pos:{x:number;z:number}){const found=(Object.keys(CELLS) as Workcell[]).find(id=>Math.hypot(pos.x-CELLS[id].at.x,pos.z-CELLS[id].at.z)<1.6);if(!found)return false;this.cell=found;Object.assign(this.stand,CELLS[found].at);this.table.copy(CELLS[found].table);this.help=found==='inspect'?'layers':found==='verify'?'test':found;Object.assign(this.view,{distance:found==='inspect'?6.8:5.6,pitch:found==='inspect'?.5:.32,lookY:found==='inspect'?.38:.58,lookX:found==='inspect'?.2:.6});return true;}
+  workPose(){const kind=this.gesture?.kind??this.actionKind;if(!this.gesture&&this.actionTime<=0)return undefined;
+    const handle=kind==='press'?this.machines.pressHandle:kind==='drill'?this.machines.drillHandle:kind==='plate'?this.machines.plateHandle:undefined;
+    return {kind,progress:this.gesture?.progress??1-this.actionTime,target:handle?.getWorldPosition(new T.Vector3())};}
+  carryingWorkpiece(){return this.blanksReady&&!this.active&&!!this.current();}
+  setActive(active:boolean){this.active=active;this.gesture=undefined;
+    this.root.attach(this.boardGroup);this.boardGroup.position.copy(active?this.table:this.inspectionTable);this.boardGroup.scale.setScalar(active?1.65:.5);if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';this.updatePanel();}
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='blanks'||this.blanksReady)return;const q=p.body.translation();
-    if(Math.hypot(q.x-(this.table.x+2.75),q.z-this.table.z)<2.2||Math.hypot(q.x-this.stand.x,q.z-this.stand.z)<2){
-      this.blanksReady=true;p.body.setTranslation({x:this.table.x+2.75,y:1.25,z:this.table.z},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
-      this.game.audio.plug();this.game.burst({x:this.table.x+2.75,y:1.3,z:this.table.z},'#8ff3ea',1,'ring');}
+    if(Math.hypot(q.x-(this.inspectionTable.x+2.75),q.z-this.inspectionTable.z)<2.2||Math.hypot(q.x-this.stand.x,q.z-this.stand.z)<2){
+      this.blanksReady=true;p.body.setTranslation({x:this.inspectionTable.x+2.75,y:1.25,z:this.inspectionTable.z},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
+      this.game.audio.plug();this.game.burst({x:this.inspectionTable.x+2.75,y:1.3,z:this.inspectionTable.z},'#8ff3ea',1,'ring');}
   }
   update(dt:number){
-    if(!this.ready)this.setup();
+    if(!this.ready)this.setup();this.actionTime=Math.max(0,this.actionTime-dt);
     this.press+=(this.pressTarget-this.press)*Math.min(1,dt*6);if(Math.abs(this.pressTarget-this.press)>.002)this.redrawBoardOnly();
-    this.drillAnim=Math.max(0,this.drillAnim-dt*1.6);this.drillHead.position.y=.62-Math.sin(this.drillAnim*Math.PI)*.22;this.drillHead.rotation.y+=this.drillAnim*dt*60;
+    this.drillAnim=Math.max(0,this.drillAnim-dt*1.6);this.machines.spindle.position.y=-.26-Math.sin(this.drillAnim*Math.PI)*.15;this.machines.spindle.rotation.y+=this.drillAnim*dt*60;
+        if(this.gesture?.kind==='drill'){this.gesture.progress+=dt/ .65;if(this.gesture.progress>=1){this.act('drill');this.gesture=undefined;}}
+    const drag=this.gesture;
+    this.machines.pressHead.position.y=1.8-(drag?.kind==='press'?drag.progress:this.press)*.22;
+    this.machines.lever.rotation.x=(drag?.kind==='press'?drag.progress:this.press)*.8;
+    if(drag?.kind==='drill'){this.machines.spindle.position.y=-.26-drag.progress*.15;this.machines.spindle.rotation.y+=dt*45;}this.machines.spindle.visible=!isLaser(this.bit);this.machines.laserBeam.visible=isLaser(this.bit)&&(this.drillAnim>0||drag?.kind==='drill');
+
+    this.plateAnim=Math.max(0,this.plateAnim-dt*.8);this.machines.basket.position.y=1.9-(drag?.kind==='plate'?drag.progress:Math.sin(this.plateAnim*Math.PI))*.45;
+    this.machines.bubbles.forEach((m,i)=>{m.position.y=1.57+((this.game.time*.18+i*.07)% .22);m.scale.setScalar(.6+Math.sin(this.game.time*3+i)*.15);});
+    if(this.carryingWorkpiece()){const p=this.game.player.translation(),h=this.game.heading;this.boardGroup.position.set(p.x+Math.sin(h)*.58,p.y+.14,p.z+Math.cos(h)*.58);this.boardGroup.rotation.y=h;this.boardGroup.scale.setScalar(.5);}else {this.boardGroup.position.copy(this.table);this.boardGroup.scale.setScalar(this.cell==='inspect'?1.65:.8);this.boardGroup.position.y=this.cell==='plate'?1.6:1.05;}
+    if(!this.carryingWorkpiece()){const c=CELLS[this.cell];this.boardGroup.rotation.y=Math.PI+Math.atan2(c.at.x-c.table.x,c.at.z-c.table.z);if(this.cell==='verify')this.boardGroup.position.x-=.55;}
     if(this.testGlow>0){this.testGlow=Math.max(0,this.testGlow-dt);if(this.testGlow===0)this.redraw();}
     // Customers walk to their spot; served ones leave through the side door.
     for(const n of this.game.npcs){const goal=n.group.userData.goal as T.Vector3|undefined;if(goal&&!this.leaving.some(l=>l.g===n.group))n.group.position.lerp(goal,Math.min(1,dt*2.5));}
     for(const l of this.leaving){l.t+=dt;l.g.position.x+=dt*2.2;if(l.t>4)l.g.visible=false;}
-    if(this.rush){for(const l of this.leaving)if(l.t>4.5){l.g.visible=true;l.g.position.set(this.table.x+8,0,this.table.z-2.1);}this.leaving=this.leaving.filter(l=>l.t<=4.5);
+    if(this.rush){for(const l of this.leaving)if(l.t>4.5){l.g.visible=true;l.g.position.set(this.inspectionTable.x+8,0,this.inspectionTable.z-2.1);}this.leaving=this.leaving.filter(l=>l.t<=4.5);
       // Patience only runs while a customer is at the window and the counter is stocked.
       if(this.blanksReady&&this.current()){this.patience-=dt;if(this.patience<=0){const o=this.current()!;this.misses++;this.say(`${o.customer} gave up waiting.`,'bad');this.game.audio.voice('groan',.9);this.sendOff(this.order);this.order++;this.build=blank();this.press=0;this.pressTarget=0;this.placeQueue();this.redraw();}}}
     const cur=this.customer(this.order);if(cur&&this.bubble.visible)this.bubble.position.set(cur.group.position.x+1.35,1.85+Math.sin(this.game.last*.004)*.05,cur.group.position.z);
@@ -274,8 +307,8 @@ export class ViaCounter implements Station {
   private updatePanel(){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const o=this.current(),b=this.build,r=ring(b);
-    const key=JSON.stringify([this.active,this.order,b,this.bit,this.blanksReady,this.rush?Math.ceil(this.game.time):0]);if(key===this.shown)return;this.shown=key;
-    if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel';this.layer()?.append(this.panel);}
+    const key=JSON.stringify([this.cell,this.help,this.active,this.order,b,this.bit,this.blanksReady,this.rush?Math.ceil(this.game.time):0]);if(key===this.shown)return;this.shown=key;
+    if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel via-panel panel';this.panel.addEventListener('click',e=>{const b=(e.target as HTMLElement).closest<HTMLElement>('[data-cycle]');if(b)this.act(b.dataset.cycle!);});this.layer()?.append(this.panel);}
     this.panel.hidden=!o;if(!o)return;
     const span=b.from===undefined?'pick two layers':b.to===undefined?`L${b.from} → ?`:`L${b.from} → L${b.to} · ${KIND_NAMES[kindOf(b.from,b.to)]}`;
     // Green only when a choice is right for this order, red when it is set but wrong.
@@ -287,30 +320,35 @@ export class ViaCounter implements Station {
     const fin=b.finish??'open',finishOk=o.inPad?(b.plated?fin==='filled-capped':undefined):o.covered?(b.plated?fin!=='open':undefined):(b.finish?true:undefined);
     const rowOk=o.stitch?b.count>=o.stitch:b.count===1?undefined:false;
     const head=this.rush?`RUSH · ${Math.max(0,Math.ceil(RUSH_TIME-this.game.time))} s left · served ${this.served.length}`:`ORDER ${this.order+1}/${SHIFT.length}`;
-    this.panel.innerHTML=`<header><small>${head} · ${o.customer}</small>${this.rush?`<i class="patience" style="--p:${Math.max(0,this.patience/PATIENCE).toFixed(2)}"></i>`:''}<h4>${this.orderTitle(o)}</h4><p>${o.ask}</p></header>`+
-      (this.active?`<ul class="build">${row('Joins',span,spanOk)}${row('Stack',b.pressed?'pressed':'loose layers',b.pressed?true:undefined)}${row('Hole',b.drill?`${DRILL_NAMES[b.drill]} · ${b.drilledPressed?'after press':'before press'}`:`${DRILL_NAMES[this.bit]} ready`,holeOk)}`+
-        `${row('Barrel',b.plated?'plated':'bare',b.plated?!(kind==='buried'&&b.platedPressed):undefined)}${row('Pad',b.pad!==undefined?`${b.pad.toFixed(2)} mm · ring ${r!==undefined?r.toFixed(3):'—'}`:'—',padOk)}${row('Finish',FINISH_NAMES[fin],finishOk)}${row('Row',`×${b.count}`,rowOk)}${row('Cost',String(cost(b)))}</ul>`+
-        `<p class="profile">${PROFILE.name}: ring ≥ ${PROFILE.minRing} mm (laser microvias ${PROFILE.microMinRing}), aspect ≤ ${PROFILE.maxAspect}:1. Shop values, not universal rules.</p>`:'');
+    this.panel.innerHTML=`<header><small>${head} / ${o.customer}</small>${this.rush?`<i class="patience" style="--p:${Math.max(0,this.patience/PATIENCE).toFixed(2)}"></i>`:''}<h4>${this.orderTitle(o)}</h4><p>${o.ask}</p></header>`+
+      `<p class="workcell-name">${CELLS[this.cell].label}</p>${['press','drill','plate'].includes(this.cell)?`<button type="button" class="btn via-cycle" data-cycle="${this.cell}">Run ${this.cell} cycle</button>`:''}<details><summary>Sample measurements</summary><ul class="build">${row('Joins',span)}${row('Stack',b.pressed?'laminated':'loose')}${row('Hole',b.drill?DRILL_NAMES[b.drill]:'not drilled')}${row('Barrel',b.plated?'copper':'bare dielectric')}${row('Annular ring',r!==undefined?`${r.toFixed(3)} mm`:'choose hole and pad')}${row('Finish',FINISH_NAMES[fin])}${row('Cost',String(cost(b)))}</ul></details>`+
+      `<details><summary>Why these choices?</summary><p>${CHOICES[this.help as keyof typeof CHOICES]??CHOICES.test}</p><p class="profile">${PROFILE.name}: mechanical ring at least ${PROFILE.minRing} mm, laser ring at least ${PROFILE.microMinRing} mm; mechanical aspect at most ${PROFILE.maxAspect}:1. Shop values.</p></details>`;
+
   }
 
   prompt(atBench:boolean):Prompt|null{
     if(!this.current())return null;
     if(!atBench){const p=this.game.player.translation();
-      if(this.game.held?.spec.id==='blanks'&&Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<2.4)return {key:'E',text:'Set the crate of blanks on the counter'};
-      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.blanksReady?{key:'E',text:'Work at the via counter'}:{key:'E',text:'Work at the counter (the blanks crate is still on the rack)'};return null;}
+      if(this.game.held?.spec.id==='blanks'&&Math.hypot(p.x-CELLS.inspect.at.x,p.z-CELLS.inspect.at.z)<2.4)return {key:'E',text:'Load the blanks at inspection'};
+      const id=(Object.keys(CELLS) as Workcell[]).find(id=>Math.hypot(p.x-CELLS[id].at.x,p.z-CELLS[id].at.z)<1.6);
+      return id?{key:'E',text:CELLS[id].label}:null;}
+    if(this.cell==='verify')return {key:'T / Enter',text:'Test the sample on the customer hardware, then send it'};
+    if(this.cell!=='inspect')return {key:this.cell==='press'?'P':this.cell==='drill'?'D':'L',text:this.cell==='drill'?'Hold the feed wheel to drill; D runs a cycle':this.cell==='press'?'Pull the lever down to laminate; P runs a cycle':'Lower the basket to plate; L runs a cycle'};
     const b=this.build;
     if(!this.blanksReady)return {key:'E',text:'Step back and fetch the crate of board blanks'};
-    if(this.returned)return {key:'Backspace',text:'Sent back: fix the red rows, or SCRAP the board and start again'};
+    if(this.returned)return {key:'Backspace',text:'Sent back: revise the sample using the test feedback, or scrap it and start again'};
     if(b.to===undefined)return {key:'1–4',text:'Pick the two layers this via joins (click the L1–L4 tabs)'};
-    if(!b.drill)return {key:'D',text:kindOf(b.from!,b.to)==='buried'?'Buried vias are drilled in the core, before pressing: pick a bit and DRILL':'Press the stack if needed, pick a bit, then DRILL'};
-    if(!b.plated)return {key:'L',text:'PLATE the barrel so it conducts'};
+    if(!b.drill)return {key:'Esc',text:'Carry the sample to the press or drill; choose when to seal the layers'};
+    if(!b.plated)return {key:'Esc',text:'The hole is bare dielectric; use the copper plating bath'};
     if(b.pad===undefined)return {key:'PAD',text:'Click a PAD size (watch the annular ring)'};
-    if(!b.pressed)return {key:'P',text:'PRESS the stack before it ships'};
-    return {key:'Enter',text:'TEST it (T), then ring SERVE'};
+    if(!b.pressed)return {key:'Esc',text:'The stack is still loose; use the lamination press'};
+    return {key:'Esc',text:'Try the sample on the customer hardware at the test area'};
   }
   complete(){return this.rush?this.game.time>=RUSH_TIME:this.served.length>=SHIFT.length;}
   score(){return {mistakes:this.mistakes+this.misses,cost:Math.round(this.spent*10)/10};}
   /** Rush: orders served and the seconds left, for the HUD clock and the result card. */
   rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}
-  snapshot(){return {current:this.current(),rush:this.rush,misses:this.misses,patience:this.patience,order:this.order,served:this.served.map(s=>({order:s.order,tier:s.verdict.tier})),build:this.build,bit:this.bit,blanksReady:this.blanksReady,mistakes:this.mistakes,spent:this.spent};}
+  snapshot(){const tools:Record<string,[number,number]>={};const c=this.game.view.renderer.domElement;
+    for(const [name,obj] of Object.entries({press:this.machines.pressHandle,drill:this.machines.drillHandle,plate:this.machines.plateHandle})){const p=obj.getWorldPosition(new T.Vector3()).project(this.game.view.camera);tools[name]=[(p.x+1)*c.clientWidth/2,(1-p.y)*c.clientHeight/2];}
+    return {sample:{position:this.boardGroup.position.clone(),facing:this.boardGroup.rotation.y},tools,gesture:this.gesture?{kind:this.gesture.kind,progress:this.gesture.progress}:null,cell:this.cell,workcells:CELLS,current:this.current(),rush:this.rush,misses:this.misses,patience:this.patience,order:this.order,served:this.served.map(s=>({order:s.order,tier:s.verdict.tier})),build:this.build,bit:this.bit,blanksReady:this.blanksReady,mistakes:this.mistakes,spent:this.spent};}
 }

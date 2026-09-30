@@ -6,9 +6,9 @@ const cable=async(page:Page,id:string)=>(await lunch(page)).cables.find((c:any)=
 const source=async(page:Page,id:string)=>(await lunch(page)).sources.find((s:any)=>s.id===id);
 const load=async(page:Page,id:string)=>(await lunch(page)).loads.find((l:any)=>l.id===id);
 async function wedgeDoor(page:Page){await walk(page,-3,7,.4);await page.keyboard.press('KeyE');await walk(page,0,1.4);await page.keyboard.press('KeyE');await wait(page,.5);expect((await lunch(page)).doorWedged).toBe(true);}
-async function mopPuddle(page:Page){await walk(page,2,8,.4);await page.keyboard.press('KeyE');await walk(page,.3,2,.45);await wait(page,4);await walk(page,2,2);await page.keyboard.press('KeyE');expect((await lunch(page)).water).toBeLessThan(.1);}
+async function mopPuddle(page:Page){await walk(page,2,8,.4);await page.keyboard.press('KeyE');await walk(page,.3,2,.45);await wait(page,4,['Space']);await walk(page,2,2);await page.keyboard.press('KeyE');expect((await lunch(page)).water).toBeLessThan(.1);}
 async function takeThick(page:Page){await walk(page,-10,7.5,.3);await page.keyboard.press('KeyF');expect((await lunch(page)).held.id).toBe('thick');}
-async function feedKitchen(page:Page){await route(page,[[1,3],[.2,-1.2],[-3.5,-3]],.45);await page.keyboard.press('KeyF');await wait(page,.4);}
+async function feedKitchen(page:Page){await route(page,[[1,3],[.2,-3.8],[-3.5,-3]],.45);await page.keyboard.press('KeyF');await wait(page,.4);}
 
 test('a thin cable feeding oven and both lamps overheats and scorches',async({page})=>{
   await open(page,'lunch');await wedgeDoor(page);await mopPuddle(page);
@@ -57,9 +57,12 @@ test('cleaner bots snag a live cable lying across their line',async({page})=>{
 });
 test('emptying the fridge into the cooler box is a valid alternative',async({page})=>{
   await open(page,'lunch');await wedgeDoor(page);await mopPuddle(page);await takeThick(page);await feedKitchen(page);
-  await walk(page,-6.5,-4.8);await page.keyboard.press('KeyE');await walk(page,-5.7,-3.3);await page.keyboard.press('KeyE');
+  await walk(page,-6.5,-4.8);await page.keyboard.press('KeyE');await walk(page,-6.5,-6.5);await page.keyboard.press('KeyE');
   await route(page,[[-8.8,-5],[-10,-7.2]],.45);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('cooler-box');
-  await route(page,[[-8.8,-5],[-6.5,-3.8],[-4.4,-3.6],[-4.4,-1.8]],.5);await wait(page,.2);expect((await lunch(page)).job.cooled).toBe(true);
+  // Pass behind the moved shelf, then approach the fridge from its open side.
+  // Delivery automatically releases the cooler before this stopping point.
+  await route(page,[[-8.8,-5],[-6.5,-3.8],[-4.4,-3.6],[-4.4,-2.7]],.5);
+  expect((await lunch(page)).job.cooled).toBe(true);
   const before=(await lunch(page)).job.temperature;await wait(page,10);expect((await lunch(page)).job.temperature).toBeLessThan(before);
 });
 test('an unpowered fridge eventually spoils lunch and offers a retry',async({page})=>{

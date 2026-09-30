@@ -11,6 +11,7 @@ const symbols:Record<string,string>={
   plug:`<path d="M12 11V4.5M20 11V4.5"/><path ${A} d="M8 11h16v5a8 8 0 0 1-16 0z"/><path d="M16 24v5.5"/><path d="M12.5 15.5h7"/>`,
   throw:`<path d="M4.5 28c2-8 6.5-13 12-15" stroke-dasharray="0 4.6"/><circle ${A} cx="22" cy="10" r="5.6"/><path d="M19.6 5.4c2 1.4 3.2 3.4 3.4 6M26 3.5l1.8-1.5M28.5 8h2"/>`,
   jump:`<path ${A} d="M16 3.5l9.5 9.5h-5.2v8.5h-8.6V13H6.5z"/><path d="M6 27.5h20"/>`,
+  mop:`<path d="M19 3L12 22"/><path ${A} d="M6 21h18v5H6z"/><path d="M5 28h20M7 24v5M11 24v5M15 24v5M19 24v5M23 24v5"/>`,
   camera:`<path ${F} d="M6 11h4.5l2-3.5h7l2 3.5H26a2.5 2.5 0 0 1 2.5 2.5v10A2.5 2.5 0 0 1 26 26H6a2.5 2.5 0 0 1-2.5-2.5v-10A2.5 2.5 0 0 1 6 11z"/><circle ${A} cx="16" cy="18" r="4.6"/>`,
   clock:`<circle ${F} cx="16" cy="17.5" r="11"/><path d="M16 11.5v6l4 2.6M12.5 3.5h7M16 3.5v3"/>`,
   mug:`<path d="M22 13h2.4a3.6 3.6 0 0 1 0 7.2H22"/><path ${F} d="M6 10h16v11a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/><path d="M15 10l-2.6 5.2 4.2 2-3.2 5.4"/><path d="M25.5 6.5l2-2.2M22.5 4.5l.3-2.5M28 9.8l2.4-.4"/>`,

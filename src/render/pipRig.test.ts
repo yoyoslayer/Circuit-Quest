@@ -17,5 +17,5 @@ test('nested export groups put real boots and gloves on the animated joints',()=
   for(let i=0;i<15;i++)rig.update({dt:1/60,time:i/60,speed:4.2,grounded:true,rising:false,airborne:0,turnRate:0,carrying:'none',holdingPlug:false,strain:0,won:false,waving:false});
   const walked=boot.getWorldPosition(new T.Vector3());
   expect(walked.distanceTo(initial)).toBeGreaterThan(.12);
-  expect(rig.legs[0].rotation.x*rig.legs[1].rotation.x).toBeLessThan(0);
+  expect(Math.abs(rig.legs[0].position.z-rig.legs[1].position.z)).toBeGreaterThan(.1);
 });

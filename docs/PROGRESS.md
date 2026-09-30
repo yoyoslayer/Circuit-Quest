@@ -13,10 +13,41 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M4 Juice | Done | Sounds, particles, shake, squash/stretch, coworker reactions |
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
-Latest build and unit verification: `npm run build` and `npm test` (144 unit tests)
-pass. All 52 browser checks are verified (50 in the full run, two after focused
-test corrections); detailed results are recorded in
-`docs/DESIGN_REVIEW_4.md`. Simulation is deterministic in `?manual` mode.
+Latest build and unit verification: `npm run build` and `npm test` (150 unit tests)
+pass. Browser coverage now has 57 checks; final results are recorded in
+`docs/DESIGN_REVIEW_5.md`. Simulation is deterministic in `?manual` mode.
+
+## Hands-on redesign (2026-09-29, validation continued September 30)
+
+Review 5 supersedes the original clutter/cable/mascot requirements where they
+conflict with the owner's latest direction. HQ is a larger three-wing reception,
+with one departure display and automatic animated portal entry. The Via foundry
+has five usable work areas, physical lever/feed/basket gestures and customer
+hardware testing. A magnified cutaway shows layers, hole, barrel, pad and finish;
+manufacturing explanations and measurements expand on request. Process rules
+and cost judgments remain in the existing pure engine. Samples follow Pip
+between stations; tools cannot operate remotely from the wrong work area.
+
+Pip has a distance-driven planted gait with separate boot translation and bent
+knees, plus procedural upper arms/forearms. Carry/work poses are improved but
+not a finished contact-aware animation system. Coworkers are formal human
+figures, with separate seated and standing geometry. Standing NPC collision
+and walking animations remain open. Close orbit zoom has solid-world clearance;
+first-person is not implemented. The exterior has road traffic, parked cars,
+facades, crosswalks and street furniture, and remains stylized dressing.
+
+The mop has a shaft and string head, stays at floor height, and needs held Space
+or Scrub input to clean. Passive holding no longer consumes water or cleans.
+Accepted cooler delivery parks beside the fridge instead of dropping into the
+player's path. Dolly tipping is constrained; the clean route clears the door
+before turning. Braced sprint pulling is tuned for the slower movement, retaining
+Big Meeting's single-reel shortcut.
+
+Actual all-room screenshots and interaction captures are linked in review 5.
+The main remaining design work is converting the nine other station jobs to
+distinct physical room loops, with Garage then Waterworks as the first two.
+Via Rush needs batching before more throughput, and Big Meeting needs frame-time
+optimization. These are not marked complete merely because the build passes.
 
 ## Player-feedback design review (2026-09-29)
 

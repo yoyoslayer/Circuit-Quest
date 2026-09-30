@@ -9,24 +9,27 @@ import type {Point} from '../sim/cable';
 import {levels} from '../levels';
 import {LOOK,title} from '../ui/screens';
 import {bestFor,flagAutostart} from '../ui/store';
-import {toon,box,rbox,cyl,sphere,part,group,glow,DMETAL,INK} from '../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,DMETAL,INK,canvasTex} from '../render/kit';
 import {hot,glossyToon} from '../render/actors';
 import {signPlate} from '../render/labels';
 import * as TX from '../render/textures';
 import {wallArt,pendant,lampPool,pointLamp,rug} from '../levels/dressing';
 import {solid} from '../levels/decor';
 
-interface Door {level:Level;at:Point;leaf:T.Group;open:number;lamp:T.Mesh;done:boolean;locked:boolean}
+interface Door {level:Level;at:Point;leaf:T.Group;open:number;lamp:T.Mesh;done:boolean;locked:boolean;portal:T.Mesh;arrival:number}
 /** Door slots: along the back wall, then the left wall, then free-standing arches on the right. */
 function slots(width:number,depth:number){
-  const out:{wall:'back'|'side'|'free';x:number;z:number}[]=[];
-  for(let k=0;k<6;k++)out.push({wall:'back',x:-width/2+3.4+k*((width-6.8)/5),z:-depth/2});
-  for(let k=0;k<3;k++)out.push({wall:'side',x:-width/2,z:-depth/2+4.5+k*4.6});
-  for(let k=0;k<6;k++)out.push({wall:'free',x:width/2-2.2,z:-depth/2+4.5+k*2.9});
-  return out;
+  const office=levels.filter(l=>['playground','meeting','lunch'].includes(l.id));
+  const fab=levels.filter(l=>['vias','vias-rush','qfn','archive'].includes(l.id));
+  const facility=levels.filter(l=>!office.includes(l)&&!fab.includes(l));
+  return [
+    ...office.map((l,i)=>({id:l.id,wall:'back' as const,x:-6+i*6,z:-depth/2})),
+    ...fab.map((l,i)=>({id:l.id,wall:'side' as const,x:-width/2,z:-depth/2+5+i*6})),
+    ...facility.map((l,i)=>({id:l.id,wall:'free' as const,x:width/2,z:-depth/2+3.6+i*3.5})),
+  ];
 }
 export class Lobby {
-  doors:Door[]=[];readonly job:StationJob;
+  doors:Door[]=[];readonly job:StationJob;private directory?:T.Mesh;private directoryKey='';private departing=false;
   /** The Workshop arch: practise any station without recording a grade. */
   workshopAt:Point={x:7.5,z:5.5};private picker?:HTMLElement;
   constructor(private game:Game){
@@ -47,18 +50,27 @@ export class Lobby {
     const desk=group(r,0,0,-.6);part(desk,rbox(4,1,1.1,.12),toon('#f4ead6'),0,.5,0);part(desk,rbox(4.1,.08,1.2,.04),toon('#c98a55'),0,1.02,0);
     part(desk,box(3.6,.5,.06),toon('#5ED6CC'),0,.55,.57);signPlate(desk,'CIRCUIT CREW HQ',0,.6,.61,2.2,{bg:'#ffc629'});solid(g,4,1.05,1.1,0,.52,-.6);
     for(const x of [-1.2,1.2])part(desk,rbox(.5,.35,.4,.05),toon(INK),x,1.25,-.1);
-    // Directory board: every job with its number, on the reception's back.
-    const board=group(r,0,0,-1.3),rows=Math.ceil(levels.length/2),h=.3+rows*.26;part(board,box(3.3,h,.08),toon(INK),0,1.25+h/2,0);
-    levels.forEach((lv,i)=>signPlate(board,`${lv.number}  ${title(lv)}`,(i%2?.8:-.8),1.25+h-.28-Math.floor(i/2)*.26,.05,1.5,{bg:LOOK[lv.id]?.color??'#fffaf0',h:64}));
+    // One readable departure display, not fifteen tiny competing tickets.
+    const board=group(r,0,0,-1.35);part(board,box(3.8,2.1,.16),toon(INK),0,2.2,0);
+    this.directory=part(board,new T.PlaneGeometry(3.58,1.88),new T.MeshBasicMaterial({map:this.directoryTexture()}),0,2.2,.09,false);
+    (this.directory.material as T.Material).userData.outlineParameters={visible:false};
     pendant(g.root,-3,.2,{y:2.8,color:'#ffc94d'});pendant(g.root,3,.2,{y:2.8,color:'#ffc94d',light:false});lampPool(g.root,0,.2,4,.16);
     // Benches, plants and a water cooler around the ring.
     for(const [x,z,ry] of [[-6.5,3.6,0],[6.5,3.6,0]] as const){const b=group(r,x,0,z,ry);part(b,rbox(2,.12,.6,.05),toon('#c98a55'),0,.46,0);for(const s of [-.8,.8])part(b,box(.1,.44,.5),toon(INK),s,.22,0);solid(g,2,.5,.6,x,.25,z);}
     wallArt(kit.back,'bolt',-W+1.4,1.9,.18,0,.8);wallArt(kit.side,'mountain',-(D-1.6),1.9,.16,0,.8);
     // The Workshop arch, free-standing on the right of the atrium.
     this.workshop();
+    // Three actual circulation zones: office ahead, fab left, facility right.
+    for(const x of [-10,10])kit.interiorWall({id:`wing-${x}`,minX:x-.12,maxX:x+.12,minZ:-10,maxZ:5},'#e0e7df','#99ada6',3.2);
+    for(const [x,text,color] of [[-12.5,'FABRICATION','#87b8bd'],[0,'OFFICE','#d6b276'],[12.5,'FACILITY','#9abb9d']] as const){
+      const sign=group(g.root,x,0,x===0?-11:2.5);
+      part(sign,box(2.7,.12,.18),toon('#536b70'),0,3.25,0);
+      for(const sx of [-1.25,1.25])part(sign,box(.05,.35,.05),toon('#536b70'),sx,3.1,0);
+      signPlate(sign,text,0,2.95,.1,2.4,{bg:color});
+    }
     // The doors.
     const sl=slots(l.width,l.depth);
-    levels.forEach((lv,i)=>{const s=sl[i];if(!s)return;this.doors.push(this.door(kit,lv,s));});
+    levels.forEach(lv=>{const s=sl.find(s=>s.id===lv.id);if(!s)return;this.doors.push(this.door(kit,lv,s));});
     return {};
   }
   private door(kit:RoomKit,level:Level,s:{wall:'back'|'side'|'free';x:number;z:number}):Door{
@@ -68,10 +80,8 @@ export class Lobby {
     if(s.wall==='back'){parent=kit.back;lx=s.x;at={x:s.x,z:s.z+1.1};}
     else if(s.wall==='side'){parent=kit.side;lx=-s.z;at={x:s.x+1.1,z:s.z};}
     // Free-standing doors turn 45° toward the default camera so their signs read from the atrium.
-    else{parent=group(g.root,s.x,0,s.z,-Math.PI/4);lx=0;at={x:s.x-.8,z:s.z+.8};part(parent,box(2.5,3,.3),toon('#efe2c8'),0,1.5,-.2);solid(g,2.5,3,.3,s.x+.14,1.5,s.z-.14,-Math.PI/4);}
+    else{parent=group(g.root,s.x,0,s.z,-Math.PI/2);lx=0;at={x:s.x-1.1,z:s.z};}
     const f=group(parent,lx,0,.14);
-    // Side-wall doors face across the room: a blade sign sticks out from the wall toward the camera.
-    if(s.wall==='side'){const blade=group(g.root,s.x+.95,0,s.z);part(blade,box(.06,.5,.06),toon('#8a8fa6'),-.62,2.95,0);part(blade,box(1.3,.05,.05),toon('#8a8fa6'),0,3.18,0);signPlate(blade,`${level.number} · ${title(level)}`,0,2.86,.03,1.7,{bg:color,h:72});}
     // Frame, the door leaf on a hinge, a threshold, the name sign and a medal.
     for(const x of [-.95,.95])part(f,rbox(.22,2.5,.26,.05),toon(color),x,1.25,0);part(f,rbox(2.12,.26,.28,.06),toon(color),0,2.55,0);
     part(f,box(1.7,2.3,.04),toon('#262A40'),0,1.15,-.06,false);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
@@ -83,7 +93,9 @@ export class Lobby {
     // The wing lamp: dark until the job is done.
     const lamp=part(f,sphere(.13,14,10),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),0,3.35,.12,false);part(f,cyl(.05,.07,.12,10),toon(DMETAL),0,3.5,.1,false);
     if(done){const w=f.getWorldPosition(new T.Vector3());glow(g.root,'rgba(255,220,140,1)',1.4,.35).position.set(w.x,3.35,w.z+(s.wall==='back'?.4:0));}
-    return {level,at,leaf,open:0,lamp,done,locked};
+    const portal=part(f,new T.PlaneGeometry(1.68,2.28),new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,uniforms:{time:{value:0},tint:{value:new T.Color(color)}},vertexShader:'varying vec2 uvP; void main(){uvP=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec2 uvP;uniform float time;uniform vec3 tint;void main(){vec2 p=uvP-.5;float edge=pow(max(abs(p.x)*2.,abs(p.y)*2.),5.);float waves=.5+.5*sin(uvP.y*35.-time*4.+sin(uvP.x*14.+time));gl_FragColor=vec4(mix(tint,vec3(.85,1.,1.),edge),.55+edge*.35+waves*.08);}' }),0,1.16,-.01,false);
+    (portal.material as T.Material).userData.outlineParameters={visible:false};portal.visible=false;
+    return {level,at,leaf,open:0,lamp,done,locked,portal,arrival:0};
   }
   private workshop(){
     const g=this.game,w=this.workshopAt,a=group(g.root,w.x,0,w.z-1.2);
@@ -107,12 +119,20 @@ export class Lobby {
   /** E at a door walks through it into that job. */
   interact(pos:Point){if(this.nearWorkshop(pos)){this.game.audio.pop();this.openPicker();return true;}const d=this.near(pos);if(!d)return false;
     if(d.locked){this.game.audio.tone(140,.2,.06,'square');d.leaf.rotation.y=-.08;return true;}
-    this.game.audio.pop();this.enter(d.level);return true;}
-  enter(level:Level){flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;location.href=`?level=${level.id}`;}
+    this.game.audio.pop();d.arrival=.01;return true;}
+  enter(level:Level){if(this.departing)return;this.departing=true;flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;location.href=`?level=${level.id}`;}
   update(dt:number){
     const p=this.game.player.translation();
-    for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=-d.open*1.2;}
+    for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=-d.open*1.2;d.portal.visible=d.open>.35;(d.portal.material as T.ShaderMaterial).uniforms.time.value=this.game.time;
+      if(!d.locked&&(d.arrival>0||Math.hypot(p.x-d.at.x,p.z-d.at.z)<1.15)){d.arrival+=dt;if(d.open>.65&&d.arrival>.45)this.enter(d.level);}}
+    const near=this.near(p),key=near?.level.id??'';if(key!==this.directoryKey&&this.directory){this.directoryKey=key;const m=this.directory.material as T.MeshBasicMaterial;m.map?.dispose();m.map=this.directoryTexture(near?.level);m.needsUpdate=true;}
   }
   prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practise any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: finish ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
-  snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}
+  private directoryTexture(level?:Level){return canvasTex(1024,540,c=>{
+    c.fillStyle='#172b38';c.fillRect(0,0,1024,540);c.fillStyle='#71dbcc';c.font='700 36px system-ui';c.fillText('CIRCUIT CREW / DEPARTURES',52,72);
+    c.fillStyle='#eff5f3';let size=62;const heading=level?title(level):'Choose your next job';c.font=`700 ${size}px system-ui`;while(c.measureText(heading).width>920){size--;c.font=`700 ${size}px system-ui`;}c.fillText(heading,52,178);
+    c.font='28px system-ui';c.fillStyle='#b9d2d7';c.fillText(level?'Walk into the open portal':'Explore the three wings. Doors open as you approach.',52,238);
+    for(const [i,text] of ['OFFICE / cable repair','FABRICATION / build & inspect','FACILITY / diagnose & restore'].entries()){c.fillStyle=['#e5b66e','#7bb8cb','#94bd9d'][i];c.fillRect(52,292+i*66,8,40);c.font='28px system-ui';c.fillText(text,82,323+i*66);}
+  });}
+  snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked,portal:d.portal.visible,open:d.open})),near:this.near(this.game.player.translation())?.level.id};}
 }

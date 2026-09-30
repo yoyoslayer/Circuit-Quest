@@ -107,7 +107,10 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
     case 'bridge':{
       const geo=kindGeometry('bridge',()=>{const s=new T.Shape();s.moveTo(-w/2,0);s.lineTo(-.25,h);s.lineTo(.25,h);s.lineTo(w/2,0);s.closePath();const e=new T.ExtrudeGeometry(s,{depth:d,bevelEnabled:false});e.translate(0,-h/2,-d/2);return e;});
       part(g,geo,m);part(g,box(.48,.02,d),toon(INK),0,h/2+.01);break;}
-    case 'mop':part(g,cyl(.3,.24,.46,18),m,0,bottom+.23);part(g,cyl(.25,.25,.04,18),toon('#7cc4ea'),0,bottom+.45,0,false);part(g,cyl(.03,.03,1.4,8),toon('#a8734a'),.18,.05).rotation.z=-.22;break;
+    case 'mop':
+      part(g,rbox(.55,.045,.28,.015),m,0,bottom+.045);
+      for(let k=0;k<9;k++)part(g,box(.045,.035,.32),toon('#dddccc'),-.24+k*.06,bottom+.016,0);
+      part(g,cyl(.025,.025,1.4,10),toon('#a98d68'),0,.02,0);part(g,cyl(.034,.034,.22,10),m,0,.34,0);break;
     case 'tray':part(g,rbox(w,.05,d,.05),m,0,bottom+.03);for(const x of [-.22,.02,.26])part(g,sphere(.1,12,8),toon('#f2d08a'),x,bottom+.06,0).scale.y=.6;break;
     case 'lamp':
       part(g,cyl(.24,.3,.08,18),toon(INK),0,bottom+.04);part(g,cyl(.03,.03,1.1,8),toon('#a8734a'),0,bottom+.6);

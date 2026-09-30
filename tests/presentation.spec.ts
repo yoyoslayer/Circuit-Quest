@@ -1,6 +1,17 @@
 import {test,expect} from '@playwright/test';
 import {open,wait,snapshot} from './navigation';
 test.setTimeout(120000);
+
+for(const level of ['arcade','spectrum'])test(`${level}: close camera stays in front of the obstructing cabinet or wall`,async({page})=>{
+  const errors=await open(page,level);await wait(page,8);
+  await page.mouse.move(900,600);await page.mouse.wheel(0,-1800);await page.waitForTimeout(800);
+  await expect.poll(async()=>{await wait(page,.02);const {camera}=await page.evaluate(()=>(window as any).__circuitCrew.drive.inspect());return Math.hypot(camera.pos.x-camera.focus.x,camera.pos.y-camera.focus.y,camera.pos.z-camera.focus.z);},{timeout:30000}).toBeLessThan(3.45);
+  const {camera}=await page.evaluate(()=>(window as any).__circuitCrew.drive.inspect());
+  expect(camera.zoom).toBe(3.5);
+  const distance=Math.hypot(camera.pos.x-camera.focus.x,camera.pos.y-camera.focus.y,camera.pos.z-camera.focus.z);
+  expect(distance).toBeLessThan(3.45);expect(distance).toBeGreaterThan(.55);
+  expect(errors).toEqual([]);await page.screenshot({path:`artifacts/${level}-camera-clearance.png`});
+});
 test('Pip moves real boot meshes and the office furniture settles without spinning',async({page})=>{
   const errors=await open(page,'meeting');await wait(page,8);
   const inspect=()=>page.evaluate(()=>(window as any).__circuitCrew.drive.inspect());

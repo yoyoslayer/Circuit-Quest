@@ -24,6 +24,8 @@ const LANE={x0:-1,x1:14,z0:1.2,z1:5.4};
 const PUDDLES:[number,number,number][]=[[-4.6,-1.2,.45],[-3.6,-.55,.55],[-2.5,-.15,.55],[-1.2,.4,.6],[-.2,.8,.7],[.4,1.4,.75],[.6,2.2,.6],[.3,2.8,.45]];
 /** Level 02 rules and visuals: supplies, cables, splitters, machines, door, puddle, bots. */
 export class LunchRuntime {
+  scrubUntil=0;
+  mopping(){return this.game.held?.spec.id==='mop'&&this.water>.1&&this.nearPuddle(this.game.player.translation())&&(this.game.keys.has('Space')||this.game.time<this.scrubUntil);}
   circuit:Circuit;job=new LunchJob();ports:Port[]=[];cables:Cable[]=[];held?:{cable:Cable;end:0|1};
   water=1;puddles:T.Mesh[]=[];leaves:Leaf[]=[];doorAngle=0;doorSide=1;doorWasOpen=false;bots:Bot[]=[];
   dark:T.Mesh;liftCar!:T.Group;eventIndex=0;bakeGauge=new Gauge([[0,.95,'#ffc94d'],[.95,1,'#3bb273']]);supplyGauges=new Map<string,{gauge:Gauge;mount:T.Group;button:T.Mesh}>();
@@ -162,7 +164,7 @@ export class LunchRuntime {
     const g=this.game,pos=g.player.translation(),names:Record<string,string>={a:'cart A',b:'cart B',kitchen:'kitchen power post',fridge:'fridge',conveyor:'conveyor motor',lift:'lift winch'};
     const portName=(id:string)=>names[id]??'splitter';
     if(g.held){const id=g.held.spec.id;
-      if(id==='mop')return {key:'E',text:this.water>.1?'Stand in the leak to mop it up  ·  E puts the mop down':'Put the mop down'};
+      if(id==='mop')return {key:'Space',text:this.water>.1?'Hold to scrub the spill · E puts the mop down':'Spill cleared · E puts the mop down'};
       if(id==='wedge')return {key:'E',text:distance(pos,{x:0,z:.5})<2.4?'Wedge the door open':'Carry the doorstop to the kitchen door'};
       if(id==='cooler-box')return {key:'E',text:'Carry it to the fridge to cool the lunch'};
       if(id==='tray')return {key:'E',text:distance(pos,{x:0,z:-7})<2?'Put the tray on the conveyor':'Carry the tray to the start of the conveyor'};
@@ -213,8 +215,13 @@ export class LunchRuntime {
     this.doorAngle=T.MathUtils.lerp(this.doorAngle,open?1:0,dt*7);const shut=this.doorWasOpen&&this.doorAngle<=.15&&!wedged;if(this.doorWasOpen!==this.doorAngle>.15)g.audio.noise(.22,.035,shut?260:700);
     for(const leaf of this.leaves){const angle=leaf.closed+leaf.dir*this.doorSide*Math.PI*.47*this.doorAngle;leaf.pivot.rotation.y=angle;
       const center=new T.Vector3(.72,1.05,0).applyAxisAngle(new T.Vector3(0,1,0),angle).add(leaf.pivot.position);leaf.body.setNextKinematicTranslation(center);leaf.body.setNextKinematicRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),angle));}
-    if(g.held?.spec.id==='mop'&&this.nearPuddle(p))this.water=Math.max(0,this.water-dt*.3);
-    if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){this.job.cooled=true;g.audio.bell(988,.6,.05);g.held=undefined;}
+    if(this.mopping())this.water=Math.max(0,this.water-dt*.3);
+    if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){
+      // Accepted delivery parks beside the fridge instead of falling directly
+      // into Pip's path and trapping the player behind the newly dropped box.
+      const box=g.held;box.body.setTranslation({x:-4.5,y:.3,z:-1.8},true);box.body.setLinvel({x:0,y:0,z:0},true);box.body.setAngvel({x:0,y:0,z:0},true);box.body.setRotation(new T.Quaternion(),true);
+      this.job.cooled=true;g.audio.bell(988,.6,.05);g.held=undefined;
+    }
     const capacitor=this.prop('capacitor')!,capPos=capacitor.body.translation();this.circuit.loads.find(l=>l.id==='lift')!.capacitor!.atLoad=distance(capPos,{x:12,z:-4.8})<2;
     if(this.held?.cable.rating===10){const dolly=this.prop('thick-dolly')!,pos=dolly.body.translation(),d=distance(pos,p);if(d>1.3)dolly.body.setLinvel({x:(p.x-pos.x)*4,y:dolly.body.linvel().y,z:(p.z-pos.z)*4},true);}
     for(const cable of this.cables){

@@ -122,15 +122,15 @@ export function cheapest(order:Order){
 
 /** The story shift: one new idea per customer (through → buried → micro → via-in-pad → stitching). */
 export const SHIFT:Order[]=[
-  {id:'lamp',customer:'Bolt',from:1,to:4,ask:'Join the top layer to the bottom layer for a desk lamp.'},
-  {id:'router',customer:'Mira',from:2,to:3,covered:true,ask:'Connect L2 to L3 only; both outer layers are packed with parts.'},
-  {id:'bga',customer:'Dot',from:1,to:2,maxPad:.3,ask:'Drop a fine-pitch BGA pin from L1 to L2. The pad must be 0.30 mm or smaller.'},
-  {id:'qfn',customer:'Tuck',from:1,to:4,inPad:true,ask:'Put a via inside the QFN\'s thermal pad so heat can sink to the bottom layer.'},
-  {id:'stitch',customer:'Pim',from:1,to:4,stitch:6,covered:true,ask:'Stitch the ground planes along the board edge with a row of 6 vias, under a metal shield.'},
+  {id:'lamp',customer:'Sato',from:1,to:4,ask:'Join the top layer to the bottom layer for a desk lamp.'},
+  {id:'router',customer:'Mori',from:2,to:3,covered:true,ask:'Connect L2 to L3 only; both outer layers are packed with parts.'},
+  {id:'bga',customer:'Aoki',from:1,to:2,maxPad:.3,ask:'Drop a fine-pitch BGA pin from L1 to L2. The pad must be 0.30 mm or smaller.'},
+  {id:'qfn',customer:'Tanaka',from:1,to:4,inPad:true,ask:'Put a via inside the QFN\'s thermal pad so heat can sink to the bottom layer.'},
+  {id:'stitch',customer:'Yamada',from:1,to:4,stitch:6,covered:true,ask:'Stitch the ground planes along the board edge with a row of 6 vias, under a metal shield.'},
 ];
 
 /** Rush mode: endless orders mixed from the shift's ideas, seeded so a run can be replayed. */
-const NAMES=['Bolt','Mira','Dot','Tuck','Pim','Juno','Rex','Ivy','Nell','Oto','Skye','Wren'];
+const NAMES=['Sato','Mori','Aoki','Tanaka','Yamada','Ito','Kato','Saito','Nakamura','Kobayashi','Yoshida','Watanabe'];
 export function rushOrder(rng:()=>number,n:number):Order{
   const pick=<V>(a:V[])=>a[Math.floor(rng()*a.length)],customer=pick(NAMES),id=`rush-${n}`;
   switch(pick(['through','through','buried','micro','pad','stitch'] as const)){

@@ -33,6 +33,11 @@ export interface Station {
   readonly limits:Limits;
   /** Where Pip stands to work (world), and the tabletop centre (world). */
   readonly stand:Point;readonly table:T.Vector3;readonly facing:number;
+  /** Spatial jobs select a nearby physical machine before entering its view. */
+  selectWorkplace?(pos:Point):boolean;
+  carryingWorkpiece?():boolean;
+  readonly showsWorker?:boolean;
+  workPose?():{kind:string;progress:number;target?:T.Vector3}|undefined;
   /** Pip is at the bench; opens or closes the station's panels. */
   setActive(active:boolean):void;
   /** A clicked or keyed action ("drill", "pad" 0.45…). Returns false if it did nothing. */

@@ -3,6 +3,7 @@ export interface BoxShape {size:[number,number,number];at:[number,number,number]
 /** Furniture must leave its visible gaps empty: a solid desk-sized box catches
  * chairs and loose objects in invisible space and makes them tip or spin. */
 export function furnitureShapes(kind:PropKind):BoxShape[]|undefined{
+  if(kind==='mop')return [{size:[.55,.06,.32],at:[0,-.705,0]},{size:[.05,1.4,.05],at:[0,.02,0]}];
   if(kind==='desk')return [
     {size:[1.6,.07,.85],at:[0,.44,0]},
     ...[-1,1].map(s=>({size:[.06,.88,.7225],at:[s*.72,-.035,0]} as BoxShape)),

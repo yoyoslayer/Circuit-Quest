@@ -185,6 +185,7 @@ export class GameUI {
   }
   updateActions(){
     const g=this.game,lunch=g.lunch,p=g.player.translation(),holding=g.holdingPlug,heavy=!!g.held&&prefabs[g.held.spec.kind].mass>=15;
+    const mop=g.held?.spec.id==='mop';const scrub=this.acts.jump;if(scrub){scrub.setAttribute('aria-label',mop?'Scrub spill':'Jump');scrub.querySelector('use')?.setAttribute('href',mop?'#i-mop':'#i-jump');}
     let cableReady=false;
     if(lunch){
       if(lunch.held){const end=lunch.held.cable.ends[lunch.held.end];cableReady=lunch.ports.some(q=>q.id!==lunch.held!.cable.ports[1-lunch.held!.end]&&Math.min(dist(p,q.pos)-.3,dist(end,q.pos))<1.4);}
@@ -194,7 +195,7 @@ export class GameUI {
     const state={grab:{on:!!g.held,ready:!g.held&&!holding&&g.reticle.visible,off:false},
       cable:{on:holding,ready:cableReady,off:!!g.held},
       throw:{on:false,ready:holding&&g.rope.strain>.97,off:!g.held&&!holding},
-      jump:{on:!g.grounded&&g.airborne>.05,ready:false,off:heavy}};
+      jump:{on:mop?!!lunch?.mopping():!g.grounded&&g.airborne>.05,ready:mop&&!!lunch?.nearPuddle(p)&&lunch.water>.1,off:heavy}};
     const key=JSON.stringify(state);if(key===this.actState)return;this.actState=key;
     for(const [k,v] of Object.entries(state)){const el=this.acts[k];if(!el)continue;el.classList.toggle('on',v.on);el.classList.toggle('ready',v.ready&&!v.off);el.classList.toggle('off',v.off);}
   }

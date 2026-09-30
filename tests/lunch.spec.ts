@@ -8,11 +8,11 @@ test('intended Lunch Rush solution delivers the tray upstairs',async({page})=>{
   await walk(page,-3,7,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('wedge');
   await walk(page,0,1.4);await page.keyboard.press('KeyE');await wait(page,.5);expect((await snapshot(page)).lunch.doorWedged).toBe(true);
   await walk(page,2,8,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('mop');
-  await walk(page,.3,2,.45);await wait(page,4);expect((await snapshot(page)).lunch.water).toBeLessThan(.1);
+  await walk(page,.3,2,.45);await wait(page,4,['Space']);expect((await snapshot(page)).lunch.water).toBeLessThan(.1);
   await walk(page,2,2);await page.keyboard.press('KeyE');
   // Thick reel from Supply B into the kitchen feed: oven + both lamps.
   await walk(page,-10,7.5,.3);await page.keyboard.press('KeyF');expect((await snapshot(page)).lunch.held.id).toBe('thick');
-  await route(page,[[1,3],[.2,-1.2],[-3.5,-3]],.45);await page.keyboard.press('KeyF');
+  await route(page,[[1,3],[.2,-3.8],[-3.5,-3]],.45);await page.keyboard.press('KeyF');
   await wait(page,.5);let s=await snapshot(page);expect(s.lunch.lit).toBe(true);expect(s.lunch.sources.find((x:any)=>x.id==='b').tripped).toBe(false);await expectLoad(page,'oven','on');
   await page.screenshot({path:'artifacts/lunch-powered.png'});
   // Supply A feeds the fridge while the oven bakes.

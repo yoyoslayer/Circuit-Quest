@@ -8,9 +8,11 @@ Codex has continued this handoff: both Claude branches are integrated, the revie
 round and phone fixes are verified, and `docs/REVIEW_FIXES.md` records the changes,
 50 browser checks and screenshots. `NEXT_STEPS.md` now lists the remaining work.
 
-The next player-feedback pass is `docs/DESIGN_REVIEW_4.md`: movement, furniture,
-NPC seating, camera, walls/exterior and text fixes, plus a complete room survey
-and the remaining collision/architecture backlog. Read it before adding modes.
+The latest player-feedback pass is `docs/DESIGN_REVIEW_5.md`: the rebuilt hub,
+spatial Via workcells, active mopping, planted gait, articulated arms, formal
+human workers, close camera clearance and occupied surroundings. It includes
+a distinct physical puzzle plan for every room and explicit remaining limits.
+Read it before adding modes. Review 4 retains the earlier collision audit.
 
 ## State in one paragraph
 

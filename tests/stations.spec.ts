@@ -1,21 +1,28 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot} from './navigation';
+import {CELLS,cellFor} from '../src/stations/vias/workflow';
 // Whole-shift playthroughs press dozens of buttons under software rendering.
 test.describe.configure({timeout:300000});
 
 // Presses the same buttons a player clicks at the bench (drive.act).
-const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);
+const act=async(page:Page,name:string,arg?:unknown)=>{
+  const s=await snapshot(page),cell=cellFor(name);
+  if(s.station.cell!==cell||!s.atBench){
+    if(s.atBench)await page.keyboard.press('Escape');
+    if(cell==='verify'||s.station.cell==='verify')await walk(page,0,1.5,.3);
+    await walk(page,CELLS[cell].at.x,CELLS[cell].at.z,.3);
+    await page.keyboard.press('KeyE');expect((await snapshot(page)).station.cell).toBe(cell);
+  }
+  return page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);
+};
 async function steps(page:Page,list:[string,unknown?][]){for(const [n,a] of list)expect((await act(page,n,a)).ok,`${n} ${a??''}`).toBe(true);}
 async function toCounter(page:Page){
-  await walk(page,-7,4,.6);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('blanks');
-  await walk(page,1.2,-1.4,.5);await page.keyboard.press('KeyE');await wait(page,.2);
-  expect((await snapshot(page)).station.blanksReady).toBe(true);
-  await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
+  await walk(page,CELLS.inspect.at.x,CELLS.inspect.at.z,.3);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
 }
 
 test('via counter: a full shift of five orders, each built the lean reliable way',async({page})=>{
   const errors=await open(page,'vias');await wait(page,.1);
-  await expect(page.locator('.objective')).toContainText('Bring the crate of board blanks');
+  await expect(page.locator('.objective')).toContainText('Inspect the customer');
   await toCounter(page);
   await expect(page.locator('.station-panel')).toContainText('L1→L4 through via');
   // 1 · through via: press, drill the whole stack, plate, a pad with a comfortable ring.

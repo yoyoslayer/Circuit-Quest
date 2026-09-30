@@ -18,6 +18,20 @@ Design reading order: `docs/GAME_DESIGN.md` → `docs/LEVEL_01_BIG_MEETING.md` �
 9. **Readable, not bright.** Toon look (3-step ramp + dark outlines), ACES tone mapping, restrained glow. See `reference/render_kit/lib.js`.
 10. **Electricity stays truthful at the level taught** (loops, overload, surges, capacitors). Numbers in docs are tuning values, not real specs.
 
+## Current owner direction (2026-09-29, supersedes conflicting original rules)
+
+Read `docs/DESIGN_REVIEW_5.md` before designing another room. The owner explicitly
+rejected clutter for its own sake, repetitive fetch/drop or connect-wire loops,
+the mascot coworkers, and wide cameras that hide the work. Useful, distinct room
+machinery and reasoning take priority over the original "hundreds of props" and
+"cable is the star" requirements. Keep cables where they serve that particular
+puzzle. Use formal human coworkers; do not restore the agent-harness blobs.
+Close shoulder or first-person views and enclosed rooms are allowed. The current
+implementation has close orbit views, not a complete first-person controller.
+Teach outcomes and constraints with visible feedback and optional explanations,
+rather than mandatory long text or a recipe for every step. This is explicit
+owner authorization, not a question to reopen at each implementation decision.
+
 ## Stack
 - TypeScript + Vite, `three` r186 (`WebGLRenderer` + `OutlineEffect` for now; WebGPU/TSL `toonOutlinePass` later — `OutlineEffect` is WebGL-only).
 - Physics: `@dimforge/rapier3d-compat`.

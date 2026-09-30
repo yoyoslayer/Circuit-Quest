@@ -13,7 +13,7 @@ async function fit(page:Page,r:number,rating:number,{remove=true,flip=false}={})
   await steps(page,[...list,['rating',rating],['pick',r],['slot','series'],['power']]);await wait(page,10.4);
 }
 async function toBench(page:Page){
-  await route(page,[[-5.5,6.6],[-7.2,5.8]]);await walk(page,-7.9,4.4,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('blocks');
+  await route(page,[[-5.5,6.6],[-7.2,5.8]]);await walk(page,-7.9,4.4,.15);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('blocks');
   await route(page,[[-7.2,5.8],[-5.5,6.4]]);await walk(page,1.2,-1.3,.5);await page.keyboard.press('KeyE');await wait(page,.2);
   expect((await station(page)).trayReady).toBe(true);
   await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);

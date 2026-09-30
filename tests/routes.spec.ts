@@ -18,12 +18,14 @@ test('playground cable physically reaches socket and lights lamp',async({page})=
 });
 test('meeting single reel only reaches when overstretched at a sprint',async({page})=>{
   await open(page,'meeting');await placeStrip(page);await backToReel(page);await page.keyboard.press('KeyF');expect((await snapshot(page)).holdingPlug).toBe(true);
-  await route(page,[[-8,-5],[-1,-1.5],[6,-1.2]]);
+  // Use the service aisle, rather than wrapping the reel around the desk pods
+  // before the actual walk-versus-sprint stretch check begins.
+  await route(page,[[-9,-6],[-9,-1.4],[6,-1.2]]);
   // Walking, the reel's spring stops Pip well short of the boardroom door...
   await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(2,['KeyD']));let s=await snapshot(page);
   expect(Math.hypot(s.player.x-12.3,s.player.z+2.25)).toBeGreaterThan(2.3);
   // ...but sprinting stretches it past its length (dragging props along) far enough to plug in.
-  await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(1.5,['KeyD','ShiftLeft']));s=await snapshot(page);expect(s.rope.strain).toBeGreaterThan(1);
+  await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(2.5,['KeyD','ShiftLeft']));s=await snapshot(page);expect(s.rope.strain).toBeGreaterThan(1);
   await page.keyboard.press('KeyF');await switchProjector(page);await complete(page);await page.screenshot({path:'artifacts/meeting-complete.png'});
 });
 test('meeting clean route joins a second reel using a coupler',async({page})=>{

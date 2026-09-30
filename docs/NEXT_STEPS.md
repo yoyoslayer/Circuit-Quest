@@ -1,7 +1,7 @@
 # Next steps (Codex continuation, 2026-09-29)
 
 Read `docs/HANDOFF_TO_CODEX.md` for setup and the file map, then
-`docs/DESIGN_REVIEW_4.md` for the latest player-feedback review and priorities.
+`docs/DESIGN_REVIEW_5.md` for the latest player-feedback review and priorities.
 `docs/REVIEW_FIXES.md` records the earlier station round.
 
 ## Where things stand
@@ -17,9 +17,13 @@ The two Claude branches have been combined for publication on `main` in
   - QFN bench, Archive, Waterworks, Signal Observatory;
   - Overheating Arcade, Robot Garage, Clockwork Kitchen, Delivery Depot, Spectrum Delivery.
 
-The build is clean and 144 unit tests pass. Browser coverage now includes 52 checks,
-with real boot-mesh movement, chair support, compact HUD and phone workflows.
-Current verification is recorded in `DESIGN_REVIEW_4.md`.
+The hub and Via now have a spatial redesign; motion, formal human workers,
+close camera clearance and active mopping are changed globally. The build is
+clean and 150 unit tests pass. Browser coverage includes 57 checks; final results
+are recorded in `DESIGN_REVIEW_5.md`. Most other station puzzles still concentrate
+the task at a bench. Prioritize a complete Garage room loop, then Waterworks,
+using the room-specific plans in review 5. Do not add modes first. Big Meeting
+also needs a sustained frame-time and static-dressing optimization pass.
 
 A fresh-eyes design and QA review found concrete defects in the stations:
 - the reports are `mockups/review3/REVIEW_A.md` and `REVIEW_B.md`, with screenshots

@@ -10,6 +10,7 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressObservatory,RX} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
+import {cheer,walkHint} from '../shared';
 import {JOBS,MODULES,MODULE_IDS,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,quarterWave,
   type ModuleId,type RodId,type Slot,type Setup,type Verdict,type Job} from './logic';
 
@@ -37,7 +38,7 @@ function moduleMesh(id:ModuleId){
   if(m.kind==='R'){part(g,cyl(.028,.028,.15,12,'x'),toon('#e8c79a'),0,.1,pz);for(const [x,c] of [[-.04,'#f0d24a'],[-.014,'#7a4fb0'],[.012,'#8a4b2a'],[.045,'#d8a54a']] as const)part(g,cyl(.031,.031,.012,12,'x'),toon(c),x,.1,pz);}
   if(m.kind==='L'){const big=id==='L10m',n=big?7:4;part(g,cyl(.02,.02,.18,10,'x'),toon(DMETAL),0,.1,pz);for(let k=0;k<n;k++)part(g,new T.TorusGeometry(big?.045:.034,.012,8,20),glossyToon('#d9783a',{spec:.8,size:.97}),-.07+k*(.14/(n-1)),.1,pz).rotation.y=Math.PI/2;}
   if(m.kind==='C'){const r=id==='C10u'?.05:id==='C1u'?.042:.034;part(g,cyl(r,r,.09,16),toon(id==='C10u'?'#5b4bb5':'#7d6fd6'),0,.115,pz);part(g,cyl(r+.002,r+.002,.012,16),toon(CREAM),0,.16,pz);}
-  const tag=sign(g,m.label,0,0,0,.27,-Math.PI/2,CREAM,INK,90/256);tag.position.set(0,.072,.062);
+  const tag=sign(g,m.label,0,0,0,.28,-1.2,CREAM,INK,.4);tag.position.set(0,.1,.066);
   return g;
 }
 /** Displayed whip height on the bench (not to scale: a 1.5 m rod would not fit). */
@@ -47,7 +48,7 @@ const routeLabels=new Map<boolean,T.Texture>();
 const routeLabel=(clear:boolean)=>{let t=routeLabels.get(clear);if(!t){t=label(clear?'ROUTE: CLEAR OF MOTOR':'ROUTE: PAST MOTOR',clear?'#8dffb0':'#ffd66b');routeLabels.set(clear,t);}return t;};
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 export class ObservatoryBench implements Station {
-  readonly view={distance:6.7,pitch:.86,lookY:.42};
+  readonly view={distance:6.3,pitch:.88,lookY:.4};
   readonly limits={time:360,damage:1,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   // Bench state.
@@ -104,16 +105,17 @@ export class ObservatoryBench implements Station {
     const link=group(board,-.3,y,line);part(link,cyl(.01,.01,.46,6,'x'),toon('#dfe3ea'),0,.03,0,false);for(const x of [-.23,.23])part(link,cyl(.01,.01,.03,6),toon('#dfe3ea'),x,.015,0,false);
     const open=group(board,node,y,.08);for(const z of [-.12,.12])part(open,box(.05,.004,.05),cu,0,.004,z,false);
     this.links={series:link,shunt:open};
-    sign(board,'SERIES',-.3,y+.003,-.24,.3,-Math.PI/2,'#ffd66b');sign(board,'SHUNT',node-.24,y+.003,.08,.24,-Math.PI/2,'#ffd66b');sign(board,'GROUND',-.52,y+.003,.235,.26,-Math.PI/2,'#3a3d55','#fbf3e2');
-    sign(board,'RECEIVER',jr+.06,y+.003,-.23,.3,-Math.PI/2);sign(board,'DECODER',jd-.06,y+.003,-.23,.3,-Math.PI/2);
+    sign(board,'SERIES',-.3,y+.02,-.235,.32,-1.2,'#ffd66b',INK,.36);sign(board,'SHUNT',node-.25,y+.02,.08,.26,-1.2,'#ffd66b',INK,.4);sign(board,'GROUND',-.52,y+.003,.235,.3,-Math.PI/2,'#3a3d55','#fbf3e2',.36);
+    sign(board,'RECEIVER',jr+.08,y+.02,-.235,.32,-1.2,CREAM,INK,.36);sign(board,'DECODER',jd-.08,y+.02,-.235,.32,-1.2,CREAM,INK,.36);
     for(const x of [jr,jd]){part(board,cyl(.045,.045,.05,14),toon(INK),x,y+.02,line);part(board,cyl(.025,.025,.06,12),toon(BRASS),x,y+.03,line);}
     // The shutter latch sits on the decoder end of the line: its lamp shows whether 12 V DC arrives.
     const latch=group(board,.6,y,.06);part(latch,rbox(.24,.1,.2,.04),toon('#e9dcc0'),0,.05,0);this.latchLamp=part(latch,sphere(.042,14,10),GLOW_OFF,0,.13,-.045);
-    sign(latch,'LATCH',0,.101,.05,.2,-Math.PI/2,'#e9dcc0');
+    sign(latch,'LATCH',0,.101,.05,.23,-Math.PI/2,'#e9dcc0',INK,.4);
     // Receiver cable in from the left end, by one of two routes; the lever picks which.
     const cableAt=(pts:number[][])=>new T.CatmullRomCurve3(pts.map(([x,yy,z])=>new T.Vector3(x,yy,z)));
     this.cableNear=part(top,new T.TubeGeometry(cableAt([[-2.2,.02,.56],[-1.7,.06,.58],[-1.15,.06,.56],[-1.02,.07,.3],[bx+jr,.09,bz+line]]),28,.02,6),toon('#e5484d'),0,0,0,false);
-    this.cableClear=part(top,new T.TubeGeometry(cableAt([[-2.2,.02,-.08],[-1.7,.06,-.04],[-1.15,.06,.02],[-1.02,.07,.12],[bx+jr,.09,bz+line]]),28,.02,6),toon('#e5484d'),0,0,0,false);
+    // The clear route runs round the back of the antenna mount, well away from the motor side.
+    this.cableClear=part(top,new T.TubeGeometry(cableAt([[-2.2,.02,-.5],[-1.75,.05,-.56],[-1.2,.05,-.58],[-.86,.06,-.42],[-.83,.07,-.08],[bx+jr,.09,bz+line]]),36,.02,6),toon('#e5484d'),0,0,0,false);
     const lever=group(top,-1.22,.04,.36);part(lever,rbox(.26,.06,.16,.04),toon(INK),0,.03,0);this.routeLever=group(lever,0,.06,0);part(this.routeLever,cyl(.014,.014,.18,8),toon(DMETAL),0,.09,0);part(this.routeLever,sphere(.04,12,10),toon('#e5484d'),0,.18,0);
     this.click(lever,'route');this.routeSign=sign(top,'ROUTE: PAST MOTOR',-1.62,.045,.47,.5,-Math.PI/2+.2,'#ffd66b');
     // ---- Module tray, front right: six modules in two rows.
@@ -124,11 +126,11 @@ export class ObservatoryBench implements Station {
     // ---- Antenna, back left: a ground-plane disc with the fitted whip, spare whips stood in a rack.
     const mount=group(top,-1.12,.04,-.3);part(mount,cyl(.2,.22,.04,24),toon(DMETAL),0,.02,0);part(mount,cyl(.05,.06,.08,14),toon(BRASS),0,.08,0);
     this.whip=group(mount,0,.12,0);this.whipRod=part(this.whip,cyl(.014,.014,1,8),toon('#dfe3ea'),0,.5,0);this.whipTip=part(this.whip,sphere(.026,10,8),toon(INK),0,1,0);
-    this.click(mount,'orient');sign(top,'ANTENNA',-1.12,.045,-.04,.3,-Math.PI/2+.2);
-    const rack=group(top,-1.72,.04,.1);part(rack,rbox(.56,.05,.56,.04),toon('#8a6a3c'),0,.025,0);
-    ROD_IDS.forEach((id,k)=>{const x=(k%2?1:-1)*(k<2?.2:.13),z=k<2?.08:-.17,r=group(rack,x,.05,z);const len=rodLen(id);part(r,cyl(.03,.03,.04,10),toon(INK),0,.02,0);part(r,cyl(.012,.012,len,8),toon('#dfe3ea'),0,len/2,0);part(r,sphere(.022,8,6),toon(INK),0,len,0);
+    this.click(mount,'orient');sign(top,'ANTENNA',-1.12,.07,-.02,.34,-1.2,CREAM,INK,.34);
+    const rack=group(top,-1.72,.04,.1);part(rack,rbox(.78,.05,.5,.04),toon('#8a6a3c'),0,.025,0);
+    ROD_IDS.forEach((id,k)=>{const x=-.29+k*.193,z=-.08,r=group(rack,x,.05,z);const len=rodLen(id);part(r,cyl(.03,.03,.04,10),toon(INK),0,.02,0);part(r,cyl(.012,.012,len,8),toon('#dfe3ea'),0,len/2,0);part(r,sphere(.022,8,6),toon(INK),0,len,0);
       this.rods.set(id,r);this.click(r,'rod',id);});
-    ROD_IDS.forEach((id,k)=>{const s=sign(rack,RODS[id].label,0,0,0,.23,-Math.PI/2+.2,CREAM,INK,80/256);s.position.set(k%2?.13:-.13,.056,(k<2?.08:-.17)+.1);});
+    ROD_IDS.forEach((id,k)=>{const s=sign(rack,RODS[id].label,0,0,0,.185,-1.2,CREAM,INK,.5);s.position.set(-.29+k*.193,.1,.14);});
     // ---- Scope, back centre: a cream cabinet with a live canvas screen; mode buttons and the speaker below it.
     const scope=group(top,.12,.04,-.33);part(scope,rbox(1.72,.1,.54,.06),toon('#3a3563'),0,.05,0);
     const body=group(scope,0,.1,-.08);body.rotation.x=-.5;part(body,rbox(1.6,1.0,.22,.08),toon('#e9dcc0'),0,.5,0);part(body,box(1.46,.86,.03),toon(INK),0,.52,.11);
@@ -136,10 +138,10 @@ export class ObservatoryBench implements Station {
     const screenMat=new T.MeshBasicMaterial({map:this.scopeTex,toneMapped:false});screenMat.userData.outlineParameters={visible:false};
     const screen=part(body,new T.PlaneGeometry(1.4,.84),screenMat,0,.52,.128,false);screen.userData.noAO=true;
     part(body,box(1.62,.05,.24),toon(BRASS),0,1.02,0);
-    (['signal','step'] as const).forEach((m,k)=>{const b=part(scope,rbox(.34,.05,.13,.04),toon(CREAM),-.64+k*.38,.12,.19);this.modeButtons.push(b);this.click(b,'scope',m);
-      sign(b,m==='signal'?'SIGNAL':'SWITCH-ON',0,.027,0,.3,-Math.PI/2).position.set(0,.027,0);});
+    (['signal','step'] as const).forEach((m,k)=>{const b=part(scope,rbox(.35,.05,.14,.04),toon(CREAM),-.62+k*.38,.12,.2);this.modeButtons.push(b);this.click(b,'scope',m);
+      sign(b,m==='signal'?'SIGNAL':'SWITCH-ON',0,.027,0,.33,-Math.PI/2,CREAM,INK,.38).position.set(0,.027,0);});
     const spk=group(scope,.14,.1,.18);part(spk,cyl(.1,.1,.04,20),toon(INK),0,.02,0);this.speakerCone=part(spk,cyl(.075,.04,.03,20),toon('#c9b98f'),0,.045,0);this.click(spk,'listen');
-    sign(scope,'SPEAKER',0,.101,.18,.24,-Math.PI/2).position.set(.38,.101,.19);
+    sign(scope,'SPEAKER',0,.101,.18,.3,-Math.PI/2,CREAM,INK,.38).position.set(.42,.101,.2);
     // ---- LOG button, back right.
     const log=group(top,1.25,.04,-.36);part(log,cyl(.17,.19,.06,24),toon(INK),0,.03,0);part(log,cyl(.13,.13,.06,24),toon('#6cc58a'),0,.08,0);this.click(log,'log');
     sign(log,'LOG',0,.112,0,.24,-Math.PI/2,'#fffaf0',INK,120/256);
@@ -177,7 +179,7 @@ export class ObservatoryBench implements Station {
         if(v.tier===0){this.mistakes++;this.spent+=c;this.say(`The decode fails: ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);return true;}
         this.logged.push({job:j.id,verdict:v});this.spent+=c;
         this.say(`“${j.message}” · ${['','Decodes','Reliable','Elegant'][v.tier]} (S/N ${v.snr} dB)${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);this.game.burst(this.table.clone().add(new T.Vector3(.7,1.2,-.3)),'#ffd66b',28,'confetti');this.game.burst(this.table.clone().add(new T.Vector3(.7,1.3,-.3)),'#fff3c8',6,'star');
+        a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffd66b');
         this.jobIndex++;this.redraw();return true;}
       default:return false;
     }
@@ -311,7 +313,7 @@ export class ObservatoryBench implements Station {
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const part=(id?:ModuleId)=>id?MODULES[id].label:'—';
     this.panel.innerHTML=`<header><small>TRANSMISSION ${this.jobIndex+1}/${JOBS.length}</small><h4>${j.title}</h4><p>${j.ask}</p></header>`+
-      (this.active?`<ul class="build">${row('Series',this.series?part(this.series):'wire link')}${row('Shunt',part(this.shunt))}${row('Filter',filterName(s))}`+
+      (this.active?`<ul class="build">${row('Series',this.series?part(this.series):'wire link (empty)')}${row('Shunt',part(this.shunt))}${row('Filter',filterName(s))}`+
         (j.cart?`${row('Motor cart',`${this.cartDistance.toFixed(1)} m away`,this.cartDistance>=CART_SAFE)}${row('Cable',this.rerouted?'clear of the motor':'past the motor',this.rerouted)}`:'')+
         (j.beacon?row('Antenna',`${RODS[this.rod].label} · ${this.vertical?'upright':'flat'}`,r.antenna>=.3):'')+
         `${row('Tone level',`${Math.round(r.level*100)}%`,r.level>=SPEC.minLevel)}${row('Signal/noise',`${r.snr.toFixed(1)} dB`,r.snr>=SPEC.reliableSnr)}`+
@@ -322,12 +324,13 @@ export class ObservatoryBench implements Station {
     const j=this.current();if(!j)return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
       if(this.game.held===this.cart&&this.cart)return {key:'E',text:this.cartDistance>=CART_SAFE?'Set the motor cart down here':'Keep going: roll the cart well away from the receiver'};
-      if(near)return {key:'E',text:this.cartMoved?'Work at the signal bench':'Work at the bench (the motor cart is still by the receiver)'};return null;}
+      if(near)return {key:'E',text:this.cartMoved?'Work at the signal bench':'Work at the bench (the motor cart is still by the receiver)'};
+      return walkHint(this.game,this.cartMoved?'Walk to the signal bench (yellow arrow)':'Roll the noisy motor cart away from the receiver (yellow arrow)');}
     const s=this.state(),r=read(j,s);
-    if(this.held)return {key:'Click',text:`Plug the ${MODULES[this.held].label} module into the SERIES or SHUNT slot`};
-    if(j.beacon&&r.antenna<.3)return {key:'Click',text:`Fit the whip for ${j.beacon/1e6} MHz (λ/4 = c ÷ f ÷ 4), stood upright`};
-    if(j.latch&&!r.latchOk)return {key:'Click',text:'The latch has lost its 12 V: swap the part that blocks DC'};
-    if(r.snr<SPEC.reliableSnr||r.level<SPEC.minLevel)return {key:'Click',text:j.cart&&!this.rerouted?'Pick a module and slot it; flip CABLE ROUTE to dodge the motor':'Pick a module from the tray, then click a slot (watch the scope)'};
+    if(this.held)return {key:'S',text:`Click the SERIES slot (S) or the SHUNT slot (H) to plug in the ${MODULES[this.held].label} module`};
+    if(j.beacon&&r.antenna<.3)return {key:'O',text:`Click the whip for ${j.beacon/1e6} MHz (λ/4 = c ÷ f ÷ 4) in the rack; stand it upright (O)`};
+    if(j.latch&&!r.latchOk)return {key:'1–6',text:'The latch has lost its 12 V: swap the part that blocks DC'};
+    if(r.snr<SPEC.reliableSnr||r.level<SPEC.minLevel)return j.cart&&!this.rerouted?{key:'R',text:'Click ROUTE to run the cable clear of the motor, then pick a module and slot it'}:{key:'1–6',text:'Pick a module from the tray (click or 1–6), then click a slot (watch the scope)'};
     return {key:'Enter',text:'Clean signal: LOG DECODE (Enter)'};
   }
   complete(){return this.logged.length>=JOBS.length;}

@@ -48,12 +48,14 @@ test('QFN bench: a board shipped with the connector inside is sent back, then fi
   await open(page,'qfn');await wait(page,.1);await toBench(page);
   // Shipping the scrambled board: rejected, one mistake, the reason shown.
   await ok(page,'ship');let s=(await snapshot(page)).station;
-  expect(s.mistakes).toBe(1);expect(s.board).toBe(0);
+  expect(s.mistakes).toBe(1);expect(s.board).toBe(0);expect(s.rings).toBeGreaterThan(0);
   await expect(page.locator('.station-toast')).toContainText('J1 must sit on a board edge');
   // A move onto another part is refused with a reason; so is a track that would join two nets.
   expect((await act(page,'move',{part:'R1',at:[10,1]})).ok).toBe(false);
   await expect(page.locator('.station-toast')).toContainText('overlap');
   await playReference(page,0);
+  // The send-back's problem rings described the old layout: moving parts cleared them.
+  expect((await snapshot(page)).station.rings).toBe(0);
   expect((await act(page,'trace',{cells:[[9,4],[9,5],[9,6],[9,7],[8,7],[7,7],[6,7],[5,7],[4,7],[3,7]],layer:1})).ok).toBe(false);
   await expect(page.locator('.station-toast')).toContainText('short');
   // Layer 2 stays locked on the single-layer board.

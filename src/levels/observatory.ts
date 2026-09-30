@@ -19,4 +19,4 @@ const npcs:NpcSpot[]=[
   {x:-4.4,z:-4.4,standing:true,acc:['glasses'],yaw:-2.4},{x:6.2,z:-5.2,standing:true,acc:['bun'],yaw:Math.PI,mood:'happy'},{x:-7.6,z:1.4,standing:true,acc:['headphones'],yaw:-1.2,mood:'sleepy'},
 ];
 export const observatory:Level={id:'observatory',name:'SIGNAL OBSERVATORY',number:'07',tagline:'A garbled message from the roof. Filter it, keep the latch, tune the whip.',badge:'signal',station:'observatory',
-  width:22,depth:16,spawn:{x:-6,z:5},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-6.4,z:6.2},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};

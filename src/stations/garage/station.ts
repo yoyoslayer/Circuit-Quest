@@ -12,6 +12,7 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressGarage,robotMesh,STAND,PAD,ROUTE,YELLOW,TEAL,CREAM,type RobotParts} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
+import {cheer,walkHint} from '../shared';
 import {JOBS,PARTS,PART_IDS,SLOT_NAMES,SPEC,SWITCH,MOTOR,RUNNING,STALL,CTRL,judge,cost,cheapest,shutdownCached,startTrace,startDip,setupKey,partCount,
   type PartId,type SlotId,type Fit,type Setup,type Verdict,type Job,type Trace} from './logic';
 
@@ -43,13 +44,15 @@ function partMesh(id:PartId){
   if(id==='snubber'){part(body,cyl(.03,.03,.12,12,'x'),toon('#e8c79a'),-.06,0,0);for(const [x,c] of [[-.09,'#8a4b2a'],[-.066,INK],[-.042,'#8a4b2a']] as const)part(body,cyl(.032,.032,.012,12,'x'),toon(c),x,0,0);part(body,rbox(.08,.08,.06,.015),toon('#5b9cf0'),.06,0,0);}
   if(id==='cap'){const c=group(body,0,.02,0);part(c,cyl(.055,.055,.16,18,'x'),toon('#3f6fd6'));part(c,box(.16,.02,.022),toon('#e9edf3'),0,.048,0);part(c,cyl(.057,.057,.014,18,'x'),toon('#e9edf3'),.08,0,0);
     sign(g,'+',-.125,.09,-.045,.06,.06,'#fffaf0',INK,-1.1);}
-  const tag=sign(g,p.label,0,.055,.07,.3,.085,CREAM,INK,-1.2);tag.name='tag';
+  const tag=sign(g,p.label,0,.06,.07,.31,.1,CREAM,INK,-1.2);tag.name='tag';
   return g;
 }
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 interface Capture {job:number;key:string;verdict:Verdict;trace?:Trace;start:number[];at:number}
 const ROUTE_LEN=ROUTE.slice(1).reduce((n,[x,z],k)=>n+Math.hypot(x-ROUTE[k][0],z-ROUTE[k][1]),0);
 const DRIVE_SPEED=3.2,DRIVE_TIME=ROUTE_LEN/DRIVE_SPEED+.8;
+/** Keyboard keys for the four sockets (as in key()). */
+const SLOT_KEYS:Record<SlotId,string>={fly1:'Z',fly2:'X',switch:'C',ctrl:'V'};
 const msText=(t:number|null)=>t===null?'never':`${(t*1e3).toFixed(2)} ms`;
 
 export class GarageBench implements Station {
@@ -63,7 +66,7 @@ export class GarageBench implements Station {
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private parts=new Map<PartId,T.Group>();private trayAt=new Map<PartId,T.Vector3>();private slotAt=new Map<SlotId,{pos:T.Vector3;pad:T.Mesh}>();
   private flipBtns=new Map<SlotId,T.Object3D>();private marks=new Map<SlotId,T.Mesh>();private shared!:T.Object3D;private starWire!:T.Object3D;private lever!:T.Object3D;private routeSign!:T.Mesh;
-  private fuseCap!:T.Mesh;private ctrlLamp!:T.Mesh;private cycleLamps:T.Mesh[]=[];private modeButtons:T.Mesh[]=[];
+  private fuseCap!:T.Mesh;private fuseSign!:T.Mesh;private ctrlLamp!:T.Mesh;private cycleLamps:T.Mesh[]=[];private modeButtons:T.Mesh[]=[];
   private scopeCanvas!:HTMLCanvasElement;private scopeTex!:T.CanvasTexture;private scopeKey='';private sweep=1;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';
   private bot?:Game['props'][number];private robot:RobotParts;private spin=0;private motorOn=0;private resetFlash=0;private cycleT=-1;private cycleFail=false;private ready=false;
@@ -104,26 +107,27 @@ export class GarageBench implements Station {
     // Battery with its + and − terminals, and the resettable fuse on its + lead.
     const bat=group(board,-1.3,y,.12);part(bat,rbox(.22,.13,.36,.04),toon('#3a3d55'),0,.065,0);part(bat,rbox(.23,.02,.11,.02),toon('#e5484d'),0,.13,-.11);
     sign(bat,'12 V',0,.14,.05,.2,.09,YELLOW,INK,-1.2);
-    const fuse=group(board,-1.13,y,MAIN);part(fuse,cyl(.06,.065,.04,16),toon('#dfe3ea'),0,.02,0);this.fuseCap=part(fuse,cyl(.042,.042,.05,14),toon('#fffaf0'),0,.05,0);this.click(fuse,'fuse');
-    sign(board,'FUSE',-1.08,y+.004,.13,.16,.065,'#fffaf0',INK,-1.2);
+    // The resettable fuse: a chunky holder with a RESET dome that glows red when it has tripped.
+    const fuse=group(board,-1.12,y,MAIN);part(fuse,cyl(.085,.09,.05,20),toon(INK),0,.025,0);this.fuseCap=part(fuse,sphere(.07,18,10),toon('#fffaf0'),0,.05,0);this.fuseCap.scale.y=.7;this.click(fuse,'fuse');
+    this.fuseSign=sign(board,'FUSE · R',-1.0,y+.02,.17,.24,.09,'#fffaf0',INK,-1.2);
     // The motor (a can on its side) between +12 V and the switch node.
     const mot=group(board,-.61,y,MAIN);part(mot,cyl(.085,.085,.26,18,'x'),glossyToon('#9aa3b2',{spec:.7,size:.97}),0,.09,0);part(mot,cyl(.087,.087,.04,18,'x'),toon(INK),-.13,.09,0);part(mot,cyl(.014,.014,.07,8,'x'),toon('#dfe3ea'),.165,.09,0);
-    sign(board,'MOTOR',-.61,y+.004,.14,.24,.075,'#fffaf0',INK,-1.2);
+    sign(board,'MOTOR',-.61,y+.02,.16,.3,.1,'#fffaf0',INK,-1.2);
     // Switch node test point (the scope's probe clips on here) and the MOSFET switch.
     part(board,cyl(.035,.035,.02,14),toon(YELLOW),-.06,y+.01,MAIN);part(board,cyl(.014,.014,.14,8),toon('#dfe3ea'),-.06,y+.08,MAIN);
-    sign(board,'NODE',-.06,y+.004,.14,.18,.07,YELLOW,INK,-1.2);
+    sign(board,'NODE',-.06,y+.02,.16,.22,.09,YELLOW,INK,-1.2);
     const fet=group(board,.34,y,MAIN);part(fet,rbox(.18,.07,.12,.015),toon(INK),0,.035,0);part(fet,box(.18,.014,.07),toon('#dfe3ea'),0,.014,-.09);
-    sign(board,'SWITCH',.34,y+.004,.14,.24,.075,'#fffaf0',INK,-1.2);
+    sign(board,'SWITCH',.34,y+.02,.16,.3,.1,'#fffaf0',INK,-1.2);
     // Controller with its status lamp; the capacitor socket across its supply.
     const ctl=group(board,1.0,y,.04);part(ctl,rbox(.34,.07,.24,.03),toon('#2b2d42'),0,.035,0);for(let k=0;k<4;k++)for(const s of [-1,1])part(ctl,box(.024,.02,.05),toon('#dfe3ea'),-.12+k*.08,.01,s*.13);
-    sign(ctl,'CONTROLLER',0,.072,.035,.3,.075,'#3a3d55','#fbf3e2',-1.2);this.ctrlLamp=part(ctl,sphere(.035,12,10),hot('#8dffb0',1.6),.12,.09,-.07,false);
+    sign(ctl,'CONTROLLER',0,.075,.05,.33,.09,'#3a3d55','#fbf3e2',-1.2);this.ctrlLamp=part(ctl,sphere(.035,12,10),hot('#8dffb0',1.6),.12,.09,-.07,false);
     trace(1.0,TOP,1.0,-.08);
     // Ground routes: shared (joins the motor's return) or star (its own wire back to the battery).
     this.shared=group(board,0,0,0);trace(1.0,.16,1.0,GND,this.shared);trace(.62,GND,1.0,GND,this.shared);
     this.starWire=group(board,0,0,0);const blue=toon('#5b9cf0');trace(1.14,.16,1.14,STAR,this.starWire,blue);trace(-1.42,STAR,1.14,STAR,this.starWire,blue);trace(-1.42,STAR,-1.42,GND,this.starWire,blue);trace(-1.42,GND,-1.3,GND,this.starWire,blue);
     // The ground-route lever beside the controller.
     const lv=group(board,1.32,y,.1);part(lv,rbox(.16,.05,.18,.04),toon(INK),0,.025,0);this.lever=group(lv,0,.05,0);part(this.lever,cyl(.014,.014,.18,8),toon(DMETAL),0,.09,0);part(this.lever,sphere(.04,12,10),toon('#5b9cf0'),0,.18,0);this.click(lv,'ground');
-    this.routeSign=sign(board,'GROUND: SHARED',1.24,y+.004,.31,.4,.09,'#ffe7a8',INK,-1.2);
+    this.routeSign=sign(board,'GROUND: SHARED',1.2,y+.02,.31,.46,.11,'#ffe7a8',INK,-1.2);
     // Sockets: an empty socket is a pale pad with two clips; it glows when the held part fits.
     const dashed=canvasTex(256,184,c=>{c.clearRect(0,0,256,184);c.strokeStyle='rgba(29,58,51,.75)';c.lineWidth=9;c.setLineDash([22,14]);c.beginPath();c.roundRect(12,12,232,160,26);c.stroke();
       c.setLineDash([]);c.lineWidth=10;c.lineCap='round';c.beginPath();c.moveTo(128,62);c.lineTo(128,122);c.moveTo(98,92);c.lineTo(158,92);c.stroke();});
@@ -132,7 +136,7 @@ export class GarageBench implements Station {
       this.slotAt.set(id,{pos:new T.Vector3(bx+x,.09,bz+z),pad});};
     socket('fly1',-.81,TOP);socket('fly2',-.41,TOP);socket('switch',.34,TOP);socket('ctrl',1.0,TOP-.02);
     // Section names stand on little posts along the board's back edge, above the fitted parts.
-    for(const [text,x] of [['ACROSS MOTOR',-.61],['ACROSS SWITCH',.34],['AT CONTROLLER',1.0]] as const){for(const s of [-.14,.14])part(board,cyl(.008,.008,.12,6),toon(DMETAL),x+s,y+.06,-.36,false);sign(board,text,x,y+.15,-.36,.4,.08,'#fffaf0',INK,-.75);}
+    for(const [text,x] of [['ACROSS MOTOR',-.61],['ACROSS SWITCH',.34],['AT CONTROLLER',.94]] as const){for(const s of [-.14,.14])part(board,cyl(.008,.008,.12,6),toon(DMETAL),x+s,y+.06,-.36,false);sign(board,text,x,y+.15,-.36,.46,.1,'#fffaf0',INK,-.75);}
     // Flip buttons beside each socket.
     for(const [id,x,z] of [['fly1',-1.06,TOP],['fly2',-.16,TOP],['switch',.58,TOP],['ctrl',.76,TOP-.02]] as const){
       const b=group(board,x,y+.01,z);part(b,cyl(.055,.06,.04,18),toon(INK),0,.02,0);const cap=part(b,cyl(.046,.046,.03,18),toon(TEAL),0,.045,0);cap.name='cap';
@@ -188,7 +192,7 @@ export class GarageBench implements Station {
         this.fuse=true;a.tone(900,.05,.04);a.pop();this.say('Fuse reset.');break;}
       case 'pulse':case 'test':{
         if(!this.onStand){this.say('The robot is still on its charging pad. Carry it onto the test stand behind the bench.');a.voice('hm',1.4);return false;}
-        if(!this.fuse){this.say('The fuse has tripped. Fix the short, then click FUSE to reset it.');a.voice('hm',1.2);return false;}
+        if(!this.fuse){this.say('The fuse has tripped. Fix the short, then press the red RESET on the fuse (R).');a.voice('hm',1.2);return false;}
         if(name==='test'&&this.jobIndex===0&&this.captures===0){this.say('Diagnose first: press PULSE to catch one shutdown on the scope.');a.voice('hm',1.4);return false;}
         const s=this.setup(),v=judge(j,s),tr=v.fault==='short'||v.fault==='cap'?undefined:shutdownCached(s);
         this.capture={job:this.jobIndex,key:setupKey(s),verdict:v,trace:tr,start:startTrace(j,s),at:this.game.time};this.captures++;this.sweep=0;this.motorOn=.8;
@@ -203,7 +207,7 @@ export class GarageBench implements Station {
           this.say(`Test failed: ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();return true;}
         this.logged.push({job:j.id,verdict:v});
         this.say(`${['','Works','Reliable','Elegant'][v.tier]}: no resets in ${SPEC.cycles} cycles (spike ${Math.round(v.spike)} V${j.stopSpec?`, current off in ${msText(v.offTime)}`:''})${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);this.game.burst(this.table.clone().add(new T.Vector3(-1.4,1.1,-2)),YELLOW,28,'confetti');
+        a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,YELLOW);
         this.jobIndex++;this.capture=undefined;this.captures=0;
         if(this.jobIndex>=JOBS.length)this.startDrive();
         this.redraw();return true;}
@@ -239,6 +243,7 @@ export class GarageBench implements Station {
     this.shared.visible=!this.star;this.starWire.visible=this.star;this.lever.rotation.z=this.star?-.5:.5;
     setSign(this.routeSign,this.star?'GROUND: STAR':'GROUND: SHARED',this.star?'#b8d6ff':'#ffe7a8',INK,512,128);
     this.fuseCap.material=this.fuse?toon('#fffaf0'):hot('#ff5a4d',1.6);this.fuseCap.position.y=this.fuse?.05:.08;
+    setSign(this.fuseSign,this.fuse?'FUSE · R':'RESET · R',this.fuse?'#fffaf0':'#ff8a7a',INK,512,177);
     this.modeButtons.forEach((b,k)=>b.position.y=(k===0)===(this.scopeMode==='stop')?.12:.14);
     this.scopeKey='';this.shown='';this.updatePanel();
   }
@@ -301,7 +306,7 @@ export class GarageBench implements Station {
       KeyT:['scope',this.scopeMode==='stop'?'start':'stop'],Backspace:['clear']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';if(this.ready)this.updatePanel();}
+  setActive(active:boolean){this.active=active;if(active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';if(this.ready)this.updatePanel();}
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='robot'||this.onStand)return;const q=p.body.translation();
     if(Math.hypot(q.x-STAND.x,q.z-STAND.z)<2.6){this.onStand=true;this.placeOnStand();this.game.audio.plug();this.game.burst({x:STAND.x,y:1,z:STAND.z},'#9ff3ea',1,'ring');
@@ -367,13 +372,13 @@ export class GarageBench implements Station {
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;
     switch(h.act){
-      case 'pick':{const p=PARTS[h.arg as PartId];return {key:'Click',text:`${p.name}: fits ${SLOT_NAMES[p.slots[0]]}${p.polar?' (band/+ on the left)':''}`};}
-      case 'slot':return {key:'Click',text:this.held?`Fit the ${PARTS[this.held].name} here`:this.slots[h.arg as SlotId]?'Take this part out':`${SLOT_NAMES[h.arg as SlotId]} socket`};
+      case 'pick':{const p=PARTS[h.arg as PartId];return {key:String(PART_IDS.indexOf(h.arg as PartId)+1),text:`Click to pick up the ${p.name}: fits ${SLOT_NAMES[p.slots[0]]}${p.polar?' (band/+ on the left)':''}`};}
+      case 'slot':return {key:SLOT_KEYS[h.arg as SlotId],text:this.held?`Click to fit the ${PARTS[this.held].name} here`:this.slots[h.arg as SlotId]?'Click to take this part out':`${SLOT_NAMES[h.arg as SlotId]} socket`};
       case 'flip':return {key:'F',text:'Flip the fitted part round'};
       case 'ground':return {key:'G',text:this.star?'Controller ground: its own wire (star). Click for shared':'Controller ground: shared with the motor. Click for star'};
       case 'pulse':return {key:'P',text:'PULSE: run the motor once and catch the stop on the scope'};
       case 'test':return {key:'Enter',text:`TEST: ${SPEC.cycles} start/stop cycles, graded`};
-      case 'fuse':return {key:'R',text:this.fuse?'Resettable fuse (OK)':'Reset the tripped fuse'};
+      case 'fuse':return {key:'R',text:this.fuse?'Resettable fuse (OK)':'Click RESET to reset the tripped fuse'};
       case 'scope':return {key:'T',text:h.arg==='start'?'Scope: the controller\'s supply as the motor starts':'Scope: the switch node as the motor stops'};
     }
     return null;
@@ -382,14 +387,15 @@ export class GarageBench implements Station {
     const j=this.current();if(this.driving)return null;if(!j)return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
       if(this.game.held===this.bot&&this.bot){const q=this.bot.body.translation();return {key:'E',text:Math.hypot(q.x-STAND.x,q.z-STAND.z)<2.6?'Set the robot down on the test stand':'Carry the robot to the test stand behind the bench'};}
-      if(near)return {key:'E',text:this.onStand?'Work at the garage bench':'Work at the bench (the robot is still on its charging pad)'};return null;}
+      if(near)return {key:'E',text:this.onStand?'Work at the garage bench':'Work at the bench (the robot is still on its charging pad)'};
+      return walkHint(this.game,this.onStand?'Walk to the garage bench (yellow arrow)':'Fetch the delivery robot from its charging pad (yellow arrow)');}
     const h=this.hoverHint();if(h)return h;
     if(!this.onStand)return {key:'E',text:'Step back and carry the robot onto the test stand'};
-    if(!this.fuse)return {key:'Click',text:'Fuse tripped: flip the backwards part (⇄), then click FUSE'};
-    if(this.held)return {key:'Click',text:`Click a glowing socket to fit the ${PARTS[this.held].name}`};
+    if(!this.fuse)return {key:'R',text:'Fuse tripped: flip the backwards part (click ⇄ or F), then press RESET on the fuse'};
+    if(this.held){const s=PARTS[this.held].slots[0];return {key:SLOT_KEYS[s],text:`Click a glowing socket to fit the ${PARTS[this.held].name}`};}
     const cap=this.capture&&this.capture.job===this.jobIndex?this.capture:undefined;
     if(!cap||this.setupStale())return {key:'P',text:this.jobIndex===0&&!cap?'Press PULSE to catch the shutdown on the scope':'Press PULSE to check the change on the scope'};
-    if(cap.verdict.tier===0)return {key:'Click',text:j.hint};
+    if(cap.verdict.tier===0)return {key:'1–5',text:j.hint};
     return {key:'Enter',text:'Clean capture: press TEST (5 cycles)'};
   }
   complete(){return this.delivered;}

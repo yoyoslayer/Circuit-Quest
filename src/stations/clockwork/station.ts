@@ -358,7 +358,7 @@ export class ClockworkKitchen implements Station {
       if(held==='dough')return {key:'E',text:'Set the dough trays on the table at the belt\'s left end'};
       if(near)return {key:'E',text:this.doughReady?'Work at the oven bench':'Work at the bench (the dough is still in the storeroom)'};
       return walkHint(this.game,!this.shelfReady?'Fetch the clock-module shelf from the storeroom (yellow arrow)':!this.doughReady?'Fetch the dough trays from the storeroom (yellow arrow)':'Walk to the oven bench (yellow arrow)');}
-    if(this.belt)return {key:'Wait',text:this.belt.replay?'Night shift replay: watch tray 3 and the scope':'Belt running: watch the trays and the clock faces'};
+    if(this.belt)return {key:'⏳',text:this.belt.replay?'Night shift replay: watch tray 3 and the scope':'Belt running: watch the trays and the clock faces'};
     if(!this.doughReady)return {key:'E',text:'Step back and carry the dough trays to the belt'};
     const s=this.setup,src=s.source&&SOURCES[s.source];
     if(!src)return {key:'1',text:'Pick a clock: 1 or click the INT RC switch, or 2–4 / click a module on the shelf'};

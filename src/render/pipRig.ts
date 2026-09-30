@@ -20,7 +20,9 @@ export class PipRig {
   private eyes:T.Object3D[]=[];private glints:T.Object3D[]=[];private eyeScale=1;
   constructor(private model:T.Object3D){
     model.updateMatrixWorld(true);
-    const all:T.Object3D[]=[];model.traverse(o=>{if(o!==model&&o.parent===model)all.push(o);});
+    // Blender exports a named Pip group inside the glTF scene. Collect the named
+    // parts through that wrapper, before creating any joints or reparenting them.
+    const all:T.Object3D[]=[];model.traverse(o=>{if(o instanceof T.Mesh)all.push(o);});
     const take=(g:Joint,prefixes:string[])=>{for(const o of all)if(prefixes.some(p=>o.name.startsWith(p)))g.attach(o);};
     const joint=(parent:T.Object3D,x:number,y:number,z=0)=>{const g=new T.Group();g.position.set(x,y,z);parent.add(g);g.updateMatrixWorld(true);return g;};
     this.body=joint(model,0,0);

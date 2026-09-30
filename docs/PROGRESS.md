@@ -13,9 +13,31 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M4 Juice | Done | Sounds, particles, shake, squash/stretch, coworker reactions |
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
-Latest verification: `npm run build` and `npm test` (142 unit tests) pass. All 50
-browser checks passed across the full run and focused rerun described in
-`docs/REVIEW_FIXES.md`; simulation is deterministic in `?manual` mode.
+Latest build and unit verification: `npm run build` and `npm test` (144 unit tests)
+pass. All 52 browser checks are verified (50 in the full run, two after focused
+test corrections); detailed results are recorded in
+`docs/DESIGN_REVIEW_4.md`. Simulation is deterministic in `?manual` mode.
+
+## Player-feedback design review (2026-09-29)
+
+Reviewed all 15 rooms in play, survey and close views. Fixed the actual cause of
+Pip sliding: the animation pivots did not contain the nested GLB's meshes. Boot
+movement now has a unit regression and an actual loaded-model browser check.
+Desk, chair and monitor colliders match their visible parts; pod chairs face
+their desks, and seated coworkers stand if their chair is removed or tipped.
+NPC idle turning/vertical bobbing is reduced, and the overlapping Lunch Rush
+lamp/bin spawn is separated.
+
+The play camera follows Pip fully and starts closer. Four 3.6 m shell walls use
+cutaways, default partitions are 2.8 m, and park/utility exterior dressing replaces
+the void. Room wall palettes vary by wing. Job cards show one current step with
+optional details; station order panels appear at the bench.
+
+`docs/DESIGN_REVIEW_4.md` has comparison screenshots, findings, remaining defects
+and room-specific architectural targets. This pass does not claim all phasing or
+room repetition fixed: standing NPCs lack collision, several prefabs still use
+box proxies, foreground obstruction and grounded foot planting need more work,
+and most station layouts remain rectangular. These take priority over new modes.
 
 ## Codex continuation (2026-09-29)
 

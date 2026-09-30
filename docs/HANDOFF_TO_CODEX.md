@@ -8,6 +8,10 @@ Codex has continued this handoff: both Claude branches are integrated, the revie
 round and phone fixes are verified, and `docs/REVIEW_FIXES.md` records the changes,
 50 browser checks and screenshots. `NEXT_STEPS.md` now lists the remaining work.
 
+The next player-feedback pass is `docs/DESIGN_REVIEW_4.md`: movement, furniture,
+NPC seating, camera, walls/exterior and text fixes, plus a complete room survey
+and the remaining collision/architecture backlog. Read it before adding modes.
+
 ## State in one paragraph
 
 The game has 15 levels.

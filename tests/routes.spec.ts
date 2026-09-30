@@ -58,5 +58,7 @@ test('holding the plug, F at the mail cart attaches coupler then second reel',as
   await route(page,[[-9,-6],[-9,5.3],[-3.3,5.5]],.3);
   await page.keyboard.press('KeyF');let s=await snapshot(page);expect(s.holdingPlug).toBe(true);expect(s.items.find((i:any)=>i.id==='coupler').visible).toBe(false);expect(s.rope.maxLength).toBe(23.2);
   await page.keyboard.press('KeyF');s=await snapshot(page);expect(s.holdingPlug).toBe(true);expect(s.rope.maxLength).toBe(37.2);
-  await route(page,[[-1,3],[-1,-1.5],[6,-1.2],[11.4,-1.4]]);await page.keyboard.press('KeyF');await switchProjector(page);await complete(page);
+  // Return through the aisle between pods, rather than threading the cable
+  // through a desk/chair island now that furniture has separate colliders.
+  await route(page,[[-3.5,3.6],[-3.5,-1.4],[6,-1.2],[11.4,-1.4]]);await page.keyboard.press('KeyF');await switchProjector(page);await complete(page);
 });

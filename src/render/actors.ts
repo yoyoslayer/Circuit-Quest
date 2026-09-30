@@ -31,6 +31,7 @@ function buildBlob(color:string,mood:Mood,acc:Accessory[]):T.BufferGeometry{
   const dark=shadeHex(color,-.12),alarm=mood==='alarm';
   add(new T.CapsuleGeometry(.33,.35,12,36),color,0,.55,0,0,0,0,1,1,.96);
   for(const s of [-1,1]){
+    add(new T.SphereGeometry(.1,12,8),dark,s*.13,.07,.1,0,0,0,1.1,.7,1.5);
     add(new T.SphereGeometry(alarm?.105:.088,24,16),'#ffffff',s*.105,.8,.285);
     add(new T.SphereGeometry(alarm?.03:.045,16,12),INK,s*.105,.8,.365);
     add(new T.SphereGeometry(.015,6,4),'#ffffff',s*.105+.02,.82,.405);

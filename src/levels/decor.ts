@@ -11,6 +11,7 @@ import {INK} from '../render/toon';
 import {glossyToon,hot} from '../render/actors';
 import * as TX from '../render/textures';
 import {windowUnit,windowShaft,wallArt,pendant,pointLamp,lampPool,rug,shadowDecal,type WallArt} from './dressing';
+import {exterior,roomPalette} from './environment';
 
 export interface Decor {screen?:T.Mesh;beam?:T.Object3D;clock?:{hand:T.Object3D;minute:T.Object3D;face:T.Mesh};lightUp?:()=>void}
 const WALL_UP='#efe2c8',WALL_LOW='#c7b08e',RAIL='#a8734a',BASE='#7a4f33',CAP='#c98a55',CAP_DARK='#8e5a36';
@@ -29,24 +30,25 @@ function floor(game:Game,x0:number,x1:number,z0:number,z1:number,map:T.Texture,t
 /** Dressed back/side wall: wallpaper, wainscot, rail, baseboard and a thick cap. The upper part
  *  (above the rail) folds away when the camera swings behind it. The returned group's local +z
  *  points into the room and y=0 is the floor, for windows and wall art. */
-function shellWall(game:Game,length:number,x:number,z:number,normal:[number,number],h=3,thick=.25){
+function shellWall(game:Game,length:number,x:number,z:number,normal:[number,number],h=3.6,thick=.25){
   const wall=group(game.root,x,0,z,normal[0]!==0?-Math.PI/2*normal[0]:normal[1]<0?0:Math.PI);
   const face=thick/2,upper=group(wall,0,1.06,0),inside=group(upper,0,-1.06,0);
-  part(wall,box(length,1.06,thick),plain(WALL_LOW),0,.53,0);part(wall,box(length,.16,.07),toon(BASE),0,.08,face+.035);part(wall,box(length,1,.05),toon(WALL_LOW),0,.55,face+.025);
-  part(wall,box(length,.07,.09),toon(RAIL),0,1.06,face+.04);
-  part(inside,box(length,h-1.06,thick),plain(WALL_UP),0,1.06+(h-1.06)/2,0);part(inside,box(length,h-1.05,.02),plain('#ffffff',TX.wallpaper(WALL_UP)),0,1.05+(h-1.05)/2,face+.011);
+  const palette=roomPalette(game.level.id);
+  part(wall,box(length,1.06,thick),plain(palette.lower),0,.53,0);part(wall,box(length,.16,.07),toon(BASE),0,.08,face+.035);part(wall,box(length,1,.05),toon(palette.lower),0,.55,face+.025);
+  part(wall,box(length,.07,.09),toon(palette.trim),0,1.06,face+.04);
+  part(inside,box(length,h-1.06,thick),plain(palette.upper),0,1.06+(h-1.06)/2,0);part(inside,box(length,h-1.05,.02),plain('#ffffff',TX.wallpaper(palette.upper)),0,1.05+(h-1.05)/2,face+.011);
   part(inside,box(length+.04,.14,thick+.22),toon(CAP),0,h+.07,.02);part(inside,box(length+.06,.04,thick+.26),toon(CAP_DARK),0,h+.16,.02);
   wall.traverse(o=>{o.receiveShadow=false;});
   game.shellWalls.push({group:upper,normal:new T.Vector3(normal[0],0,normal[1]),height:h});
   solid(game,normal[0]!==0?thick:length,h,normal[0]!==0?length:thick,x,h/2,z);
   return inside;
 }
-function interiorWall(game:Game,o:Obstacle,upperColor=WALL_UP,lowerColor=WALL_LOW,h=1.35){
+function interiorWall(game:Game,o:Obstacle,upperColor=WALL_UP,lowerColor=WALL_LOW,h=2.8){
   const w=o.maxX-o.minX,d=o.maxZ-o.minZ,x=(o.minX+o.maxX)/2,z=(o.minZ+o.maxZ)/2,r=game.decorRoot;
   // Interior walls fade like pillars when they hide Pip, so they stay on root with their own materials.
   const wall=group(game.root,x,0,z),fade=(m:T.Material)=>{const c=m.clone();c.transparent=true;return c;};
   for(const [geo,mat,y] of [[box(w,.8,d),plain(lowerColor),.4],[box(w,h-.8,d),plain(upperColor),.8+(h-.8)/2],[box(w+.03,.12,d+.05),toon(BASE),.06],[box(w+.05,.1,d+.07),toon(CAP),h],[box(w+.06,.04,d+.08),toon(CAP_DARK),h+.06]] as const){const m=part(wall,geo,fade(mat),0,y,0);game.occluders.push(m);}
-  solid(game,w,2.6,d,x,1.3,z);
+  solid(game,w,Math.max(h,2.6),d,x,Math.max(h,2.6)/2,z);
 }
 /** Pillars: capped and trimmed; alternate ones carry a poster or an extinguisher. The fading
  *  pillar body stays on root (it is an occluder). */
@@ -62,15 +64,11 @@ function pillar(game:Game,o:Obstacle,i:number,hazard=false){
 function slab(game:Game){
   const l=game.level;part(game.decorRoot,box(l.width+.5,.5,l.depth+.5),toon('#3b3852'),0,-.27,0,false);shadowDecal(game.root,l.width*1.5,l.depth*1.7,.8,-.6,1.2,.7);
 }
-function frontLips(game:Game){
-  const l=game.level,r=game.decorRoot;
-  part(r,box(l.width,.32,.22),toon('#e3d6c0'),0,.12,l.depth/2);part(r,box(l.width+.02,.06,.28),toon(CAP),0,.31,l.depth/2);solid(game,l.width,1,.22,0,.5,l.depth/2);
-  part(r,box(.22,.32,l.depth),toon('#e3d6c0'),l.width/2,.12,0);part(r,box(.28,.06,l.depth+.02),toon(CAP),l.width/2,.31,0);solid(game,.22,1,l.depth,l.width/2,.5,0);
-}
 const windowXs=(width:number)=>{const xs:number[]=[];for(let x=-width/2+2.2;x<width/2-1.5;x+=3.2)xs.push(x);return xs;};
 export function decorate(game:Game):Decor{
-  const l=game.level;slab(game);frontLips(game);
+  const l=game.level;exterior(game);slab(game);
   const back=shellWall(game,l.width,0,-l.depth/2,[0,-1]),side=shellWall(game,l.depth,-l.width/2,0,[-1,0]);
+  shellWall(game,l.width,0,l.depth/2,[0,1]);shellWall(game,l.depth,l.width/2,0,[1,0]);
   if(game.hub||game.station)return (game.hub??game.station)!.dress({floor:(x0,x1,z0,z1,map,tile,y)=>floor(game,x0,x1,z0,z1,map,tile,y),backWindows:(skip,o)=>backWindows(game,back,skip,o),interiorWall:(o,u,d,h)=>interiorWall(game,o,u,d,h),back,side});
   if(l.id==='meeting')return meeting(game,back,side);
   if(l.id==='lunch')return lunch(game,back,side);

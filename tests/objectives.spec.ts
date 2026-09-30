@@ -13,5 +13,8 @@ test('objective card and key prompts guide the playground',async({page})=>{
 test('Big Meeting shows the power-strip step and the bonus goals',async({page})=>{
   await open(page,'meeting');await wait(page,.1);
   const card=page.locator('.objective');await expect(card.locator('li.now')).toContainText('power strip');await expect(card.locator('.bonus li')).toHaveCount(3);
+  await expect(card.locator('.bonus')).toBeHidden();await expect(card.locator('li.todo').first()).toBeHidden();
+  await card.getByRole('button',{name:'Job details'}).click();
+  await expect(card.locator('.bonus')).toBeVisible();await expect(card.getByRole('button',{name:'Job details'})).toHaveAttribute('aria-expanded','true');
   await walk(page,-8.6,-3.9,.4);await wait(page,.1);await expect(page.locator('.prompt-pill')).toContainText('Grab the power strip');
 });

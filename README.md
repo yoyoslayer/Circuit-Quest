@@ -27,6 +27,9 @@ the tools (each station also has keys, shown on the table and in the prompt), E 
 steps back. The job card lists the steps; the panel on the right shows the order and a
 live readout; each station grades works / works reliably / elegant.
 
+The job card shows the current step; **Job details** expands the full checklist and
+bonus goals. The camera follows Pip; **Tab** switches to a survey of the whole room.
+
 | Input | Keyboard / mouse | Gamepad |
 |---|---|---|
 | Move / sprint | WASD or arrows / Shift | Left stick |
@@ -50,6 +53,7 @@ live readout; each station grades works / works reliably / elegant.
 | `node tools/shot.mjs [level]` | GPU screenshots into `artifacts/` |
 | `tools/debug/*.mjs` | Error catcher, pose logger, crops and scripted scene shots |
 | `node tools/bench-review.mjs` | Prepare each station and capture desktop/phone benches; optional `BASE_URL` and `REVIEW_OUT` |
+| `node tools/design-review.mjs after` | Capture all 15 rooms in play/survey/close views, with rig and physics diagnostics (default port 4174) |
 
 Browser tests open levels with `?manual`, which advances simulated time only when a
 test asks, so routes are deterministic even under software rendering.
@@ -61,6 +65,7 @@ test asks, so routes are deterministic even under software rendering.
 | `docs/HANDOFF_TO_CODEX.md` | Current state, Linux setup, where things live, what is open |
 | `docs/screenshots/` | Screenshots of the current build |
 | `docs/REVIEW_FIXES.md` | Codex continuation: merged review fixes, phone checks and remaining work |
+| `docs/DESIGN_REVIEW_4.md` | Movement, collisions, camera and room-design review, fixes and before/after evidence |
 | `AGENTS.md` | Hard rules, stack, done criteria (Codex reads this automatically) |
 | `docs/GAME_DESIGN.md` | Current design (wins over older docs) |
 | `docs/LEVEL_01_BIG_MEETING.md` | First level spec |

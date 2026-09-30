@@ -1,7 +1,8 @@
 # Next steps (Codex continuation, 2026-09-29)
 
 Read `docs/HANDOFF_TO_CODEX.md` for setup and the file map, then
-`docs/REVIEW_FIXES.md` for the completed review round and screenshots.
+`docs/DESIGN_REVIEW_4.md` for the latest player-feedback review and priorities.
+`docs/REVIEW_FIXES.md` records the earlier station round.
 
 ## Where things stand
 
@@ -16,8 +17,9 @@ The two Claude branches have been combined for publication on `main` in
   - QFN bench, Archive, Waterworks, Signal Observatory;
   - Overheating Arcade, Robot Garage, Clockwork Kitchen, Delivery Depot, Spectrum Delivery.
 
-The build is clean and 142 unit tests pass. Browser coverage now includes 50 checks,
-with new touch workflows for QFN and Archive; final results are in `REVIEW_FIXES.md`.
+The build is clean and 144 unit tests pass. Browser coverage now includes 52 checks,
+with real boot-mesh movement, chair support, compact HUD and phone workflows.
+Current verification is recorded in `DESIGN_REVIEW_4.md`.
 
 A fresh-eyes design and QA review found concrete defects in the stations:
 - the reports are `mockups/review3/REVIEW_A.md` and `REVIEW_B.md`, with screenshots
@@ -61,6 +63,25 @@ Items that branch was meant to cover (details and suggested fixes are in the rev
   - prompt badges show real keys, not "Click", "Drag" or "…".
 
 ## 2. Remaining review items (not started)
+
+The latest review takes priority over adding more stations or Rush variants:
+
+- **Remaining intersections and NPC collision.** Desk/chair/monitor compound
+  shapes are in; audit the other prefabs, static dressing, stock and cables.
+  Standing NPCs still allow Pip to pass through them.
+- **Camera obstruction.** Closer full follow, four walls and an exterior are in.
+  Test doorways, carried furniture, rotated views and tall shelving. Add an
+  obstruction response that keeps Pip and the held object visible.
+- **Room architecture.** The palette differs by wing, but most station floor
+  plans still repeat. Prototype Archive aisles or Garage service bays before
+  applying a spatial redesign to the rest. Room-by-room targets are in the review.
+- **Foot contact and animation.** The nested-model rig bug is fixed; actual boots
+  now move. Review real-time walk/run/carry/jump recordings for residual skating
+  and add foot planting if needed.
+- **Less bench prose.** The job card is compact with optional details, and order
+  panels wait for bench mode. Reduce duplicated explanations within each station.
+
+Earlier remaining items:
 
 - **Physical phone playtest.** All eleven station routes have been captured at
   390×844, the camera includes the tool racks, and Archive has a tabbed terminal.

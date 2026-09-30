@@ -87,6 +87,7 @@ export class ObjectivesHUD{
   constructor(private g:Game,layer:HTMLElement){
     this.job=g.station||g.hub?stationJob(g):JOBS[g.level.id]??JOBS.playground;
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
+    this.card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.objective-toggle'))return;e.stopPropagation();this.card.classList.toggle('expanded');this.shown='';this.update();});
     this.prompt=document.createElement('div');this.prompt.className='prompt-pill';this.prompt.hidden=true;layer.append(this.prompt);
     // At a bench the walking controls hide; this button also works by touch or keyboard.
     this.stand=document.createElement('button');this.stand.setAttribute('type','button');this.stand.className='bench-chip';this.stand.hidden=true;this.stand.innerHTML='<kbd>Esc</kbd><span>Stand up</span>';layer.append(this.stand);
@@ -104,9 +105,9 @@ export class ObjectivesHUD{
     const key=`${[...this.done].join()}|${current}|${bonus.join()}|${[...this.flash].join()}`;
     if(key!==this.shown){this.shown=key;
       // Long jobs stay compact: a done count, the current step and the one after it.
-      const steps=this.job.steps.map((st,i)=>({st,i})).filter(({i})=>this.job.steps.length<=4||this.flash.has(i)||(current>=0&&i>=current&&i<=current+1));
+      const steps=this.job.steps.map((st,i)=>({st,i})).filter(({i})=>this.card.classList.contains('expanded')||this.job.steps.length<=4||this.flash.has(i)||(current>=0&&i>=current&&i<=current+1));
       const doneCount=this.done.size,hiddenDone=doneCount-steps.filter(({i})=>this.done.has(i)).length;
-      this.card.innerHTML=`<h3><small>JOB · ${doneCount}/${this.job.steps.length}</small>${this.job.goal}</h3><ol>${hiddenDone>0?`<li class="done summary"><i></i><span>${hiddenDone} step${hiddenDone>1?'s':''} done</span></li>`:''}${steps.map(({st,i})=>`<li class="${this.done.has(i)?'done':i===current?'now':'todo'}${this.flash.has(i)?' flash':''}"><i></i><span>${st.text}</span></li>`).join('')}</ol>`+
+      this.card.innerHTML=`<button class="objective-toggle" type="button" aria-expanded="${this.card.classList.contains('expanded')}">Job details</button><h3><small>JOB · ${doneCount}/${this.job.steps.length}</small>${this.job.goal}</h3><ol>${hiddenDone>0?`<li class="done summary"><i></i><span>${hiddenDone} step${hiddenDone>1?'s':''} done</span></li>`:''}${steps.map(({st,i})=>`<li class="${this.done.has(i)?'done':i===current?'now':'todo'}${this.flash.has(i)?' flash':''}"><i></i><span>${st.text}</span></li>`).join('')}</ol>`+
         `<ul class="bonus">${this.job.bonuses.map((b,i)=>`<li class="${bonus[i]?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`;}
     // A bouncing arrow over whatever the current step needs.
     const at=current>=0&&g.running&&!g.won&&!g.atBench?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;

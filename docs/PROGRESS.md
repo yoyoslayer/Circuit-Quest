@@ -13,9 +13,27 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M4 Juice | Done | Sounds, particles, shake, squash/stretch, coworker reactions |
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
-Verification on the last commit: `npm run build` and `npm test` (142 unit tests) pass,
-and `npm run smoke` passes (see below for the latest browser-suite count). Browser tests run twice in a row with
-identical results (simulation is deterministic in `?manual` mode).
+Latest verification: `npm run build` and `npm test` (142 unit tests) pass. All 50
+browser checks passed across the full run and focused rerun described in
+`docs/REVIEW_FIXES.md`; simulation is deterministic in `?manual` mode.
+
+## Codex continuation (2026-09-29)
+
+Combined both Claude branches using Git history, preserving the shared changes
+and completing the QFN, Archive, Waterworks, Observatory, Arcade and Garage review
+round. Desktop and phone captures cover all eleven station routes; selected
+screenshots and details are in `docs/REVIEW_FIXES.md`.
+
+Portrait framing now includes the tool racks. Archive has usable phone Search,
+Datasheet and Work order panes. The Via ROW stepper clears the order panel, and
+Waterworks hover hints render subscripts correctly. Stand up now receives touch
+input and works as a native button. Two new browser regressions exercise real
+QFN tool taps and a complete cited Archive work order on a phone viewport.
+
+Static station-room batching remains the next performance task (829–1,262 draw
+calls in the capture pass). Shared button styling, reset consistency, Spectrum
+floor-mark cleanup, other Rush modes and the capstone remain in `NEXT_STEPS.md`.
+Physical phone and laptop playtests remain unverified.
 
 ## Visual and UI overhaul (after product-owner feedback)
 

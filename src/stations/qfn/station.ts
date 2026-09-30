@@ -385,7 +385,12 @@ export class QfnBench implements Station {
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent)};}
   snapshot(){const r=this.live;return {board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,tool:this.tool,layer:this.layer,selected:this.selected,design:this.design,
     report:{tier:r.tier,problems:r.problems,notes:r.notes,cost:r.cost,par:r.par,nets:r.nets,loops:r.loops,thermal:r.thermal},shipped:this.shipped,mistakes:this.mistakes,spent:this.spent,checks:this.checks,
-    hover:this.hoverCell,rings:this.marks.children.length,cells:this.active?this.cellScreens():undefined};}
+    hover:this.hoverCell,rings:this.marks.children.length,cells:this.active?this.cellScreens():undefined,tools:this.active?this.toolScreens():undefined};}
+  /** Tool centres let browser tests verify that the phone can reach the actual 3D buttons. */
+  private toolScreens(){const cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect(),out:Record<string,[number,number]>={};
+    cam.updateMatrixWorld();this.root.updateMatrixWorld(true);
+    for(const [name,obj] of this.toolPucks){const v=obj.localToWorld(new T.Vector3(0,.072,0)).project(cam);out[name]=[Math.round(rect.left+(v.x+1)/2*rect.width),Math.round(rect.top+(1-v.y)/2*rect.height)];}
+    return out;}
   /** Page coordinates of every cell centre (browser tests drive the real pointer with these). */
   private cellScreens(){const b=this.board(),cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect(),out:Record<string,[number,number]>={};
     cam.updateMatrixWorld();this.boardRoot.updateMatrixWorld(true);

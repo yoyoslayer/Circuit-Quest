@@ -88,9 +88,10 @@ export class ObjectivesHUD{
     this.job=g.station||g.hub?stationJob(g):JOBS[g.level.id]??JOBS.playground;
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
     this.prompt=document.createElement('div');this.prompt.className='prompt-pill';this.prompt.hidden=true;layer.append(this.prompt);
-    // At a bench the walking controls hide; this chip says how to step back.
-    this.stand=document.createElement('div');this.stand.className='bench-chip';this.stand.hidden=true;this.stand.innerHTML='<kbd>Esc</kbd><span>Stand up</span>';layer.append(this.stand);
-    this.stand.addEventListener('pointerdown',e=>{e.stopPropagation();g.leaveBench();});
+    // At a bench the walking controls hide; this button also works by touch or keyboard.
+    this.stand=document.createElement('button');this.stand.setAttribute('type','button');this.stand.className='bench-chip';this.stand.hidden=true;this.stand.innerHTML='<kbd>Esc</kbd><span>Stand up</span>';layer.append(this.stand);
+    this.stand.addEventListener('pointerdown',e=>e.stopPropagation());
+    this.stand.addEventListener('click',e=>{e.stopPropagation();g.leaveBench();});
     const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.color.multiplyScalar(1.5);m.userData.outlineParameters={visible:false};
     this.marker=new T.Mesh(new T.ConeGeometry(.22,.42,20).rotateX(Math.PI),m);this.marker.userData.noAO=true;this.marker.visible=false;g.root.add(this.marker);
   }

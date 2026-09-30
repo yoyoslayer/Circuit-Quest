@@ -248,7 +248,7 @@ body[data-practice] .jobplate::after{content:"PRACTICE";position:absolute;left:1
 body[data-bench] .hud .actions,body[data-bench] .stick{display:none}
 body[data-bench] .prompt-pill{bottom:calc(24px + var(--safe-b))}
 body[data-bench] .station-toast{bottom:calc(84px + var(--safe-b))}
-.bench-chip{position:absolute;left:calc(var(--inset) + var(--safe-l));bottom:calc(24px + var(--safe-b));display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:24px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-weight:700;cursor:pointer}
+.bench-chip{position:absolute;left:calc(var(--inset) + var(--safe-l));bottom:calc(24px + var(--safe-b));display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:24px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-weight:700;cursor:pointer;pointer-events:auto}
 .bench-chip kbd{display:grid;place-items:center;min-width:38px;height:30px;padding:0 6px;border-radius:8px;background:var(--paper-3);border:2px solid var(--ink);font:inherit;font-size:13px}
 @media (max-width:700px){
   body[data-bench] .objective{display:none}

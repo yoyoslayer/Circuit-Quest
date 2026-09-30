@@ -342,7 +342,7 @@ export class Game {
     const pushing=this.won&&this.winAt>0;
     if(this.atBench&&this.station){const st=this.station,v=st.view;target=st.table.clone().add(new T.Vector3(0,v.lookY,0)).addScaledVector(new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw)),v.lookX??0);
       // Portrait screens are narrow: pull back so the width of the table still fits.
-      distanceTo=v.distance*T.MathUtils.clamp(1.25/cam.aspect,1,2.1);pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
+      distanceTo=v.distance*T.MathUtils.clamp(1.5/cam.aspect,1,4);pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
     if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.station?7:this.level.id==='meeting'?8:9;pitch=this.station?.5:this.level.id==='meeting'?.32:.6;}
     // Title: a hero shot of Pip beside the logo (Pip sits in the right half of the frame).
     const titling=!this.running&&document.body.dataset.screen==='title';

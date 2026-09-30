@@ -49,6 +49,7 @@ live readout; each station grades works / works reliably / elegant.
 | `node tools/perf.mjs` | Frame timing on the host GPU (`THROTTLE=4` emulates a mid laptop CPU) |
 | `node tools/shot.mjs [level]` | GPU screenshots into `artifacts/` |
 | `tools/debug/*.mjs` | Error catcher, pose logger, crops and scripted scene shots |
+| `node tools/bench-review.mjs` | Prepare each station and capture desktop/phone benches; optional `BASE_URL` and `REVIEW_OUT` |
 
 Browser tests open levels with `?manual`, which advances simulated time only when a
 test asks, so routes are deterministic even under software rendering.
@@ -59,6 +60,7 @@ test asks, so routes are deterministic even under software rendering.
 |---|---|
 | `docs/HANDOFF_TO_CODEX.md` | Current state, Linux setup, where things live, what is open |
 | `docs/screenshots/` | Screenshots of the current build |
+| `docs/REVIEW_FIXES.md` | Codex continuation: merged review fixes, phone checks and remaining work |
 | `AGENTS.md` | Hard rules, stack, done criteria (Codex reads this automatically) |
 | `docs/GAME_DESIGN.md` | Current design (wins over older docs) |
 | `docs/LEVEL_01_BIG_MEETING.md` | First level spec |

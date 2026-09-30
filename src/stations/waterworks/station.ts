@@ -27,7 +27,7 @@ const DECK=1.0,PORTS={x:1.16,z:-.1};
 const grid=(p:Pt)=>new T.Vector3(-.8+p[0]*.2,.15+p[1]*.25,.07);
 const LOAD_NAMES:{[k:string]:string}={open:'Shut valve',short:'Bypass hose',2:'Wheel 2',6:'Wheel 6',12:'Wheel 12'};
 const loadName=(l?:Load)=>l===undefined?'nothing fitted':LOAD_NAMES[String(l)];
-const KNOB_NAMES:{[k in Knob]:string}={pP:'the pressure cart\'s pump pressure',pR:'the pressure cart\'s series restriction',fQ:'the flow cart\'s pump flow',fR:'the flow cart\'s bypass restriction',eV:'V<sub>th</sub> (volts)',eR:'R<sub>th</sub> (ohms)',eI:'I<sub>N</sub> (milliamps)'};
+const KNOB_NAMES:{[k in Knob]:string}={pP:'the pressure cart\'s pump pressure',pR:'the pressure cart\'s series restriction',fQ:'the flow cart\'s pump flow',fR:'the flow cart\'s bypass restriction',eV:'V_th (volts)',eR:'R_th (ohms)',eI:'I_N (milliamps)'};
 const LOAD_HINTS:{[k:string]:string}={open:'Shut valve: closes the ports, so the gauge reads the open-port pressure',short:'Bypass hose: joins A to B, so the meter reads the short-port flow',2:'Wheel 2: a light load (restriction 2)',6:'Wheel 6: a medium load (restriction 6)',12:'Wheel 12: a heavy load (restriction 12)'};
 const DEVICE_NAMES:{[d in Device]:string}={net:'Hidden network',pcart:'Pressure cart',fcart:'Flow cart'};
 const UP=new T.Vector3(0,1,0);
@@ -445,8 +445,8 @@ export class Waterworks implements Station {
     switch(h.act){
       case 'load':return {key:String((['open','short',...WHEELS] as Load[]).indexOf(h.arg as Load)+1),text:`Click to fit it. ${LOAD_HINTS[String(h.arg)]}`};
       case 'device':return {key:h.arg==='net'?'N':h.arg==='pcart'?'P':'F',text:`Click to put the ${DEVICE_NAMES[h.arg as Device].toLowerCase()} on the ports`};
-      case 'knob':return {key:'←→',text:`Drag sideways (or press ← →) to set ${KNOB_NAMES[h.arg as Knob]}`};
-      case 'nudge':{const [k,d]=h.arg as [Knob,number];return {key:d>0?'→':'←',text:`Click to ${d>0?'raise':'lower'} ${KNOB_NAMES[k]} one step`};}
+      case 'knob':return {key:'←→',text:html(`Drag sideways (or press ← →) to set ${KNOB_NAMES[h.arg as Knob]}`)};
+      case 'nudge':{const [k,d]=h.arg as [Knob,number];return {key:d>0?'→':'←',text:html(`Click to ${d>0?'raise':'lower'} ${KNOB_NAMES[k]} one step`)};}
       case 'compare':return {key:'C',text:'COMPARE: run all three wheels on the network and on both carts'};
       case 'check':return {key:'Enter',text:html('CHECK your V_th, R_th and I_N')};
     }

@@ -131,9 +131,9 @@ export class ViaCounter implements Station {
     sign(top,'PAD 0.30 · 0.45 · 0.60',.92,.08,.34,.62);
     FINISHES.forEach((f,k)=>{const jar=group(top,1.3+(k%2)*.16,0,-.12+Math.floor(k/2)*.18);const m=part(jar,cyl(.055,.055,.12,16),toon(f==='open'?'#fffaf0':f==='tented'?MASK:f==='plugged'?FILL:COPPER),0,.06,0);part(jar,cyl(.058,.058,.025,16),toon(INK),0,.13,0);this.finishJars.push(m);this.click(jar,'finish',f);});
     sign(top,'FINISH',1.38,.08,.4,.4);
-    const row=group(top,1.72,0,-.26);for(const [x,a] of [[-.12,-1],[.12,1]] as const){const b=part(row,box(.09,.05,.09),toon(a>0?'#6cc58a':'#e5484d'),x,.025,0);this.click(b,'count',a);}
+    const row=group(top,1.72,0,.56);for(const [x,a] of [[-.12,-1],[.12,1]] as const){const b=part(row,box(.09,.05,.09),toon(a>0?'#6cc58a':'#e5484d'),x,.025,0);this.click(b,'count',a);}
     this.countText=part(row,new T.PlaneGeometry(.12,.08),new T.MeshBasicMaterial({map:label('×1','#fffaf0',INK,128,80),transparent:true}),0,.06,0,false);this.countText.rotation.x=-1.1;(this.countText.material as T.Material).userData.outlineParameters={visible:false};
-    sign(top,'ROW',1.72,.2,-.42,.3,0);
+    sign(top,'ROW',1.72,.08,.73,.3,-.75);
     const tester=group(top,1.72,0,.16);part(tester,box(.22,.14,.14),toon('#ffc94d'),0,.07,0);part(tester,box(.15,.07,.01),toon('#bfeaf5'),0,.1,.072);this.click(tester,'test');sign(tester,'TEST',0,.24,0,.3,0,'#ffc629');
     const bell=group(top,2.04,0,.16);part(bell,cyl(.09,.11,.03,18),toon(INK),0,.015,0);part(bell,sphere(.08,14,10,),toon('#ffc629'),0,.07,0).scale.y=.8;part(bell,cyl(.012,.012,.04,8),toon(INK),0,.14,0);this.click(bell,'serve');sign(top,'SERVE',2.04,.08,.42,.34,-.75,'#6cc58a');
     // The crate of blanks sits at the counter's end once delivered.

@@ -83,10 +83,26 @@ body[data-dragging] .archive-order .slot{outline:3px dashed var(--ochre);outline
 /* While the terminal is open the job card and action bar step aside; prompts sit under the screen. */
 body[data-archive="open"] .objective,body[data-archive="open"] .actions{display:none}
 body[data-archive="open"] .prompt-pill{bottom:calc(22px + var(--safe-b))}
-body[data-archive="open"] .station-toast{top:calc(22px + var(--safe-t));bottom:auto;max-width:min(760px,calc(100vw - 32px));z-index:3}
+.as-mobile-nav{display:none}
+body[data-archive="open"] .station-toast{max-width:min(760px,calc(100vw - 32px));z-index:3}
 @media (max-width:900px){
-  .archive-screen{right:calc(12px + var(--safe-r));left:calc(12px + var(--safe-l));bottom:calc(330px + var(--safe-b))}
-  .as-main{grid-template-columns:1fr}.as-side{display:none}
-  body[data-archive="open"] .station-panel.archive-order{top:auto;bottom:calc(70px + var(--safe-b));max-height:240px}
+  .archive-screen{top:calc(108px + var(--safe-t));right:calc(12px + var(--safe-r));left:calc(12px + var(--safe-l));bottom:calc(146px + var(--safe-b))}
+  .as-bezel{grid-template-rows:auto auto minmax(0,1fr) auto;gap:8px;padding:10px 12px 24px}
+  .as-bar{gap:6px}.as-search{min-width:0;height:40px;flex:1;padding:0 8px}.as-search input{font-size:16px}
+  .as-tabs{display:none}.as-hide{padding:0 4px;font-size:12px}
+  .as-mobile-nav{display:flex;gap:6px}
+  .as-mobile-nav button{flex:1;min-height:36px;padding:4px;border:2px solid var(--ink);border-radius:9px;background:var(--cream-2);color:var(--ink);font:600 13px var(--font);cursor:pointer}
+  .as-mobile-nav button[aria-pressed="true"]{background:var(--ochre)}
+  .as-main{grid-template-columns:minmax(0,1fr)}
+  .as-side,.as-doc{display:none}
+  .archive-screen[data-section="search"] .as-side{display:flex}
+  .archive-screen[data-section="doc"] .as-doc{display:block}
+  .archive-screen[data-section="order"] .as-tray{visibility:hidden}
+  .as-doc{padding:14px 12px;font-size:13px;overflow-x:auto}.ds-head{margin:-14px -12px 12px;padding:12px}
+  .as-tray{min-height:50px;max-height:82px;padding:6px;gap:6px}.as-tray>b{font-size:10px}.as-hint{font-size:12px}
+  body[data-archive="open"] .station-panel.archive-order{display:none}
+  body[data-archive="open"][data-archive-pane="order"] .station-panel.archive-order{display:block;left:calc(26px + var(--safe-l));right:calc(26px + var(--safe-r));top:calc(220px + var(--safe-t));bottom:calc(168px + var(--safe-b));width:auto;max-height:none;padding:10px 12px;z-index:2}
+  body[data-archive="open"] .station-panel.archive-order header p{display:block}
+  body[data-archive="open"] .station-toast{top:auto;bottom:calc(84px + var(--safe-b))}
 }
 @media (prefers-reduced-motion:reduce){.archive-screen{animation:none}.as-doc{scroll-behavior:auto}}

@@ -1,11 +1,12 @@
-# Next steps (stopping point, 2026-09-29)
+# Next steps (Codex continuation, 2026-09-29)
 
-Work stopped here at the product owner's request. Read `docs/HANDOFF_TO_CODEX.md` first
-(setup, file map), then this file.
+Read `docs/HANDOFF_TO_CODEX.md` for setup and the file map, then
+`docs/REVIEW_FIXES.md` for the completed review round and screenshots.
 
 ## Where things stand
 
-The published branch is `claude/nifty-knuth-519jg0` on `github.com/yoyoslayer/Circuit-Quest`.
+The two Claude branches have been combined for publication on `main` in
+`github.com/yoyoslayer/Circuit-Quest`.
 
 **The game has 15 levels:**
 - the HQ lobby, with a Workshop arch for practice runs;
@@ -15,30 +16,21 @@ The published branch is `claude/nifty-knuth-519jg0` on `github.com/yoyoslayer/Ci
   - QFN bench, Archive, Waterworks, Signal Observatory;
   - Overheating Arcade, Robot Garage, Clockwork Kitchen, Delivery Depot, Spectrum Delivery.
 
-The build is clean and 142 unit tests pass. The full browser suite passed 48/48 before
-the review-fix round. Since then the via, lobby, smoke, depot, clockwork and spectrum
-specs have been rerun and pass.
+The build is clean and 142 unit tests pass. Browser coverage now includes 50 checks,
+with new touch workflows for QFN and Archive; final results are in `REVIEW_FIXES.md`.
 
 A fresh-eyes design and QA review found concrete defects in the stations:
 - the reports are `mockups/review3/REVIEW_A.md` and `REVIEW_B.md`, with screenshots
   alongside;
 - the shared fixes and the via counter fixes are merged;
 - the Depot, Clockwork and Spectrum fixes are merged;
-- the rest are unfinished (step 1 below).
+- the remaining WIP fixes are integrated and reviewed (step 1 below).
 
-## 1. Finish the unfinished review fixes (branch `claude/review-fixes-wip`)
+## 1. Completed review fixes (branch `claude/review-fixes-wip`)
 
-That branch is one WIP commit on top of the merged work. It touches QFN, Archive,
-Waterworks, Observatory, Arcade and Garage (station files, their levels and two specs). It
-typechecks, but **nothing on it has been run**.
-
-1. `git checkout claude/review-fixes-wip`
-2. Run `npx tsc --noEmit` and `npm test`.
-3. Run each touched station spec: `npx playwright test tests/station-{qfn,archive,waterworks,observatory,arcade,garage}.spec.ts`.
-4. Take screenshots at 1440×900 of each bench. Scripts are in `tools/debug/`, or copy
-   `tools/debug/vias.mjs`.
-5. Check each fix against the review items listed below.
-6. Fix what's broken, then merge into the main branch.
+The WIP commit has been merged with the newer shared fixes. QFN, Archive,
+Waterworks, Observatory, Arcade and Garage have been built, tested and captured.
+`node tools/bench-review.mjs` reproduces the desktop and phone screenshot review.
 
 Items that branch was meant to cover (details and suggested fixes are in the review reports):
 - **QFN:** clear stale problem rings on move, rotate, trace, erase and undo; keep top-row
@@ -70,13 +62,10 @@ Items that branch was meant to cover (details and suggested fixes are in the rev
 
 ## 2. Remaining review items (not started)
 
-- **Phone layout at the bench.** The shared CSS (`body[data-bench]` in `src/ui/ui.css`)
-  and a portrait camera pull-back are in. Check every bench at 390×844 and adjust each
-  station's `view` (and `view.lookX`, added for this) until the tools fit. The Archive
-  terminal needs a tabbed layout on phones (`src/stations/archive/archive.css`).
-- **The first prompt in a room points at a random prop** ("Grab the cone"). Let a station
-  return a directional prompt from `prompt(false)` toward its current step, and move
-  spawns away from clutter.
+- **Physical phone playtest.** All eleven station routes have been captured at
+  390×844, the camera includes the tool racks, and Archive has a tabbed terminal.
+  QFN and Archive have touch regression checks. Test fine control and readability
+  on real phone hardware next.
 - **One bench button style.** Each bench uses its own button look; the QFN keycaps are
   the most readable. Add a shared `benchKey(label,key,colour)` helper in
   `src/render/labels.ts` and use it on every bench.
@@ -86,8 +75,6 @@ Items that branch was meant to cover (details and suggested fixes are in the rev
   (`snapshot().drawCalls` now reports the true count). Merge static room dressing into
   `game.decorRoot` so `freeze()` batches it, and instance repeated parts. Aim for under
   about 500 per room. Then measure on a mid laptop (`THROTTLE=4 node tools/perf.mjs`).
-- **Via counter:** the ROW stepper sits half under the order panel at 1440×900. It's
-  usable, but move it forward.
 
 ## 3. Features still to build (from `docs/EXPANSION_PLAN.md`)
 

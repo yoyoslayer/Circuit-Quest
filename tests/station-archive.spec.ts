@@ -94,3 +94,34 @@ test('archive: the rig refuses a box that is not on the work order',async({page}
   const s=await snapshot(page);expect(s.station.rig).toBeNull();expect(s.station.mistakes).toBe(0);
   await expect(page.locator('.station-toast')).toContainText('RC0603F472');
 });
+
+test.describe('phone Archive terminal',()=>{
+  test.use({viewport:{width:390,height:844},hasTouch:true});
+  test('search, read and cite a complete work order by touch',async({page},testInfo)=>{
+    const errors=await open(page,'archive');await wait(page,.1);await start(page);
+    const terminal=page.locator('.archive-screen');
+    await expect(page.locator('.as-side')).toBeVisible();
+    await page.locator('.as-search input').fill('Brambleworth');
+    await expect(page.locator('.as-hit')).toHaveCount(2);
+    await page.locator('.as-hit',{hasText:'RC series'}).tap();
+    await expect(page.locator('.as-doc h3')).toHaveText('RC series');
+    for(const slot of ['mpn','r','tol','pkg']){
+      await page.locator('[data-pane="doc"]').tap();
+      await page.locator(`.as-doc [data-clue="bw-rc/RC0603F472-${slot}"]`).tap();
+      await expect(page.locator('.archive-order')).toBeVisible();
+      await page.locator(`.archive-order [data-slot="${slot}"]`).tap();
+      expect((await snapshot(page)).station.cites[slot]).toBe(`bw-rc/RC0603F472-${slot}`);
+    }
+    await page.locator('.archive-order [data-act="request"]').tap();
+    expect((await snapshot(page)).station.requested).toBe('RC0603F472');
+    await testInfo.attach('phone-archive-order',{body:await page.screenshot(),contentType:'image/png'});
+    // Changing viewport keeps desktop search, document and order visible together.
+    await page.setViewportSize({width:1440,height:900});
+    await expect(page.locator('.as-side')).toBeVisible();await expect(page.locator('.as-doc')).toBeVisible();
+    await expect(page.locator('.archive-order')).toBeVisible();
+    await page.locator('.as-hide').tap();await expect(terminal).toBeHidden();
+    await expect(page.locator('.prompt-pill')).toContainText('Stand up and fetch');
+    await page.keyboard.press('KeyM');await expect(terminal).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});

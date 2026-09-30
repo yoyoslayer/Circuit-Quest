@@ -24,6 +24,7 @@ const MAT={ledOff:toon('#5a6b4a'),ledOn:hot('#8dffb0',1.8),ledGlare:hot('#fff6e0
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 interface Rig {mpn:string;t:number;result:Install;prop:Game['props'][number];shown:number}
+type TerminalPane='search'|'doc'|'order';
 export class ArchiveDesk implements Station {
   readonly view={distance:4.3,pitch:.62,lookY:.3};
   readonly limits={time:720,damage:1,cost:0};
@@ -31,6 +32,7 @@ export class ArchiveDesk implements Station {
   readonly rigAt={x:-7.4,z:-4.1};
   caseIdx=0;trayReady=false;active=false;screenOpen=true;query='';tabs:string[]=['stock'];doc='stock';
   evidence:string[]=[];cites:Partial<Record<Param,string>>={};selected?:string;requested?:string;fails=0;mistakes=0;spent=0;
+  private terminalPane:TerminalPane='search';
   served:{case:string;mpn:string;tier:1|2|3;notes:string[]}[]=[];rig?:Rig;
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private tray?:Game['props'][number];private trayPapers=new T.Group();private boxes:{mpn:string;prop:Game['props'][number];label:T.Group}[]=[];
@@ -160,13 +162,14 @@ export class ArchiveDesk implements Station {
     if(!this.trayReady){this.say('The work orders are still at the post desk. Carry the tray to the datasheet desk first.');a.voice('hm',1.4);return false;}
     switch(name){
       case 'screen':this.screenOpen=!this.screenOpen;a.tone(this.screenOpen?520:360,.06,.03,'triangle');break;
-      case 'search':this.query=String(arg??'');break;
-      case 'open':{const d=docById(String(arg));if(!d)return false;if(!this.tabs.includes(d.id))this.tabs.push(d.id);if(this.tabs.length>5)this.tabs.splice(this.tabs.findIndex(t=>t!==d.id),1);this.doc=d.id;a.tone(640,.04,.03);break;}
+      case 'pane':if(!['search','doc','order'].includes(String(arg)))return false;this.terminalPane=arg as TerminalPane;break;
+      case 'search':this.query=String(arg??'');this.terminalPane='search';break;
+      case 'open':{const d=docById(String(arg));if(!d)return false;if(!this.tabs.includes(d.id))this.tabs.push(d.id);if(this.tabs.length>5)this.tabs.splice(this.tabs.findIndex(t=>t!==d.id),1);this.doc=d.id;this.terminalPane='doc';a.tone(640,.04,.03);break;}
       case 'close':{const id=String(arg);if(!this.tabs.includes(id)||this.tabs.length===1)return false;this.tabs=this.tabs.filter(t=>t!==id);if(this.doc===id)this.doc=this.tabs[this.tabs.length-1];break;}
-      case 'bookmark':{const x=clue(String(arg));if(!x)return false;if(this.evidence.includes(x.id)){this.selected=x.id;return true;}
-        this.evidence.push(x.id);this.selected=x.id;a.pop();break;}
+      case 'bookmark':{const x=clue(String(arg));if(!x)return false;if(this.evidence.includes(x.id)){this.selected=x.id;this.terminalPane='order';break;}
+        this.evidence.push(x.id);this.selected=x.id;this.terminalPane='order';a.pop();break;}
       case 'unbookmark':{const id=String(arg);if(!this.evidence.includes(id))return false;this.evidence=this.evidence.filter(e=>e!==id);if(this.selected===id)this.selected=undefined;break;}
-      case 'select':{const id=String(arg);if(!this.evidence.includes(id))return false;this.selected=id;a.tone(700,.03,.02);break;}
+      case 'select':{const id=String(arg);if(!this.evidence.includes(id))return false;this.selected=id;this.terminalPane='order';a.tone(700,.03,.02);break;}
       case 'cite':{const {slot,clue:id}=(arg??{}) as {slot?:Param;clue?:string};const x=id?clue(id):undefined;
         if(!x||!slot||!k.slots.includes(slot))return false;
         if(x.param!==slot){this.say(`That value is not about ${SLOT_LABEL[slot].toLowerCase()}. ${slot==='mpn'?'Drag a part number here.':`Look for the ${SLOT_LABEL[slot].toLowerCase()} rows.`}`);a.tone(200,.12,.04,'square');return false;}
@@ -195,7 +198,7 @@ export class ArchiveDesk implements Station {
   key(code:string){
     if(code==='KeyM'){this.act('screen');return true;}
     if(code==='Enter'){this.act('request');return true;}
-    if(code==='Slash'&&this.screenOpen){this.screen?.querySelector<HTMLInputElement>('.as-search input')?.focus();return true;}
+    if(code==='Slash'&&this.screenOpen){this.terminalPane='search';this.updatePanel();this.screen?.querySelector<HTMLInputElement>('.as-search input')?.focus();return true;}
     return false;
   }
   setActive(active:boolean){this.active=active;if(active)this.screenOpen=true;queueMicrotask(()=>this.updatePanel());if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
@@ -257,7 +260,8 @@ export class ArchiveDesk implements Station {
   private updatePanel(){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const open=this.active&&this.screenOpen&&this.trayReady&&!!this.current()&&!this.game.won;
-    if(open)document.body.dataset.archive='open';else delete document.body.dataset.archive;
+    if(open){document.body.dataset.archive='open';document.body.dataset.archivePane=this.terminalPane;}
+    else{delete document.body.dataset.archive;delete document.body.dataset.archivePane;}
     const k=this.current();
     const key=JSON.stringify([this.active,this.caseIdx,this.cites,this.requested,this.trayReady,!!this.rig,this.selected,this.evidence.length]);
     if(key!==this.shown){this.shown=key;this.renderOrder(k);}
@@ -283,6 +287,8 @@ export class ArchiveDesk implements Station {
     if(!open){if(this.screen)this.screen.hidden=true;return;}
     if(!this.screen){this.screen=document.createElement('section');this.screen.className='archive-screen';this.screen.setAttribute('aria-label','Archive terminal');this.layer()?.append(this.screen);this.build(this.screen);}
     this.screen.hidden=false;
+    this.screen.dataset.section=this.terminalPane;
+    this.screen.querySelectorAll<HTMLButtonElement>('[data-pane]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.pane===this.terminalPane)));
     const results=search(this.query),listKey=JSON.stringify([this.query,this.doc]);
     if(listKey!==this.listKey){this.listKey=listKey;
       this.screen.querySelector('.as-list')!.innerHTML=results.length?results.map(d=>`<button class="as-hit${d.id===this.doc?' on':''}" data-doc="${d.id}" style="--mk:${MAKER_COLOR[d.maker]??WALNUT}"><small>${esc(d.maker)}</small><b>${esc(d.title)}</b><span>${esc(d.subtitle)}</span></button>`).join(''):`<p class="as-none">No document mentions “${esc(this.query)}”.</p>`;
@@ -296,6 +302,7 @@ export class ArchiveDesk implements Station {
   /** One-time markup and event wiring for the terminal (event delegation: re-renders keep working). */
   private build(el:HTMLElement){
     el.innerHTML=`<div class="as-bezel"><div class="as-bar"><label class="as-search"><span aria-hidden="true">⌕</span><input type="search" placeholder="Search datasheets: part number, maker, word…" aria-label="Search datasheets"></label><div class="as-tabs"></div><button class="as-hide" data-act="screen" aria-label="Hide the screen">Hide <span class="key kb">M</span></button></div>`+
+      `<nav class="as-mobile-nav" aria-label="Terminal sections"><button data-pane="search">Search</button><button data-pane="doc">Datasheet</button><button data-pane="order">Work order</button></nav>`+
       `<div class="as-main"><aside class="as-side"><p class="as-count"></p><div class="as-list"></div><dl class="as-gloss">${GLOSSARY.map(([t,d])=>`<dt>${t}</dt><dd>${d}</dd>`).join('')}</dl></aside><article class="as-doc"></article></div>`+
       `<footer class="as-tray"><b>Evidence</b><div class="as-chips"></div></footer><i class="as-plate">ARCHIVE TERMINAL</i><i class="as-power"></i></div>`;
     const input=el.querySelector<HTMLInputElement>('input')!;
@@ -306,6 +313,7 @@ export class ArchiveDesk implements Station {
   }
   private wire(el:HTMLElement){
     el.addEventListener('click',e=>{const t=e.target as HTMLElement,q=(s:string)=>t.closest<HTMLElement>(s);let m:HTMLElement|null;
+      if((m=q('button[data-pane]'))){this.act('pane',m.dataset.pane);return;}
       if((m=q('[data-close]'))){e.stopPropagation();this.act('close',m.dataset.close);return;}
       if((m=q('[data-uncite]'))){this.act('uncite',m.dataset.uncite);return;}
       if((m=q('[data-unmark]'))){this.act('unbookmark',m.dataset.unmark);return;}

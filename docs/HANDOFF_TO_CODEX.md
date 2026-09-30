@@ -4,6 +4,10 @@ Codex built M0–M2 and started M3. Claude Code then finished M3–M5 and did tw
 visual and design work at the product owner's request. This file is where to start. After
 it, read `docs/NEXT_STEPS.md` (the ordered to-do list at the stopping point) and `docs/PROGRESS.md` (what works, decisions taken, what is still unverified).
 
+Codex has continued this handoff: both Claude branches are integrated, the review
+round and phone fixes are verified, and `docs/REVIEW_FIXES.md` records the changes,
+50 browser checks and screenshots. `NEXT_STEPS.md` now lists the remaining work.
+
 ## State in one paragraph
 
 The game has 15 levels.
@@ -95,7 +99,9 @@ door automatically.
 
 ## Git
 
-- `master`: Codex's last state.
-- `claude/finish-circuit-crew`: the local branch this work was done on.
-- `claude/nifty-knuth-519jg0` on `github.com/yoyoslayer/Circuit-Quest`: the published
-  branch. It also carries the product owner's research notes, merged in.
+- `main` on `github.com/yoyoslayer/Circuit-Quest`: the combined, verified game.
+- `claude/nifty-knuth-519jg0`: Claude's published stopping point, including the
+  product owner's research notes.
+- `claude/review-fixes-wip`: the unfinished review round, now integrated.
+- `codex/finish-review-fixes`: the local continuation branch used for integration
+  and the verified phone/UI follow-up.

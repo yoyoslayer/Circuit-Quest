@@ -88,3 +88,22 @@ test('QFN bench: the real pointer drags a part and draws a track',async({page})=
   // Clicking the CHECK button on the bench runs the check.
   await page.keyboard.press('KeyC');expect((await snapshot(page)).station.checks).toBe(1);
 });
+
+test.describe('phone QFN bench',()=>{
+  test.use({viewport:{width:390,height:844},hasTouch:true});
+  test('both tool racks fit, and touch can select PEN and CHECK the board',async({page},testInfo)=>{
+    test.setTimeout(120000);
+    const errors=await open(page,'qfn');await wait(page,.1);await toBench(page);
+    await expect.poll(async()=>{
+      const tools=(await snapshot(page)).station.tools as Record<string,[number,number]>;
+      return Object.values(tools).every(([x,y])=>x>12&&x<378&&y>190&&y<650);
+    }).toBe(true);
+    let s=(await snapshot(page)).station;
+    await page.touchscreen.tap(...s.tools.pen);expect((await snapshot(page)).station.tool).toBe('pen');
+    s=(await snapshot(page)).station;
+    await page.touchscreen.tap(...s.tools.check);expect((await snapshot(page)).station.checks).toBe(1);
+    await testInfo.attach('phone-qfn',{body:await page.screenshot(),contentType:'image/png'});
+    await page.locator('.bench-chip').tap();expect((await snapshot(page)).atBench).toBe(false);
+    expect(errors).toEqual([]);
+  });
+});

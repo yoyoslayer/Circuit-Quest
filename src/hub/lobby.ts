@@ -82,18 +82,28 @@ export class Lobby {
     // Free-standing doors turn 45° toward the default camera so their signs read from the atrium.
     else{parent=group(g.root,s.x,0,s.z,-Math.PI/2);lx=0;at={x:s.x-1.1,z:s.z};}
     const f=group(parent,lx,0,.14);
-    // Frame, the door leaf on a hinge, a threshold, the name sign and a medal.
-    for(const x of [-.95,.95])part(f,rbox(.22,2.5,.26,.05),toon(color),x,1.25,0);part(f,rbox(2.12,.26,.28,.06),toon(color),0,2.55,0);
-    part(f,box(1.7,2.3,.04),toon('#262A40'),0,1.15,-.06,false);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
-    const leaf=group(f,-.84,0,0);part(leaf,rbox(1.66,2.26,.08,.03),glossyToon('#fffaf0',{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.07);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.1);
-    signPlate(leaf,level.number,.83,1.55,.085,.7,{bg:color,h:80,w:160});
-    signPlate(f,title(level),0,2.56,.16,1.95,{bg:'#fffaf0'});
+    // A mounted, framed glass office door with its name above the opening.
+    for(const x of [-.95,.95])part(f,rbox(.2,2.5,.22,.035),toon('#52636c'),x,1.25,.03);
+    part(f,rbox(2.08,.2,.22,.035),toon('#52636c'),0,2.5,.03);
+    part(f,rbox(1.72,.055,.34,.025),toon('#c98a55'),0,.025,.17,false);
+    const leaf=group(f,-.84,0,.11);
+    part(leaf,rbox(1.65,2.25,.1,.035),glossyToon('#dce4df',{spec:.65,size:.97}),.82,1.13,.02);
+    const glass=part(leaf,rbox(1.32,1.12,.035,.02),glossyToon('#9bcbd0',{spec:.85,size:.98}),.82,1.66,.081,false);
+    (glass.material as T.Material).transparent=true;(glass.material as T.Material).opacity=.72;
+    part(leaf,rbox(1.3,.48,.035,.02),toon(locked?'#879397':color),.82,.65,.081,false);
+    part(leaf,rbox(.035,.3,.045,.012),toon('#fffaf0'),.24,1.63,.105,false);
+    // A proper pull bar reads better than a gold knob at this scale.
+    part(leaf,cyl(.025,.025,.28,10),toon('#c2c9c3'),1.42,1.12,.11,false).rotation.x=Math.PI/2;
+    signPlate(leaf,level.number,.82,1.65,.105,.42,{bg:color,h:72,w:144});
+    signPlate(f,title(level),0,2.91,.16,1.86,{bg:'#fffaf0'});
     if(locked){signPlate(leaf,'LOCKED',.83,.95,.085,.9,{bg:'#262A40',fg:'#fffaf0',w:200,h:64});part(leaf,rbox(.3,.26,.08,.05),toon('#ffc629'),.83,1.2,.1);}
     if(best)signPlate(f,best.grade,1.08,2.12,.18,.34,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});
     // The wing lamp: dark until the job is done.
     const lamp=part(f,sphere(.13,14,10),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),0,3.35,.12,false);part(f,cyl(.05,.07,.12,10),toon(DMETAL),0,3.5,.1,false);
     if(done){const w=f.getWorldPosition(new T.Vector3());glow(g.root,'rgba(255,220,140,1)',1.4,.35).position.set(w.x,3.35,w.z+(s.wall==='back'?.4:0));}
-    const portal=part(f,new T.PlaneGeometry(1.68,2.28),new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,uniforms:{time:{value:0},tint:{value:new T.Color(color)}},vertexShader:'varying vec2 uvP; void main(){uvP=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec2 uvP;uniform float time;uniform vec3 tint;void main(){vec2 p=uvP-.5;float edge=pow(max(abs(p.x)*2.,abs(p.y)*2.),5.);float waves=.5+.5*sin(uvP.y*35.-time*4.+sin(uvP.x*14.+time));gl_FragColor=vec4(mix(tint,vec3(.85,1.,1.),edge),.55+edge*.35+waves*.08);}' }),0,1.16,-.01,false);
+    // Put the active field clearly in front of the uncut wall shell. At the old
+    // nearly coplanar depth the wall and door backing swallowed the translucent shader.
+    const portal=part(f,new T.PlaneGeometry(1.66,2.24),new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending,toneMapped:false,uniforms:{time:{value:0},tint:{value:new T.Color(color)}},vertexShader:'varying vec2 uvP; void main(){uvP=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec2 uvP;uniform float time;uniform vec3 tint;void main(){vec2 p=uvP-.5;float edge=pow(max(abs(p.x)*2.,abs(p.y)*2.),7.);float radius=length(vec2(p.x*.8,p.y));float swirl=.5+.5*sin(atan(p.y,p.x)*5.-radius*32.+time*3.+sin(p.x*15.+time)*.55);vec3 deep=tint*.72+vec3(.07,.13,.19);vec3 color=mix(deep,vec3(.55,.97,1.),smoothstep(.08,.48,swirl)*.72+edge*.65);float alpha=.58+swirl*.28+edge*.14;gl_FragColor=vec4(color,alpha);}' }),0,1.16,.24,false);
     (portal.material as T.Material).userData.outlineParameters={visible:false};portal.visible=false;
     return {level,at,leaf,open:0,lamp,done,locked,portal,arrival:0};
   }
@@ -123,7 +133,7 @@ export class Lobby {
   enter(level:Level){if(this.departing)return;this.departing=true;flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;location.href=`?level=${level.id}`;}
   update(dt:number){
     const p=this.game.player.translation();
-    for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=-d.open*1.2;d.portal.visible=d.open>.35;(d.portal.material as T.ShaderMaterial).uniforms.time.value=this.game.time;
+    for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=d.open*Math.PI*.48;d.portal.visible=d.open>.08;(d.portal.material as T.ShaderMaterial).uniforms.time.value=this.game.time;
       if(!d.locked&&(d.arrival>0||Math.hypot(p.x-d.at.x,p.z-d.at.z)<1.15)){d.arrival+=dt;if(d.open>.65&&d.arrival>.45)this.enter(d.level);}}
     const near=this.near(p),key=near?.level.id??'';if(key!==this.directoryKey&&this.directory){this.directoryKey=key;const m=this.directory.material as T.MeshBasicMaterial;m.map?.dispose();m.map=this.directoryTexture(near?.level);m.needsUpdate=true;}
   }

@@ -2,6 +2,7 @@
 // Icons, rings and meters carry the state; a short objective card and key prompts say what to do
 // (src/ui/objectives.ts).
 import type {Game} from '../game';
+import {FOVS,LENS_NAMES,type Lens} from '../render/lens';
 import type {Grade} from '../sim/grade';
 import type {LunchJob} from '../sim/lunch';
 import {installIcons} from '../render/icons';
@@ -44,7 +45,7 @@ export class GameUI {
     const unlock=()=>{if(this.game.running)this.game.audio.start();removeEventListener('pointerdown',unlock);removeEventListener('keydown',unlock);};
     addEventListener('pointerdown',unlock);addEventListener('keydown',unlock);
     addEventListener('resize',()=>{if(this.screen==='jobs')this.layoutJobs();});
-    this.syncSound();this.syncPad();
+    this.syncSound();this.syncLens();this.syncPad();
     // Restart and "next job" reload straight into play; a bare URL opens the title; ?level=… opens that job's tag.
     const auto=params.has('go')||takeAutostart(game.level.id);
     if(params.has('go')){params.delete('go');const q=params.toString();history.replaceState(null,'',location.pathname+(q?`?${q}`:''));}
@@ -104,6 +105,7 @@ export class GameUI {
       case 'next':this.selectJob(this.sel+1);break;
       case 'go':this.playSelected();break;
       case 'sound':g.action('sound');this.syncSound();break;
+      case 'lens':g.action('lens');this.syncLens();break;
       case 'pause':g.action('pause');t.blur();break;
       case 'resume':g.togglePause();break;
       case 'restart':this.restart();break;
@@ -135,6 +137,8 @@ export class GameUI {
     stick.addEventListener('pointermove',e=>{if(e.pointerId===this.stickId)move(e);});
     stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);
   }
+  /** The pause menu's View tile names the current lens. */
+  syncLens(){const name=LENS_NAMES[FOVS.indexOf(this.game.fov as Lens)]??'Standard';for(const el of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-p="lens"]')))el.textContent=`View: ${name}`;}
   syncSound(){const muted=this.game.audio.muted;
     for(const b of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-ui="sound"]'))){b.setAttribute('aria-pressed',String(muted));b.classList.toggle('on',!muted);const use=b.querySelector('use');use?.setAttribute('href',muted?'#i-mute':'#i-sound');}}
   syncPad(){const on=[...(navigator.getGamepads?.()??[])].some(p=>!!p);this.layer.classList.toggle('gp',on);this.game.hud.querySelector('.padind')?.classList.toggle('on',on);}

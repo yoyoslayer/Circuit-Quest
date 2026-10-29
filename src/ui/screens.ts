@@ -161,6 +161,7 @@ export const pauseMarkup=(l:Level)=>`
           <button class="btn tile" data-ui="restart" aria-label="Restart">${icon('retry')}<span>Restart</span><span class="key">R</span></button>
           <button class="btn tile" data-ui="jobs-reload" aria-label="Jobs">${icon('jobs')}<span>Jobs</span></button>
           <button class="btn tile on" data-ui="sound" aria-label="Mute audio" aria-pressed="false">${icon('sound')}<span>Sound</span></button>
+          <button class="btn tile" data-ui="lens" aria-label="Camera view">${icon('camera')}<span data-p="lens">Standard</span></button>
         </div>
       </div>
       <div class="map" aria-label="Controls">

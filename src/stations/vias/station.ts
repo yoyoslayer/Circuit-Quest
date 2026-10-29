@@ -300,6 +300,6 @@ export class ViaCounter implements Station {
     return {key:'Enter',text:'TEST it, then ring SERVE (Enter)'};
   }
   complete(){return this.rush?this.game.time>=RUSH_TIME:this.served.length>=SHIFT.length;}
-  score(){return {mistakes:this.mistakes+this.misses,cost:Math.round(this.spent*10)};}
+  score(){return {mistakes:this.mistakes+this.misses,cost:Math.round(this.spent*10)/10};}
   snapshot(){return {current:this.current(),rush:this.rush,misses:this.misses,patience:this.patience,order:this.order,served:this.served.map(s=>({order:s.order,tier:s.verdict.tier})),build:this.build,bit:this.bit,blanksReady:this.blanksReady,mistakes:this.mistakes,spent:this.spent};}
 }

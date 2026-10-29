@@ -415,7 +415,7 @@ export class SpectrumDesk implements Station {
     return {key:'Enter',text:'Clear link: SEND the message (Enter)'};
   }
   complete(){return this.delivered.length>=JOBS.length;}
-  score(){return {mistakes:this.mistakes,cost:this.spent};}
+  score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const r=this.reading();return {job:this.jobIndex,delivered:this.delivered.map(d=>({job:d.job,tier:d.verdict.tier,margin:d.verdict.margin})),band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,
     podPad:this.podPad,mirrors:[...this.mirrorAt.values()],mistakes:this.mistakes,spent:this.spent,
     reading:{margin:Number.isFinite(r.margin)?+r.margin.toFixed(2):null,blocked:r.route.blocked?.mat??null,spots:r.route.spots,detectorOk:r.detectorOk,podOk:r.podOk}};}

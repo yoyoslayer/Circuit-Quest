@@ -338,7 +338,7 @@ export class Game {
     const p=this.player.translation(),cam=this.view.camera,ease=1-Math.exp(-dt*5);
     this.lead.lerp(new T.Vector3(Math.sin(this.heading),0,Math.cos(this.heading)).multiplyScalar(this.grounded&&this.airborne===0&&(this.keys.size>0||this.stick)?1.2:0),ease*.5);
     // Zoomed out it frames the floor like a diorama; zooming in drops to Pip's eye line (mockups/look/LOOK.md).
-    const zoom=this.survey?44:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.25+near*.9,.25,1);
+    const zoom=this.survey?44:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.62+near*.6,.62,1);
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;
@@ -353,7 +353,7 @@ export class Game {
     const snap=this.manual&&this.atBench;
     this.focus.lerp(target,snap?1:this.survey||pushing?ease*.6:titling?1:this.atBench?ease*.8:ease);
     if(cam.fov!==this.fov){cam.fov=this.fov;cam.updateProjectionMatrix();}
-    const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo*lensScale(this.fov));
+    const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo*lensScale(this.fov,this.atBench||titling));
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
     // Cutaway: shell walls whose outside faces the camera drop to 0.9 m stubs.
@@ -369,7 +369,7 @@ export class Game {
     const q=this.view.getQuality();if(this.qualityTimer<3||q===0||this.slowAvg<1/45)return;
     this.qualityTimer=0;this.slowAvg=1/60;const next=(q-1) as 0|1;this.view.setQuality(next);try{localStorage.setItem('circuit-crew-quality',String(next));}catch{/* storage unavailable */}
   }
-  homeZoom(){return this.level.id==='playground'?18:this.station?20:this.hub?28:26;}
+  homeZoom(){return this.level.id==='playground'?17:this.station?18.5:this.hub?23:22;}
   winFocus(){const l=this.level;if(this.station)return this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */

@@ -19,6 +19,7 @@ export function cablePath(route:Point[],end:T.Vector3,startY:number,strain:numbe
 const sweatTexture=()=>cachedTexture('sweat',()=>glyph(c=>{c.fillStyle='#9fdcff';c.beginPath();c.moveTo(128,20);c.bezierCurveTo(200,120,210,170,128,230);c.bezierCurveTo(46,170,56,120,128,20);c.fill();c.lineWidth=14;c.stroke();}));
 import {Sound} from './render/audio';
 import {setupGameUI,gameUI} from './ui/game-ui';
+import {FOVS,lensScale,type Lens} from './render/lens';
 import {makeProp,prefabs,type PropSpec} from './props/prefabs';
 import {Rope,CORNER,detour,distance,segmentDistance,strainColor,type Point,type Obstacle} from './sim/cable';
 import {Circuit} from './sim/electrical';
@@ -47,7 +48,7 @@ export class Game {
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
   circuit:Circuit;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
-  yaw=.14;pitch=0;zoom=26;survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
+  yaw=.14;pitch=0;zoom=26;fov:number=FOVS[1];survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
   audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint=new T.Group();reticle=new T.Group();pipRing:T.Mesh;
   batches:Batch[]=[];decorRoot=new T.Group();
   lunch?:LunchRuntime;
@@ -60,6 +61,7 @@ export class Game {
   practice=new URLSearchParams(location.search).has('practice');
   constructor(public level:Level){
     try{const saved=Number(localStorage.getItem('circuit-crew-quality'));if(saved===0||saved===1)this.view.setQuality(saved);}catch{/* storage unavailable */}
+    try{const f=Number(localStorage.getItem('circuit-crew-fov'));if((FOVS as readonly number[]).includes(f))this.fov=f;}catch{/* storage unavailable */}
     const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=this.homeZoom();
     this.rope=new Rope({...level.anchor},level.length);this.obstacles=[...level.obstacles];
     if(level.station)this.station=makeStation(level.station,this);
@@ -162,7 +164,7 @@ export class Game {
     canvas.addEventListener('wheel',e=>{if(this.atBench)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
   action(action:string){
-    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.14;return;}
+    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='lens'){this.fov=FOVS[(FOVS.indexOf(this.fov as Lens)+1)%FOVS.length];try{localStorage.setItem('circuit-crew-fov',String(this.fov));}catch{/* storage unavailable */}return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.14;return;}
     if(!this.running||this.paused||this.won)return;
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
     if(action==='jump'&&this.grounded&&(!this.held||prefabs[this.held.spec.kind].mass<15)){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
@@ -350,7 +352,8 @@ export class Game {
     // Tests (?manual) snap straight onto a bench so pointer positions are deterministic.
     const snap=this.manual&&this.atBench;
     this.focus.lerp(target,snap?1:this.survey||pushing?ease*.6:titling?1:this.atBench?ease*.8:ease);
-    const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo);
+    if(cam.fov!==this.fov){cam.fov=this.fov;cam.updateProjectionMatrix();}
+    const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo*lensScale(this.fov));
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
     // Cutaway: shell walls whose outside faces the camera drop to 0.9 m stubs.
@@ -450,7 +453,28 @@ export class Game {
     };
     // Station tests press the same buttons a player would: act(name, arg) at the bench.
     const act=(name:string,arg?:unknown)=>{const ok=this.station?.act(name,arg)??false;this.render(1/60);return {ok,state:this.snapshot()};};
-    return {advance,walkTo,act};
+    return {advance,walkTo,act,audit:(min=.04)=>this.audit(min)};
+  }
+  /** Layout check for tests: everything that starts out interpenetrating something solid, deeper
+   *  than `min` metres. Props against fixed colliders and each other, standing coworkers and Pip's
+   *  spawn against both. Call it before advancing time, while everything is where the level put it. */
+  audit(min=.04){
+    const fixed:RAPIER.Collider[]=[];this.world.forEachCollider(c=>{if(c.parent()?.isFixed())fixed.push(c);});
+    const r=(v:number)=>Math.round(v*100)/100;
+    const fixedName=(c:RAPIER.Collider)=>{const t=c.translation(),h=(c.shape as RAPIER.Cuboid).halfExtents;return `fixed ${h?`${r(h.x*2)}×${r(h.z*2)}`:'shape'} @${r(t.x)},${r(t.z)}`;};
+    const propName=(p:Prop)=>{const t=p.body.translation();return `${p.spec.id??p.spec.kind} @${r(t.x)},${r(t.z)}`;};
+    const found:{a:string;b:string;depth:number}[]=[];
+    const test=(a:string,sa:RAPIER.Shape,pa:RAPIER.Vector,ra:RAPIER.Rotation,b:string,c:RAPIER.Collider)=>{
+      const k=sa.contactShape(pa,ra,c.shape,c.translation(),c.rotation(),0);if(k&&k.distance< -min)found.push({a,b,depth:r(-k.distance)});};
+    this.props.forEach((p,i)=>{const c=p.collider,a=propName(p);
+      for(const f of fixed)test(a,c.shape,c.translation(),c.rotation(),fixedName(f),f);
+      for(const q of this.props.slice(i+1))test(a,c.shape,c.translation(),c.rotation(),propName(q),q.collider);});
+    const ball=new RAPIER.Ball(.36),still={x:0,y:0,z:0,w:1};
+    for(const n of this.npcs){if(n.seated)continue;const at=n.group.position,pos={x:at.x,y:.6,z:at.z},a=`coworker @${r(at.x)},${r(at.z)}`;
+      for(const f of fixed)test(a,ball,pos,still,fixedName(f),f);for(const p of this.props)test(a,ball,pos,still,propName(p),p.collider);}
+    const pc=this.playerCollider;for(const f of fixed)test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),fixedName(f),f);
+    for(const p of this.props)test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),propName(p),p.collider);
+    return found;
   }
   snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
 }

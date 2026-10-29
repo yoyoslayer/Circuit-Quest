@@ -10,7 +10,7 @@ const props:PropSpec[]=[
   {kind:'chair',x:-2.4,z:1.2,color:'#ffc94d'},{kind:'chair',x:2.6,z:1.4,color:'#3f7fd6'},{kind:'chair',x:6.4,z:1.6,color:'#6cc58a'},
   {kind:'plant',x:-9.4,z:-.8},{kind:'plant',x:9.3,z:6.8},{kind:'bin',x:-3.2,z:-.6},{kind:'bin',x:3.4,z:-.4},
   {kind:'cabinet',x:9.2,z:1.2},{kind:'cabinet',x:9.2,z:2.2},{kind:'cone',x:-1.2,z:3.6},{kind:'cone',x:1.4,z:3.9},
-  {kind:'mug',x:4.6,z:6.4},{kind:'paper',x:-5.4,z:2.1},{kind:'paper',x:3.1,z:2.8},{kind:'paper',x:.4,z:5.6},
+  {kind:'mug',x:4.6,z:6.4,y:1.1},{kind:'paper',x:-5.4,z:2.1},{kind:'paper',x:3.1,z:2.8},{kind:'paper',x:.4,z:5.6},
   {kind:'desk',x:4.8,z:6.6,variant:3},{kind:'monitor',x:4.8,z:6.8,y:1.2,variant:1},{kind:'chair',x:4.8,z:5.6,color:'#b392f0'},
 ];
 // Customers (one per order), then two workers at the machines.

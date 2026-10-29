@@ -9,10 +9,10 @@ const props:PropSpec[]=[
   {kind:'whiteboard',id:'mirror1',x:-3.4,z:-5.5,color:'#dfe8f0'},
   {kind:'whiteboard',id:'mirror2',x:-.9,z:-5.5,color:'#dfe8f0'},
   // Storeroom stock (kept to the back and right so the doorway path stays clear).
-  ...[[-6.2,-7.4],[-5.4,-7.3],[-5.4,-6.5],[-5.5,-4.2]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#c98f5a':'#d7a56d'})),
+  ...[[-6.3,-6.6],[-5.4,-7.3],[-5.4,-6.5],[-5.5,-4.2]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#c98f5a':'#d7a56d'})),
   {kind:'cart',x:-7.6,z:-4.1,color:'#c98f5a'},
   // Lab: stools, a bin, a plant in the sunshine.
-  {kind:'chair',x:4.2,z:-6.3,color:'#5b9cf0'},{kind:'chair',x:9.1,z:-7.3,color:'#6cc58a'},{kind:'plant',x:2.7,z:-4},{kind:'bin',x:3.1,z:-6},{kind:'cabinet',x:10.3,z:-7.4,color:'#dfe3ea'},
+  {kind:'chair',x:4.2,z:-6.3,color:'#5b9cf0'},{kind:'chair',x:9.6,z:-7.3,color:'#6cc58a'},{kind:'plant',x:2.7,z:-4},{kind:'bin',x:3.1,z:-6},{kind:'cabinet',x:10.3,z:-7.4,color:'#dfe3ea'},
   // Hall: chairs, plants, cones and clutter (all of it can be knocked about).
   {kind:'plant',x:-10.3,z:7.1},{kind:'plant',x:.2,z:7.2},{kind:'plant',x:-4,z:-2.7},
   {kind:'chair',x:-4.4,z:4.6,color:'#ffc94d'},{kind:'chair',x:-7.2,z:2.3,color:'#e5484d'},{kind:'chair',x:3.9,z:6.8,color:'#8b7be8'},

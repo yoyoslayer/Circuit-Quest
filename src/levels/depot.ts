@@ -19,7 +19,7 @@ const props:PropSpec[]=[
 ];
 // Three dock hands: a driver by the trucks, the dispatcher at the desk, one stacking the racks.
 const npcs:NpcSpot[]=[
-  {x:7.5,z:-.8,standing:true,acc:['cap'],mood:'happy',yaw:-2.4},{x:6.8,z:4.4,standing:true,acc:['headphones'],yaw:Math.PI},
+  {x:7.5,z:-.8,standing:true,acc:['cap'],mood:'happy',yaw:-2.4},{x:7.7,z:4.2,standing:true,acc:['headphones'],yaw:Math.PI},
   {x:-7.2,z:-5.6,standing:true,acc:['glasses'],mood:'sleepy',yaw:Math.PI*.1},
 ];
 export const depot:Level={id:'depot',name:'DELIVERY DEPOT',number:'11',tagline:'Energy per charge, charge per second, and a belt that races when the rails short.',badge:'truck',station:'depot',

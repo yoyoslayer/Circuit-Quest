@@ -7,7 +7,7 @@ const props:PropSpec[]=[
   {kind:'cart',id:'shelf',x:-7.4,z:6.1,color:'#8fd9c0'},
   {kind:'tray',id:'dough',x:-8.6,z:2.6,color:'#e5484d'},
   // Stock, pans and clutter (all of it can be knocked about).
-  ...[[-10,6.6],[-9.2,6.8],[-10,5.8],[9.6,-2.8],[9.8,-1.9]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#c98f5a':'#d7a56d'})),
+  ...[[-10,6.6],[-9.2,6.8],[-9.1,6],[9.6,-2.8],[9.8,-1.9]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#c98f5a':'#d7a56d'})),
   {kind:'tray',x:-6.2,z:6.8,color:'#dfe4ea'},{kind:'tray',x:5.8,z:-5.6,color:'#dfe4ea'},{kind:'coolbox',x:-5.6,z:5.9,color:'#8fd9c0'},
   {kind:'chair',x:-2.8,z:1.4,color:'#e5484d'},{kind:'chair',x:2.9,z:1.6,color:'#8fd9c0'},{kind:'chair',x:-5,z:.6,color:'#ffc94d'},
   {kind:'plant',x:-10,z:-4.6},{kind:'plant',x:9.8,z:7},{kind:'plant',x:9.7,z:.2},

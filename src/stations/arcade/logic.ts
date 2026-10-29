@@ -165,3 +165,28 @@ export const heatAt=(steady:number,t:number)=>steady*(1-Math.exp(-t/HOUSE.tau));
 /** When a part heading for `steady` (× its limit) crosses the limit; Infinity if it never does. */
 export const failTime=(steady:number)=>steady>1?-HOUSE.tau*Math.log(1-1/steady):Infinity;
 export const TIER_WORD=['Fails','Works','Works reliably','Elegant'];
+
+// ---------- rush (level arcade-rush) ----------
+const RUSH_CABINETS=['PINBALL','RHYTHM','CLAW','RACER','SKEE','DANCE','LIGHTGUN','PUSHER','AIR HOCKEY','TOKEN'];
+const RUSH_FAULTS=['across','backwards','hot','dim','empty'] as const;
+/** An endless supply of LED cabinets for rush: random supply, colour, brightness window and fault,
+ *  only ever one the rack can fix reliably. */
+export function rushJob(rng:()=>number,n:number):Job{
+  const pick=<V>(a:readonly V[])=>a[Math.floor(rng()*a.length)];
+  for(;;){
+    const color=pick(['red','green','blue','white'] as const),supply=pick(LED_VF[color]>2.5?[5,9,12]:[3.3,5,9,12]),
+      band:[number,number]=pick([[.01,.02],[.008,.016],[.012,.02]]),cabinet=pick(RUSH_CABINETS),fault=pick(RUSH_FAULTS);
+    const job:Job={id:`rush-${n}`,title:cabinet[0]+cabinet.slice(1).toLowerCase(),cabinet,supply,load:led(color),band,start:{reversed:false},story:'',
+      ask:`${color[0].toUpperCase()+color.slice(1)} LED on ${supply} V: ${Math.round(band[0]*1000)}–${Math.round(band[1]*1000)} mA`};
+    const fix=best(job);if(!fix)continue;
+    const near=(k:number)=>RACK[Math.max(0,Math.min(RACK.length-1,RACK.indexOf(fix.r)+k))];
+    switch(fault){
+      case 'across':job.start={parallel:{r:near(0),rating:.125},reversed:false};job.story='Someone fitted the resistor across the LED. The fuse keeps clicking.';break;
+      case 'backwards':job.start={series:{...fix},reversed:true};job.story='Right resistor, but the LED went in backwards. It stays dark.';break;
+      case 'hot':job.start={series:{r:near(-3),rating:.125},reversed:false};job.story='Too bright, and the resistor smells warm.';break;
+      case 'dim':job.start={series:{r:near(4),rating:.125},reversed:false};job.story='Barely glowing. The player says it looks broken.';break;
+      case 'empty':job.story='The resistor slot is empty. Fit one.';break;
+    }
+    return job;
+  }
+}

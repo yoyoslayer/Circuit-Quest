@@ -12,7 +12,7 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressGarage,robotMesh,STAND,PAD,ROUTE,YELLOW,TEAL,CREAM,type RobotParts} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
-import {cheer,walkHint} from '../shared';
+import {cheer,walkHint,resetButton} from '../shared';
 import {JOBS,PARTS,PART_IDS,SLOT_NAMES,SPEC,SWITCH,MOTOR,RUNNING,STALL,CTRL,judge,cost,cheapest,shutdownCached,startTrace,startDip,setupKey,partCount,
   type PartId,type SlotId,type Fit,type Setup,type Verdict,type Job,type Trace} from './logic';
 
@@ -66,7 +66,7 @@ export class GarageBench implements Station {
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private parts=new Map<PartId,T.Group>();private trayAt=new Map<PartId,T.Vector3>();private slotAt=new Map<SlotId,{pos:T.Vector3;pad:T.Mesh}>();
   private flipBtns=new Map<SlotId,T.Object3D>();private marks=new Map<SlotId,T.Mesh>();private shared!:T.Object3D;private starWire!:T.Object3D;private lever!:T.Object3D;private routeSign!:T.Mesh;
-  private fuseCap!:T.Mesh;private fuseSign!:T.Mesh;private ctrlLamp!:T.Mesh;private cycleLamps:T.Mesh[]=[];private modeButtons:T.Mesh[]=[];
+  private fuseCtl!:ReturnType<typeof resetButton>;private fuseSign!:T.Mesh;private ctrlLamp!:T.Mesh;private cycleLamps:T.Mesh[]=[];private modeButtons:T.Mesh[]=[];
   private scopeCanvas!:HTMLCanvasElement;private scopeTex!:T.CanvasTexture;private scopeKey='';private sweep=1;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';
   private bot?:Game['props'][number];private robot:RobotParts;private spin=0;private motorOn=0;private resetFlash=0;private cycleT=-1;private cycleFail=false;private ready=false;
@@ -108,7 +108,7 @@ export class GarageBench implements Station {
     const bat=group(board,-1.3,y,.12);part(bat,rbox(.22,.13,.36,.04),toon('#3a3d55'),0,.065,0);part(bat,rbox(.23,.02,.11,.02),toon('#e5484d'),0,.13,-.11);
     sign(bat,'12 V',0,.14,.05,.2,.09,YELLOW,INK,-1.2);
     // The resettable fuse: a chunky holder with a RESET dome that glows red when it has tripped.
-    const fuse=group(board,-1.12,y,MAIN);part(fuse,cyl(.085,.09,.05,20),toon(INK),0,.025,0);this.fuseCap=part(fuse,sphere(.07,18,10),toon('#fffaf0'),0,.05,0);this.fuseCap.scale.y=.7;this.click(fuse,'fuse');
+    this.fuseCtl=resetButton(board,-1.12,y,MAIN,1,false);this.click(this.fuseCtl.group,'fuse');
     this.fuseSign=sign(board,'FUSE · R',-1.0,y+.02,.17,.24,.09,'#fffaf0',INK,-1.2);
     // The motor (a can on its side) between +12 V and the switch node.
     const mot=group(board,-.61,y,MAIN);part(mot,cyl(.085,.085,.26,18,'x'),glossyToon('#9aa3b2',{spec:.7,size:.97}),0,.09,0);part(mot,cyl(.087,.087,.04,18,'x'),toon(INK),-.13,.09,0);part(mot,cyl(.014,.014,.07,8,'x'),toon('#dfe3ea'),.165,.09,0);
@@ -242,7 +242,6 @@ export class GarageBench implements Station {
       this.marks.get(id)!.visible=!fit;const fb=this.flipBtns.get(id)!;fb.visible=!!fit&&PARTS[fit.part].polar;const cap=fb.getObjectByName('cap') as T.Mesh;cap.material=toon(fit?.flipped?'#f08a4b':TEAL);}
     this.shared.visible=!this.star;this.starWire.visible=this.star;this.lever.rotation.z=this.star?-.5:.5;
     setSign(this.routeSign,this.star?'GROUND: STAR':'GROUND: SHARED',this.star?'#b8d6ff':'#ffe7a8',INK,512,128);
-    this.fuseCap.material=this.fuse?toon('#fffaf0'):hot('#ff5a4d',1.6);this.fuseCap.position.y=this.fuse?.05:.08;
     setSign(this.fuseSign,this.fuse?'FUSE · R':'RESET · R',this.fuse?'#fffaf0':'#ff8a7a',INK,512,177);
     this.modeButtons.forEach((b,k)=>b.position.y=(k===0)===(this.scopeMode==='stop')?.12:.14);
     this.scopeKey='';this.shown='';this.updatePanel();
@@ -319,6 +318,7 @@ export class GarageBench implements Station {
     this.redraw();}
   update(dt:number){
     if(!this.ready)this.init();
+    this.fuseCtl.set(!this.fuse,this.game.time);
     const b=this.bot,r=this.robot;
     if(this.driving&&b){this.driveT+=dt;const d=Math.min(ROUTE_LEN,Math.max(0,(this.driveT-.4)*DRIVE_SPEED));
       let left=d,k=1;while(k<ROUTE.length-1&&left>Math.hypot(ROUTE[k][0]-ROUTE[k-1][0],ROUTE[k][1]-ROUTE[k-1][1])){left-=Math.hypot(ROUTE[k][0]-ROUTE[k-1][0],ROUTE[k][1]-ROUTE[k-1][1]);k++;}

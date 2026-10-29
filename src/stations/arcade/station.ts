@@ -12,10 +12,14 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressArcade,type ArcadeRoom} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot} from '../../render/actors';
-import {JOBS,RACK,RATINGS,RATING_LABEL,RATING_COST,HOUSE,read,judge,best,mA,ohms,watts,partsCost,TIER_WORD,
+import {JOBS,rushJob,RACK,RATINGS,RATING_LABEL,RATING_COST,HOUSE,read,judge,best,mA,ohms,watts,partsCost,TIER_WORD,
   type Job,type Part,type Rating,type Setup,type Reading,type Verdict,type LedColor} from './logic';
 import './arcade.css';
-import {cheer,walkHint} from '../shared';
+import {cheer,walkHint,resetButton} from '../shared';
+import {rng} from '../../render/textures';
+
+/** Arcade Rush (level arcade-rush): three minutes of cabinets, each soaked for a shorter run. */
+export const RUSH_TIME=180,RUSH_SOAK=4;
 
 const CREAM='#fbf3e2',PLUM='#3b2346',PINK='#ff7eb6',MINT='#6fe0c0',LEMON='#ffd84d',GRAPE='#9b7bf0';
 const LED_HEX:Record<LedColor,string>={red:'#ff4b5c',green:'#4dff88',blue:'#4d9bff',white:'#fff6e0'};
@@ -72,21 +76,34 @@ export class ArcadeBench implements Station {
   readonly view={distance:5.9,pitch:.98,lookY:.3};
   readonly limits={time:480,damage:2,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
-  index=0;setup:Setup=clone(JOBS[0].start);held?:Part;rating:Rating=.125;powered=false;tripped=false;soak=0;soakDone=false;verdict?:Verdict;
+  index=0;setup:Setup={reversed:false};held?:Part;rating:Rating=.125;powered=false;tripped=false;soak=0;soakDone=false;verdict?:Verdict;
   heat:Heat={led:0,r:0,p:0};served:{job:string;tier:number;cost:number}[]=[];mistakes=0;spent=0;trayReady=false;active=false;trips=0;
   readonly job:StationJob;
+  readonly rush:boolean;private jobs:Job[];private random=rng(20261029);
+  /** Seconds a channel must run in spec before sign-off. */
+  get soakTime(){return this.rush?RUSH_SOAK:HOUSE.soak;}
   private top=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;private room?:ArcadeRoom;
   private board=new Live(1024,360);private meter=new Live(900,520);private marquee=new Live(512,128);
   private rackBlocks=new Map<number,T.Group>();private rackGroup=new T.Group();private heldMesh?:T.Group;private heldKey='';
   private slotMeshes:{series?:T.Group;parallel?:T.Group}={};private slotKeys={series:'',parallel:''};private link!:T.Object3D;
   private ledGroup=new T.Group();private ledDome!:T.Mesh;private ledHalo!:T.Sprite;private ledLight!:T.PointLight;private transistor=new T.Group();private motor=new T.Group();private coin!:T.Object3D;
-  private fuseDisc!:T.Mesh;private resetBtn!:T.Object3D;private lever!:T.Object3D;private powerLamp!:T.Mesh;private signBtn!:T.Mesh;private ratingBtns:T.Object3D[]=[];
+  private fuseDisc!:T.Mesh;private resetCtl!:ReturnType<typeof resetButton>;private lever!:T.Object3D;private powerLamp!:T.Mesh;private signBtn!:T.Mesh;private ratingBtns:T.Object3D[]=[];
   private cabLamp!:T.Mesh;private ledOn=unlitMat();private cabOn=unlitMat();private hotMats={series:unlitMat(),parallel:unlitMat()};private screenOn=hot('#3a2b58',1.2);private screenOff=toon('#241a33');private lampOff=toon('#5a4a60');private cabHalo!:T.Sprite;private cabScreen!:T.Mesh;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';private tripT=0;private spin=0;private flicker=0;private smokeT=0;
   private tray?:Game['props'][number];private trayRide=new T.Group();private ready=false;
   constructor(private game:Game){
-    this.limits.cost=Math.ceil(JOBS.reduce((n,j)=>{const b=best(j);return n+(b?RATING_COST[String(b.rating)]:0);},0)*1.25);
-    this.job={goal:'Fix five arcade cabinets with the right resistor',
+    this.rush=game.level.id==='arcade-rush';this.jobs=this.rush?[]:[...JOBS];this.setup=clone(this.current()!.start);
+    this.limits.cost=this.rush?12:Math.ceil(JOBS.reduce((n,j)=>{const b=best(j);return n+(b?RATING_COST[String(b.rating)]:0);},0)*1.25);
+    if(this.rush){this.limits.time=RUSH_TIME+10;this.limits.damage=3;}
+    this.job=this.rush?{goal:`Arcade Rush: fix as many cabinets as you can in ${RUSH_TIME/60} minutes`,
+      steps:[
+        {text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.tray?.body.translation()??this.stand},
+        {text:'Step up to the service bench (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand},
+        {text:`Fix cabinets until the clock runs out (${RUSH_SOAK} s in spec each)`,done:()=>this.complete(),at:()=>this.stand}],
+      bonuses:[
+        {text:'Eight cabinets or more',ok:()=>this.served.length>=8},
+        {text:'Every one reliable',ok:()=>this.served.length>0&&this.served.every(s=>s.tier>=2)},
+        {text:'Fuse tripped no more than once',ok:()=>this.trips<=1}]}:{goal:'Fix five arcade cabinets with the right resistor',
       steps:[
         {text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.tray?.body.translation()??this.stand},
         {text:'Step up to the service bench (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand},
@@ -99,7 +116,9 @@ export class ArcadeBench implements Station {
     this.build();this.showJob();
   }
   dress(kit:RoomKit){const r=dressArcade(this.game,kit);this.room=r;return {lightUp:r.lightUp};}
-  current():Job|undefined{return JOBS[this.index];}
+  current():Job|undefined{
+    if(this.rush){if(this.game.time>=RUSH_TIME)return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length));}
+    return this.jobs[this.index];}
   reading():Reading|undefined{const j=this.current();return j&&read(j,this.setup);}
 
   // ---------- the bench ----------
@@ -123,7 +142,7 @@ export class ArcadeBench implements Station {
     // Resettable fuse (a yellow PTC disc) and its RESET button.
     this.fuseDisc=part(b,cyl(.06,.06,.03,20,'z'),toon(LEMON),FUSEX,.09,TOPZ);part(b,cyl(.006,.006,.06,6),toon('#c9ced8'),FUSEX-.03,.055,TOPZ,false);part(b,cyl(.006,.006,.06,6),toon('#c9ced8'),FUSEX+.03,.055,TOPZ,false);
     this.click(this.fuseDisc,'reset');
-    const rb=group(b,FUSEX,.03,MIDZ+.03);part(rb,cyl(.055,.06,.03,18),toon(INK),0,.015,0);this.resetBtn=part(rb,cyl(.042,.042,.035,18),toon('#ff6b6b'),0,.045,0);this.click(rb,'reset');
+    this.resetCtl=resetButton(b,FUSEX,.03,MIDZ+.03,.7,false);this.click(this.resetCtl.group,'reset');
     // SERIES slot pad (a wire link bridges it when empty) and the ACROSS slot straight across the LED.
     const sp=part(b,rbox(.36,.012,.2,.04),toon('#173a2c'),SERX,.036,TOPZ);this.click(sp,'slot','series');
     const link=group(b,SERX,.036,TOPZ);part(link,cyl(.009,.009,.3,6,'x'),toon('#dfe3ea'),0,.03,0,false);for(const x of [-.15,.15])part(link,cyl(.009,.009,.03,6),toon('#dfe3ea'),x,.015,0,false);this.link=link;
@@ -229,8 +248,8 @@ export class ArcadeBench implements Station {
         const v=this.verdict;this.served.push({job:j.id,tier:v.tier,cost:v.cost});this.spent+=v.cost;
         this.say(`${j.title} signed off: ${TIER_WORD[v.tier]}.${v.notes[0]?` ${v.notes[0]}`:''}`,'ok');
         a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffd84d');
-        this.room?.light(this.index);
-        this.index++;this.powerOff();this.held=undefined;this.heat={led:0,r:0,p:0};this.setup=clone(JOBS[this.index]?.start??{reversed:false});this.showJob();return true;}
+        this.room?.light(this.index%5);
+        this.index++;this.powerOff();this.held=undefined;this.heat={led:0,r:0,p:0};this.setup=clone(this.current()?.start??{reversed:false});this.showJob();return true;}
       case 'clear':{if(!this.held)return false;this.held=undefined;a.tone(380,.05,.03,'triangle');break;}
       default:return false;
     }
@@ -269,7 +288,7 @@ export class ArcadeBench implements Station {
     this.ratingBtns.forEach((b,k)=>{b.position.y=RATINGS[k]===this.rating?.02:.04;b.scale.setScalar(RATINGS[k]===this.rating?1.08:1);b.userData.baseScale=b.scale.clone();});
     this.ledGroup.rotation.y=this.setup.reversed?Math.PI:0;
     this.lever.rotation.x=this.powered?.6:-.6;this.powerLamp.material=this.powered?hot('#6dff9a',1.6):toon('#5a4a60');
-    this.resetBtn.position.y=this.tripped?.07:.045;(this.resetBtn as T.Mesh).material=toon(this.tripped?LEMON:'#ff6b6b');this.fuseDisc.material=toon(this.tripped?'#ff6b6b':LEMON);
+    this.fuseDisc.material=toon(this.tripped?'#ff6b6b':LEMON);
     this.signBtn.material=this.soakDone?hot('#6dff9a',1.1):toon('#8a9a8e');
     if(j&&!this.tripped)this.marquee.draw(`m${this.index}`,(c,w,h)=>drawMarquee(c,w,h,j.cabinet,false));
     this.drawMeter();this.shown='';this.updatePanel();
@@ -278,7 +297,7 @@ export class ArcadeBench implements Station {
   private drawMeter(){
     const j=this.current(),r=this.reading();
     const key=JSON.stringify([this.index,this.powered,this.tripped,this.setup,Math.round(this.soak*5),this.soakDone,Math.round(this.heat.led*40),Math.round(this.heat.r*40),Math.round(this.heat.p*40)]);
-    this.meter.draw(key,(c,w,h)=>drawMeter(c,w,h,j,r,this.powered,this.tripped,this.heat,this.soak,this.soakDone,this.setup));
+    this.meter.draw(key,(c,w,h)=>drawMeter(c,w,h,j,r,this.powered,this.tripped,this.heat,this.soak,this.soakDone,this.setup,this.soakTime));
   }
 
   // ---------- pointer, keys, room ----------
@@ -308,6 +327,7 @@ export class ArcadeBench implements Station {
     this.redraw();}
   update(dt:number){
     if(!this.ready)this.setup0();
+    this.resetCtl.set(this.tripped,this.game.time);
     if(this.tray&&!this.trayReady){const q=this.tray.body.translation(),r=this.tray.body.rotation();this.trayRide.position.set(q.x,q.y,q.z);this.trayRide.quaternion.set(r.x,r.y,r.z,r.w);this.trayRide.visible=this.tray.mesh.visible;}
     const j=this.current(),r=this.reading();
     if(j&&r){
@@ -318,7 +338,7 @@ export class ArcadeBench implements Station {
         const k=1-Math.exp(-dt/HOUSE.tau);this.heat.led+=(r.level-this.heat.led)*k;this.heat.r+=(r.rHeat-this.heat.r)*k;this.heat.p+=(r.pHeat-this.heat.p)*k;
         if(this.heat.r>1)this.cook('series');else if(this.heat.p>1)this.cook('parallel');else if(this.heat.led>1)this.cook('led');
         else if(r.lit&&!this.soakDone){this.soak+=dt;
-          if(this.soak>=HOUSE.soak){const v=judge(j,this.setup);
+          if(this.soak>=this.soakTime){const v=judge(j,this.setup);
             if(v.tier===0)this.cook('led');
             else{this.soakDone=true;this.verdict=v;this.say(`Ten seconds in spec: ${TIER_WORD[v.tier]}.${v.notes[0]?` ${v.notes[0]}`:''} SIGN OFF, or keep tuning.`,'ok');this.game.audio.bell(988,.4,.05);this.redraw();}}}
       }else{const k=1-Math.exp(-dt/HOUSE.tau);this.heat.led-=this.heat.led*k;this.heat.r-=this.heat.r*k;this.heat.p-=this.heat.p*k;}
@@ -348,14 +368,14 @@ export class ArcadeBench implements Station {
   private updatePanel(){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const j=this.current(),r=this.reading();
-    const key=JSON.stringify([this.active,this.index,this.setup,this.held,this.rating,this.powered,this.tripped,Math.floor(this.soak),this.soakDone,this.trayReady]);if(key===this.shown)return;this.shown=key;
+    const key=JSON.stringify([this.active,this.index,this.setup,this.held,this.rating,this.powered,this.tripped,Math.floor(this.soak),this.soakDone,this.trayReady,this.rush?Math.ceil(this.game.time):0]);if(key===this.shown)return;this.shown=key;
     if(!this.panel){const l=this.layer();if(!l){this.shown='';return;}this.panel=document.createElement('section');this.panel.className='station-panel panel arc-panel';l.append(this.panel);}
     this.panel.hidden=!j||!r;if(!j||!r)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const isLed=j.load.kind==='led',res=(p?:Part)=>p?`${ohms(p.r)} · ${RATING_LABEL[String(p.rating)]}`:'—';
     const inBand=r.iLoad>=j.band[0]-1e-9&&r.iLoad<=j.band[1]+1e-9,on=this.powered&&!this.tripped;
     const load=isLed?`${j.load.kind==='led'?j.load.color:''} · V<sub>f</sub> ${j.load.vf.toFixed(1)} V · ${mAs(j.load.imax)} mA max`:`base 0.7 V · pin ${mAs(j.load.imax)} mA max`;
-    this.panel.innerHTML=`<header><small>CABINET ${this.index+1}/${JOBS.length} · ${j.cabinet}</small><h4>${j.ask}</h4><p>${j.story}</p></header>`+
+    this.panel.innerHTML=`<header><small>${this.rush?`RUSH · ${Math.max(0,Math.ceil(RUSH_TIME-this.game.time))} s left · fixed ${this.served.length}`:`CABINET ${this.index+1}/${JOBS.length}`} · ${j.cabinet}</small><h4>${j.ask}</h4><p>${j.story}</p></header>`+
       (this.active&&this.trayReady?`<ul class="build">${row('Supply',`${j.supply} V${j.battery?' battery':''}`)}${row(isLed?'LED':'Load',load)}`+
         `${row('Series',this.setup.series?res(this.setup.series):'wire link',!!this.setup.series)}${row(isLed?'Across LED':'Across B–E',res(this.setup.parallel),this.setup.parallel?false:undefined)}`+
         (isLed?row('Way round',this.setup.reversed?'backwards':'anode to +',!this.setup.reversed):'')+
@@ -363,7 +383,7 @@ export class ArcadeBench implements Station {
         `${row('Current',on?`${mA(r.iLoad)} mA (want ${mAs(j.band[0])}–${mAs(j.band[1])})`:this.tripped?'fuse tripped':'power off',on?inBand:undefined)}`+
         (on&&this.setup.series?row('Resistor power',`${watts(r.pR)} of ${RATING_LABEL[String(this.setup.series.rating)]}`,r.rHeat<=HOUSE.margin):'')+
         (j.battery&&on&&r.lifeH?row('Battery life',`≈ ${Math.round(r.lifeH)} h`):'')+
-        row('Run in spec',this.soakDone?'10 s ✓':`${Math.floor(this.soak)} / ${HOUSE.soak} s`,this.soakDone||undefined)+
+        row('Run in spec',this.soakDone?`${this.soakTime} s ✓`:`${Math.floor(this.soak)} / ${this.soakTime} s`,this.soakDone||undefined)+
         `${row('Parts cost',`${partsCost(this.setup)} credit${partsCost(this.setup)===1?'':'s'}`)}</ul>`+
         `<p class="profile">${isLed?'R = (V − V<sub>f</sub>) / I and P = I²R. Simplified LED: fixed V<sub>f</sub>, light ∝ current.':'R = (5 V − 0.7 V) / I and P = I²R. Simplified: the base–emitter junction drops a fixed 0.7 V, β ≈ 100.'} House rule: resistors under ${HOUSE.margin*100} % of their rating.</p>`:'');
   }
@@ -393,13 +413,15 @@ export class ArcadeBench implements Station {
     if(this.tripped)return {key:'X',text:'The fuse tripped: fix the circuit, then press RESET on the fuse'};
     if(this.held)return {key:'S',text:`Fit the ${ohms(this.held.r)} block: click SERIES (S) or ACROSS the LED (A)`};
     if(this.soakDone)return {key:'Enter',text:'Ten seconds in spec: SIGN OFF the cabinet'};
-    if(this.powered&&r.lit)return {key:'P',text:`Running: ${Math.floor(this.soak)} / ${HOUSE.soak} s in spec. Watch the meter (P powers off)`};
+    if(this.powered&&r.lit)return {key:'P',text:`Running: ${Math.floor(this.soak)} / ${this.soakTime} s in spec. Watch the meter (P powers off)`};
     if(this.powered)return {key:'P',text:'Nothing useful flows: power off and fix the channel'};
     return {key:'P',text:'Click a block, fit it in SERIES, check the LED way round, then POWER (P)'};
   }
-  complete(){return this.served.length>=JOBS.length;}
+  complete(){return this.rush?this.game.time>=RUSH_TIME:this.served.length>=JOBS.length;}
+  /** Rush: cabinets fixed and seconds left, for the HUD clock and the result card. */
+  rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
-  snapshot(){const j=this.current();return {index:this.index,job:j?.id??null,setup:clone(this.setup),held:this.held??null,rating:this.rating,powered:this.powered,tripped:this.tripped,
+  snapshot(){const j=this.current();return {index:this.index,job:j?.id??null,fix:j?best(j)??null:null,rush:this.rush,setup:clone(this.setup),held:this.held??null,rating:this.rating,powered:this.powered,tripped:this.tripped,
     soak:+this.soak.toFixed(2),soakDone:this.soakDone,verdict:this.verdict?{tier:this.verdict.tier,notes:this.verdict.notes}:null,served:this.served,mistakes:this.mistakes,trips:this.trips,spent:this.spent,
     trayReady:this.trayReady,reading:j?read(j,this.setup):null,heat:{...this.heat}};}
 }
@@ -440,7 +462,7 @@ function drawMarquee(c:CanvasRenderingContext2D,w:number,h:number,title:string,d
   c.textAlign='center';c.textBaseline='middle';c.lineWidth=10;c.strokeStyle=PLUM;c.strokeText(title,w/2,h/2+3);c.fillStyle=done?LEMON:'#fffaf0';c.fillText(title,w/2,h/2+3);
 }
 /** The live meter: current, resistor voltage and power, then bars for light, LED heat and resistor heat. */
-function drawMeter(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined,r:Reading|undefined,powered:boolean,tripped:boolean,heat:Heat,soak:number,soakDone:boolean,s:Setup){
+function drawMeter(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined,r:Reading|undefined,powered:boolean,tripped:boolean,heat:Heat,soak:number,soakDone:boolean,s:Setup,soakTime=HOUSE.soak){
   c.fillStyle='#1d1430';c.fillRect(0,0,w,h);
   if(!j||!r){c.fillStyle=LEMON;c.font=FONT(60);c.textAlign='center';c.textBaseline='middle';c.fillText('ALL CABINETS FIXED',w/2,h/2);return;}
   const on=powered&&!tripped,isLed=j.load.kind==='led';
@@ -472,8 +494,8 @@ function drawMeter(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined,
   c.strokeStyle='rgba(255,216,77,.8)';c.setLineDash([8,8]);c.lineWidth=3;const mx=250+HOUSE.margin/1.5*(w-400);c.beginPath();c.moveTo(mx,280);c.lineTo(mx,330);c.stroke();c.setLineDash([]);
   // Run-in-spec strip, fuse, battery.
   const y=356;c.fillStyle='#2c2046';c.beginPath();c.roundRect(16,y,w-32,64,16);c.fill();
-  c.fillStyle=soakDone?'#6dff9a':'#8b7be8';c.beginPath();c.roundRect(16,y,(w-32)*Math.min(1,soak/HOUSE.soak),64,16);c.fill();
-  c.fillStyle=soakDone?'#1d1430':'#fffaf0';c.font=FONT(30);c.textAlign='left';c.fillText(soakDone?'10 s IN SPEC ✓  SIGN OFF':on&&r.lit?`RUN IN SPEC  ${soak.toFixed(1)} / ${HOUSE.soak} s`:on?'NOTHING LIGHTS UP':'POWER OFF',34,y+33);
+  c.fillStyle=soakDone?'#6dff9a':'#8b7be8';c.beginPath();c.roundRect(16,y,(w-32)*Math.min(1,soak/soakTime),64,16);c.fill();
+  c.fillStyle=soakDone?'#1d1430':'#fffaf0';c.font=FONT(30);c.textAlign='left';c.fillText(soakDone?`${soakTime} s IN SPEC ✓  SIGN OFF`:on&&r.lit?`RUN IN SPEC  ${soak.toFixed(1)} / ${soakTime} s`:on?'NOTHING LIGHTS UP':'POWER OFF',34,y+33);
   c.textAlign='right';c.fillStyle=tripped?'#ff6b6b':soakDone?'#1d1430':'#8dffd0';c.fillText(tripped?'FUSE TRIPPED':'FUSE OK',w-34,y+33);
   c.fillStyle='rgba(255,255,255,.7)';c.font=FONT(26,600);c.textAlign='left';
   const foot=j.battery?(on&&r.lifeH?`BATTERY  ≈ ${Math.round(r.lifeH)} h  (${HOUSE.battery} mAh)`:`BATTERY  ${HOUSE.battery} mAh`):`SUPPLY  ${j.supply} V   ·   ${isLed?`LED Vf ${j.load.vf.toFixed(1)} V`:'BASE 0.7 V'}`;

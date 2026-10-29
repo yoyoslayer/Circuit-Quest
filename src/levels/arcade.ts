@@ -24,3 +24,4 @@ const npcs:NpcSpot[]=[
 ];
 export const arcade:Level={id:'arcade',name:'OVERHEATING ARCADE',number:'08',tagline:'Too bright, too hot, too dark. Pick the resistor.',badge:'led',station:'arcade',
   width:22,depth:16,spawn:{x:-3.5,z:5},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+export const arcadeRush:Level={...arcade,id:'arcade-rush',name:'ARCADE RUSH',number:'08R',tagline:'Three minutes. Every cabinet is broken a new way.',requires:'arcade',next:undefined};

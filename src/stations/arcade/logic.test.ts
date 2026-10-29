@@ -74,3 +74,12 @@ describe('arcade circuit rules',()=>{
     expect(heatAt(2,failTime(2))).toBeCloseTo(1,6);
   });
 });
+
+import {rushJob} from './logic';
+import {rng} from '../../render/textures';
+describe('arcade rush cabinets',()=>{
+  it('are always fixable reliably from the rack, and start broken',()=>{
+    const r=rng(11);for(let i=0;i<300;i++){const j=rushJob(r,i),fix=best(j);expect(fix,j.ask).toBeDefined();
+      expect(judge(j,{series:fix,reversed:false}).tier).toBeGreaterThanOrEqual(2);expect(judge(j,j.start).tier,`${j.ask} ${JSON.stringify(j.start)}`).toBeLessThan(2);}
+  });
+});

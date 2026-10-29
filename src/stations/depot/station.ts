@@ -15,7 +15,7 @@ import {hot} from '../../render/actors';
 import {JOBS,DEVICES,RAILS,SOURCE,BREAKER,BAND,N,PROBES,BEST_COST,COST,clampE,clone,evaluate,judge,probe,isRequired,fmt,
   type DeviceKind,type Job,type Layout,type Probe,type RailKind,type Readings,type Verdict} from './logic';
 import './depot.css';
-import {cheer,walkHint} from '../shared';
+import {cheer,walkHint,resetButton} from '../shared';
 
 const ORANGE='#f28c28',CREAM='#fbf3e2',BRICK='#b5573b',BLUE='#3f7fd6',NAVY='#2c3e66',STEEL='#63748f',CARGO='#ffc94d';
 /** The board sits a little left of the camera's centre (the order panel is on the right). */
@@ -75,7 +75,7 @@ export class DeliveryDepot implements Station {
   readonly job:StationJob;
   private root=new T.Group();private board=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private beams=new Map<string,T.Mesh>();private posts:T.Mesh[]=[];private joints:T.Mesh[]=[];private lanes:Lane[]=[];private trucks=new T.Group();
-  private bays:BayView[]=[];private gapMarks:{[k in 'feed'|'ret']:T.Group}={} as never;private breakerLever!:T.Object3D;private breakerLamp!:T.MeshBasicMaterial;private breakerBox!:T.Group;
+  private bays:BayView[]=[];private gapMarks:{[k in 'feed'|'ret']:T.Group}={} as never;private breakerLever!:T.Object3D;private breakerLamp!:T.MeshBasicMaterial;private breakerBox!:T.Group;private resetCtl!:ReturnType<typeof resetButton>;
   private dial!:T.Object3D;private knobPlate!:T.Mesh;private drag?:{x0:number;v0:number;plane:T.Plane};
   private meterFace=new Live(320,360);private leads:T.Mesh[]=[];private leadKey='';private probeButtons=new Map<Probe,T.Mesh>();private railButtons:{slot:'feed'|'ret';kind:RailKind;mesh:T.Mesh}[]=[];
   private viewSwitch!:T.Object3D;private analogySign!:T.Mesh;private meterSign!:T.Mesh;private battery!:T.Group;private rampDeck!:T.Group;
@@ -159,7 +159,7 @@ export class DeliveryDepot implements Station {
     this.click(bx,'breaker');
     // Its reset key sits out front by the source knob, where the camera always sees it: the dome
     // lamp shows on (green), off (grey) or tripped (red).
-    const rb=group(b,-2.3,0,-.36);part(rb,cyl(.1,.11,.05,24),toon(INK),0,.025,0);part(rb,sphere(.075,16,10),lamp,0,.055,0);this.click(rb,'breaker');
+    this.resetCtl=resetButton(b,-2.3,0,-.36,1.15,false);this.click(this.resetCtl.group,'breaker');
     sign(b,`BREAKER ${BREAKER} A`,-2.01,.014,-.36,.34,-Math.PI/2,ORANGE,CREAM,.13);
   }
   /** Bays: barrier boom, device housing (lamp, motor, heater, or a stray crossover rail), readout plate. */
@@ -432,6 +432,7 @@ export class DeliveryDepot implements Station {
     this.redraw();}
   update(dt:number){
     if(!this.ready)this.setup();
+    this.resetCtl.set(this.tripped,this.game.time);
     for(const s of ['lamp','motor'] as const){const c=this.cartProps[s],ride=this.cartRides[s];if(!c){ride.visible=false;continue;}
       const q=c.body.translation(),r=c.body.rotation();ride.position.set(q.x,q.y,q.z);ride.quaternion.set(r.x,r.y,r.z,r.w);ride.visible=!this.carts[s]&&c.mesh.visible;}
     if(this.raceT>0){this.raceT=Math.max(0,this.raceT-dt);if(this.raceT===0)this.redraw();else this.redraw();}

@@ -182,6 +182,45 @@ Each station has:
 The stations were built by parallel agents from one brief and reviewed on screenshots
 before merging.
 
+## Fourth pass: layout, camera, models, Arcade Rush (2026-10-29)
+
+- **Review fixes merged.** The `claude/review-fixes-wip` branch (QFN, Archive, Waterworks,
+  Observatory, Arcade, Garage) was run, screenshotted at each bench and merged. Every
+  station's result-card cost is now in credits, the same unit its bench panel shows.
+- **Layout audit.** `drive.audit()` (manual mode) lists every prop, standing coworker and Pip's
+  spawn that starts buried in a wall, fixture or another prop. `tests/layout.spec.ts` runs it
+  on all levels. It found about 60 overlaps (bins and papers inside desk pods, chairs inside
+  pillars, mugs inside desks, splitters inside the storeroom wall, coworkers inside tables and
+  chairs, boxes inside shelving); all are fixed.
+- **Camera.** A lens option in the pause menu: Close (32°), Standard (42°, the new default) and
+  Wide (54°). Wider lenses move the camera in, so perspective reads stronger while the room
+  stays framed; bench views keep exactly their tuned framing on every lens
+  (`src/render/lens.ts`). The walk camera now starts closer (floors 22, HQ 23, stations 18.5,
+  Playground 17) and keeps Pip near the centre instead of tucked under the job card.
+  `tools/debug/lens.mjs` screenshots each lens.
+- **Models.** The plain props got real detail:
+  - carton with tape and a label;
+  - beanbag with a back and a seam;
+  - bin with paper in it;
+  - mop bucket on casters;
+  - coolbox with latches and a handle;
+  - cabinet with drawers;
+  - mug with a handle;
+  - mail cart with a parcel shelf and push bar;
+  - splitter with a socket face;
+  - wedge with grip ribs;
+  - task chair with armrests, gas lift and casters.
+
+  Props stay instanced, so the extra parts cost a few draw calls in total, not one per copy.
+  `tools/gallery/` renders every prop under the game's look; `tools/debug/gallery.mjs`
+  screenshots it.
+- **One RESET control.** Arcade, Garage and Depot share `resetButton()` in
+  `src/stations/shared.ts`: a red dome that pops up, glows and pulses a ring when tripped.
+- **Arcade Rush** (`arcade-rush`, locked until the Arcade is done): three minutes of generated
+  LED cabinets with a 4-second soak each. Every generated cabinet starts broken and is
+  fixable reliably from the rack (unit-tested over 300 seeds). The HUD clock counts down and
+  the result card shows the count, as in Via Rush.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

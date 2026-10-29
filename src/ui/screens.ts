@@ -18,6 +18,7 @@ export const LOOK:Record<LevelId,{color:string;thumb:string;size:string;pos:stri
   qfn:{color:'#8F96D8',thumb:'thumb-qfn.jpg',size:'160%',pos:'50% 45%'},
   clockwork:{color:'#E5484D',thumb:'thumb-clockwork.jpg',size:'160%',pos:'50% 45%'},
   arcade:{color:'#FF7EB6',thumb:'thumb-arcade.jpg',size:'160%',pos:'50% 45%'},
+  'arcade-rush':{color:'#FF7EB6',thumb:'thumb-arcade.jpg',size:'160%',pos:'50% 45%'},
   depot:{color:'#F28C28',thumb:'thumb-depot.jpg',size:'160%',pos:'50% 45%'},
   garage:{color:'#2FB3A6',thumb:'thumb-garage.jpg',size:'160%',pos:'50% 45%'},
   spectrum:{color:'#E0679B',thumb:'thumb-spectrum.jpg',size:'160%',pos:'50% 45%'},

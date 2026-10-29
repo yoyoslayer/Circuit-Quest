@@ -64,9 +64,16 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       part(g,rbox(w,.07,d,.05),m,0,h/2-.035);for(const s of [-1,1])part(g,box(.06,h-.07,d*.85),toon(METAL),s*(w/2-.08),-.035);
       part(g,rbox(.3,.45,d*.72,.05),toon('#d9d2c3'),w*.28,bottom+.25);deskClutter(g,h/2,variant);break;
     case 'chair':
-      part(g,rbox(.55,.1,.55,.1),m,0,bottom+.48);part(g,rbox(.55,.5,.1,.08),m,0,bottom+.78,-.24);
-      part(g,cyl(.03,.03,.4,8),toon(INK),0,bottom+.26);
-      for(let i=0;i<5;i++){const a=i/5*Math.PI*2;part(g,box(.32,.04,.05),toon(INK),Math.cos(a)*.15,bottom+.05,Math.sin(a)*.15).rotation.y=-a;}break;
+    {
+      // Task chair: padded seat and curved back on a stem, armrests, a gas lift and a five-star base on casters.
+      const pad=toon(new T.Color(c).offsetHSL(0,0,.06).getStyle()),frame=toon(INK);
+      part(g,rbox(.52,.06,.5,.06),frame,0,bottom+.43);part(g,rbox(.55,.09,.52,.12),m,0,bottom+.5);part(g,rbox(.42,.03,.4,.1),pad,0,bottom+.55,.02,false);
+      part(g,box(.05,.28,.05),frame,0,bottom+.6,-.25);const back=part(g,rbox(.5,.46,.09,.1),m,0,bottom+.82,-.26);back.rotation.x=-.12;
+      part(g,rbox(.38,.32,.02,.08),pad,0,bottom+.83,-.215,false).rotation.x=-.12;
+      for(const s of [-1,1]){part(g,box(.04,.2,.04),frame,s*.27,bottom+.58,-.02);part(g,rbox(.07,.04,.26,.02),frame,s*.27,bottom+.69,.0);}
+      part(g,cyl(.035,.035,.32,8),toon(METAL),0,bottom+.27);part(g,cyl(.05,.05,.1,8),frame,0,bottom+.16);
+      for(let i=0;i<5;i++){const a=i/5*Math.PI*2;part(g,box(.3,.035,.05),frame,Math.cos(a)*.14,bottom+.08,Math.sin(a)*.14).rotation.y=-a;part(g,sphere(.035,8,6),frame,Math.cos(a)*.28,bottom+.035,Math.sin(a)*.28);}
+      break;}
     case 'monitor':
       part(g,box(w,h*.8,.05),toon(INK),0,.05,-.04);part(g,new T.PlaneGeometry(w*.88,h*.64),screenMaterial(SCREENS[variant%SCREENS.length]),0,.05,-.013,false);
       if(variant%3===1)for(let k=0;k<2;k++)part(g,box(.07,.07,.005),toon(['#ffe36e','#f7a8c4'][k]),w*.36-k*.09,.2-k*.05,-.012,false).rotation.z=(k-.5)*.3;

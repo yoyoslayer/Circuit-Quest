@@ -97,7 +97,7 @@ export class Lobby {
   openPicker(){
     if(this.picker){this.picker.hidden=false;return;}
     const el=document.createElement('section');el.className='workshop-picker panel';el.setAttribute('aria-label','Workshop');
-    const jobs=levels.filter(l=>l.station&&l.id!=='vias-rush');
+    const jobs=levels.filter(l=>l.station&&!l.id.endsWith('-rush'));
     el.innerHTML=`<h3>Workshop</h3><p>Practise any station. The whole job plays, nothing is graded or recorded.</p><div class="grid">${jobs.map(l=>`<button class="btn" data-practice="${l.id}" style="--lvl:${LOOK[l.id]?.color??'#5ED6CC'}"><small>${l.number}</small>${title(l)}</button>`).join('')}</div><button class="btn close" data-close>Close <span class="key">Esc</span></button>`;
     el.addEventListener('click',e=>{const t=(e.target as Element).closest<HTMLElement>('[data-practice],[data-close]');if(!t)return;if(t.dataset.close!==undefined){el.hidden=true;return;}flagAutostart(t.dataset.practice as Level['id']);location.href=`?level=${t.dataset.practice}&practice`;});
     addEventListener('keydown',e=>{if(e.code==='Escape'&&!el.hidden){el.hidden=true;e.stopPropagation();}},true);

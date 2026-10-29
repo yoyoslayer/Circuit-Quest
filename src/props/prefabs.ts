@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached} from '../render/kit';
+import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,group,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached} from '../render/kit';
 import {screen,keyboardTex,SCREENS,type ScreenKind} from '../render/textures';
 export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong'|'bridge'|'mop'|'tray'|'lamp'|'dolly'|'supply'|'capcart'|'coolbox'|'splitter'|'plug'|'wedge'|'beanbag'|'cone'|'strip';
 /** variant picks a dressing (desk clutter, monitor screen); desks add 10 when the chair is on -z. */
@@ -53,7 +53,13 @@ const books=['#e5484d','#3f7fd6','#6cc58a','#ffc94d','#b392f0','#8fd3c8'];
 function build(kind:PropKind,c:string,variant=0):T.Group{
   const g=new T.Group(),[w,h,d]=prefabs[kind].size,bottom=-h/2,m=toon(c);
   switch(kind){
-    case 'box':part(g,rbox(w,h,d,.05),m);part(g,box(w*1.01,h*.12,d*1.01),toon(new T.Color(c).offsetHSL(0,0,-.1).getStyle()),0,h*.2);break;
+    case 'box':{
+      // A shipping carton: flap seam, a strip of parcel tape over the top and down both faces, a label.
+      const dark=toon(new T.Color(c).offsetHSL(0,0,-.12).getStyle()),tape=toon('#e9d7a6');
+      part(g,rbox(w,h,d,.04),m);part(g,box(w*.995,.012,.018),dark,0,h/2-.004,0);
+      part(g,box(w*.2,.012,d*1.012),tape,0,h/2+.001,0);for(const s of [-1,1])part(g,box(w*.2,h*.32,.012),tape,0,h/2-h*.16,s*(d/2+.002));
+      part(g,box(w*.36,h*.24,.01),toon('#fffaf0'),-w*.18,-h*.12,d/2+.004);for(const k of [0,1])part(g,box(w*.26,.012,.006),toon(INK),-w*.18,-h*.08-k*.05,d/2+.01,false);
+      break;}
     case 'desk':
       part(g,rbox(w,.07,d,.05),m,0,h/2-.035);for(const s of [-1,1])part(g,box(.06,h-.07,d*.85),toon(METAL),s*(w/2-.08),-.035);
       part(g,rbox(.3,.45,d*.72,.05),toon('#d9d2c3'),w*.28,bottom+.25);deskClutter(g,h/2,variant);break;
@@ -65,25 +71,41 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       part(g,box(w,h*.8,.05),toon(INK),0,.05,-.04);part(g,new T.PlaneGeometry(w*.88,h*.64),screenMaterial(SCREENS[variant%SCREENS.length]),0,.05,-.013,false);
       if(variant%3===1)for(let k=0;k<2;k++)part(g,box(.07,.07,.005),toon(['#ffe36e','#f7a8c4'][k]),w*.36-k*.09,.2-k*.05,-.012,false).rotation.z=(k-.5)*.3;
       part(g,box(.06,h*.35,.06),toon(INK),0,bottom+.1,-.05);part(g,box(.3,.03,.15),toon(INK),0,bottom+.015,-.03);break;
-    case 'mug':part(g,cyl(w/2,w*.45,h,10),m);part(g,cyl(w*.36,w*.36,.012,10),toon('#6b4a2e'),0,h/2+.002);break;
+    case 'mug':part(g,cyl(w*.42,w*.38,h,10),m,-w*.06);part(g,cyl(w*.33,w*.33,.012,10),toon('#6b4a2e'),-w*.06,h/2-.01);
+      part(g,new T.TorusGeometry(h*.22,.012,8,16,Math.PI),m,w*.3,0,0).rotation.z=-Math.PI/2;break;
     case 'paper':part(g,box(w,h,d),m,0,0,0,false);break;
     case 'plant':
       part(g,cyl(.26,.2,.42,14),toon('#e07a4f'),0,bottom+.21);
       for(const [x,y,z,r] of [[0,.25,0,.27],[.14,.08,.08,.21],[-.14,.12,-.05,.22],[.02,.45,.04,.18]])part(g,ico(r),m,x,y,z);break;
-    case 'cabinet':part(g,rbox(w,h,d,.05),m);for(const y of [-.45,0,.45])part(g,box(.2,.04,.02),toon(INK),0,y,d/2+.01);break;
+    case 'cabinet':{
+      // Four drawers, each a slightly proud front with a pull and a little label card.
+      part(g,rbox(w,h,d*.96,.05),m,0,0,-d*.02);part(g,box(w*1.02,.04,d),toon(new T.Color(c).offsetHSL(0,0,-.08).getStyle()),0,h/2-.02);
+      const front=toon(new T.Color(c).offsetHSL(0,0,.05).getStyle());
+      for(let k=0;k<4;k++){const y=h/2-.24-k*.37;part(g,rbox(w*.88,.32,.03,.03),front,0,y,d/2-.01);part(g,box(.2,.035,.03),toon(INK),0,y+.05,d/2+.015);part(g,box(.13,.07,.01),toon('#fffaf0'),0,y-.07,d/2+.008);}
+      break;}
     case 'sofa':
       part(g,rbox(w,.45,d*.9,.15),m,0,bottom+.35);part(g,rbox(w,.6,.25,.1),toon(new T.Color(c).offsetHSL(0,0,-.06).getStyle()),0,bottom+.75,-d/2+.13);
       for(const s of [-1,1])part(g,rbox(.3,.55,d*.9,.1),toon(new T.Color(c).offsetHSL(0,0,-.06).getStyle()),s*(w/2-.15),bottom+.55);break;
-    case 'bin':part(g,cyl(w/2,w*.4,h,12),m);break;
+    case 'bin':
+      part(g,cyl(w*.47,w*.38,h*.96,12),m,0,-h*.02);part(g,new T.TorusGeometry(w*.47,.016,8,24),toon(new T.Color(c).offsetHSL(0,0,.1).getStyle()),0,h/2-.02).rotation.x=Math.PI/2;
+      part(g,cyl(w*.43,w*.43,.01,12),toon('#1d1f2b'),0,h/2-.04,0,false);
+      for(const [x,z,r] of [[-.05,.03,.07],[.06,-.04,.06],[.01,.07,.05]] as const)part(g,ico(r),toon('#fffaf0'),x,h/2-.03,z);break;
     case 'reel':reel(g,0,0,0,'#f4efe6',c,.8);break;
     case 'coupler':case 'plug':
       part(g,cyl(.11,.13,.3,14,'x'),m);for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),.2,0,dz);break;
     case 'splitter':
-      part(g,rbox(w,h,d,.06),m);part(g,cyl(.06,.06,.08,10,'x'),toon(INK),-w/2-.02);for(const dz of [-.12,0,.12])part(g,cyl(.045,.045,.08,10,'x'),toon(INK),w/2+.02,0,dz);break;
+      // Three-way splitter: one inlet, three outlets, a socket face on top and a power lamp.
+      part(g,rbox(w,h,d,.06),m);part(g,cyl(.06,.06,.08,10,'x'),toon(INK),-w/2-.02);for(const dz of [-.12,0,.12])part(g,cyl(.045,.045,.08,10,'x'),toon(INK),w/2+.02,0,dz);
+      part(g,rbox(w*.62,.02,d*.7,.04),toon('#fff4cc'),.03,h/2+.005);for(const dz of [-.1,0,.1])part(g,box(.05,.012,.02),toon(INK),.06,h/2+.017,dz,false);
+      part(g,sphere(.025,8,6),toon('#57e38f',{emissive:'#3fdc7f',ei:.6}),-w*.3,h/2+.01,d*.28,false);break;
     case 'coffee':part(g,rbox(w,h,d,.06),m);part(g,box(.2,.1,.1),toon('#e5484d'),0,-.1,d/2);part(g,cyl(.06,.05,.1,10),toon('#fffaf0'),0,bottom+.08,.12);break;
     case 'cart':
-      part(g,rbox(w,.08,d,.05),toon(METAL),0,bottom+.35);part(g,rbox(w,.28,d,.05),m,0,bottom+.56);wheels(g,w*.4,d*.4,.07,bottom+.07);
-      for(let k=0;k<4;k++)part(g,box(.25,.16,.22),toon(['#c98f5a','#fffaf0','#d7a56d','#c98f5a'][k]),-w*.32+k*.22,h/2-.05,0);break;
+      // Mail cart: a lipped tray on four posts over a bottom shelf of parcels, push bar at one end.
+      wheels(g,w*.4,d*.38,.07,bottom+.07);part(g,rbox(w*.94,.04,d*.9,.03),toon(METAL),0,bottom+.2);
+      for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]] as const)part(g,cyl(.022,.022,h-.16,8),toon(METAL),x*w*.43,bottom+.16+(h-.16)/2,z*d*.4);
+      part(g,rbox(w,.05,d,.04),m,0,h/2-.06);for(const z of [-1,1])part(g,box(w,.09,.035),m,0,h/2-.02,z*(d/2-.018));for(const x of [-1,1])part(g,box(.035,.09,d),m,x*(w/2-.018),h/2-.02,0);
+      for(const [x,z,ww,hh,col] of [[-.3,-.08,.3,.18,'#c98f5a'],[.05,.1,.26,.14,'#d7a56d'],[.34,-.05,.22,.2,'#fffaf0']] as const)part(g,rbox(ww,hh,.24,.03),toon(col),x,bottom+.22+hh/2,z);
+      handle(g,-w/2,h/2-.04,h/2+.25,d*.38);break;
     case 'glass':
       part(g,box(.06,h,d),toon(c,{opacity:.3}),0,0,0,false);part(g,box(.1,.08,d),toon(DMETAL),0,h/2-.04);part(g,box(.1,.1,d),toon(DMETAL),0,bottom+.05);break;
     case 'printer':part(g,rbox(w,h*.85,d,.08),m,0,-h*.075);part(g,box(w*.75,.08,d*.55),toon(INK),0,h/2-.1,.05);part(g,box(w*.6,.04,d*.45),toon('#fffaf0'),0,.02,d/2);break;
@@ -98,7 +120,14 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       part(g,rbox(w,h,d,.08),m);part(g,box(w*.66,h*.62,.05),toon('#bfeaf5'),-w*.08,h*.12,d/2);
       for(let i=0;i<9;i++)part(g,box(.14,.14,.02),toon(CHAIRC[i%6]),-w*.3+(i%3)*.2,-.05+Math.floor(i/3)*.33,d/2+.03,false);break;
     case 'cooler':part(g,rbox(w*.85,h*.75,w*.85,.06),m,0,bottom+h*.375);part(g,cyl(.2,.2,h*.3,16),toon('#8fd0f0',{opacity:.8}),0,h/2-h*.15,0,false);break;
-    case 'beanbag':part(g,sphere(.5,16,12),m).scale.set(.9,.6,.9);break;
+    case 'beanbag':{
+      // A slouched seat: a squashed base with a higher back lobe, a seam and a dimple where you sit.
+      const dark=toon(new T.Color(c).offsetHSL(0,0,-.1).getStyle());
+      part(g,sphere(.45,16,12),m,0,bottom+.21).scale.set(1,.48,1);
+      part(g,sphere(.34,16,12),m,0,bottom+.36,-.16).scale.set(1.12,.72,.78);
+      part(g,new T.TorusGeometry(.43,.018,8,32),dark,0,bottom+.2).rotation.x=Math.PI/2;
+      part(g,sphere(.2,12,8),dark,0,bottom+.37,.08,false).scale.set(1,.18,1);
+      break;}
     case 'strip':part(g,rbox(w,h,d,.05),m);for(let k=0;k<4;k++){part(g,rbox(.13,.02,.13,.03),toon('#fff6e6'),-.3+k*.19,h/2+.005,0,false);part(g,box(.02,.012,.05),toon(INK),-.33+k*.19,h/2+.02,0,false);part(g,box(.02,.012,.05),toon(INK),-.27+k*.19,h/2+.02,0,false);}part(g,cyl(.03,.03,.04,10),toon('#e5484d'),w/2-.06,h/2+.02,0);break;
     case 'cone':part(g,box(.5,.05,.5),m,0,bottom+.025);part(g,cyl(.03,.22,.56,14),m,0,.03);part(g,cyl(.12,.15,.1,14),toon('#fff6e6'),0,.06);break;
     case 'pingpong':
@@ -107,7 +136,16 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
     case 'bridge':{
       const geo=kindGeometry('bridge',()=>{const s=new T.Shape();s.moveTo(-w/2,0);s.lineTo(-.25,h);s.lineTo(.25,h);s.lineTo(w/2,0);s.closePath();const e=new T.ExtrudeGeometry(s,{depth:d,bevelEnabled:false});e.translate(0,-h/2,-d/2);return e;});
       part(g,geo,m);part(g,box(.48,.02,d),toon(INK),0,h/2+.01);break;}
-    case 'mop':part(g,cyl(.3,.24,.46,18),m,0,bottom+.23);part(g,cyl(.25,.25,.04,18),toon('#7cc4ea'),0,bottom+.45,0,false);part(g,cyl(.03,.03,1.4,8),toon('#a8734a'),.18,.05).rotation.z=-.22;break;
+    case 'mop':{
+      // Mop bucket on casters with a wringer, a bail handle, grey water and the mop stood in it.
+      part(g,cyl(.27,.22,.42,18),m,0,bottom+.27);part(g,new T.TorusGeometry(.27,.02,8,24),toon(new T.Color(c).offsetHSL(0,0,.12).getStyle()),0,bottom+.48).rotation.x=Math.PI/2;
+      part(g,cyl(.24,.24,.02,18),toon('#9fc7d6'),0,bottom+.43,0,false);
+      for(const [x,z] of [[-.17,-.17],[.17,-.17],[-.17,.17],[.17,.17]] as const)part(g,sphere(.04,8,6),toon(INK),x,bottom+.04,z);
+      part(g,rbox(.2,.16,.26,.03),toon('#ffc94d'),-.22,bottom+.56,0);
+      part(g,new T.TorusGeometry(.27,.012,6,20,Math.PI),toon(DMETAL),0,bottom+.48).rotation.y=Math.PI/2;
+      const mop=group(g,.08,bottom+.3,.02);mop.rotation.z=-.2;part(mop,cyl(.02,.02,1.3,8),toon('#a8734a'),0,.62,0);
+      for(let k=0;k<7;k++){const a=k/7*Math.PI*2;part(mop,cyl(.022,.016,.2,6),toon('#f2ead8'),Math.cos(a)*.06,-.02,Math.sin(a)*.06).rotation.set(Math.sin(a)*.3,0,-Math.cos(a)*.3);}
+      break;}
     case 'tray':part(g,rbox(w,.05,d,.05),m,0,bottom+.03);for(const x of [-.22,.02,.26])part(g,sphere(.1,12,8),toon('#f2d08a'),x,bottom+.06,0).scale.y=.6;break;
     case 'lamp':
       part(g,cyl(.24,.3,.08,18),toon(INK),0,bottom+.04);part(g,cyl(.03,.03,1.1,8),toon('#a8734a'),0,bottom+.6);
@@ -125,10 +163,16 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       part(g,rbox(w,.14,d,.08),toon(METAL),0,bottom+.36);wheels(g,w*.38,d*.38,.15,bottom+.15);handle(g,-w/2,bottom+.42,bottom+1.2,d*.4);
       for(const [cx,cz] of [[-.4,-.22],[.1,-.22],[.1,.22],[-.4,.22]]){part(g,cyl(.22,.22,.72,20),m,cx,bottom+.8,cz);part(g,cyl(.22,.22,.06,20),toon('#c7ccd6'),cx,bottom+1.18,cz);}
       part(g,rbox(.36,.5,.85,.06),toon(INK),.55,bottom+.68);part(g,box(.05,.08,.5),lit('#57e38f','#3fdc7f'),.74,bottom+.8,0,false);break;
-    case 'coolbox':part(g,rbox(w,h*.85,d,.1),m,0,-h*.075);part(g,rbox(w*1.04,h*.2,d*1.05,.1),toon('#3bb2c9'),0,h/2-.06);break;
+    case 'coolbox':{
+      const lid=toon('#3bb2c9');part(g,rbox(w,h*.8,d,.1),m,0,-h*.1);part(g,rbox(w*1.04,h*.2,d*1.05,.1),lid,0,h/2-.06);
+      part(g,box(w*1.005,.04,d*1.005),lid,0,-h*.05);for(const s of [-1,1]){part(g,box(.06,.1,.14),toon(DMETAL),s*(w/2+.02),h*.12,0);part(g,box(.14,.08,.03),toon('#fffaf0'),s*w*.28,h*.18,d/2+.02);}
+      part(g,new T.TorusGeometry(.13,.02,6,16,Math.PI),toon(DMETAL),0,h/2+.04,0);break;}
     case 'wedge':{
       const geo=kindGeometry('wedge',()=>{const s=new T.Shape();s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(w/2,h);s.closePath();const e=new T.ExtrudeGeometry(s,{depth:d,bevelEnabled:false});e.translate(0,-h/2,-d/2);return e;});
-      part(g,geo,m);break;}
+      part(g,geo,m);
+      // Rubber grip ribs across the slope.
+      for(let k=1;k<5;k++){const x=-w/2+k*w/5,y=bottom+h*(x+w/2)/w;part(g,box(.035,.03,d*.9),toon(new T.Color(c).offsetHSL(0,0,-.15).getStyle()),x,y+.012,0,false).rotation.z=Math.atan2(h,w);}
+      break;}
   }
   return g;
 }

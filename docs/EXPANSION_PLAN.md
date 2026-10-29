@@ -109,7 +109,7 @@ The level lives in `src/levels/vias.ts`, and the browser test in `tests/stations
    - Put `.station-toast` messages under a short explanation.
    - `job` has a physical first step in the room (fetch something, move something), then
      the bench steps. `bonuses` are three optional goals.
-   - `limits` sets the grade: time in seconds, mistakes, and process cost ×10.
+   - `limits` sets the grade: time in seconds, mistakes, and process cost in credits (what the bench panels show).
    - `score()` returns `{mistakes, cost}`.
    - `snapshot()` gives tests everything they need to assert.
 3. **Room.** `dress(kit)` builds the room in its wing palette: floor, windows, machines,

@@ -15,6 +15,7 @@ import {hot} from '../../render/actors';
 import {JOBS,RACK,RATINGS,RATING_LABEL,RATING_COST,HOUSE,read,judge,best,mA,ohms,watts,partsCost,TIER_WORD,
   type Job,type Part,type Rating,type Setup,type Reading,type Verdict,type LedColor} from './logic';
 import './arcade.css';
+import {cheer,walkHint} from '../shared';
 
 const CREAM='#fbf3e2',PLUM='#3b2346',PINK='#ff7eb6',MINT='#6fe0c0',LEMON='#ffd84d',GRAPE='#9b7bf0';
 const LED_HEX:Record<LedColor,string>={red:'#ff4b5c',green:'#4dff88',blue:'#4d9bff',white:'#fff6e0'};
@@ -58,7 +59,7 @@ function blockMesh(r:number,rating:Rating){
   else{const body=part(g,cyl(.022*s,.022*s,.11*s,12,'x'),toon('#e8c99a'),0,.085,-.045*s);body.castShadow=false;
     const [a,b,m]=bands(r);[a,b,m].forEach((d,k)=>part(g,cyl(.0235*s,.0235*s,.011,12,'x'),toon(BAND_COLORS[d]),-.03*s+k*.02*s,.085,-.045*s,false));part(g,cyl(.0235*s,.0235*s,.011,12,'x'),toon('#d9a441'),.035*s,.085,-.045*s,false);}
   for(const x of [-.075*s,.075*s])part(g,cyl(.005,.005,.04,6),toon('#c9ced8'),x,.07,-.045*s,false);
-  const tag=sign(g,`${valueText(r)} Ω`,0,.061,.045*s,.15*s,-Math.PI/2,CREAM,INK,.075*s);tag.renderOrder=1;
+  const tag=sign(g,`${valueText(r)} Ω`,0,.075,.05*s,.165*s,-1.15,CREAM,INK,.095*s);tag.renderOrder=1;
   return g;
 }
 
@@ -143,7 +144,7 @@ export class ArcadeBench implements Station {
     const bodyT=part(tr,cyl(.06,.06,.12,20),toon('#2b2d42'),0,.09,0);bodyT.scale.z=.6;part(tr,box(.12,.12,.012),toon('#2b2d42'),0,.09,.034);
     for(const x of [-.035,0,.035])part(tr,cyl(.005,.005,.05,6),toon('#c9ced8'),x,.025,0,false);
     sign(tr,'NPN',0,.1,.042,.1,0,'#2b2d42',CREAM,.04);
-    const mo=this.motor;this.top.add(mo);mo.position.set(1.1,.04,-.46);part(mo,rbox(.42,.05,.34,.04),toon(PLUM),0,.025,0);sign(mo,'HOPPER MOTOR',0,.052,.13,.34,-Math.PI/2,LEMON,INK,.07);
+    const mo=this.motor;this.top.add(mo);mo.position.set(1.1,.04,-.46);part(mo,rbox(.42,.05,.34,.04),toon(PLUM),0,.025,0);sign(mo,'HOPPER MOTOR',0,.07,.13,.4,-1.15,LEMON,INK,.1);
     part(mo,cyl(.075,.075,.22,18,'x'),toon('#9aa0ad'),-.04,.13,-.04);part(mo,cyl(.079,.079,.03,18,'x'),toon(INK),-.15,.13,-.04);
     this.coin=group(mo,.1,.13,-.04);part(this.coin,cyl(.1,.1,.02,24,'x'),toon('#d9a441'),0,0,0);for(let k=0;k<4;k++)part(this.coin,cyl(.022,.022,.024,10,'x'),toon('#fff0b8'),0,Math.cos(k*1.57)*.06,Math.sin(k*1.57)*.06);
   }
@@ -161,8 +162,8 @@ export class ArcadeBench implements Station {
     RACK.forEach((v,k)=>{const col=k%5,row=Math.floor(k/5),x=-.38+col*.19,z=-.25+row*.2;part(r,rbox(.18,.01,.19,.03),toon('#d2a870'),x,.045,z,false);
       const blk=blockMesh(v,.25);blk.position.set(x,.045,z);r.add(blk);this.rackBlocks.set(v,blk);this.click(blk,'pick',v);});
     // Rating buttons along the front: the next block you pick comes in this size.
-    RATINGS.forEach((rt,k)=>{const b=group(r,-.32+k*.32,.04,.43);part(b,rbox(.28,.05,.14,.04),toon(CREAM),0,.025,0);sign(b,RATING_LABEL[String(rt)],0,.052,0,.24,-Math.PI/2,CREAM,INK,.1);this.ratingBtns.push(b);this.click(b,'rating',rt);});
-    sign(r,'POWER RATING',0,.042,.3,.4,-Math.PI/2,GRAPE,CREAM,.07);
+    RATINGS.forEach((rt,k)=>{const b=group(r,-.32+k*.32,.04,.43);part(b,rbox(.28,.05,.14,.04),toon(CREAM),0,.025,0);sign(b,RATING_LABEL[String(rt)],0,.052,0,.25,-Math.PI/2,CREAM,INK,.12);this.ratingBtns.push(b);this.click(b,'rating',rt);});
+    sign(r,'POWER RATING',0,.042,.31,.46,-Math.PI/2,GRAPE,CREAM,.085);
     r.visible=false;
   }
   /** Bench supply with its big POWER lever, and the SIGN OFF button in front of it. */
@@ -172,7 +173,7 @@ export class ArcadeBench implements Station {
     this.powerLamp=part(p,sphere(.035,12,8),toon('#5a4a60'),-.16,.23,.12);
     this.click(p,'power');sign(p,'POWER',0,.1,.205,.34,0,MINT,INK,.11);
     const s=group(this.top,POWERAT.x+.52,.04,POWERAT.z+.14);part(s,cyl(.17,.19,.06,24),toon(INK),0,.03,0);this.signBtn=part(s,cyl(.13,.13,.06,24),toon('#8a9a8e'),0,.08,0);this.click(s,'signoff');
-    sign(s,'SIGN OFF',0,.112,0,.24,-Math.PI/2,'#fffaf0',INK,.09);
+    sign(s,'SIGN OFF',0,.112,0,.25,-Math.PI/2,'#fffaf0',INK,.11);
   }
   /** The cabinet being serviced stands at the bench's left end, back open, ribbon cable to the board. */
   private buildCabinet(){
@@ -227,7 +228,7 @@ export class ArcadeBench implements Station {
         if(!this.soakDone||!this.verdict){this.say('Run the channel first: POWER it and let it run in spec for 10 s.');a.voice('hm',1.4);return false;}
         const v=this.verdict;this.served.push({job:j.id,tier:v.tier,cost:v.cost});this.spent+=v.cost;
         this.say(`${j.title} signed off: ${TIER_WORD[v.tier]}.${v.notes[0]?` ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);this.game.burst(this.table.clone().add(new T.Vector3(-2.4,1.3,0)),'#ffd84d',30,'confetti');this.game.burst(this.table.clone().add(new T.Vector3(-2.4,1.4,0)),'#ff7eb6',6,'star');
+        a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffd84d');
         this.room?.light(this.index);
         this.index++;this.powerOff();this.held=undefined;this.heat={led:0,r:0,p:0};this.setup=clone(JOBS[this.index]?.start??{reversed:false});this.showJob();return true;}
       case 'clear':{if(!this.held)return false;this.held=undefined;a.tone(380,.05,.03,'triangle');break;}
@@ -294,12 +295,12 @@ export class ArcadeBench implements Station {
       KeyS:['slot','series'],KeyA:['slot','parallel'],KeyR:['rating',RATINGS[(RATINGS.indexOf(this.rating)+1)%RATINGS.length]],KeyF:['flip'],KeyP:['power'],KeyX:['reset'],Enter:['signoff'],Backspace:['clear']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';this.updatePanel();}
+  setActive(active:boolean){this.active=active;if(active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';this.updatePanel();}
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='blocks'||this.trayReady)return;const q=p.body.translation(),pl=this.game.player.translation(),t=this.table;
     if(Math.hypot(q.x-t.x,q.z-t.z)<2.6||Math.hypot(pl.x-this.stand.x,pl.z-this.stand.z)<2.2){
       this.trayReady=true;p.mesh.visible=false;p.body.setEnabled(false);this.trayRide.visible=false;this.rackGroup.visible=true;
-      const at=this.top.localToWorld(new T.Vector3(RACKAT.x,.1,RACKAT.z));this.game.audio.plug();this.game.burst(at,'#ffd84d',1,'ring');this.game.burst(at,'#ff7eb6',14,'confetti');this.redraw();}
+      const at=this.top.localToWorld(new T.Vector3(RACKAT.x,.1,RACKAT.z));this.game.audio.plug();this.game.burst(at,'#ffd84d',1,'ring');cheer(this.game,this,'#ff7eb6');this.redraw();}
   }
   private setup0(){this.ready=true;this.tray=this.game.props.find(p=>p.spec.id==='blocks');
     // A few blocks ride on the tray until it reaches the bench.
@@ -369,7 +370,7 @@ export class ArcadeBench implements Station {
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;
     switch(h.act){
-      case 'pick':return {key:'Click',text:`Pick up a ${ohms(Number(h.arg))} block (${RATING_LABEL[String(this.rating)]})`};
+      case 'pick':return {key:'S',text:`Click to pick up a ${ohms(Number(h.arg))} block (${RATING_LABEL[String(this.rating)]}), then S fits it in SERIES`};
       case 'rating':return {key:'R',text:`Blocks come in ${RATING_LABEL[String(h.arg)]}: bigger blocks take more heat`};
       case 'slot':{const s=h.arg as 'series'|'parallel',where=s==='series'?'SERIES (in line with the LED)':'ACROSS the LED';return {key:s==='series'?'S':'A',text:this.held?`Fit the ${ohms(this.held.r)} block ${where}`:this.setup[s]?`Take the block out of ${where}`:where};}
       case 'flip':return {key:'F',text:HINTS.flip};
@@ -384,16 +385,17 @@ export class ArcadeBench implements Station {
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z);
       if(this.game.held?.spec.id==='blocks')return {key:'E',text:near<2.4?'Set the resistor tray on the bench':'Carry the tray to the service bench'};
       if(!this.game.held&&this.game.nearest()?.spec.id==='blocks')return {key:'E',text:'Pick up the tray of resistor blocks'};
-      if(near<1.6)return this.trayReady?{key:'E',text:'Work at the service bench'}:{key:'E',text:'Work at the bench (the resistor blocks are still in the storeroom)'};return null;}
+      if(near<1.6)return this.trayReady?{key:'E',text:'Work at the service bench'}:{key:'E',text:'Work at the bench (the resistor blocks are still in the storeroom)'};
+      return walkHint(this.game,this.trayReady?'Walk to the service bench (yellow arrow)':'Fetch the tray of resistor blocks from the storeroom (yellow arrow)');}
     if(!this.trayReady)return {key:'E',text:'Step back and fetch the resistor tray from the storeroom'};
     const hint=this.hoverHint();if(hint)return hint;
     const r=read(j,this.setup);
     if(this.tripped)return {key:'X',text:'The fuse tripped: fix the circuit, then press RESET on the fuse'};
-    if(this.held)return {key:'Click',text:`Fit the ${ohms(this.held.r)} block in SERIES (S) or ACROSS the LED (A)`};
+    if(this.held)return {key:'S',text:`Fit the ${ohms(this.held.r)} block: click SERIES (S) or ACROSS the LED (A)`};
     if(this.soakDone)return {key:'Enter',text:'Ten seconds in spec: SIGN OFF the cabinet'};
-    if(this.powered&&r.lit)return {key:'…',text:`Running: ${Math.floor(this.soak)} / ${HOUSE.soak} s in spec. Watch the meter`};
+    if(this.powered&&r.lit)return {key:'P',text:`Running: ${Math.floor(this.soak)} / ${HOUSE.soak} s in spec. Watch the meter (P powers off)`};
     if(this.powered)return {key:'P',text:'Nothing useful flows: power off and fix the channel'};
-    return {key:'Click',text:'Pick a block, fit it in SERIES, check the LED way round, then POWER (P)'};
+    return {key:'P',text:'Click a block, fit it in SERIES, check the LED way round, then POWER (P)'};
   }
   complete(){return this.served.length>=JOBS.length;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
@@ -445,7 +447,7 @@ function drawMeter(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined,
   c.textBaseline='middle';
   // Three big readouts.
   const tile=(x:number,label:string,value:string,unit:string,col:string)=>{c.fillStyle='#2c2046';c.beginPath();c.roundRect(x,16,280,118,18);c.fill();
-    c.fillStyle='rgba(255,255,255,.6)';c.font=FONT(24,600);c.textAlign='left';c.fillText(label,x+18,40);
+    c.fillStyle='rgba(255,255,255,.6)';c.textAlign='left';const [main,sub]=label.split('_');c.font=FONT(24,600);c.fillText(main,x+18,40);if(sub){const mw=c.measureText(main).width;c.font=FONT(16,700);c.fillText(sub,x+19+mw,48);}
     c.fillStyle=col;c.font=FONT(58);c.fillText(value,x+18,92);const vw=c.measureText(value).width;c.font=FONT(28,600);c.fillStyle='rgba(255,255,255,.75)';c.fillText(unit,x+26+vw,98);};
   tile(16,isLed?'CURRENT  I':'BASE CURRENT',on?mA(r.iLoad):tripped?'TRIP':'—',on?'mA':'',tripped?'#ff6b6b':'#8dffd0');
   tile(310,'RESISTOR  V_R',on&&s.series?r.vR.toFixed(2):'—',on&&s.series?'V':'',LEMON);

@@ -25,4 +25,4 @@ const npcs:NpcSpot[]=[
   {x:7.6,z:4.6,standing:true,acc:['headphones','mug'],mood:'sleepy',yaw:-Math.PI/2},
 ];
 export const garage:Level={id:'garage',name:'ROBOT GARAGE',number:'09',tagline:'The robot resets its brain every time it stops. Tame the kick.',badge:'robot',station:'garage',
-  width:22,depth:16,spawn:{x:-3.5,z:5.4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-1.2,z:3.4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};

@@ -13,6 +13,7 @@ import {hot} from '../../render/actors';
 import {BOARDS,blank,check,erase,footprint,netOfPin,isNC,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,viaProblem,same,
   type Board,type Design,type Layer,type PartDef,type Place,type Report,type Rot,type XY} from './logic';
 import './qfn.css';
+import {cheer,walkHint} from '../shared';
 
 /** Cell size on the bench (world units) and the board's top above the worktop. */
 const S=.15,TOP=.07;
@@ -51,7 +52,7 @@ export class QfnBench implements Station {
   shipped:{board:string;tier:number;cost:number}[]=[];mistakes=0;spent=0;checks=0;live:Report;
   private history:Design[]=[];private root=new T.Group();private boardRoot=new T.Group();private partsRoot=new T.Group();private copper=new T.Group();private rats=new T.Group();
   private preview=new T.Group();private marks=new T.Group();private hover!:T.Mesh;private selFrame=new T.Group();private partGroups=new Map<string,T.Group>();private qfnBody?:T.Mesh;
-  private clickables:Clickable[]=[];private hovered?:Clickable;private toolPucks=new Map<string,T.Object3D>();private layerPlate!:T.Mesh;private viaPlate!:T.Mesh;private boardPlate!:T.Mesh;
+  private clickables:Clickable[]=[];private hovered?:Clickable;private toolPucks=new Map<string,T.Object3D>();private layerPlate!:T.Mesh;private legendPlate!:T.Mesh;private viaPlate!:T.Mesh;private boardPlate!:T.Mesh;
   private stroke?:Stroke;private drag?:{id:string;grab:XY;to:XY;moved:boolean};private erasing=false;private hoverCell?:XY;
   private drops:{g:T.Group;t:number}[]=[];private markUntil=0;private outbox:T.Group[]=[];
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';private crate?:Game['props'][number];private ready=false;
@@ -97,9 +98,10 @@ export class QfnBench implements Station {
       if(act==='layer')this.layerPlate=p;if(arg==='via')this.viaPlate=p;
       this.click(b,act,arg);this.toolPucks.set(act==='tool'?String(arg):act,b);}
     const undo=group(top,-1.08,0,1.0);part(undo,rbox(.26,.05,.14,.03),toon('#fffaf0'),0,.025,0);plate(undo,label('UNDO','#fffaf0',INK,256,128,'Z'),.25,.125,0,.052,0);this.click(undo,'undo');
-    // Title and ratsnest legend ride on the jig's far margin.
-    const far=-(9*S)/2-.066;this.boardPlate=plate(this.boardRoot,label('BOARD 1','#fffaf0'),.84,.112,-.2,-.033,far);this.boardPlate.userData.keep=true;
-    plate(this.boardRoot,label('- - -  still to route','#d9d4f2',INK,384,72),.46,.086,.68,-.033,far).userData.keep=true;
+    // Title and ratsnest legend ride on the jig's near margin (loadBoard sets the depth), where no
+    // part standing on the board can draw over them.
+    this.boardPlate=plate(this.boardRoot,label('BOARD 1','#fffaf0'),.84,.112,-.2,-.033,0);this.boardPlate.userData.keep=true;
+    this.legendPlate=plate(this.boardRoot,label('- - -  still to route','#d9d4f2',INK,384,72),.46,.086,.68,-.033,0);this.legendPlate.userData.keep=true;
   }
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
   private click(obj:T.Object3D,act:string,arg?:unknown){this.clickables.push({obj,act,arg});obj.userData.baseY=obj.position.y;}
@@ -122,6 +124,7 @@ export class QfnBench implements Station {
     const face=part(this.boardRoot,new T.PlaneGeometry(w,h),toon('#ffffff',{map:grid}),0,.0005,0,false);face.rotation.x=-Math.PI/2;face.userData.noAO=true;(face.material as T.Material).userData.outlineParameters={visible:false};
     for(const p of b.parts)this.buildPart(p);
     (this.boardPlate.material as T.MeshBasicMaterial).map=label(`BOARD ${this.boardIx+1} · ${b.title.toUpperCase()}`,'#fffaf0',INK,512,68);
+    const near=h/2+.066;this.boardPlate.position.z=near;this.legendPlate.position.z=near;this.marks.clear();
     this.layer=1;this.tool='move';this.selected=undefined;this.history=[];
     this.syncParts(true);this.redraw();
   }
@@ -258,11 +261,13 @@ export class QfnBench implements Station {
         if(r.tier===0){this.mistakes++;this.showMarks(r);this.say(`Sent back from test: ${r.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();return true;}
         this.shipped.push({board:b.id,tier:r.tier,cost:r.cost});
         this.say(`Shipped · ${TIERS[r.tier]}. ${b.teach}`,'ok');a.cheer();
-        this.game.burst(this.table.clone().add(new T.Vector3(2.55,.5,0)),'#ffcf52',24,'confetti');this.stackShipped();
+        cheer(this.game,this,'#ffcf52');this.stackShipped();
         this.boardIx++;if(this.boardIx<BOARDS.length){this.design=blank(this.board());this.loadBoard();this.dropIn();}else{this.stroke=undefined;this.redraw();}
         return true;}
       default:return false;
     }
+    // Problem rings from the last CHECK or send-back describe the old layout: any edit clears them.
+    if(['move','rotate','trace','via','erase','undo'].includes(name))this.marks.clear();
     this.syncParts();this.redraw();return true;
   }
   /** Finished boards stack up on the side table. */
@@ -363,14 +368,15 @@ export class QfnBench implements Station {
     if(this.complete())return null;
     if(!atBench){const p=this.game.player.translation();
       if(this.game.held?.spec.id==='parts'&&Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<2.6)return {key:'E',text:'Set the parts crate on the bench'};
-      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.partsReady?{key:'E',text:'Sit at the layout bench'}:{key:'E',text:'Sit at the bench (the parts crate is still on the shelf)'};return null;}
+      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.partsReady?{key:'E',text:'Sit at the layout bench'}:{key:'E',text:'Sit at the bench (the parts crate is still on the shelf)'};
+      return walkHint(this.game,this.partsReady?'Walk to the layout bench (yellow arrow)':'Fetch the parts crate from the stock shelf (yellow arrow)');}
     if(!this.partsReady)return {key:'E',text:'Step back and fetch the parts crate from the stock shelf'};
     const b=this.board(),r=this.live;
     if(r.problems.some(p=>/mouth/.test(p)))return {key:'M',text:'MOVE: drag the connector to a board edge, mouth out (R turns it)'};
     if(r.nets.some(n=>!n.done)){
       if(this.tool==='move')return {key:'T',text:'Parts placed? PEN: drag from a pad along a dashed line'};
       if(b.layers===2)return {key:'V',text:'Blocked? A VIA on your track, then LAYER (L) to cross under'};
-      return {key:'Drag',text:'Drag from a pad to its match. One layer: tracks can\'t cross'};}
+      return {key:'T',text:'PEN (T): drag from a pad to its match. One layer: tracks can\'t cross'};}
     if(r.tier===0)return {key:'C',text:'CHECK shows what the test would reject'};
     if(r.tier===1)return r.loops.some(l=>l.loop>l.max)?{key:'M',text:'Works. Move each bypass cap beside its VDD and GND pins'}:{key:'V',text:'Works. Add thermal vias inside the exposed pad'};
     return {key:'Enter',text:r.tier===3?'Elegant. SHIP it (Enter)':'Reliable. SHIP it, or shorten the route to reach par'};
@@ -379,7 +385,7 @@ export class QfnBench implements Station {
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent)};}
   snapshot(){const r=this.live;return {board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,tool:this.tool,layer:this.layer,selected:this.selected,design:this.design,
     report:{tier:r.tier,problems:r.problems,notes:r.notes,cost:r.cost,par:r.par,nets:r.nets,loops:r.loops,thermal:r.thermal},shipped:this.shipped,mistakes:this.mistakes,spent:this.spent,checks:this.checks,
-    hover:this.hoverCell,cells:this.active?this.cellScreens():undefined};}
+    hover:this.hoverCell,rings:this.marks.children.length,cells:this.active?this.cellScreens():undefined};}
   /** Page coordinates of every cell centre (browser tests drive the real pointer with these). */
   private cellScreens(){const b=this.board(),cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect(),out:Record<string,[number,number]>={};
     cam.updateMatrixWorld();this.boardRoot.updateMatrixWorld(true);

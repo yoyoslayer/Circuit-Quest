@@ -55,10 +55,11 @@ test('waterworks: a cart that only matches one wheel is caught, and a wrong I_N 
   await steps(page,[['set',['fR',1.5]],['compare']]);
   s=(await snapshot(page)).station;expect(s.revealed).toBe(true);expect(s.records[0].tier).toBe(2);
   await wait(page,1);
-  // I_N must equal V_th / R_th: 20 mA is wrong, the toast says why; fixing it moves on.
+  // I_N must equal V_th ÷ R_th (shown with subscripts): 20 mA is wrong, the toast says why; fixing it moves on.
   await steps(page,[...circuit(9,150,20),['check']]);
   s=(await snapshot(page)).station;expect(s.mistakes).toBe(1);expect(s.index).toBe(0);
-  await expect(page.locator('.station-toast')).toContainText('V_th / R_th');
+  await expect(page.locator('.station-toast')).toContainText('IN must be Vth ÷ Rth: 9 V ÷ 150 Ω = 60 mA');
+  await expect(page.locator('.station-toast sub')).toHaveCount(3);
   await steps(page,[['set',['eI',60]],['check']]);await wait(page,1.5);
   s=(await snapshot(page)).station;expect(s.index).toBe(1);expect(s.served[0]).toEqual({net:'header',tier:2,elecFirst:false});
   // Stepping back from the bench returns the keys to walking.

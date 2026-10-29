@@ -104,7 +104,7 @@ describe('the electrical reveal',()=>{
   });
   it('checks V_th, R_th and I_N and explains mistakes',()=>{
     const n:Net=net('booster');expect(checkAnswer(n,{v:24,r:600,mA:40}).ok).toBe(true);
-    const bad=checkAnswer(n,{v:24,r:600,mA:60});expect(bad.ok).toBe(false);expect(bad.problems[0]).toMatch(/V_th \/ R_th/);
+    const bad=checkAnswer(n,{v:24,r:600,mA:60});expect(bad.ok).toBe(false);expect(bad.problems[0]).toMatch(/V_th ÷ R_th/);
     expect(checkAnswer(n,{v:30,r:600,mA:40}).problems[0]).toMatch(/open terminals/);
     expect(checkAnswer(n,{v:24,r:1200,mA:40}).problems[0]).toMatch(/switched off/);
   });

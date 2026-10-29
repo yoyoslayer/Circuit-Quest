@@ -194,7 +194,7 @@ export function checkAnswer(net:Net,a:Answer){
   const want=electrical(net),problems:string[]=[];
   if(!close(a.v,want.v))problems.push(`V_th is the voltage across the open terminals (no load). Here it is not ${fmt(a.v)} V.`);
   if(!close(a.r,want.r))problems.push(`R_th is what the terminals look like with every source switched off (batteries shorted, current sources opened). ${fmt(a.r)} Ω isn't it.`);
-  if(!close(a.mA,want.mA))problems.push(close(a.v,want.v)&&close(a.r,want.r)?`I_N = V_th / R_th = ${fmt(a.v)} V / ${fmt(a.r)} Ω = ${fmt(a.v/a.r*1000)} mA.`:`I_N is the current through a short across the terminals, and always equals V_th / R_th.`);
+  if(!close(a.mA,want.mA))problems.push(close(a.v,want.v)&&close(a.r,want.r)?`I_N must be V_th ÷ R_th: ${fmt(a.v)} V ÷ ${fmt(a.r)} Ω = ${fmt(a.v/a.r*1000)} mA, not ${fmt(a.mA)} mA.`:`I_N is the current through a short across the terminals, and always equals V_th ÷ R_th.`);
   return {ok:!problems.length,problems};
 }
 

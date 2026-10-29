@@ -10,7 +10,7 @@ const props:PropSpec[]=[
   {kind:'reel',x:-7.6,z:6.2,color:'#9b7bf0'},{kind:'bin',x:-10.2,z:3.2},
   // Stools, beanbags and players' stuff.
   ...[[-7.8,-5.6],[-5.2,-5.6],[4.6,-5.6],[7.2,-5.6],[8.6,-.6],[8.6,1.2],[8.6,3],[-8.8,-3.4],[-8.8,-1.5],[-8.8,.4]].map(([x,z],i)=>({kind:'chair' as const,x,z,color:['#ff7eb6','#6fe0c0','#ffd84d','#9b7bf0','#7cc8ff'][i%5]})),
-  {kind:'beanbag',x:3.6,z:4.8,color:'#ff7eb6'},{kind:'beanbag',x:5,z:5.6,color:'#9b7bf0'},{kind:'beanbag',x:-3.4,z:6.4,color:'#6fe0c0'},
+  {kind:'beanbag',x:3.6,z:4.8,color:'#ff7eb6'},{kind:'beanbag',x:5,z:5.6,color:'#9b7bf0'},{kind:'beanbag',x:-2.4,z:7,color:'#6fe0c0'},
   {kind:'plant',x:-10.2,z:-6.6},{kind:'plant',x:10.2,z:-6.8},{kind:'plant',x:10.2,z:7},{kind:'plant',x:-5.8,z:7.2},
   {kind:'bin',x:3.2,z:-.8},{kind:'bin',x:-4.6,z:-.4},{kind:'cone',x:-2.6,z:3.4},{kind:'cone',x:2.4,z:3.8},
   {kind:'mug',x:6.4,z:6.4},{kind:'paper',x:-2.2,z:1.8},{kind:'paper',x:2.8,z:2.6},{kind:'paper',x:.6,z:5.2},{kind:'paper',x:6.6,z:-2.4},

@@ -131,7 +131,7 @@ function describe(f:Filter){
   const s=f.series&&MODULES[f.series],p=f.shunt&&MODULES[f.shunt];
   if(s?.kind==='L'&&p?.kind==='C')return 'LC low-pass';if(s?.kind==='R'&&p?.kind==='C')return 'RC low-pass';
   if(!s&&p?.kind==='C')return 'shunt-C low-pass';if(s?.kind==='C')return 'high-pass (series C)';if(p?.kind==='L')return 'high-pass (shunt L)';
-  if(!s&&!p)return 'plain cable';return 'filter';
+  if(!s&&!p)return 'none (wire link)';return 'filter';
 }
 export const filterName=describe;
 /** Judges the decode against the job: tier 0 = not decoded, 1 = decodes, 2 = decodes with margin
@@ -151,7 +151,7 @@ export function judge(job:Job,s:Setup):Verdict{
   if(r.level<SPEC.minLevel&&!problems.length)problems.push(`The tone itself is down to ${Math.round(r.level*100)}% at ${job.fs} Hz: this filter cuts the message too. Pick a higher cut-off.`);
   if(r.snr<SPEC.decodeSnr&&!problems.length)problems.push(sm?.kind==='C'||pm?.kind==='L'
     ?`Signal/noise is ${r.snr} dB. A high-pass lets the motor noise straight through: it sits above the ${job.fs} Hz tone.`
-    :`Signal/noise is ${r.snr} dB; the decoder needs ${SPEC.decodeSnr} dB. ${job.cart&&s.cartDistance<CART_SAFE?'Move the motor cart away, ':''}${job.cart&&!s.rerouted?'reroute the cable, ':''}or filter harder above ${job.fs} Hz.`);
+    :`Signal/noise is ${r.snr} dB; the decoder needs ${SPEC.decodeSnr} dB. ${[job.cart&&s.cartDistance<CART_SAFE?'move the motor cart away':'',job.cart&&!s.rerouted?'reroute the cable':'',`filter harder above ${job.fs} Hz`].filter(Boolean).map((t,i,a)=>i===0?t[0].toUpperCase()+t.slice(1):i===a.length-1?`or ${t}`:t).join(', ')}.`);
   if(problems.length)return {tier:0,problems,notes,snr:r.snr,cost:c};
   if(r.snr<SPEC.reliableSnr){notes.push(`It decodes, but ${r.snr} dB leaves little margin (reliable is ${SPEC.reliableSnr} dB).`);return {tier:1,problems,notes,snr:r.snr,cost:c};}
   // The lean answer assumes the room step was done (the motor cart moved away).

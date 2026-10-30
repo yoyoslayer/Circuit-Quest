@@ -1,6 +1,9 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot} from './navigation';
 
+// The rooms carry 100+ physics props; under software rendering give each test room, like the other stations.
+test.describe.configure({timeout:180000});
+
 // Presses the same buttons a player clicks at the signal bench (drive.act).
 const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);
 async function steps(page:Page,list:[string,unknown?][]){for(const [n,a] of list)expect((await act(page,n,a)).ok,`${n} ${a??''}`).toBe(true);}

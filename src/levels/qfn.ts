@@ -19,4 +19,8 @@ const npcs:NpcSpot[]=[
   {x:6.6,z:5.6,standing:true,acc:['headphones'],yaw:Math.PI},{x:-6.8,z:.6,standing:true,acc:['bun'],yaw:-Math.PI/2,mood:'sleepy'},
 ];
 export const qfn:Level={id:'qfn',name:'FABRICATION BAY',number:'05',tagline:'Slide the parts, draw the tracks, ship three boards.',badge:'qfn',station:'qfn',
-  width:22,depth:16,spawn:{x:-6.6,z:3.2},anchor:{x:-10,z:6},target:{x:0,z:-.5},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-6.6,z:3.2},anchor:{x:-10,z:6},target:{x:0,z:-.5},length:10,obstacles:[],props,npcs,
+  // Fab bay clutter: parts carts, reel shelves, crates and desks around the bench; the walk from the
+  // door to the stock shelf and the bench stays clear.
+  clutter:{seed:5,fill:['box','box','litter','box'],max:220,step:2.1,recipes:['crates','cart','shelf','pod','cabinets','parts','crates','pod'],colors:['#c98f5a','#d7a56d','#9aa3dc','#c7b8ff','#7fe6c6'],
+    lanes:[{points:[[-6.6,3.2],[-8.8,2.95],[1.3,-.6],[0,-.5]],r:1.05}]}};

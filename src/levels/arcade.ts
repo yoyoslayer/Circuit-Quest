@@ -23,5 +23,9 @@ const npcs:NpcSpot[]=[
   {x:-6.5,z:-5.2,standing:true,acc:['glasses'],mood:'sleepy',yaw:Math.PI},{x:5.9,z:-5.3,standing:true,acc:['bun'],yaw:Math.PI},
 ];
 export const arcade:Level={id:'arcade',name:'OVERHEATING ARCADE',number:'03',tagline:'Too bright, too hot, too dark. Pick the resistor.',badge:'led',station:'arcade',
-  width:22,depth:16,spawn:{x:-3.5,z:5},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-3.5,z:5},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs,
+  // Arcade clutter: beanbag corners, snack bins, ticket crates; the storeroom run and the walk to
+  // the bench stay clear.
+  clutter:{seed:3,fill:['box','box','cone','litter'],max:220,step:2.1,recipes:['lounge','crates','cones','reading','lounge','bins','crates','lounge'],colors:['#ff7eb6','#6fe0c0','#ffd84d','#9b7bf0','#7cc8ff'],
+    lanes:[{points:[[-3.5,5],[-5.5,6.6],[-7.2,5.8],[-8.3,4.4]],r:1},{points:[[-8.3,4.4],[-7.2,5.8],[-5.5,6.4],[1.2,-1.3],[0,-1.55]],r:1.05}]}};
 export const arcadeRush:Level={...arcade,id:'arcade-rush',name:'ARCADE RUSH',number:'03R',tagline:'Three minutes. Every cabinet is broken a new way.',requires:'arcade',next:undefined};

@@ -1,5 +1,9 @@
 import type {Level} from './types';
-export const playground:Level={id:'playground',name:'CABLE PLAYGROUND',number:'00',tagline:'A little tension goes a long way.',badge:'bolt',next:'meeting',width:20,depth:20,spawn:{x:-7,z:5},anchor:{x:-8,z:4},target:{x:7,z:-6},switchAt:{x:7.55,z:-6.35},length:19,
+export const playground:Level={id:'playground',name:'CABLE PLAYGROUND',number:'00',tagline:'A little tension goes a long way.',badge:'bolt',next:'meeting',width:20,depth:20,
+  // A few crates, cones and a lounge corner round the edges; the drag to the lamp, the slingshot run
+  // and the pins stay clear.
+  clutter:{seed:1,step:2.6,recipes:['crates','cones','lounge','crates','plants'],fill:['box','cone','box'],max:90,
+    lanes:[{points:[[-7,5],[-5,-1],[-4,-4],[5.8,-5.5],[6.6,-5.9]],r:1.3},{points:[[-7,5],[9,3.7]],r:1.3},{points:[[9,-1],[9,8]],r:1.1},{points:[[4.4,5.3],[5.5,5.3]],r:1.3}]},spawn:{x:-7,z:5},anchor:{x:-8,z:4},target:{x:7,z:-6},switchAt:{x:7.55,z:-6.35},length:19,
   obstacles:[{id:'pillar-a',minX:-2,maxX:-.6,minZ:-2,maxZ:-.6},{id:'pillar-b',minX:2.5,maxX:3.9,minZ:2,maxZ:3.4}],
   props:[
     // The obstacle course: crate stacks and strewn chairs between the reel and the lamp, to drag

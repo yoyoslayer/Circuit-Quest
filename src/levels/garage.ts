@@ -25,4 +25,9 @@ const npcs:NpcSpot[]=[
   {x:7.6,z:4.6,standing:true,acc:['headphones','mug'],mood:'sleepy',yaw:-Math.PI/2},
 ];
 export const garage:Level={id:'garage',name:'ROBOT GARAGE',number:'04',tagline:'The robot resets its brain every time it stops. Tame the kick.',badge:'robot',station:'garage',
-  width:22,depth:16,spawn:{x:-1.2,z:3.4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-1.2,z:3.4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs,
+  // Shop clutter around the fixtures; the robot's painted route and the walk from the door to the
+  // charging pad, the test stand and the bench stay clear.
+  clutter:{seed:4,fill:['box','box','cone','box','litter'],max:220,step:2.05,recipes:['crates','cones','parts','cart','cabinets','crates','parts','crates','cart','cones'],colors:['#c98f5a','#d7a56d','#2fb3a6','#ffc629','#9fb8c8'],
+    lanes:[{points:[[.7,-4.45],[3.6,-4.45],[3.9,1.9],[-6.4,2.3],[-8.1,-1.2],[-8.1,-5.6]],r:1.1},
+      {points:[[-1.2,3.4],[6.4,-4.2],[3.4,-4],[2.5,-4.4],[2.9,-4],[2.9,-1.1],[0,-1.55]],r:1}]}};

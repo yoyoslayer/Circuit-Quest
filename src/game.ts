@@ -26,6 +26,7 @@ import {Circuit} from './sim/electrical';
 import {grade} from './sim/grade';
 import type {Level,NpcSpot} from './levels/types';
 import {MeetingStrip} from './meeting-strip';
+import {clutter} from './levels/clutter';
 import {LunchRuntime} from './lunch-runtime';
 import {PipRig} from './render/pipRig';
 import {Particles,type Fx} from './render/particles';
@@ -50,6 +51,7 @@ export class Game {
   circuit:Circuit;strip?:MeetingStrip;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   /** The second reel was tried before the coupler: a badge now floats over the coupler. */
   couplerHint=false;
+  private stepT=0;private stepSide=1;
   /** The anchor reel's wound cable (scaled as the cable pays out). */
   spool?:T.Mesh;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
@@ -72,7 +74,8 @@ export class Game {
     if(level.station)this.station=makeStation(level.station,this);
     if(level.hub)this.hub=new Lobby(this);
     this.buildRoom();
-    for(const spec of level.props)this.addProp(spec);
+    const extra=level.clutter?clutter(this.world,level,level.clutter):[];
+    for(const spec of [...level.props,...extra])this.addProp(spec);
     this.batchProps();
     for(const p of level.npcs)this.addNpc(p);
     this.player=this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(level.spawn.x,.91,level.spawn.z));
@@ -319,6 +322,10 @@ export class Game {
     const delta=this.controller.computedMovement(),wasGrounded=this.grounded;this.grounded=this.controller.computedGrounded();
     if(this.grounded&&!wasGrounded&&this.airborne>.25){this.squash=Math.min(1,this.airborne*1.4);this.burst({x:p.x,y:.1,z:p.z},'#d9d2c3',5,'dust');this.audio.thud(3);}
     this.airborne=this.grounded?0:this.airborne+dt;if(this.grounded&&this.vertical<0)this.vertical=-.1;
+    // Sprinting kicks up a small puff behind each footfall, alternating feet.
+    const pace=Math.hypot(delta.x,delta.z)/Math.max(dt,1e-3);
+    if(this.grounded&&pace>5.5&&!this.atBench){this.stepT+=dt;if(this.stepT>.19){this.stepT=0;this.stepSide=-this.stepSide;const hx=Math.sin(this.heading),hz=Math.cos(this.heading);
+      this.burst({x:p.x-hx*.25+hz*.13*this.stepSide,y:.06,z:p.z-hz*.25-hx*.13*this.stepSide},'#e6dfd2',1,'dust');}}else this.stepT=.12;
     this.player.setNextKinematicTranslation({x:T.MathUtils.clamp(p.x+delta.x,-this.level.width/2+.5,this.level.width/2-.5),y:p.y+delta.y,z:T.MathUtils.clamp(p.z+delta.z,-this.level.depth/2+.5,this.level.depth/2-.5)});
     // Light things are carried at chest height; heavy furniture is pushed along the floor so it stays upright.
     if(this.held){const b=this.held.body,pos=b.translation(),kind=prefabs[this.held.spec.kind],heavy=kind.mass>=15,ahead=heavy?.5+Math.max(kind.size[0],kind.size[2])/2:1.05,target={x:p.x+Math.sin(this.heading)*ahead,y:heavy?kind.size[1]/2+.03:p.y+.55,z:p.z+Math.cos(this.heading)*ahead};b.setLinvel({x:(target.x-pos.x)*12,y:(target.y-pos.y)*12,z:(target.z-pos.z)*12},true);b.setAngvel({x:0,y:0,z:0},true);}

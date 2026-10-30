@@ -19,4 +19,8 @@ const npcs:NpcSpot[]=[
   {x:-4.4,z:-4.4,standing:true,acc:['glasses'],yaw:-2.4},{x:6.2,z:-5.2,standing:true,acc:['bun'],yaw:Math.PI,mood:'happy'},{x:-7.6,z:1.4,standing:true,acc:['headphones'],yaw:-1.2,mood:'sleepy'},
 ];
 export const observatory:Level={id:'observatory',name:'SIGNAL OBSERVATORY',number:'06',tagline:'A garbled message from the roof. Filter it, keep the latch, tune the whip.',badge:'signal',station:'observatory',
-  width:22,depth:16,spawn:{x:-6.4,z:6.2},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-6.4,z:6.2},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs,
+  // Observatory clutter: reading corners, desks, shelves of star atlases; the cart's run from the
+  // receiver and the walk to the bench stay clear.
+  clutter:{seed:6,fill:['box','box','litter'],max:220,step:2.1,recipes:['pod','shelf','reading','lounge','pod','shelf','crates','reading'],colors:['#4a4380','#9b7bf0','#ffd66b','#8fd3c8','#e9dcc0'],
+    lanes:[{points:[[-6.1,-5.3],[-6.1,-5.3]],r:2.9},{points:[[-6.4,6.2],[-3.7,-.1],[-6,3.5],[0,-1.55]],r:1.2},{points:[[-6.4,6.2],[0,-1.55]],r:1}]}};

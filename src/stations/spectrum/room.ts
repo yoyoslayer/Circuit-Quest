@@ -116,7 +116,7 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   standingSign(game.root,'TEA',2.4,1.5,5.2,.5,'#f4c9c3');
   // Smoke: soft billboards drifting over the corner (the beam test uses the cloud in logic.SMOKE).
   const smoke:T.Sprite[]=[],puff=TX.radial('smoke','rgba(255,255,255,1)','rgba(255,255,255,0)',.18);
-  for(let k=0;k<14;k++){const m=new T.Sprite(new T.SpriteMaterial({map:puff,color:'#7d8292',transparent:true,opacity:.7,depthWrite:false}));const s=1+(k%4)*.35;m.scale.set(s,s,1);m.userData.noAO=true;m.userData.seed=k;game.root.add(m);smoke.push(m);}
+  for(let k=0;k<14;k++){const m=new T.Sprite(new T.SpriteMaterial({map:puff,color:'#b4b8c6',transparent:true,opacity:.45,depthWrite:false}));const s=1+(k%4)*.35;m.scale.set(s,s,1);m.userData.noAO=true;m.userData.seed=k;game.root.add(m);smoke.push(m);}
 
   // ---- Back wall between the rooms: the exhibits case and the ladder up to the rooftop hatch.
   const ex=group(r,-1.6,0,-7.35);part(ex,rbox(2.6,.9,.7,.06),toon('#e9e2d4'),0,.45,0);part(ex,box(2.7,.05,.8),toon('#c98a55'),0,.92,0);

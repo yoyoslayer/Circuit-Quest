@@ -379,6 +379,27 @@ SHIP) plus UNDO; the board itself is the tool.
   first bonus is now "Knock down all six pins". A pin is down when it tips past ~45° or slides
   half a metre, and a strike gets confetti.
 
+**Dense rooms, and VFX detail.**
+
+- **Props by floor.** Before this pass only Big Meeting met AGENTS rule 3 (310 props); the
+  other floors had 28 to 46. `src/levels/clutter.ts` lays themed clusters out at load time, and
+  levels opt in with `clutter:{…}`.
+  - Clusters include desk pods, crate stacks, lounge corners, parts carts, shelves, reading
+    corners and cabinets.
+  - Then a finer pass lines the walls with lone crates, cones and litter.
+  - A cluster goes in only if every prop clears the room's fixed colliders (the layout audit's
+    contact query), the props already placed, the coworkers, the spawn and each level's keep-out
+    lanes: the routes people, robots and cables travel, including every route the specs walk.
+  - It is seeded, so every load is the same. Station rooms now hold about 80 to 150 props; the
+    audit finds no overlaps.
+- **Sparks** are thin additive streaks stretched along their velocity that skid off the floor
+  (they were tumbling 5 cm cubes that read as squares).
+- **Smoke** puffs fade in and out on their own materials, instead of shrinking in steps.
+- **Sprint dust.** Sprinting kicks up a small puff behind each footfall.
+- **Spectrum's toaster smoke** is a light haze instead of a dark blot.
+- `tools/debug/look.mjs` screenshots floors with full effects (AO, bloom, grade);
+  `tools/debug/audit.mjs` prints prop counts and overlaps.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

@@ -29,4 +29,10 @@ const npcs:NpcSpot[]=[
   {x:6.3,z:5.5,standing:true,acc:['headphones'],mood:'sleepy',yaw:2.2},{x:3.8,z:5.7,standing:true,acc:['mug'],mood:'alarm',yaw:-2.6},
 ];
 export const spectrum:Level={id:'spectrum',name:'SPECTRUM DELIVERY',number:'07',tagline:'Brick, glass, metal, smoke. Pick the band that gets through.',badge:'spectrum',station:'spectrum',
-  width:22,depth:16,spawn:{x:-8,z:5.6},anchor:{x:-10.6,z:-7.7},target:{x:-3.5,z:3.55},length:10,obstacles:[],props,npcs};
+  width:22,depth:16,spawn:{x:-8,z:5.6},anchor:{x:-10.6,z:-7.7},target:{x:-3.5,z:3.55},length:10,obstacles:[],props,npcs,
+  // Research-hall clutter around the walk routes Pip takes with the pod and the mirror boards.
+  clutter:{seed:7,fill:['box','box','litter'],max:220,step:2.1,recipes:['pod','shelf','crates','cart','pod','crates','shelf','cart'],colors:['#e9eef2','#ffd66b','#8fc3e6','#c98f5a','#b0406a'],
+    lanes:[{points:[[-8,5.6],[-6.4,6.4],[-10.1,3],[-10.1,-2.2],[-10.1,-4.4],[-9.3,-5.5]],r:1},{points:[[-10.1,-2.2],[-6.4,1.2],[-6.3,3.6],[-3.5,3.55]],r:1},
+      {points:[[-6.3,3.6],[-6.3,4.6]],r:.9},{points:[[-10.1,-4.2],[-10.1,-1.4],[0,-1.4],[10.2,-1.4],[10.2,-4.6],[8.4,-5.6]],r:1},
+      {points:[[10.2,-1.8],[-.9,-1.8],[-.9,-4.55]],r:1},{points:[[-.9,-1.6],[2.6,-.2],[1.5,1.2],[.6,4.2],[-.2,4.2],[.4,.2],[1,-1.8],[9,-1.8],[10.2,-2.6]],r:1},
+      {points:[[10.2,-4.4],[8.1,-5.35]],r:1},{points:[[10.2,-4.4],[10.2,2.8],[9.4,3.9]],r:1},{points:[[10.2,.6],[4.5,-.6],[-.2,4.2],[-3.5,3.55]],r:1}]}};

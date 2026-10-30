@@ -400,7 +400,7 @@ export class SpectrumDesk implements Station {
     this.hatchT+=((this.hatchOpen?1:0)-this.hatchT)*Math.min(1,dt*5);if(this.room)this.room.hatchDoor.position.y=1.25+this.hatchT*.62;
     // Puffs rise from the toaster, spread into the cloud and fade, then start again.
     this.room?.smoke.forEach(m=>{const k=m.userData.seed as number,u=(t*.12+k/14)%1,a=k*2.4;m.position.set(SMOKE.x-.3+Math.cos(a)*u*SMOKE.r*.9,1.1+u*1.1,SMOKE.z+1.2-u*1.3+Math.sin(a)*u*SMOKE.r*.6);
-      const s=.8+u*1.9;m.scale.set(s,s,1);(m.material as T.SpriteMaterial).opacity=.85*Math.sin(Math.PI*Math.min(1,u*1.25));});
+      const s=.8+u*1.9;m.scale.set(s,s,1);(m.material as T.SpriteMaterial).opacity=.5*Math.sin(Math.PI*Math.min(1,u*1.25));});
     this.shapeRibbon(dt);this.drawWave();this.drawLink(r);this.drawMap(r);
     this.updatePanel(r);
   }

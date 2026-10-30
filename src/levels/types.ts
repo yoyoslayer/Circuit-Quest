@@ -2,6 +2,7 @@ import type {PropSpec} from '../props/prefabs';
 import type {Obstacle,Point} from '../sim/cable';
 import type {Accessory,Mood} from '../render/actors';
 import type {StationId} from '../stations/types';
+import type {ClutterOptions} from './clutter';
 /** A coworker: seated at a desk in the office unless standing; optional look and facing. */
 export interface NpcSpot {x:number;z:number;standing?:boolean;color?:string;acc?:Accessory[];mood?:Mood;yaw?:number;chef?:boolean}
 export type LevelId='playground'|'meeting'|'lunch'|'lobby'|'qfn'|'observatory'|'arcade'|'arcade-rush'|'garage'|'spectrum';
@@ -14,4 +15,6 @@ export interface Level {id:LevelId;name:string;number:string;tagline:string;badg
   /** The HQ lobby (src/hub): doors to every job, no job of its own. */
   hub?:boolean;
   /** The lobby door stays locked until this job has a best result (e.g. rush after the story shift). */
-  requires?:LevelId;width:number;depth:number;spawn:Point;anchor:Point;target:Point;length:number;obstacles:Obstacle[];props:PropSpec[];npcs:NpcSpot[]}
+  requires?:LevelId;
+  /** Extra props laid out at load time around the room's fixtures (src/levels/clutter.ts). */
+  clutter?:ClutterOptions;width:number;depth:number;spawn:Point;anchor:Point;target:Point;length:number;obstacles:Obstacle[];props:PropSpec[];npcs:NpcSpot[]}

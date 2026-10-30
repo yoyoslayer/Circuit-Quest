@@ -1,8 +1,9 @@
 // Signal Observatory bench. The rooftop receiver's line runs across the bench: RECEIVER jack →
 // SERIES slot → decoder node (with a SHUNT slot to ground) → DECODER + LATCH. Pip plugs filter
-// modules from the tray into the slots, flips the cable route, fits an antenna whip, watches the
-// scope (live trace, spectrum before/after the filter, switch-on step) and listens to the
-// decoder's speaker, then logs the decode. Rules: ./logic.ts.
+// cans (a resistor, a coil or a capacitor) from the tray into the slots and turns each can's knob
+// through real E6 values; the can shows its value and the corner frequency it sets, and that corner
+// sweeps across the scope's live spectrum. Pip also flips the cable route, fits and stands the
+// antenna whip, listens to the decoder's speaker, and logs the decode. Rules: ./logic.ts.
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
@@ -10,9 +11,9 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressObservatory,RX} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
-import {cheer,walkHint} from '../shared';
-import {JOBS,MODULES,MODULE_IDS,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,quarterWave,
-  type ModuleId,type RodId,type Slot,type Setup,type Verdict,type Job} from './logic';
+import {cheer} from '../shared';
+import {JOBS,KINDS,VALUES,DEFAULT,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,
+  part as can,valueText,corner,passes,hz,snap,type Kind,type Part,type RodId,type Slot,type Setup,type Verdict,type Job} from './logic';
 
 const BRASS='#d6a24e',CREAM='#fbf3e2';
 const KIND_COLOR={R:'#f2c98f',L:BRASS,C:'#b8a6f5'} as const;
@@ -29,17 +30,27 @@ function sign(parent:T.Object3D,text:string,x:number,y:number,z:number,w=.42,til
   const m=new T.MeshBasicMaterial({map:label(text,bg,fg,256,Math.round(256*aspect)),transparent:true});m.userData.outlineParameters={visible:false};
   const p=part(parent,new T.PlaneGeometry(w,w*aspect),m,x,y,z,false);p.rotation.x=tilt;p.userData.noAO=true;return p;
 }
-/** A filter module: a bevelled block with its component on top (resistor bands, coil, plates). */
-function moduleMesh(id:ModuleId){
-  const m=MODULES[id],g=new T.Group();
-  part(g,rbox(.3,.07,.22,.04),toon(KIND_COLOR[m.kind]),0,.035,0);
-  // The part itself on the back half, its value in big type on the front half.
+const KIND_NAME:Record<Kind,string>={R:'RESISTOR',L:'COIL',C:'CAPACITOR'};
+/** A filter can: a bevelled block with its component on top (resistor bands, coil, plates) and, once
+ *  it is in a slot, a knob that steps its value. */
+function canMesh(kind:Kind,withKnob=false){
+  const g=new T.Group();
+  part(g,rbox(.3,.07,.22,.04),toon(KIND_COLOR[kind]),0,.035,0);
   const pz=-.04;
-  if(m.kind==='R'){part(g,cyl(.028,.028,.15,12,'x'),toon('#e8c79a'),0,.1,pz);for(const [x,c] of [[-.04,'#f0d24a'],[-.014,'#7a4fb0'],[.012,'#8a4b2a'],[.045,'#d8a54a']] as const)part(g,cyl(.031,.031,.012,12,'x'),toon(c),x,.1,pz);}
-  if(m.kind==='L'){const big=id==='L10m',n=big?7:4;part(g,cyl(.02,.02,.18,10,'x'),toon(DMETAL),0,.1,pz);for(let k=0;k<n;k++)part(g,new T.TorusGeometry(big?.045:.034,.012,8,20),glossyToon('#d9783a',{spec:.8,size:.97}),-.07+k*(.14/(n-1)),.1,pz).rotation.y=Math.PI/2;}
-  if(m.kind==='C'){const r=id==='C10u'?.05:id==='C1u'?.042:.034;part(g,cyl(r,r,.09,16),toon(id==='C10u'?'#5b4bb5':'#7d6fd6'),0,.115,pz);part(g,cyl(r+.002,r+.002,.012,16),toon(CREAM),0,.16,pz);}
-  const tag=sign(g,m.label,0,0,0,.28,-1.2,CREAM,INK,.4);tag.position.set(0,.1,.066);
+  if(kind==='R'){part(g,cyl(.028,.028,.15,12,'x'),toon('#e8c79a'),0,.1,pz);for(const [x,c] of [[-.04,'#f0d24a'],[-.014,'#7a4fb0'],[.012,'#8a4b2a'],[.045,'#d8a54a']] as const)part(g,cyl(.031,.031,.012,12,'x'),toon(c),x,.1,pz);}
+  if(kind==='L'){part(g,cyl(.02,.02,.18,10,'x'),toon(DMETAL),0,.1,pz);for(let k=0;k<6;k++)part(g,new T.TorusGeometry(.04,.012,8,20),glossyToon('#d9783a',{spec:.8,size:.97}),-.07+k*.028,.1,pz).rotation.y=Math.PI/2;}
+  if(kind==='C'){part(g,cyl(.045,.045,.09,16),toon('#7d6fd6'),0,.115,pz);part(g,cyl(.047,.047,.012,16),toon(CREAM),0,.16,pz);}
+  if(withKnob){const k=group(g,.11,.07,.05);k.name='knob';part(k,cyl(.045,.05,.04,20),toon(INK),0,.02,0);part(k,box(.012,.012,.05),toon('#ffd66b'),0,.045,-.022,false);}
+  else{const tag=sign(g,KIND_NAME[kind],0,0,0,.28,-1.2,CREAM,INK,.3);tag.position.set(0,.1,.066);}
   return g;
+}
+/** A two-line tag: the can's value, and the corner frequency it sets in its slot. */
+const tags=new Map<string,T.Texture>();
+function valueTag(top:string,bottom:string,col:string){const k=`${top}|${bottom}|${col}`;let t=tags.get(k);
+  if(!t){t=canvasTex(256,128,c=>{c.fillStyle=CREAM;c.beginPath();c.roundRect(4,4,248,120,18);c.fill();c.lineWidth=6;c.strokeStyle=INK;c.stroke();
+    const font=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';
+    c.fillStyle=INK;c.font=font(46);c.fillText(top,128,44);c.fillStyle=col;c.font=font(32,600);c.fillText(bottom,128,96);});tags.set(k,t);}
+  return t;
 }
 /** Displayed whip height on the bench (not to scale: a 1.5 m rod would not fit). */
 const rodLen=(id:RodId)=>.1+RODS[id].length*.34;
@@ -52,10 +63,12 @@ export class ObservatoryBench implements Station {
   readonly limits={time:360,damage:1,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   // Bench state.
-  series?:ModuleId;shunt?:ModuleId;held?:ModuleId;rerouted=false;rod:RodId='r3';vertical=true;listening=true;scopeMode:'signal'|'step'='signal';
+  series?:Part;shunt?:Part;held?:Kind;knobSlot?:Slot;rerouted=false;rod:RodId='r3';vertical=true;listening=true;scopeMode:'signal'|'step'='signal';
   jobIndex=0;logged:{job:string;verdict:Verdict}[]=[];mistakes=0;spent=0;cartMoved=false;cartDistance=0;active=false;
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
-  private modules=new Map<ModuleId,T.Group>();private trayAt=new Map<ModuleId,T.Vector3>();private slotAt:Record<Slot,T.Vector3>={series:new T.Vector3(),shunt:new T.Vector3()};
+  private cans=new Map<Kind,T.Group>();private trayAt=new Map<Kind,T.Vector3>();private slotAt:Record<Slot,T.Vector3>={series:new T.Vector3(),shunt:new T.Vector3()};
+  /** The cans standing in the slots (rebuilt when their kind changes) and their value tags. */
+  private slotCans:Partial<Record<Slot,{kind:Kind;g:T.Group;tag:T.Mesh}>>={};private turning?:{slot:Slot;x0:number;i0:number};private top!:T.Group;
   private links!:{series:T.Object3D;shunt:T.Object3D};private slotPads!:Record<Slot,T.Mesh>;private routeLever!:T.Object3D;private cableNear!:T.Mesh;private cableClear!:T.Mesh;
   private whip!:T.Group;private whipRod!:T.Mesh;private whipTip!:T.Mesh;private routeSign!:T.Mesh;private rods=new Map<RodId,T.Object3D>();private latchLamp!:T.Mesh;private speakerCone!:T.Mesh;
   private scopeCanvas!:HTMLCanvasElement;private scopeTex!:T.CanvasTexture;private scopeClock=0;private modeButtons:T.Mesh[]=[];
@@ -86,7 +99,7 @@ export class ObservatoryBench implements Station {
 
   // ---------- the bench ----------
   private buildBench(){
-    const g=this.game,t=this.table,top=group(this.root,t.x,t.y,t.z);
+    const g=this.game,t=this.table,top=group(this.root,t.x,t.y,t.z);this.top=top;
     // Desk body: pale wood top on a cream cabinet with a brass kick rail; violet felt work mats.
     part(g.decorRoot,rbox(4.3,1,1.25,.08),toon('#efe2c8'),t.x,.5,t.z);part(g.decorRoot,rbox(4.4,.07,1.35,.05),toon('#e2c08e'),t.x,1.0,t.z);
     part(g.decorRoot,box(4.32,.06,.04),toon(BRASS),t.x,.1,t.z+.63);for(const x of [-1.07,1.07])part(g.decorRoot,box(.03,.8,.02),toon('#d8c6a4'),t.x+x,.5,t.z+.63);
@@ -118,10 +131,10 @@ export class ObservatoryBench implements Station {
     this.cableClear=part(top,new T.TubeGeometry(cableAt([[-2.2,.02,-.5],[-1.75,.05,-.56],[-1.2,.05,-.58],[-.86,.06,-.42],[-.83,.07,-.08],[bx+jr,.09,bz+line]]),36,.02,6),toon('#e5484d'),0,0,0,false);
     const lever=group(top,-1.22,.04,.36);part(lever,rbox(.26,.06,.16,.04),toon(INK),0,.03,0);this.routeLever=group(lever,0,.06,0);part(this.routeLever,cyl(.014,.014,.18,8),toon(DMETAL),0,.09,0);part(this.routeLever,sphere(.04,12,10),toon('#e5484d'),0,.18,0);
     this.click(lever,'route');this.routeSign=sign(top,'ROUTE: PAST MOTOR',-1.62,.045,.47,.5,-Math.PI/2+.2,'#ffd66b');
-    // ---- Module tray, front right: six modules in two rows.
+    // ---- Can tray, front right: one of each kind (there are always more).
     part(top,rbox(1.1,.03,.64,.05),toon('#cbb488'),1.48,.055,.26);
-    MODULE_IDS.forEach((id,k)=>{const at=new T.Vector3(1.48+(k%3-1)*.34,.075,.26+(k<3?-.15:.15));this.trayAt.set(id,at);part(top,rbox(.3,.01,.24,.04),toon('#b99f71'),at.x,.074,at.z,false);
-      const m=moduleMesh(id);m.position.copy(at);top.add(m);this.modules.set(id,m);this.click(m,'pick',id);});
+    KINDS.forEach((k,i)=>{const at=new T.Vector3(1.48+(i-1)*.34,.075,.26);this.trayAt.set(k,at);part(top,rbox(.3,.01,.24,.04),toon('#b99f71'),at.x,.074,at.z,false);
+      const m=canMesh(k);m.position.copy(at);top.add(m);this.cans.set(k,m);this.click(m,'pick',k);});
     
     // ---- Antenna, back left: a ground-plane disc with the fitted whip, spare whips stood in a rack.
     const mount=group(top,-1.12,.04,-.3);part(mount,cyl(.2,.22,.04,24),toon(DMETAL),0,.02,0);part(mount,cyl(.05,.06,.08,14),toon(BRASS),0,.08,0);
@@ -130,6 +143,7 @@ export class ObservatoryBench implements Station {
     const rack=group(top,-1.72,.04,.1);part(rack,rbox(.78,.05,.5,.04),toon('#8a6a3c'),0,.025,0);
     ROD_IDS.forEach((id,k)=>{const x=-.29+k*.193,z=-.08,r=group(rack,x,.05,z);const len=rodLen(id);part(r,cyl(.03,.03,.04,10),toon(INK),0,.02,0);part(r,cyl(.012,.012,len,8),toon('#dfe3ea'),0,len/2,0);part(r,sphere(.022,8,6),toon(INK),0,len,0);
       this.rods.set(id,r);this.click(r,'rod',id);});
+    // The rack marks each whip's length only: which one suits a frequency is for c = f λ to say.
     ROD_IDS.forEach((id,k)=>{const s=sign(rack,RODS[id].label,0,0,0,.185,-1.2,CREAM,INK,.5);s.position.set(-.29+k*.193,.1,.14);});
     // ---- Scope, back centre: a cream cabinet with a live canvas screen; mode buttons and the speaker below it.
     const scope=group(top,.12,.04,-.33);part(scope,rbox(1.72,.1,.54,.06),toon('#3a3563'),0,.05,0);
@@ -159,18 +173,20 @@ export class ObservatoryBench implements Station {
   act(name:string,arg?:unknown):boolean{
     const j=this.current(),a=this.game.audio;if(!j)return false;
     switch(name){
-      case 'pick':{const id=arg as ModuleId;if(!MODULES[id])return false;
-        if(this.held===id){this.held=undefined;a.tone(380,.05,.03,'triangle');break;}
-        if(this.series===id)this.series=undefined;if(this.shunt===id)this.shunt=undefined;this.held=id;a.pop();break;}
+      case 'pick':{const k=arg as Kind;if(!KINDS.includes(k))return false;
+        if(this.held===k){this.held=undefined;a.tone(380,.05,.03,'triangle');break;}this.held=k;a.pop();break;}
       case 'slot':{const s=arg as Slot;if(s!=='series'&&s!=='shunt')return false;
-        if(this.held){this[s]=this.held;this.held=undefined;a.plug();break;}
-        if(this[s]){this[s]=undefined;a.tone(300,.06,.04,'triangle');break;}
-        this.say('Click a module in the tray first, then click the slot to plug it in.');a.voice('hm',1.4);return false;}
+        if(this.held){const keep=this[s]?.kind===this.held?this[s]!.value:DEFAULT[this.held];this[s]=can(this.held,keep);this.held=undefined;this.knobSlot=s;a.plug();break;}
+        if(this[s]){this[s]=undefined;if(this.knobSlot===s)this.knobSlot=undefined;a.tone(300,.06,.04,'triangle');break;}
+        a.voice('hm',1.4);return false;}
+      case 'value':{const {slot,value}=arg as {slot:Slot;value:number};const p=this[slot];if(!p)return false;this[slot]=can(p.kind,snap(p.kind,value));this.knobSlot=slot;a.tone(500,.03,.02,'triangle');break;}
+      case 'turn':{const {slot,steps}=arg as {slot?:Slot;steps:number};const sl=slot??this.knobSlot,p=sl&&this[sl];if(!sl||!p)return false;
+        const list=VALUES[p.kind],i=Math.max(0,Math.min(list.length-1,list.indexOf(p.value)+steps));if(list[i]===p.value)return false;
+        this[sl]=can(p.kind,list[i]);this.knobSlot=sl;a.tone(380+i*22,.025,.02,'triangle');break;}
       case 'clear':{if(!this.series&&!this.shunt&&!this.held)return false;this.series=this.shunt=this.held=undefined;a.clatter();break;}
       case 'route':{this.rerouted=!this.rerouted;a.noise(.05,.05,2400,'highpass');a.tone(this.rerouted?520:330,.08,.04,'triangle');
         if(j.cart)this.say(this.rerouted?'Cable rerouted clear of the motor: it picks up about half the noise (−6 dB).':'Cable back along the motor tray: it picks up more noise.');break;}
-      case 'rod':{const id=arg as RodId;if(!RODS[id])return false;this.rod=id;a.tone(900,.05,.03);a.pop();
-        if(j.beacon)this.say(`Fitted the ${RODS[id].label} whip (a quarter wave at about ${RODS[id].band}). λ/4 at ${j.beacon/1e6} MHz is ${quarterWave(j.beacon).toFixed(2)} m.`);break;}
+      case 'rod':{const id=arg as RodId;if(!RODS[id])return false;this.rod=id;a.tone(900,.05,.03);a.pop();break;}
       case 'orient':{this.vertical=!this.vertical;a.tone(this.vertical?600:450,.08,.04,'triangle');break;}
       case 'listen':{this.listening=!this.listening;a.pop();break;}
       case 'scope':{const m=arg as 'signal'|'step';this.scopeMode=m==='step'?'step':'signal';this.stepAnim=0;a.tone(m==='step'?700:560,.05,.03);
@@ -180,19 +196,21 @@ export class ObservatoryBench implements Station {
         this.logged.push({job:j.id,verdict:v});this.spent+=c;
         this.say(`“${j.message}” · ${['','Decodes','Reliable','Elegant'][v.tier]} (S/N ${v.snr} dB)${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
         a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffd66b');
-        this.jobIndex++;this.redraw();return true;}
+        this.jobIndex++;if(this.current()?.beacon)this.gust();this.redraw();return true;}
       default:return false;
     }
     this.redraw();return true;
   }
-  stepCaption(){const s=this.series&&MODULES[this.series],p=this.shunt&&MODULES[this.shunt];
+  /** A gust over the roof knocks the whip flat (the beacon's polarisation then matters). */
+  private gust(){this.vertical=false;const a=this.game.audio;a.noise(.6,.06,700,'lowpass');const m=this.top.localToWorld(new T.Vector3(-1.12,.2,-.3));this.game.burst(m,'#e9dcc0',8,'dust');}
+  stepCaption(){const s=this.series,p=this.shunt;
     if(s?.kind==='L')return 'Switch-on: the coil\'s current can\'t jump. It ramps up (ringing as the capacitor charges), then carries steady DC to the latch.';
     if(s?.kind==='C')return 'Switch-on through a series capacitor: a brief charging current, then it dies away. No steady DC reaches the latch.';
     if(p?.kind==='C')return 'Switch-on: the shunt capacitor charges through the cable, so the latch voltage rises smoothly.';
     return 'Switch-on with no coil or capacitor in the way: the current jumps straight to its final value.';}
 
   /** The same idea in a few words, for the scope screen. */
-  stepShort(){const s=this.series&&MODULES[this.series],p=this.shunt&&MODULES[this.shunt];
+  stepShort(){const s=this.series,p=this.shunt;
     if(s?.kind==='L')return 'Coil current ramps up (it can\'t jump), then carries steady DC.';
     if(s?.kind==='C')return 'Series C: a brief charging current, then no DC at all.';
     if(s?.kind==='R')return 'Series R: current jumps, but the latch only gets part of the 12 V.';
@@ -200,8 +218,16 @@ export class ObservatoryBench implements Station {
     return 'No coil: the current jumps straight to its final value.';}
   // ---------- drawing ----------
   redraw(){
-    for(const id of MODULE_IDS){const m=this.modules.get(id)!,at=this.series===id?this.slotAt.series:this.shunt===id?this.slotAt.shunt:this.trayAt.get(id)!;
-      m.position.copy(at);m.rotation.y=this.shunt===id?Math.PI/2:0;if(this.held===id)m.position.y+=.08;}
+    for(const k of KINDS){const m=this.cans.get(k)!;m.position.copy(this.trayAt.get(k)!);if(this.held===k)m.position.y+=.08;}
+    for(const s of ['series','shunt'] as const){const p=this[s],cur=this.slotCans[s];
+      if(cur&&cur.kind!==p?.kind){this.top.remove(cur.g,cur.tag);this.clickables=this.clickables.filter(c=>c.obj!==cur.g);delete this.slotCans[s];}
+      if(p&&!this.slotCans[s]){const g=canMesh(p.kind,true);g.position.copy(this.slotAt[s]);g.rotation.y=s==='shunt'?Math.PI/2:0;this.top.add(g);
+        // The tag stands on the bench in front of the can, upright to the camera whichever way the can is turned.
+        const tag=sign(this.top,'',0,0,0,.26,-1.2,CREAM,INK,.5);tag.position.copy(this.slotAt[s]).add(new T.Vector3(s==='shunt'?-.2:-.04,.06,s==='shunt'?.04:.14));tag.renderOrder=2;
+        this.slotCans[s]={kind:p.kind,g,tag};this.click(g,'knob',s);}
+      const sc=this.slotCans[s];if(p&&sc){const fc=corner(s,p),pass=passes(s,p);
+        (sc.tag.material as T.MeshBasicMaterial).map=valueTag(valueText(p),fc?`${pass==='low'?'↓':'↑'} ${hz(fc)}`:'divider',pass==='low'?'#2f7a5b':pass==='high'?'#b0406a':'#6b7385');
+        const i=VALUES[p.kind].indexOf(p.value);(sc.g.getObjectByName('knob')!).rotation.y=-(i/(VALUES[p.kind].length-1))*Math.PI*1.5+Math.PI*.75;}}
     this.links.series.visible=!this.series;this.links.shunt.visible=!this.shunt;
     for(const s of ['series','shunt'] as const)(this.slotPads[s].material as T.Material)=toon(this.held?'#ffd66b':'#1d2438');
     this.routeLever.rotation.z=this.rerouted?-.5:.5;(this.routeSign.material as T.MeshBasicMaterial).map=routeLabel(this.rerouted);this.cableNear.visible=!this.rerouted;this.cableClear.visible=this.rerouted;
@@ -234,13 +260,17 @@ export class ObservatoryBench implements Station {
       for(const tn of r.tones){const x=fx(tn.f),hb=Math.min(1.35,tn.before)*bh*.7,ha=Math.min(1.35,tn.after)*bh*.7;
         c.fillStyle='rgba(255,255,255,.2)';c.fillRect(x-9,by-hb,18,hb);c.fillStyle=tn.signal?'#8dffb0':'#ff7a8a';c.fillRect(x-6,by-ha,12,ha);}
       c.fillStyle='rgba(255,255,255,.7)';c.font=font(24,600);for(const [f,l] of [[1e3,'1 kHz'],[1e4,'10 kHz']] as const)c.fillText(l,fx(f)-30,BOT-4);
-      c.fillStyle='#b8a6f5';c.fillText('filter',W-90,TOP+30);c.fillStyle='#8dffb0';c.fillText('message',W-300,TOP+30);c.fillStyle='#ff7a8a';c.fillText('noise',W-180,TOP+30);
+      // Each can's corner frequency, as a line across the spectrum (it sweeps as the knob turns).
+      for(const sl of ['series','shunt'] as const){const pt=s[sl],fc=pt&&corner(sl,pt);if(!fc||fc<200||fc>5e4)continue;const x=fx(fc),col=passes(sl,pt!)==='low'?'#8dffb0':'#ff9ec6';
+        c.setLineDash([10,8]);c.strokeStyle=col;c.lineWidth=3;c.beginPath();c.moveTo(x,TOP+40);c.lineTo(x,BOT-24);c.stroke();c.setLineDash([]);
+        c.fillStyle=col;c.font=font(24);c.textAlign='center';c.fillText(hz(fc),x,TOP+62+(sl==='shunt'?26:0));c.textAlign='left';}
+      c.font=font(24,600);c.fillStyle='#b8a6f5';c.fillText('filter',W-90,TOP+30);c.fillStyle='#8dffb0';c.fillText('message',W-300,TOP+30);c.fillStyle='#ff7a8a';c.fillText('noise',W-180,TOP+30);
       // Decode line.
       const col=r.snr>=SPEC.reliableSnr?'#8dffb0':r.snr>=SPEC.decodeSnr?'#ffd66b':'#ff7a8a';
       c.fillStyle='#0b1226';c.fillRect(0,BOT,W,H-BOT);c.font=font(36);c.fillStyle=col;c.fillText(`S/N ${r.snr.toFixed(1)} dB`,18,H-18);
       c.fillStyle='#fbf3e2';c.font=font(40,600);c.fillText(decoded(j.message,r.snr,Math.floor(time/1.2)),300,H-17);
     }else{
-      const key=`${s.series}|${s.shunt}`;if(this.stepCache?.key!==key){const span=stepSpan(s);this.stepCache={key,span,data:stepResponse(s,span)};}
+      const key=JSON.stringify([s.series,s.shunt]);if(this.stepCache?.key!==key){const span=stepSpan(s);this.stepCache={key,span,data:stepResponse(s,span)};}
       const {data,span}=this.stepCache,n=Math.floor(data.length*Math.min(1,this.stepAnim)),iMax=Math.max(.001,...data.map(p=>Math.abs(p.i)));
       const base=TOP-16,px=(k:number)=>24+k/(data.length-1)*(W-48);
       c.fillStyle='rgba(255,255,255,.25)';c.fillRect(0,base,W,2);
@@ -254,19 +284,29 @@ export class ObservatoryBench implements Station {
     }
     this.scopeTex.needsUpdate=true;
   }
+  /** Board-plane x under the pointer (for turning a knob by dragging sideways). */
+  private planeX(ray:T.Raycaster){const y=this.table.y+.1,hit=ray.ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),-y),new T.Vector3());return hit?.x;}
   pointer(e:Pointer){
+    // Turning a knob: drag sideways; every 4 cm is one step along the E6 values.
+    if(this.turning){const x=this.planeX(e.ray),t=this.turning,p=this[t.slot];
+      if(x!==undefined&&p){const list=VALUES[p.kind],i=Math.max(0,Math.min(list.length-1,t.i0+Math.round((x-t.x0)/.04)));if(list[i]!==p.value)this.act('value',{slot:t.slot,value:list[i]});}
+      if(e.kind==='up')this.turning=undefined;return;}
     const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true);let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
     if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);if(found)found.obj.scale.copy(found.obj.userData.baseScale).multiplyScalar(1.1);this.hovered=found;}
     document.body.style.cursor=found&&this.active?'pointer':'';
-    if(e.kind==='down'&&e.button===0&&found)this.act(found.act,found.arg);
+    if(e.kind==='down'&&e.button===0&&found){
+      // A slotted can: holding a can swaps it in; otherwise grab its knob and turn.
+      if(found.act==='knob'){const sl=found.arg as Slot,p=this[sl];if(this.held){this.act('slot',sl);return;}
+        const x=this.planeX(e.ray);if(p&&x!==undefined){this.knobSlot=sl;this.turning={slot:sl,x0:x,i0:VALUES[p.kind].indexOf(p.value)};}return;}
+      this.act(found.act,found.arg);}
   }
   key(code:string){
-    const map:Record<string,[string,unknown?]>={Digit1:['pick','R470'],Digit2:['pick','L1m'],Digit3:['pick','L10m'],Digit4:['pick','C100n'],Digit5:['pick','C1u'],Digit6:['pick','C10u'],
+    const map:Record<string,[string,unknown?]>={Digit1:['pick','R'],Digit2:['pick','L'],Digit3:['pick','C'],ArrowLeft:['turn',{steps:-1}],ArrowRight:['turn',{steps:1}],
       KeyS:['slot','series'],KeyH:['slot','shunt'],KeyR:['route'],KeyO:['orient'],KeyL:['listen'],KeyT:['scope',this.scopeMode==='signal'?'step':'signal'],Enter:['log'],Backspace:['clear']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
+  setActive(active:boolean){this.active=active;this.turning=undefined;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
   update(dt:number){
     if(!this.ready)this.setup();
     // The motor rides on its cart; its noise falls with distance from the receiver.
@@ -311,9 +351,9 @@ export class ObservatoryBench implements Station {
     if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel';this.layer()?.append(this.panel);}
     this.panel.hidden=!j;if(!j||!r)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
-    const part=(id?:ModuleId)=>id?MODULES[id].label:'—';
+    const slotText=(sl:Slot)=>{const p=this[sl];if(!p)return sl==='series'?'wire link':'—';const fc=corner(sl,p);return `${valueText(p)} ${p.kind}${fc?` · ${passes(sl,p)}-pass ${hz(fc)}`:''}`;};
     this.panel.innerHTML=`<header><small>TRANSMISSION ${this.jobIndex+1}/${JOBS.length}</small><h4>${j.title}</h4><p>${j.ask}</p></header>`+
-      (this.active?`<ul class="build">${row('Series',this.series?part(this.series):'wire link (empty)')}${row('Shunt',part(this.shunt))}${row('Filter',filterName(s))}`+
+      (this.active?`<ul class="build">${row('Series',slotText('series'))}${row('Shunt',slotText('shunt'))}${row('Filter',filterName(s))}`+
         (j.cart?`${row('Motor cart',`${this.cartDistance.toFixed(1)} m away`,this.cartDistance>=CART_SAFE)}${row('Cable',this.rerouted?'clear of the motor':'past the motor',this.rerouted)}`:'')+
         (j.beacon?row('Antenna',`${RODS[this.rod].label} · ${this.vertical?'upright':'flat'}`,r.antenna>=.3):'')+
         `${row('Tone level',`${Math.round(r.level*100)}%`,r.level>=SPEC.minLevel)}${row('Signal/noise',`${r.snr.toFixed(1)} dB`,r.snr>=SPEC.reliableSnr)}`+
@@ -323,18 +363,22 @@ export class ObservatoryBench implements Station {
   prompt(atBench:boolean):Prompt|null{
     const j=this.current();if(!j)return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
-      if(this.game.held===this.cart&&this.cart)return {key:'E',text:this.cartDistance>=CART_SAFE?'Set the motor cart down here':'Keep going: roll the cart well away from the receiver'};
-      if(near)return {key:'E',text:this.cartMoved?'Work at the signal bench':'Work at the bench (the motor cart is still by the receiver)'};
-      return walkHint(this.game,this.cartMoved?'Walk to the signal bench (yellow arrow)':'Roll the noisy motor cart away from the receiver (yellow arrow)');}
-    const s=this.state(),r=read(j,s);
-    if(this.held)return {key:'S',text:`Click the SERIES slot (S) or the SHUNT slot (H) to plug in the ${MODULES[this.held].label} module`};
-    if(j.beacon&&r.antenna<.3)return {key:'O',text:`Click the whip for ${j.beacon/1e6} MHz (λ/4 = c ÷ f ÷ 4) in the rack; stand it upright (O)`};
-    if(j.latch&&!r.latchOk)return {key:'1–6',text:'The latch has lost its 12 V: swap the part that blocks DC'};
-    if(r.snr<SPEC.reliableSnr||r.level<SPEC.minLevel)return j.cart&&!this.rerouted?{key:'R',text:'Click ROUTE to run the cable clear of the motor, then pick a module and slot it'}:{key:'1–6',text:'Pick a module from the tray (click or 1–6), then click a slot (watch the scope)'};
-    return {key:'Enter',text:'Clean signal: LOG DECODE (Enter)'};
+      if(this.game.held===this.cart&&this.cart)return {key:'E',text:this.cartDistance>=CART_SAFE?'Set the cart down':'Keep rolling it away'};
+      if(near)return {key:'E',text:'Work at the bench'};
+      return null;}
+    const h=this.hovered;
+    if(this.turning||h?.act==='knob')return {key:'Drag',text:this.held?'Swap the can in':'Turn the knob'};
+    if(this.held)return {key:'S / H',text:'Plug it in'};
+    if(h?.act==='pick')return {key:String(KINDS.indexOf(h.arg as Kind)+1),text:`Take a ${KIND_NAME[h.arg as Kind].toLowerCase()}`};
+    if(h?.act==='rod')return {key:'Click',text:'Fit this whip'};
+    if(h?.act==='orient')return {key:'O',text:this.vertical?'Lay the whip flat':'Stand the whip up'};
+    if(h?.act==='route')return {key:'R',text:'Move the cable'};
+    const r=read(j,this.state());
+    if(r.snr>=SPEC.reliableSnr&&r.level>=SPEC.minLevel&&(!j.latch||r.latchOk)&&(!j.beacon||r.antenna>=.3))return {key:'Enter',text:'Log the decode'};
+    return this.knobSlot&&this[this.knobSlot]?{key:'← →',text:'Turn the knob'}:{key:'1–3',text:'Take a can'};
   }
   complete(){return this.logged.length>=JOBS.length;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
-  snapshot(){const j=this.current();return {job:this.jobIndex,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,snr:l.verdict.snr})),series:this.series,shunt:this.shunt,held:this.held,rerouted:this.rerouted,rod:this.rod,vertical:this.vertical,
+  snapshot(){const j=this.current();return {job:this.jobIndex,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,snr:l.verdict.snr})),series:this.series??null,shunt:this.shunt??null,held:this.held??null,knob:this.knobSlot??null,rerouted:this.rerouted,rod:this.rod,vertical:this.vertical,
     cartDistance:this.cartDistance,cartMoved:this.cartMoved,mistakes:this.mistakes,spent:this.spent,reading:j?read(j,this.state()):undefined,scope:this.scopeMode,listening:this.listening};}
 }

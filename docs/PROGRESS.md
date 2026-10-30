@@ -164,7 +164,7 @@ tabletop, the station takes the pointer and keys, and E or Esc steps back.
 | 03 | `arcade` | Overheating Arcade | LED current from the chain (I = (V − V<sub>f</sub>) ÷ R); blocks in a row add, side by side they share; P = I²R per block; polarity; the across-the-LED trap; battery life; base resistor. `arcade-rush` generates cabinets for three minutes. |
 | 04 | `garage` | Robot Garage | Inductive kickback, shown as current beads and an arc; flyback diode vs 24 V clamp or TVS and stop time; polarity; why a capacitor doesn't fix it; star ground. |
 | 05 | `qfn` | Fabrication Bay | Placement before routing; no crossings on one layer; decoupling loop length (drawn on the copper); a second layer, vias, and thermal vias against the chip's temperature. |
-| 06 | `observatory` | Signal Observatory | RC and LC filters on a live scope; an inductor carries DC and opposes changes in current; a DC latch must hold; quarter-wave antenna (c = fλ). |
+| 06 | `observatory` | Signal Observatory | RC and LC filters with a value knob and their corner frequency on a live spectrum; an inductor carries DC and opposes changes in current; a DC latch must hold; quarter-wave antenna and polarisation (c = fλ). |
 | 07 | `spectrum` | Spectrum Delivery | Propagation through brick, glass, metal, mesh and smoke; mirrors; detector matching; link margin; c = fλ. |
 
 Each station has:
@@ -321,6 +321,26 @@ SHIP) plus UNDO; the board itself is the tool.
   helps less than the last. The chip's body warms and glows red while it is over 70 °C, and the
   panel shows "Chip 88 °C · ≤ 70". Four vias happen to be enough; nothing says "4".
 - **Prompts** are short action labels.
+
+**Signal Observatory: one knob per concept.**
+
+- **Cans.** The six fixed modules (0.1/1/10 µF, 1/10 mH, 470 Ω) are now three cans: a
+  resistor, a coil and a capacitor. Each can in a slot has a knob (drag it sideways, or use
+  ← / →) that steps through real E6 values. The can's tag shows its value and the corner
+  frequency it sets in that slot, e.g. "1 µF · ↓ 3.4 kHz".
+- **Spectrum.** Each corner is drawn as a line across the scope's live spectrum and sweeps as the
+  knob turns, so part values get tied to frequency through use instead of a brute-force menu.
+- **Job 2 needs a steeper filter.** The dome motor's 4 kHz whine is now 1.4× the signal, so no
+  single part at any value decodes reliably (unit-tested; the best first-order result is
+  10.1 dB). A coil plus a capacitor does. At 1 mH the LC rings near 4 kHz and makes the whine
+  louder, which the spectrum shows.
+- **Job 3 isn't one click.** A gust knocks the whip flat as the beacon job starts, so the
+  vertical polarisation matters. The rack shows whip lengths only, not their bands.
+- **Messages.** "Pick a higher cut-off", "move the cart, reroute the cable, or filter harder" and
+  "λ/4 = c ÷ f ÷ 4" are gone. Failures say what happened ("the motor noise sits at 4 kHz and up,
+  above the 700 Hz tone").
+- **Still to do** (from the review): the receiver line as the real draggable cable in the room.
+  The route is still a bench lever.
 
 ## Performance
 

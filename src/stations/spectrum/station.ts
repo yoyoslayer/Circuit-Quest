@@ -419,7 +419,7 @@ export class SpectrumDesk implements Station {
     this.panel.hidden=!j;if(!j)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const m=r.margin,b=BANDS[this.band];
-    this.panel.innerHTML=`<header><small>DELIVERY ${this.jobIndex+1}/${JOBS.length} · TO THE ${PAD_NAMES[j.pad].toUpperCase()}</small><h4>${j.title}</h4><p>${j.ask}</p></header>`+
+    this.panel.innerHTML=`<header><small>DELIVERY ${this.jobIndex+1}/${JOBS.length} · TO THE ${PAD_NAMES[j.pad].toUpperCase()}</small><h4>${j.title}</h4>${this.active?`<p>${j.ask}</p>`:""}</header>`+
       (this.active?`<ul class="build">${row('Pod',r.podOk?`on the ${PAD_NAMES[j.pad]} pad`:'not on the pad',r.podOk)}`+
         `${row('Band',`<i class="sp-chip" style="--c:${b.color}"></i>${b.name}`)}${row('Power',`${this.power} mW`)}`+
         (j.hatch||this.hatchOpen?row('Lab hatch',this.hatchOpen?'open':'shut'):'')+

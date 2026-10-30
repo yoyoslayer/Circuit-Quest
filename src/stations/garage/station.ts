@@ -429,7 +429,7 @@ export class GarageBench implements Station {
     const fit=(f?:Fit)=>f?`${PARTS[f.part].label}${PARTS[f.part].polar&&f.flipped?' (flipped)':''}`:'';
     const motor=fit(this.slots.fly)||'—';
     const v=cap?.verdict,m=(x:string)=>stale?'PULSE again':x;
-    this.panel.innerHTML=`<header><small>JOB ${this.jobIndex+1}/${JOBS.length} · ${partCount(s)} PART${partCount(s)===1?'':'S'} FITTED</small><h4>${j.title}</h4><p>${j.ask}</p></header>`+
+    this.panel.innerHTML=`<header><small>JOB ${this.jobIndex+1}/${JOBS.length} · ${partCount(s)} PART${partCount(s)===1?'':'S'} FITTED</small><h4>${j.title}</h4>${this.active?`<p>${j.ask}</p>`:""}</header>`+
       `<ul class="build">${row('Across motor',motor)}${row('Across switch',fit(this.slots.switch)||'—')}${row('At controller',fit(this.slots.ctrl)||'—')}${row('Ground',this.star?'star (own wire)':'shared with motor',this.star?true:undefined)}`+
       (!this.fuse?row('Fuse',`cooling ${this.cooling.toFixed(1)} s`,false):'')+
       (v&&v.fault!=='short'&&v.fault!=='cap'?`${row('Stop spike',m(`${Math.round(v.spike)} V`),!stale&&v.spike<=SPEC.spikeReset)}`+

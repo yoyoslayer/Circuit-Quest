@@ -446,7 +446,7 @@ export class ArcadeBench implements Station {
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const isLed=j.load.kind==='led',on=this.live,inBand=r.iLoad>=j.band[0]-1e-9&&r.iLoad<=j.band[1]+1e-9;
     const hottest=r.blocks.reduce((a,b)=>Math.max(a,b.p),0);
-    this.panel.innerHTML=`<header><small>${this.rush?`RUSH · ${Math.max(0,Math.ceil(RUSH_TIME-this.game.time))} s · ${this.served.length} fixed`:`${this.index+1}/${JOBS.length}`} · ${j.cabinet}</small><h4>${j.ask}</h4><p>${j.story}</p></header>`+
+    this.panel.innerHTML=`<header><small>${this.rush?`RUSH · ${Math.max(0,Math.ceil(RUSH_TIME-this.game.time))} s · ${this.served.length} fixed`:`${this.index+1}/${JOBS.length}`} · ${j.cabinet}</small><h4>${j.ask}</h4>${this.active?`<p>${j.story}</p>`:""}</header>`+
       (this.active&&this.trayReady?`<ul class="build">${row('Chain',chainText(this.setup.chain))}`+
         `${row('Current',on?`${mA(r.iLoad)} mA`:this.tripped?'fuse cooling':'off',on?inBand:undefined)}`+
         (on&&r.blocks.length?row('Hottest block',`${watts(hottest)} of ${watts(BLOCK_RATING)}`,hottest<=BLOCK_RATING*HOUSE.margin):'')+

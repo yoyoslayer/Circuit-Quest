@@ -413,7 +413,7 @@ export class QfnBench implements Station {
     const nets=r.nets.map(n=>`<li class="${n.done?'ok':''}"><i style="--c:${netColor(n.net)}"></i><span>${n.net}</span><b>${n.done?'joined':`${n.joined}/${n.pads} pads`}</b></li>`).join('');
     const loops=r.loops.map(l=>row(`Loop ${l.cap??''}`,l.loop===Infinity?'not wired':`${l.loop} cells · ≤ ${l.max}`,l.loop<=l.max)).join('');
     const orient=r.problems.find(p=>/mouth/.test(p));
-    this.panel.innerHTML=`<header><small>BOARD ${this.boardIx+1}/${BOARDS.length} · ${b.layers===1?'ONE LAYER':'TWO LAYERS'}</small><h4>${b.title}</h4><p>${b.ask}</p></header>`+
+    this.panel.innerHTML=`<header><small>BOARD ${this.boardIx+1}/${BOARDS.length} · ${b.layers===1?'ONE LAYER':'TWO LAYERS'}</small><h4>${b.title}</h4>${this.active?`<p>${b.ask}</p>`:""}</header>`+
       (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${b.layers===2?row("Drawing on",this.layer===1?"L1 · top, wide tracks":"L2 · bottom, thin tracks"):""}${orient?row('Connector','edge, mouth out',false):''}${loops}${r.thermal?row('Chip',`${r.thermal.temp} °C · ≤ ${r.thermal.limit}`,r.thermal.temp<=r.thermal.limit):''}`+
         `${row('Track + vias',`${r.cost} · par ${r.par}`,r.tier===3)}${row('Grade now',TIERS[r.tier],r.tier>0)}</ul>`+
         `<p class="profile">Teaching grid: cell sizes and loop limits are this bench's rules. A real layout still needs the fab's DRC and an electrical review.</p>`:'');

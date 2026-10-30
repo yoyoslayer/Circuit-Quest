@@ -17,12 +17,26 @@ ramp.needsUpdate = true;
 export const toonRamp = ramp;
 export interface ToonOptions {emissive?:string;ei?:number;map?:T.Texture;opacity?:number}
 const materials = new Map<string,T.MeshToonMaterial>();
+// A thin cool rim on edges that face up and away from the camera (sky bounce): separates props from
+// pale floors and walls without adding light. ?norim turns it off for comparison.
+const noRim=new URLSearchParams(location.search).has('norim');
+export const rimUniforms={rimColor:{value:new T.Color('#b9cdff')},rimStrength:{value:.22}};
+function rimShader(s:T.WebGLProgramParametersWithUniforms){
+  Object.assign(s.uniforms,rimUniforms);
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 rimColor; uniform float rimStrength;').replace('#include <opaque_fragment>',`
+    { vec3 N=normalize(normal), V=normalize(vViewPosition);
+      float edge=smoothstep(.62,.92,1.-max(dot(N,V),0.));
+      float up=smoothstep(-.2,.6,N.y);
+      outgoingLight+=rimColor*edge*up*rimStrength*diffuseColor.rgb; }
+    #include <opaque_fragment>`);
+}
 // Materials are shared by colour/options so props batch into instanced meshes.
 export function toon(color:string,opts:ToonOptions={}):T.MeshToonMaterial {
   const key = `${color}|${opts.emissive??''}|${opts.ei??''}|${opts.map?.uuid??''}|${opts.opacity??1}`;
   let material = materials.get(key);
   if (!material) {
     material = new T.MeshToonMaterial({color,gradientMap:ramp,map:opts.map??null});
+    if(!noRim){material.onBeforeCompile=rimShader;material.customProgramCacheKey=()=>'toonRim';}
     if (opts.emissive) { material.emissive = new T.Color(opts.emissive); material.emissiveIntensity = opts.ei??1; }
     if (opts.opacity!==undefined&&opts.opacity<1) { material.transparent = true; material.opacity = opts.opacity; material.depthWrite = false; }
     materials.set(key,material);

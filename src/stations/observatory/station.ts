@@ -352,7 +352,7 @@ export class ObservatoryBench implements Station {
     this.panel.hidden=!j;if(!j||!r)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const slotText=(sl:Slot)=>{const p=this[sl];if(!p)return sl==='series'?'wire link':'—';const fc=corner(sl,p);return `${valueText(p)} ${p.kind}${fc?` · ${passes(sl,p)}-pass ${hz(fc)}`:''}`;};
-    this.panel.innerHTML=`<header><small>TRANSMISSION ${this.jobIndex+1}/${JOBS.length}</small><h4>${j.title}</h4><p>${j.ask}</p></header>`+
+    this.panel.innerHTML=`<header><small>TRANSMISSION ${this.jobIndex+1}/${JOBS.length}</small><h4>${j.title}</h4>${this.active?`<p>${j.ask}</p>`:""}</header>`+
       (this.active?`<ul class="build">${row('Series',slotText('series'))}${row('Shunt',slotText('shunt'))}${row('Filter',filterName(s))}`+
         (j.cart?`${row('Motor cart',`${this.cartDistance.toFixed(1)} m away`,this.cartDistance>=CART_SAFE)}${row('Cable',this.rerouted?'clear of the motor':'past the motor',this.rerouted)}`:'')+
         (j.beacon?row('Antenna',`${RODS[this.rod].label} · ${this.vertical?'upright':'flat'}`,r.antenna>=.3):'')+

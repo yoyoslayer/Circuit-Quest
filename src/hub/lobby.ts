@@ -7,7 +7,8 @@ import type {Level} from '../levels/types';
 import type {RoomKit,StationJob,Prompt} from '../stations/types';
 import type {Point} from '../sim/cable';
 import {levels} from '../levels';
-import {LOOK,title} from '../ui/screens';
+import {LOOK,title,thumbUrl} from '../ui/screens';
+import {portal} from '../render/portal';
 import {bestFor,flagAutostart} from '../ui/store';
 import {toon,box,rbox,cyl,sphere,part,group,glow,DMETAL,INK} from '../render/kit';
 import {hot,glossyToon} from '../render/actors';
@@ -16,7 +17,9 @@ import * as TX from '../render/textures';
 import {wallArt,pendant,lampPool,pointLamp,rug} from '../levels/dressing';
 import {solid} from '../levels/decor';
 
-interface Door {level:Level;at:Point;leaf:T.Group;open:number;lamp:T.Mesh;done:boolean;locked:boolean}
+interface Door {level:Level;at:Point;leaf:T.Group;open:number;vel:number;lamp:T.Mesh;done:boolean;locked:boolean;portal:ReturnType<typeof portal>;spill:T.Mesh}
+const views=new Map<string,T.Texture>();
+const viewOf=(id:Level['id'])=>{let t=views.get(id);if(!t){t=new T.TextureLoader().load(thumbUrl(id));t.colorSpace=T.SRGBColorSpace;views.set(id,t);}return t;};
 /** Door slots: along the back wall, then the left wall, then free-standing arches on the right. */
 function slots(width:number,depth:number){
   const out:{wall:'back'|'side'|'free';x:number;z:number}[]=[];
@@ -25,6 +28,11 @@ function slots(width:number,depth:number){
   for(let k=0;k<6;k++)out.push({wall:'free',x:width/2-2.2,z:-depth/2+4.5+k*2.9});
   return out;
 }
+let spillT:T.Texture|undefined;
+/** A soft wedge of light, brightest at the threshold. */
+function spillTex(){return spillT??=(()=>{const c=document.createElement('canvas');c.width=128;c.height=128;const x=c.getContext('2d')!;
+  const g=x.createLinearGradient(0,0,0,128);g.addColorStop(0,'rgba(255,255,255,.9)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;
+  x.beginPath();x.moveTo(30,0);x.lineTo(98,0);x.lineTo(128,128);x.lineTo(0,128);x.closePath();x.fill();const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;})();}
 export class Lobby {
   doors:Door[]=[];readonly job:StationJob;
   /** The Workshop arch: practise any station without recording a grade. */
@@ -74,8 +82,12 @@ export class Lobby {
     if(s.wall==='side'){const blade=group(g.root,s.x+.95,0,s.z);part(blade,box(.06,.5,.06),toon('#8a8fa6'),-.62,2.95,0);part(blade,box(1.3,.05,.05),toon('#8a8fa6'),0,3.18,0);signPlate(blade,`${level.number} · ${title(level)}`,0,2.86,.03,1.7,{bg:color,h:72});}
     // Frame, the door leaf on a hinge, a threshold, the name sign and a medal.
     for(const x of [-.95,.95])part(f,rbox(.22,2.5,.26,.05),toon(color),x,1.25,0);part(f,rbox(2.12,.26,.28,.06),toon(color),0,2.55,0);
-    part(f,box(1.7,2.3,.04),toon('#262A40'),0,1.15,-.06,false);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
-    const leaf=group(f,-.84,0,0);part(leaf,rbox(1.66,2.26,.08,.03),glossyToon('#fffaf0',{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.07);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.1);
+    // The doorway: a corridor into the wing with the destination room at its end (src/render/portal.ts).
+    const way=portal({color,width:1.7,height:2.3,depth:2.8,view:viewOf(level.id),locked});way.mesh.position.set(0,1.15,.05);f.add(way.mesh);
+    // Light that spills from the corridor onto the lobby floor as the door opens.
+    const spill=new T.Mesh(new T.PlaneGeometry(1.9,1.6),new T.MeshBasicMaterial({map:spillTex(),color,transparent:true,opacity:0,depthWrite:false,blending:T.AdditiveBlending}));
+    spill.rotation.x=-Math.PI/2;spill.position.set(0,.025,.85);spill.userData.noAO=true;(spill.material as T.Material).userData.outlineParameters={visible:false};f.add(spill);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
+    const leaf=group(f,-.84,0,.1);part(leaf,rbox(1.66,2.26,.08,.03),glossyToon('#fffaf0',{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.07);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.1);
     signPlate(leaf,level.number,.83,1.55,.085,.7,{bg:color,h:80,w:160});
     signPlate(f,title(level),0,2.56,.16,1.95,{bg:'#fffaf0'});
     if(locked){signPlate(leaf,'LOCKED',.83,.95,.085,.9,{bg:'#262A40',fg:'#fffaf0',w:200,h:64});part(leaf,rbox(.3,.26,.08,.05),toon('#ffc629'),.83,1.2,.1);}
@@ -83,7 +95,7 @@ export class Lobby {
     // The wing lamp: dark until the job is done.
     const lamp=part(f,sphere(.13,14,10),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),0,3.35,.12,false);part(f,cyl(.05,.07,.12,10),toon(DMETAL),0,3.5,.1,false);
     if(done){const w=f.getWorldPosition(new T.Vector3());glow(g.root,'rgba(255,220,140,1)',1.4,.35).position.set(w.x,3.35,w.z+(s.wall==='back'?.4:0));}
-    return {level,at,leaf,open:0,lamp,done,locked};
+    return {level,at,leaf,open:0,vel:0,lamp,done,locked,portal:way,spill};
   }
   private workshop(){
     const g=this.game,w=this.workshopAt,a=group(g.root,w.x,0,w.z-1.2);
@@ -111,7 +123,11 @@ export class Lobby {
   enter(level:Level){flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;location.href=`?level=${level.id}`;}
   update(dt:number){
     const p=this.game.player.translation();
-    for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;d.open+=(want-d.open)*Math.min(1,dt*5);d.leaf.rotation.y=-d.open*1.2;}
+    // Doors swing on a damped spring: a quick open that overshoots a touch and settles, a softer close.
+    const t=this.game.time;
+    for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;
+      const k=want?60:34,c=want?9:10;d.vel+=((want-d.open)*k-d.vel*c)*dt;d.open+=d.vel*dt;
+      d.leaf.rotation.y=-d.open*1.25;d.portal.set(T.MathUtils.clamp(d.open,0,1),t);(d.spill.material as T.MeshBasicMaterial).opacity=.45*T.MathUtils.clamp(d.open,0,1);}
   }
   prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practise any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: finish ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
   snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}

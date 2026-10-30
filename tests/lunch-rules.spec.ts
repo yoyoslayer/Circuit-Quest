@@ -1,5 +1,8 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,route,snapshot,wait} from './navigation';
+// The cable floors walk long routes with 300+ physics props; under software rendering a route takes
+// close to a minute, so give each test room.
+test.describe.configure({timeout:180000});
 // Each test exercises one rule from docs/LEVEL_02_LUNCH_RUSH.md through real play.
 const lunch=async(page:Page)=>(await snapshot(page)).lunch;
 const cable=async(page:Page,id:string)=>(await lunch(page)).cables.find((c:any)=>c.id===id);

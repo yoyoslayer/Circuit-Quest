@@ -1,6 +1,9 @@
 import {test,expect} from '@playwright/test';
 import {open,walk,route,snapshot,wait} from './navigation';
 type Page=import('@playwright/test').Page;
+// The cable floors walk long routes with 300+ physics props; under software rendering a route takes
+// close to a minute, so give each test room.
+test.describe.configure({timeout:180000});
 const complete=async(page:Page)=>{await wait(page,.3);await expect(page.locator('body')).toHaveAttribute('data-complete','true');};
 // Big Meeting prep: carry the power strip from the printer stand to the boardroom door first.
 async function placeStrip(page:Page){await walk(page,-8.6,-3.9,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('strip');

@@ -3,7 +3,7 @@ import {open,walk,route,snapshot,wait} from './navigation';
 const load=(s:any,id:string)=>s.lunch.loads.find((l:any)=>l.id===id);
 const expectLoad=async(page:import('@playwright/test').Page,id:string,state:string)=>{const s=await snapshot(page);expect(load(s,id).state,JSON.stringify({player:s.player,held:s.held,lunch:{...s.lunch,events:undefined}})).toBe(state);};
 test('intended Lunch Rush solution delivers the tray upstairs',async({page})=>{
-  test.setTimeout(120000);const errors=await open(page,'lunch');
+  test.setTimeout(300000);const errors=await open(page,'lunch');
   // Wedge the door and mop the puddle.
   await walk(page,-3,7,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('wedge');
   await walk(page,0,1.4);await page.keyboard.press('KeyE');await wait(page,.5);expect((await snapshot(page)).lunch.doorWedged).toBe(true);

@@ -18,8 +18,7 @@ Play opens the **HQ lobby**: walk to a job's door and press E. Doors show your b
 and a lamp over a door lights once that job is done. The **Workshop** arch practises any
 station without recording a grade. The jobs board is still one click away on the title
 screen. `?level=<id>` opens a job directly (`lobby`, `playground`, `meeting`, `lunch`,
-`vias`, `vias-rush`, `qfn`, `archive`, `waterworks`, `observatory`, `arcade`, `clockwork`
-and the rest of the stations); `&practice` plays it unrecorded; `?lowfx` turns off the
+`arcade`, `arcade-rush`, `garage`, `qfn`, `observatory`, `spectrum`); `&practice` plays it unrecorded; `?lowfx` turns off the
 expensive effects.
 
 **Stations:** walk up to the bench and press E; the camera eases onto the tabletop. Click

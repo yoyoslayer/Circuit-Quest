@@ -8,7 +8,15 @@ it('scorches thin cable even when source allows the current',()=>{const c=new Ci
 it('lift kick trips unless a charged capacitor is at the load end',()=>{for(const atLoad of [false,true]){const l=load('lift',3,9);l.capacitor={atLoad,charge:12};const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','lift')],[l]);for(let i=0;i<20;i++)c.tick(.1);expect(c.sources[0].tripped).toBe(!atLoad);}});
 it('shorts trip; drying and resetting restores power',()=>{const e=lead('a','s','lamp');e.wet=true;const c=new Circuit([{id:'s',limit:5,tripped:false}],[e],[load('lamp',1)]);c.tick(.1);expect(c.events[0].kind).toBe('short');e.wet=false;c.resetBreaker('s');c.tick(.1);expect(c.loads[0].state).toBe('on');});
 it('conveyor then capped lift fits 5 bars, reverse order trips',()=>{for(const reverse of [false,true]){const conveyor=load('conveyor',1.5,3),lift=load('lift',3,9);lift.capacitor={atLoad:true,charge:12};const later=reverse?conveyor:lift;later.enabled=false;const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','conveyor'),lead('b','s','lift')],[conveyor,lift]);for(let i=0;i<20;i++)c.tick(.1);later.enabled=true;c.tick(.1);expect(c.sources[0].tripped).toBe(reverse);}});
-it('a parked capacitor recharges between lift starts, even after a trip',()=>{const lift=load('lift',3,9);lift.capacitor={atLoad:true,charge:12};const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','lift')],[lift]);
+it('a capacitor recharges between lift starts only from a live supply, not while its breaker is tripped',()=>{const lift=load('lift',3,9);lift.capacitor={atLoad:true,charge:12};const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','lift')],[lift]);
   const cycle=()=>{lift.enabled=true;for(let i=0;i<20;i++)c.tick(.1);lift.enabled=false;for(let i=0;i<3;i++)c.tick(.1);};
-  cycle();cycle();cycle();expect(c.sources[0].tripped).toBe(true);c.resetBreaker('s');for(let i=0;i<150;i++)c.tick(.1);expect(lift.capacitor.charge).toBe(12);cycle();expect(c.sources[0].tripped).toBe(false);});
+  cycle();cycle();cycle();expect(c.sources[0].tripped).toBe(true);
+  const flat=lift.capacitor.charge;for(let i=0;i<50;i++)c.tick(.1);expect(lift.capacitor.charge).toBe(flat);
+  c.resetBreaker('s');for(let i=0;i<150;i++)c.tick(.1);expect(lift.capacitor.charge).toBe(12);cycle();expect(c.sources[0].tripped).toBe(false);});
+it('an inline capacitor helps only when the lift is fed through it',()=>{
+  for(const through of [true,false]){const lift=load('lift',3,9);lift.capacitor={node:'cap',atLoad:false,charge:12};
+    const leads=through?[lead('a','s','cap',10),lead('cap-lead','cap','lift',10)]:[lead('a','s','lift',10),lead('cap-lead','cap','lift',10)];
+    const c=new Circuit([{id:'s',limit:5,tripped:false}],leads,[lift]);for(let i=0;i<20;i++)c.tick(.1);
+    expect(lift.capacitor.atLoad).toBe(through);expect(c.sources[0].tripped).toBe(!through);}
+});
 it('cyclic splitter wiring terminates',()=>{const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','x'),lead('b','x','y'),lead('c','y','x')],[]);expect(()=>c.tick(.1)).not.toThrow();});

@@ -9,8 +9,14 @@ const complete=async(page:Page)=>{await wait(page,.3);await expect(page.locator(
 async function placeStrip(page:Page){await walk(page,-8.6,-3.9,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('strip');
   await route(page,[[-8,-1.4],[6,-1.2],[11.2,-1.4]]);await page.keyboard.press('KeyE');await wait(page,.2);expect((await snapshot(page)).stripPlaced).toBe(true);}
 const backToReel=(page:Page)=>route(page,[[6,-1.2],[-8,-1.4],[-10,-6.2]]);
-// After plugging in, step into the boardroom and switch the projector on.
-async function switchProjector(page:Page){await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');}
+// After plugging in, step into the boardroom and switch the projector on. The kettle and heater
+// already load the strip by the door, so the projector tips it over and its breaker trips:
+// unplug one of them (the boardroom groans) and reset the strip.
+async function switchProjector(page:Page){await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');
+  await wait(page,.3);let s=await snapshot(page);expect(s.strip.tripped).toBe(true);expect(s.won).toBe(false);
+  await route(page,[[12.3,-1.2],[14.3,-.9]],.4);await page.keyboard.press('KeyE');await wait(page,.2);
+  s=await snapshot(page);expect(s.strip.unplugged).toBe(1);expect(s.alarmed).toBeGreaterThanOrEqual(1);
+  await walk(page,12.4,-1.15,.4);await page.keyboard.press('KeyE');await wait(page,.2);}
 test('playground cable physically reaches socket and lights lamp',async({page})=>{
   const errors=await open(page,'playground');await page.keyboard.press('KeyF');
   await route(page,[[-5,-1],[-4,-4],[5.8,-5.5]]);

@@ -2,7 +2,11 @@
 // A missing return is represented explicitly, rather than teaching a one-wire circuit.
 export interface Source {id:string;limit:number;tripped:boolean}
 export interface Lead {id:string;from:string;to:string;rating:number;closed:boolean;returnClosed?:boolean;wet?:boolean;heat:number;dead:boolean}
-export interface Load {id:string;steady:number;kick?:number;kickSeconds?:number;enabled:boolean;state:'off'|'on'|'brownout';started:number;capacitor?:{atLoad:boolean;charge:number}}
+/** A capacitor that helps a load start: it supplies the start-up kick above the steady draw. If it
+ *  has a `node`, it helps only when the load's feed actually runs through that node (it is wired
+ *  inline); without one, `atLoad` says so directly. Either way it charges only from a live supply. */
+export interface Capacitor {node?:string;atLoad:boolean;charge:number}
+export interface Load {id:string;steady:number;kick?:number;kickSeconds?:number;enabled:boolean;state:'off'|'on'|'brownout';started:number;capacitor?:Capacitor}
 export interface ElectricalEvent {time:number;kind:'trip'|'short'|'scorch'|'start'|'stop';id:string}
 export class Circuit {
   time=0;events:ElectricalEvent[]=[];draw=new Map<string,number>();
@@ -24,14 +28,17 @@ export class Circuit {
     const demand=new Map<string,number>();
     for(const load of this.loads){
       const route=routes.get(load.id),cap=load.capacitor;
-      // A parked capacitor tops itself up whenever it is not busy absorbing a kick.
-      if(!load.enabled||!route||route.source.tripped){if(cap?.atLoad)cap.charge=Math.min(12,cap.charge+dt);continue;}
+      if(cap?.node)cap.atLoad=!!route&&route.path.some(e=>e.from===cap.node);
+      // A capacitor charges from a live supply only: its node (or its load) must be fed. It supplies
+      // a start-up kick; it does not absorb one, and it holds no charge it was never given.
+      const fed=!!cap&&(cap.node?routes.has(cap.node):!!route);
+      if(!load.enabled||!route||route.source.tripped){if(cap&&fed)cap.charge=Math.min(12,cap.charge+dt);continue;}
       const starting=load.state!=='on';
       if(starting)load.started=this.time;
       const kickActive=this.time-load.started<(load.kickSeconds??1);
       let value=kickActive?Math.max(load.steady,load.kick??0):load.steady;
       if(cap?.atLoad&&value>load.steady){const supplied=Math.min(cap.charge,(value-load.steady)*dt);cap.charge-=supplied;value-=supplied/dt;}
-      else if(cap?.atLoad)cap.charge=Math.min(12,cap.charge+dt);
+      else if(cap&&fed)cap.charge=Math.min(12,cap.charge+dt);
       demand.set(load.id,value);
       this.draw.set(route.source.id,(this.draw.get(route.source.id)??0)+value);
       for(const edge of route.path)this.draw.set(edge.id,(this.draw.get(edge.id)??0)+value);

@@ -19,7 +19,7 @@ for(const [px,pz] of [[-6,-4.5],[-1,-4.5],[4,-4.5],[-6,1.5],[-1,1.5],[4,1.5],[-6
   }
 }
 for(let i=0;i<18;i++){props.push({kind:'cabinet',x:-9+i*.85,z:-9.2});props.push({kind:'box',x:-9+i*.85,z:-9.2,y:1.9});}
-for(const [x,z] of [[-9,-8],[8,-8],[-9,8],[8,8.6],[14,8],[14.4,-1.2],[-3,0]])props.push({kind:'plant',x,z});
+for(const [x,z] of [[-9,-8],[8,-8],[-9,8],[8,8.6],[14,8],[15.9,-.5],[-3,0]])props.push({kind:'plant',x,z});
 for(let i=0;i<14;i++)props.push({kind:'box',x:-12+(i%3)*.75,z:-1+Math.floor(i/3)*.72});
 props.push({kind:'printer',x:-10,z:-2},{kind:'vending',x:-14.5,z:2},{kind:'cooler',x:-13.5,z:7},{kind:'whiteboard',x:-10,z:5,rotation:.45});
 // The boardroom's power strip is missing from its spot by the door: it sits on the printer stand.

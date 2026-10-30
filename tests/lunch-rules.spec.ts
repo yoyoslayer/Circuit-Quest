@@ -44,6 +44,8 @@ test('the lift start-up kick trips a cart without the capacitor at the winch',as
   await walk(page,-9.8,3.5,.5);await page.keyboard.press('KeyF');expect((await lunch(page)).held.id).toBe('thin-2');
   await route(page,[[.3,2.4],[10,1],[11.8,-4.4]]);await page.keyboard.press('KeyF');await page.keyboard.press('KeyE');await wait(page,.5);
   expect((await source(page,'a')).tripped).toBe(true);expect((await load(page,'lift')).state).not.toBe('on');
+  // Only now, after the failure, does the capacitor badge appear over the cart.
+  expect((await snapshot(page)).lunch.capHint).toBe(true);
 });
 test('the storeroom stays dark: nothing inside can be grabbed until a lamp is lit',async({page})=>{
   await open(page,'lunch');

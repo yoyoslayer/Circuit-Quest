@@ -342,6 +342,43 @@ SHIP) plus UNDO; the board itself is the tool.
 - **Still to do** (from the review): the receiver line as the real draggable cable in the room.
   The route is still a bench lever.
 
+**Lunch Rush: the capacitor is wired, and the card states goals.**
+
+- **Inline capacitor.** The capacitor cart is now in the circuit. The lift's feed plugs into the
+  cart, and the cart's own short lead plugs into the winch socket once it is parked within 2 m
+  (it "docks"; the socket is then taken). Parking it nearby without wiring the feed through it
+  does nothing (`Capacitor.node` in `src/sim/electrical.ts`).
+- **Truthful charging.** The capacitor charges only from a live supply. While its breaker is
+  tripped it holds no new charge (unit-tested). It supplies the lift motor's start-up kick; it
+  doesn't absorb it.
+- **Goals, not methods.** The job card no longer prints the "aha" moments:
+  - "Park the capacitor cart next to the lift winch" is now "Start the lift winch without
+    tripping a breaker";
+  - "Power the conveyor first, then the lift" is now "Send the tray up on the lift";
+  - "Run the thick cable…" is now "Power the kitchen's feed post".
+- **Hint after failure.** A capacitor badge floats over the cart only after the lift's kick has
+  tripped a breaker with no capacitor in its feed.
+
+**Big Meeting: a load budget, and a coupler that explains itself.**
+
+- **Load budget.**
+  - The strip at the boardroom door already feeds a kettle (2.5 A) and a fan heater (2 A).
+  - A gauge on the wall shows the strip's load.
+  - Switching the projector on (1 A) tips it past its 5 A breaker: a bang, and the projector
+    stays dark.
+  - Pip unplugs one appliance (the boardroom groans) and presses the strip's reset button.
+  - Every route spec plays this beat (`src/meeting-strip.ts`).
+- **Coupler.** Trying the second reel before the coupler still wobbles and buzzes; after that, a
+  coupler badge floats over the coupler until it is fitted.
+
+**Cable floors: a spool you can read, and pins to fling at.**
+
+- **Spool.** The anchor reel's wound cable shrinks as cable pays out (its cross-section is
+  proportional to the length left), so the length remaining reads at a glance.
+- **Pins.** The Playground has six white pins in a bowling triangle east of the crate row. The
+  first bonus is now "Knock down all six pins". A pin is down when it tips past ~45° or slides
+  half a metre, and a strike gets confetti.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

@@ -31,11 +31,17 @@ export class LunchRuntime {
   thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenLight!:T.PointLight;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
   liftRope!:T.Mesh;alerts=new Map<string,T.Sprite>();scars:{mark:T.Object3D;life:number;at:T.Vector3}[]=[];wetAt?:Point;
   maxTemperature=0;
+  /** The capacitor cart is wired inline: the lift's feed plugs into the cart, and the cart's own short
+   *  lead reaches the winch socket only when it is parked within 2 m of it (it is "docked"). */
+  capLead!:Lead;capDocked=false;capCord!:T.Mesh;capCordKey='';
+  /** After the lift's start-up kick has tripped a breaker with no capacitor in its feed, a capacitor
+   *  badge floats over the cart: the hint comes after the failure, never before. */
+  capHint=false;capBadge!:T.Sprite;liftRan=false;
   lamps=new Map<string,{bulb:T.Mesh;glow:T.Sprite;light:T.PointLight}>();
   constructor(public game:Game){
     game.ropeMesh.visible=false;game.plug.visible=false;game.target.visible=false;if(game.screen)game.screen.visible=false;
     const loads:Load[]=[['oven',3,0],['fridge',2,0],['conveyor',1.5,3],['lift',3,9],['kitchen-lamp',.5,0],['store-lamp',.5,0]].map(([id,steady,kick])=>({id:String(id),steady:Number(steady),kick:Number(kick),kickSeconds:1,enabled:!['conveyor','lift'].includes(String(id)),state:'off',started:0}));
-    loads.find(l=>l.id==='lift')!.capacitor={atLoad:false,charge:12};
+    loads.find(l=>l.id==='lift')!.capacitor={node:'cap',atLoad:false,charge:12};
     // The kitchen feed post is hard-wired to the oven and both lamps.
     const branches=['oven','kitchen-lamp','store-lamp'].map(id=>({id:`fixed-${id}`,from:'kitchen',to:id,rating:3,closed:true,heat:0,dead:false}));
     this.circuit=new Circuit([{id:'a',limit:5,tripped:false},{id:'b',limit:5,tripped:false}],branches,loads);
@@ -44,6 +50,13 @@ export class LunchRuntime {
     this.port('a',-13,3,'out',2,'supply-a',.1);this.port('b',-13,7,'out',2,'supply-b',.1);this.port('kitchen',-4,-3,'in',1);
     this.port('fridge',-4,-1.8,'in',1);this.port('conveyor',5,-5,'in',1);this.port('lift',12,-4.8,'in',1);
     for(let i=1;i<=3;i++)this.port(`splitter-${i}`,-14+(i-1)*.7,.65,'both',4,`splitter-${i}`,-.15);
+    // The capacitor cart's inlet, and its short lead to the winch (closed only while it is docked).
+    this.port('cap',-12,-7,'in',1,'capacitor',.75);
+    this.capLead={id:'cap-lead',from:'cap',to:'lift',rating:10,closed:false,heat:0,dead:false};this.circuit.leads.push(this.capLead);
+    this.capCord=part(root,new T.BufferGeometry(),toon('#3a3d55'),0,0,0,false);this.capCord.visible=false;
+    this.capBadge=new T.Sprite(new T.SpriteMaterial({map:cachedTexture('cap-badge',()=>glyph(c=>{c.fillStyle='#fffaf0';c.beginPath();c.arc(128,128,112,0,7);c.fill();c.lineWidth=14;c.strokeStyle='#2b2d42';c.stroke();
+      c.fillStyle='#ffc94d';c.fillRect(82,72,26,112);c.fillRect(148,72,26,112);c.strokeRect(82,72,26,112);c.strokeRect(148,72,26,112);c.lineWidth=12;c.beginPath();c.moveTo(30,128);c.lineTo(82,128);c.moveTo(174,128);c.lineTo(226,128);c.stroke();})),depthTest:false}));
+    this.capBadge.scale.set(.9,.9,1);this.capBadge.renderOrder=9;this.capBadge.visible=false;root.add(this.capBadge);
     for(const id of ['a','b']){const gauge=new Gauge(),mount=gauge.mount(root,0,0,0,.9);mount.rotation.x=-.5;const button=part(root,cyl(.1,.1,.12,12),toon('#d63a3f',{emissive:'#ff3a3a',ei:0}).clone());this.supplyGauges.set(id,{gauge,mount,button});}
     this.addCable('thin-1',3,32,'a',null,[-11,2]);this.addCable('thin-2',3,30,'a',null,[-10,3.5]);this.addCable('thin-3',3,32,null,null,[-11,7]);this.addCable('thick',10,30,'b',null,[-10,7.5]);
     // The unlit storeroom: a dim blue-violet lid with a soft hole where the lamp would pool
@@ -134,7 +147,7 @@ export class LunchRuntime {
     const g=this.game,pos=g.player.translation();
     if(g.held)return false;
     if(this.held){const {cable,end}=this.held,other=(1-end) as 0|1;
-      const candidates=this.ports.filter(p=>Math.min(distance(pos,p.pos)-.3,distance(cable.ends[end],p.pos))<1.4&&p.id!==cable.ports[other]&&(this.lit()||!this.inStore(p.pos)));
+      const candidates=this.ports.filter(p=>Math.min(distance(pos,p.pos)-.3,distance(cable.ends[end],p.pos))<1.4&&p.id!==cable.ports[other]&&(this.lit()||!this.inStore(p.pos))&&!(p.id==='lift'&&this.capDocked));
       const target=candidates.sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];
       if(target&&cable.rope.strain<1.1){
         const otherPort=this.ports.find(p=>p.id===cable.ports[other]);
@@ -159,17 +172,17 @@ export class LunchRuntime {
   inStore(p:Point){return p.x< -7.8&&p.z<0;}
   /** Text prompt for the key that does something useful here (mirrors interact()). */
   promptAt():{key:string;text:string}|null{
-    const g=this.game,pos=g.player.translation(),names:Record<string,string>={a:'cart A',b:'cart B',kitchen:'kitchen power post',fridge:'fridge',conveyor:'conveyor motor',lift:'lift winch'};
+    const g=this.game,pos=g.player.translation(),names:Record<string,string>={a:'cart A',b:'cart B',kitchen:'kitchen power post',fridge:'fridge',conveyor:'conveyor motor',lift:'lift winch',cap:'capacitor cart'};
     const portName=(id:string)=>names[id]??'splitter';
     if(g.held){const id=g.held.spec.id;
       if(id==='mop')return {key:'E',text:this.water>.1?'Stand in the leak to mop it up  ·  E puts the mop down':'Put the mop down'};
       if(id==='wedge')return {key:'E',text:distance(pos,{x:0,z:.5})<2.4?'Wedge the door open':'Carry the doorstop to the kitchen door'};
       if(id==='cooler-box')return {key:'E',text:'Carry it to the fridge to cool the lunch'};
       if(id==='tray')return {key:'E',text:distance(pos,{x:0,z:-7})<2?'Put the tray on the conveyor':'Carry the tray to the start of the conveyor'};
-      if(id==='capacitor')return {key:'E',text:distance(pos,{x:12,z:-4.8})<2.2?'Park it by the lift winch':'Push the capacitor cart to the lift winch'};
+      if(id==='capacitor')return {key:'E',text:distance(pos,{x:12,z:-4.8})<2.2?'Put the cart down':'Push the capacitor cart'};
       return null;}
     if(this.held){const {cable,end}=this.held,other=(1-end) as 0|1;
-      const target=this.ports.filter(p=>Math.min(distance(pos,p.pos)-.3,distance(cable.ends[end],p.pos))<1.4&&p.id!==cable.ports[other]).sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];
+      const target=this.ports.filter(p=>Math.min(distance(pos,p.pos)-.3,distance(cable.ends[end],p.pos))<1.4&&p.id!==cable.ports[other]&&!(p.id==='lift'&&this.capDocked)).sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];
       if(target)return {key:'F',text:`Plug into the ${portName(target.id)}`};
       return cable.rope.strain>.97?{key:'Q',text:'Let go to slingshot the cable'}:{key:'F',text:'Drop the cable end'};}
     const trip=this.ports.find(p=>(p.id==='a'||p.id==='b')&&distance(pos,p.pos)<2&&this.circuit.sources.find(s=>s.id===p.id)!.tripped);
@@ -215,7 +228,12 @@ export class LunchRuntime {
       const center=new T.Vector3(.72,1.05,0).applyAxisAngle(new T.Vector3(0,1,0),angle).add(leaf.pivot.position);leaf.body.setNextKinematicTranslation(center);leaf.body.setNextKinematicRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),angle));}
     if(g.held?.spec.id==='mop'&&this.nearPuddle(p))this.water=Math.max(0,this.water-dt*.3);
     if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){this.job.cooled=true;g.audio.bell(988,.6,.05);g.held=undefined;}
-    const capacitor=this.prop('capacitor')!,capPos=capacitor.body.translation();this.circuit.loads.find(l=>l.id==='lift')!.capacitor!.atLoad=distance(capPos,{x:12,z:-4.8})<2;
+    // Docking: parked within 2 m of the winch, the cart's own lead plugs into the winch socket.
+    const capacitor=this.prop('capacitor')!,capPos=capacitor.body.translation(),docked=g.held!==capacitor&&distance(capPos,{x:12,z:-4.8})<2;
+    if(docked!==this.capDocked){this.capDocked=docked;this.capLead.closed=docked;this.capCordKey='';
+      if(docked){g.audio.plug();g.burst({x:12.62,y:.4,z:-4.8},'#fff3a3',8,'spark');
+        // A cable already in the winch socket comes out: the cart's lead takes it.
+        for(const c of this.cables)for(const e of [0,1] as const)if(c.ports[e]==='lift')c.ports[e]=null;}}
     if(this.held?.cable.rating===10){const dolly=this.prop('thick-dolly')!,pos=dolly.body.translation(),d=distance(pos,p);if(d>1.3)dolly.body.setLinvel({x:(p.x-pos.x)*4,y:dolly.body.linvel().y,z:(p.z-pos.z)*4},true);}
     for(const cable of this.cables){
       for(const end of [0,1] as const){const port=this.ports.find(q=>q.id===cable.ports[end]);if(port)cable.ends[end].copy(port.pos);}
@@ -246,6 +264,9 @@ export class LunchRuntime {
       if(event.kind==='trip'||event.kind==='short'){g.audio.tone(75,.25,.1,'square');const source=this.ports.find(q=>q.id===event.id);if(source){g.burst(source.pos,'#fff3a3',18,'spark');g.burst(source.pos,'#8d8a96',5,'dust');g.alarm(source.pos);}if(event.kind==='short'&&this.wetAt)this.scar(this.wetAt);g.audio.noise(.25,.1,300);g.shake=.15;}
       if(event.kind==='scorch'){const cable=this.cables.find(c=>c.id===event.id);const at=cable?.points[Math.floor(cable.points.length/2)]??{x:0,z:0};g.audio.tone(60,.4,.08,'sawtooth');this.puff(new T.Vector3(at.x,.3,at.z));this.scar(at);g.burst({x:at.x,y:.3,z:at.z},'#ff9a3d',10,'spark');}
       if(event.kind==='start')g.audio.tone(event.id==='lift'?180:260,.15,.03,'triangle');
+      if(event.kind==='start'&&event.id==='lift')this.liftRan=true;
+      // The lift's start-up kick tripped a breaker and no capacitor was in its feed: show the hint.
+      if(event.kind==='trip'){const lift=this.circuit.loads.find(l=>l.id==='lift')!;if(lift.enabled&&!lift.capacitor?.atLoad&&this.circuit.time-lift.started<1.5)this.capHint=true;}
     }
     this.eventIndex=this.circuit.events.length;
     this.maxTemperature=Math.max(this.maxTemperature,this.job.temperature);
@@ -288,7 +309,7 @@ export class LunchRuntime {
       button.position.copy(prop.mesh.position).add(new T.Vector3(.56,.66,-.28).applyQuaternion(prop.mesh.quaternion));(button.material as T.MeshToonMaterial).emissiveIntensity=source.tripped?.9+Math.sin(g.time*10)*.5:0;}
     const holding=!!this.held;
     for(const port of this.ports){port.ring.position.copy(port.pos);port.ring.position.y=Math.max(.05,port.pos.y-.25);const source=this.circuit.sources.find(s=>s.id===port.id);const material=port.ring.material as T.MeshBasicMaterial;
-      material.color.set(source?.tripped?'#f35b66':'#63d8d0');material.opacity=holding?.95:.35;port.ring.visible=this.lit()||!this.inStore(port.pos);port.ring.scale.setScalar(holding?1+Math.sin(g.time*5)*.08:1);}
+      material.color.set(source?.tripped?'#f35b66':'#63d8d0');material.opacity=holding?.95:.35;port.ring.visible=(this.lit()||!this.inStore(port.pos))&&!(port.id==='lift'&&this.capDocked);port.ring.scale.setScalar(holding?1+Math.sin(g.time*5)*.08:1);}
     for(const cable of this.cables){const active=cable.active,held=this.held?.cable===cable;
       if(cable.points.length>1){const end=held?g.handPosition():cable.ends[active].clone();if(held)cable.plugs[active].position.copy(end);
         const sampled=cablePath(cable.points,end,cable.ends[(1-active) as 0|1].y,cable.rope.strain);
@@ -299,8 +320,15 @@ export class LunchRuntime {
         const current=(this.circuit.draw.get(cable.id)??0)>0&&!cable.lead.dead,fromAnchor=cable.lead.from===cable.ports[(1-active) as 0|1];cable.pulses.update(hose.curve,hose.length,g.time,current,!fromAnchor);}
       cable.plugs.forEach((plug,i)=>{if(!(held&&i===active))plug.position.copy(cable.ends[i]);const toward=cable.points[i===1-cable.active?1:cable.points.length-2];if(toward)plug.rotation.y=Math.atan2(-(toward.z-cable.ends[i].z),toward.x-cable.ends[i].x)+Math.PI;});
     }
+    // The cart's lead to the winch, while docked; the capacitor badge after a lift trip, until it is wired in.
+    this.capCord.visible=this.capDocked;
+    if(this.capDocked){const a=this.ports.find(p=>p.id==='cap')!.pos,key=`${a.x.toFixed(2)},${a.y.toFixed(2)},${a.z.toFixed(2)}`;
+      if(key!==this.capCordKey){this.capCordKey=key;const b=new T.Vector3(12.62,.38,-4.8),mid=a.clone().lerp(b,.5).setY(.06);this.capCord.geometry.dispose();
+        this.capCord.geometry=new T.TubeGeometry(new T.CatmullRomCurve3([a.clone(),mid,b]),20,.05,6);}}
+    const capFed=!!this.circuit.loads.find(l=>l.id==='lift')!.capacitor?.atLoad;this.capBadge.visible=this.capHint&&!capFed&&this.prop('capacitor')!.mesh.visible;
+    if(this.capBadge.visible){const q=this.prop('capacitor')!.body.translation();this.capBadge.position.set(q.x,q.y+1.6+Math.sin(g.time*4)*.08,q.z);this.capBadge.scale.setScalar(.85+Math.sin(g.time*6)*.08);}
     if(this.held)g.rope=this.held.cable.rope;g.audio.strain(this.held&&!g.paused&&!g.won?g.rope.strain:0);
     lunchHud(g.hud).update(this.job,this.circuit);
   }
-  snapshot(){return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),door:{angle:this.doorAngle,side:this.doorSide},bots:this.bots.map(b=>({x:+b.group.position.x.toFixed(2),z:+b.group.position.z.toFixed(2),snag:b.snag?.cable.id})),cablePoints:Object.fromEntries(this.cables.map(c=>[c.id,c.points.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)}))])),lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,heat:c.lead.heat,strain:c.rope.strain})),events:this.circuit.events};}
+  snapshot(){return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),capDocked:this.capDocked,capHint:this.capHint,liftRan:this.liftRan,door:{angle:this.doorAngle,side:this.doorSide},bots:this.bots.map(b=>({x:+b.group.position.x.toFixed(2),z:+b.group.position.z.toFixed(2),snag:b.snag?.cable.id})),cablePoints:Object.fromEntries(this.cables.map(c=>[c.id,c.points.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)}))])),lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,heat:c.lead.heat,strain:c.rope.strain})),events:this.circuit.events};}
 }

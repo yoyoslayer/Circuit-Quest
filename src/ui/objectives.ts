@@ -25,7 +25,7 @@ export const JOBS:Record<string,Job>={
       {text:'Drag the cable to the lamp\'s socket and plug it in',done:g=>g.connected,at:g=>g.holdingPlug?g.level.target:g.plugPosition},
       {text:'Switch the lamp on',done:g=>g.connected&&g.switchedOn,at:g=>g.level.switchAt}],
     bonuses:[
-      {text:'Fling something with a taut cable (Q)',ok:g=>g.flung},
+      {text:'Knock down all six pins',ok:g=>g.pinsDown()>=6},
       {text:'Finish in under 45 seconds',ok:g=>g.time<45},
       {text:'Break nothing',ok:g=>g.damage===0}]},
   meeting:{goal:'Get the projector running before the 10:00 meeting',
@@ -41,11 +41,13 @@ export const JOBS:Record<string,Job>={
     steps:[
       {text:'Wedge the kitchen door open with the doorstop',done:g=>!!g.lunch?.doorWedged()||kitchenFed(g),at:g=>g.held?.spec.id==='wedge'?{x:0,z:1}:prop(g,'wedge')},
       {text:'Mop up the leak (or bridge it)',done:g=>(g.lunch?.water??1)<.1||kitchenFed(g),at:g=>g.held?.spec.id==='mop'?{x:.3,z:2}:prop(g,'mop')},
-      {text:'Run the thick cable from cart B to the kitchen\'s power post',done:g=>kitchenFed(g)||(g.lunch?.job.bake??0)>=20,at:g=>g.lunch?.held?.cable.id==='thick'?{x:-4,z:-3}:prop(g,'thick-dolly')},
+      {text:'Power the kitchen\'s feed post (oven and lamps)',done:g=>kitchenFed(g)||(g.lunch?.job.bake??0)>=20,at:()=>({x:-4,z:-3})},
       {text:'Keep the oven on until the tray is baked',done:g=>g.lunch?.job.tray!=='raw',at:()=>({x:-2.5,z:-7.2})},
       {text:'Carry the tray to the conveyor',done:g=>['conveyor','lift','delivered'].includes(g.lunch?.job.tray??''),at:g=>g.held?.spec.id==='tray'?{x:0,z:-7}:prop(g,'tray')},
-      {text:'Park the capacitor cart next to the lift winch',done:g=>!!g.lunch?.circuit.loads.find(l=>l.id==='lift')?.capacitor?.atLoad||!!g.lunch?.job.done,at:g=>g.held?.spec.id==='capacitor'?{x:12,z:-4.8}:prop(g,'capacitor')},
-      {text:'Power the conveyor first, then the lift',done:g=>!!g.lunch?.job.done,at:g=>g.lunch?.circuit.loads.find(l=>l.id==='conveyor')?.state==='on'?{x:12,z:-4.8}:{x:5,z:-5}}],
+      // Goals, not methods: how to start the lift's heavy motor is for the player to find (a badge
+      // over the capacitor cart appears only after its start-up kick has tripped a breaker).
+      {text:'Start the lift winch without tripping a breaker',done:g=>!!g.lunch?.liftRan||!!g.lunch?.job.done,at:g=>g.lunch?.capHint&&!g.lunch.capDocked?prop(g,'capacitor'):{x:12,z:-4.8}},
+      {text:'Send the tray up on the lift',done:g=>!!g.lunch?.job.done,at:g=>g.lunch?.circuit.loads.find(l=>l.id==='conveyor')?.state==='on'?{x:12,z:-4.8}:{x:5,z:-5}}],
     bonuses:[
       {text:'Never trip a breaker',ok:g=>!tripped(g)},
       {text:'No scorched or cut cables',ok:g=>!scorched(g)},
@@ -64,6 +66,7 @@ export function promptFor(g:Game):Prompt|null{
   if(!g.running||g.won||g.paused)return null;
   const pos=g.player.translation();
   if(g.lunch){const p=g.lunch.promptAt();if(p)return p;}
+  if(g.strip&&!g.held&&!g.holdingPlug){const p=g.strip.prompt(pos);if(p)return p;}
   if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench)return p;}
   if(g.hub&&!g.held){const p=g.hub.prompt();if(p)return p;}
   if(g.held){const name=NAMES[g.held.spec.kind]??'it';

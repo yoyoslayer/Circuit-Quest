@@ -161,16 +161,11 @@ tabletop, the station takes the pointer and keys, and E or Esc steps back.
 
 | # | Station | Room | What it teaches |
 |---|---|---|---|
-| 03 | `vias` | Via Foundry | Through, buried, micro, via-in-pad and stitching vias; plating aspect ratio, annular ring and lamination order. `vias-rush` is a timed queue of generated orders. |
-| 04 | `qfn` | Fabrication Bay | Placement before routing; no crossings on one layer; decoupling loop length; a second layer, vias and thermal vias. |
-| 05 | `archive` | The Archive | Datasheets: typical vs guaranteed vs recommended vs absolute maximum; test conditions; ordering suffixes (the freezer twist). |
-| 06 | `waterworks` | The Waterworks | Thevenin and Norton equivalents found by measurement at two ports, then named as a circuit. The pipe analogy is labelled. |
-| 07 | `observatory` | Signal Observatory | RC and LC filters on a live scope; an inductor carries DC and opposes changes in current; a DC latch must hold; quarter-wave antenna (c = fλ). |
-| 08 | `arcade` | Overheating Arcade | LED series resistor, P = I²R against the rating, polarity, the parallel-resistor trap, battery life, base resistor. |
-| 09 | `garage` | Robot Garage | Inductive kickback, flyback diode vs zener or TVS clamp and stop time, polarity, why a capacitor doesn't fix it, star ground. |
-| 10 | `clockwork` | Clockwork Kitchen | Internal RC vs resonator vs crystal; integer dividers; accumulated timing error; temperature drift; clock-line noise. |
-| 11 | `depot` | Delivery Depot | Voltage, current and power with trucks that are never used up; open socket vs closed loop; rail drop; short and breaker; meter-only transfer. |
-| 12 | `spectrum` | Spectrum Delivery | Propagation through brick, glass, metal, mesh and smoke; mirrors; detector matching; link margin; c = fλ. |
+| 03 | `arcade` | Overheating Arcade | LED current from the chain (I = (V − V<sub>f</sub>) ÷ R); blocks in a row add, side by side they share; P = I²R per block; polarity; the across-the-LED trap; battery life; base resistor. `arcade-rush` generates cabinets for three minutes. |
+| 04 | `garage` | Robot Garage | Inductive kickback, flyback diode vs zener or TVS clamp and stop time, polarity, why a capacitor doesn't fix it, star ground. |
+| 05 | `qfn` | Fabrication Bay | Placement before routing; no crossings on one layer; decoupling loop length; a second layer, vias and thermal vias. |
+| 06 | `observatory` | Signal Observatory | RC and LC filters on a live scope; an inductor carries DC and opposes changes in current; a DC latch must hold; quarter-wave antenna (c = fλ). |
+| 07 | `spectrum` | Spectrum Delivery | Propagation through brick, glass, metal, mesh and smoke; mirrors; detector matching; link margin; c = fλ. |
 
 Each station has:
 - rules as pure functions with unit tests;
@@ -214,8 +209,9 @@ before merging.
   Props stay instanced, so the extra parts cost a few draw calls in total, not one per copy.
   `tools/gallery/` renders every prop under the game's look; `tools/debug/gallery.mjs`
   screenshots it.
-- **One RESET control.** Arcade, Garage and Depot share `resetButton()` in
-  `src/stations/shared.ts`: a red dome that pops up, glows and pulses a ring when tripped.
+- **One RESET control.** Garage (and the cut Depot) use `resetButton()` in
+  `src/stations/shared.ts`: a red dome that pops up, glows and pulses a ring when tripped. The
+  Arcade's fuse now resets itself (see below).
 - **Arcade Rush** (`arcade-rush`, locked until the Arcade is done): three minutes of generated
   LED cabinets with a 4-second soak each. Every generated cabinet starts broken and is
   fixable reliably from the rack (unit-tested over 300 seeds). The HUD clock counts down and
@@ -230,6 +226,49 @@ Arcade (+ Arcade Rush), Robot Garage, Fabrication Bay (QFN), Signal Observatory,
 renumbered 00–07. **Cut:** Via Counter and Via Rush, the Archive, the Waterworks, the Clockwork
 Kitchen and the Delivery Depot. Their code, tests and thumbnails are deleted; they remain in git
 history before this commit if any idea is worth salvaging.
+
+## Deepening the kept rooms (2026-10-30)
+
+**Overheating Arcade: candy resistors.** The old bench was a menu (pick a value from a 15-block
+E12 rack, pick a power rating, press RESET). Now:
+
+- **Bins.** Four bins of chunky blocks: 47, 100, 220 and 470 Ω. Every block is a ¼ W part, and
+  each value has its own candy colour and real colour bands.
+- **Chain socket.** The socket has three positions. Blocks in a row add. Two blocks side by side
+  in one position share the current, so they come out smaller than either block and each runs
+  cooler. The rhythm pad (blue LED on 3.3 V) cannot be solved with any single block; it needs
+  47 ‖ 47.
+- **Live bench.** The circuit stays live while you work, so every change shows on the meter at
+  once and restarts the play test.
+- **Failures you can see.**
+  - The PTC fuse trips, glows red and conducts again by itself after it cools. There is no
+    RESET.
+  - An overloaded block pops off the board and the bench cuts out.
+  - An LED over its rating flickers white-hot and can't pass the play test. Far over its rating,
+    it pops and a spare goes in.
+- **Messages.** They say why something failed, never the fix. Prompts are short action labels.
+- **Meter.**
+  - Readouts: current, chain resistance and the hottest block's power.
+  - Bars: light against the band (with a gold ★ zone), LED heat, and block heat against the 60 %
+    house margin.
+  - A play-test strip.
+- **Play test.** A kid at the cabinet plays it (3 s, 2 s in rush). The kid hops while it works,
+  throws their arms up when it passes and slumps at a dark screen.
+- **Panel.** It shows the chain as a sum, e.g. `220 + (47‖47) = 244 Ω`.
+
+Keys at the bench:
+
+| Key | Action |
+|---|---|
+| 1–4 | Take a block |
+| A / S / D | Chain position (place, or take a block out) |
+| X | Across the LED |
+| F | Flip the LED |
+| P | Power |
+| Enter | Sign off |
+| Backspace | Put the block back |
+
+`tools/debug/bench-arcade.mjs` screenshots the bench.
 
 ## Performance
 

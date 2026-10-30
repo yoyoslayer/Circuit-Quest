@@ -77,14 +77,19 @@ test('QFN bench: the real pointer drags a part and draws a track',async({page})=
     for(const k of ['0,0','12,8']){await page.mouse.move(...c[k]);if(JSON.stringify((await snapshot(page)).station.hover)!==`[${k}]`)good=false;}
     if(good)return c;await page.waitForTimeout(500);}throw new Error('bench camera never settled');};
   let c=await cells();
-  // MOVE tool (the default): drag C1 by its first pad from its start (10,7) to (2,4).
-  await page.mouse.move(...c['10,7']);await page.mouse.down();for(const k of ['9,6','6,5','3,4','2,4'])await page.mouse.move(...c[k],{steps:3});await page.mouse.up();
+  // No tools: grab C1 by its body (between its pads) and drag it from its start (10,7) to (2,4).
+  const bodies=(await snapshot(page)).station.bodies as Record<string,[number,number]>;
+  await page.mouse.move(...bodies.C1);expect((await snapshot(page)).station.hoverBody).toBe('C1');
+  await page.mouse.down();const [gx,gy]=(await snapshot(page)).station.drag.grab as [number,number];
+  for(const k of [[9,6],[6,5],[3,4],[2,4]])await page.mouse.move(...c[`${k[0]+gx},${k[1]+gy}`],{steps:3});await page.mouse.up();
   let s=(await snapshot(page)).station;expect(s.design.place.C1.at).toEqual([2,4]);
-  // PEN (T): from U1 pin 1 at (4,3) left to (2,3), then down to (2,8).
-  await page.keyboard.press('KeyT');expect((await snapshot(page)).station.tool).toBe('pen');c=await cells();
+  // Dragging from a pad draws: from U1 pin 1 at (4,3) left to (2,3), then down to (2,8).
+  c=await cells();
   await page.mouse.move(...c['4,3']);await page.mouse.down();for(const k of ['3,3','2,3','2,5','2,8'])await page.mouse.move(...c[k],{steps:4});await page.mouse.up();
   s=(await snapshot(page)).station;expect(s.design.traces).toHaveLength(1);
   expect(s.design.traces[0]).toMatchObject({net:'VDD',layer:1});expect(s.design.traces[0].cells[0]).toEqual([4,3]);expect(s.design.traces[0].cells.at(-1)).toEqual([2,8]);
+  // A tap on the track cuts it there.
+  await page.mouse.click(...c['2,6']);s=(await snapshot(page)).station;expect(s.design.traces.flatMap((t:{cells:number[][]})=>t.cells).some((x:number[])=>x[0]===2&&x[1]===6)).toBe(false);
   // Clicking the CHECK button on the bench runs the check.
   await page.keyboard.press('KeyC');expect((await snapshot(page)).station.checks).toBe(1);
 });

@@ -8,7 +8,8 @@
 // - orientation: a connector sits on a board edge with its mouth facing off the board;
 // - reliability: a bypass capacitor only helps if the current loop from its pads to the chip's
 //   supply and ground pins is short (a capacitor "somewhere on the net" is not decoupling), and a
-//   hot QFN's exposed pad needs vias to carry heat into the other copper layer;
+//   hot QFN's exposed pad needs vias to carry heat into the other copper layer: each via is one more
+//   heat path in parallel, so the chip's temperature falls as they go in (stop when it is cool enough);
 // - elegance: total track length plus vias at or under the reference route (par).
 // Guardrail: this is a teaching grid. Real layouts must pass the fab house's DRC and an electrical
 // review; cell sizes, loop limits and via counts here are this bench's rules, not universal values.
@@ -47,8 +48,8 @@ export interface Board {
   parts:PartDef[];start:Record<string,Place>;nets:Record<string,string[]>;
   /** Supply pin pairs [supply, ground] that each need their own bypass cap within `max` cells of loop. */
   decouple?:{caps:string[];pairs:[string,string][];max:number};
-  /** The exposed pad that needs at least `vias` thermal vias. */
-  thermal?:{pin:string;vias:number};
+  /** The exposed pad of a chip that runs hot (see HEAT): vias in it carry heat into layer 2. */
+  thermal?:{pin:string};
   /** Elegance target: track cells + VIA_COST × vias of the reference route. */
   par:number;
 }
@@ -94,7 +95,7 @@ export const BOARDS:Board[]=[
     parts:[qfn('U1','LED driver',{1:'VIN',2:'GND',9:'ISET'},'GND'),conn('J1','power in',['VIN','GND'],true),conn('J2','power out',['VIN','GND'],true),twoPin('C1','cap','1 µF','VIN','GND'),twoPin('R1','res','2 kΩ','ISET','GND')],
     start:{U1:{at:CHIP,rot:0},J1:{at:[0,3],rot:0},J2:{at:[12,4],rot:2},C1:{at:[5,8],rot:0},R1:{at:[1,0],rot:0}},
     nets:{VIN:['J1.1','J2.1','U1.1','C1.1'],GND:['J1.2','J2.2','U1.2','U1.EP','C1.2','R1.2'],ISET:['U1.9','R1.1']},
-    decouple:{caps:['C1'],pairs:[['U1.1','U1.2']],max:4},thermal:{pin:'U1.EP',vias:4}},
+    decouple:{caps:['C1'],pairs:[['U1.1','U1.2']],max:4},thermal:{pin:'U1.EP'}},
 ];
 
 // ---------- geometry ----------
@@ -208,23 +209,34 @@ function components(g:Map<Node,Map<Node,number>>){
   for(const s of g.keys()){if(comp.has(s))continue;const q=[s];comp.set(s,n);while(q.length){const a=q.pop()!;for(const z of g.get(a)!.keys())if(!comp.has(z)){comp.set(z,n);q.push(z);}}n++;}
   return comp;
 }
-/** Shortest copper path (in cells) between two node sets (0-1 weights), or Infinity. */
-function pathLength(g:Map<Node,Map<Node,number>>,from:Node[],to:Node[]){
-  const goal=new Set(to),dist=new Map<Node,number>(),dq:Node[]=[];for(const f of from){dist.set(f,0);dq.push(f);}
+/** Shortest copper path between two node sets (0-1 weights): its length in cells (Infinity if
+ *  there is none) and the cells it runs through, start to end. */
+function shortest(g:Map<Node,Map<Node,number>>,from:Node[],to:Node[]):{len:number;cells:{l:Layer;c:XY}[]}{
+  const goal=new Set(to),dist=new Map<Node,number>(),prev=new Map<Node,Node>(),dq:Node[]=[];for(const f of from){dist.set(f,0);dq.push(f);}
   while(dq.length){let bi=0;for(let i=1;i<dq.length;i++)if(dist.get(dq[i])!<dist.get(dq[bi])!)bi=i;const a=dq.splice(bi,1)[0],da=dist.get(a)!;
-    if(goal.has(a))return da;for(const [z,w] of g.get(a)??[]){const nd=da+w;if(nd<(dist.get(z)??Infinity)){dist.set(z,nd);dq.push(z);}}}
-  return Infinity;
+    if(goal.has(a)){const cells:{l:Layer;c:XY}[]=[];for(let n:Node|undefined=a;n;n=prev.get(n)){const [l,k]=n.split('|'),[x,y]=k.split(',').map(Number);cells.unshift({l:Number(l) as Layer,c:[x,y]});}return {len:da,cells};}
+    for(const [z,w] of g.get(a)??[]){const nd=da+w;if(nd<(dist.get(z)??Infinity)){dist.set(z,nd);prev.set(z,a);dq.push(z);}}}
+  return {len:Infinity,cells:[]};
 }
 const pinNodes=(b:Board,d:Design,ref:string):Node[]=>{const [pid,pin]=ref.split('.'),p=partOf(b,pid);const cells=pinCells(p,d.place[pid]).find(x=>x.pin.id===pin)!.cells;return cells.map(c=>node(1,c));};
 export const length=(d:Design)=>d.traces.reduce((n,t)=>n+t.cells.length-1,0);
 export const cost=(d:Design)=>length(d)+VIA_COST*d.vias.length;
 
 export interface NetState {net:string;pads:number;joined:number;done:boolean}
-export interface Loop {pair:[string,string];cap?:string;loop:number;max:number}
+/** A decoupling loop: the cap, the chip's pin pair it serves, its length in cells, and the copper it
+ *  runs along (supply side from the cap to the chip, then ground side back). */
+export interface Loop {pair:[string,string];cap?:string;loop:number;max:number;path:{l:Layer;c:XY}[]}
+/** The hot chip on the two-layer board (this bench's tuning values). Its exposed pad sheds heat to the
+ *  air through the board alone, or also down every thermal via in parallel:
+ *  T = ambient + P ÷ (1/θ_board + n/θ_via). */
+export const HEAT={power:1,ambient:25,board:110,via:300,limit:70};
+export const chipTemp=(vias:number)=>HEAT.ambient+HEAT.power/(1/HEAT.board+vias/HEAT.via);
+/** The fewest thermal vias that keep the chip at or under the limit. */
+export const viasNeeded=()=>{let n=0;while(chipTemp(n)>HEAT.limit)n++;return n;};
 export interface Report {
   /** 0 = does not work, 1 = works, 2 = works reliably, 3 = reliable and at or under par. */
   tier:0|1|2|3;problems:string[];notes:string[];nets:NetState[];loops:Loop[];
-  thermal?:{vias:number;need:number};length:number;vias:number;cost:number;par:number;
+  thermal?:{vias:number;temp:number;limit:number};length:number;vias:number;cost:number;par:number;
 }
 export function check(b:Board,d:Design):Report{
   const problems:string[]=[],notes:string[]=[];
@@ -251,17 +263,19 @@ export function check(b:Board,d:Design):Report{
   // Reliability: decoupling loops, thermal vias.
   const loops:Loop[]=[];let reliable=true;
   if(b.decouple){const {caps,pairs,max}=b.decouple;
-    const loopOf=(cap:string,[s,gnd]:[string,string])=>pathLength(g,pinNodes(b,d,`${cap}.1`),pinNodes(b,d,s))+pathLength(g,pinNodes(b,d,`${cap}.2`),pinNodes(b,d,gnd));
+    const legs=(cap:string,[s,gnd]:[string,string])=>[shortest(g,pinNodes(b,d,`${cap}.1`),pinNodes(b,d,s)),shortest(g,pinNodes(b,d,`${cap}.2`),pinNodes(b,d,gnd))];
+    const loopOf=(cap:string,p:[string,string])=>legs(cap,p).reduce((n,x)=>n+x.len,0);
     // Each pair gets its own cap; try every assignment and keep the one with the shortest worst loop.
     let best:{caps:string[];score:number}|undefined;
     for(const perm of permutations(caps,pairs.length)){const ls=pairs.map((p,i)=>loopOf(perm[i],p));const score=Math.max(...ls)*100+ls.reduce((a,z)=>a+z,0);if(!best||score<best.score)best={caps:perm,score};}
-    pairs.forEach((p,i)=>{const cap=best?.caps[i],loop=cap?loopOf(cap,p):Infinity;loops.push({pair:p,cap,loop,max});
+    pairs.forEach((p,i)=>{const cap=best?.caps[i],loop=cap?loopOf(cap,p):Infinity,[up,down]=cap?legs(cap,p):[undefined,undefined];
+      loops.push({pair:p,cap,loop,max,path:loop===Infinity?[]:[...up!.cells,...[...down!.cells].reverse()]});
       if(loop>max){reliable=false;const [sp,gp]=p.map(r=>`${r.split('.')[0]} pin ${r.split('.')[1]}`);
-        notes.push(loop===Infinity?`No bypass cap is wired to ${sp} and ${gp}.`:`${cap}'s loop to ${sp}/${gp} is ${loop} cells (≤ ${max} wanted). A far cap can't supply the chip's fast current bursts: move it beside those pins.`);}});}
+        notes.push(loop===Infinity?`No bypass cap is wired to ${sp} and ${gp}.`:`${cap}'s loop to ${sp}/${gp} is ${loop} cells (≤ ${max} wanted). Current bursts have to travel the whole loop, so a far cap can't deliver them in time.`);}});}
   let thermal:Report['thermal'];
   if(b.thermal){const [pid,pin]=b.thermal.pin.split('.'),p=partOf(b,pid),pad=new Set(pinCells(p,d.place[pid]).find(x=>x.pin.id===pin)!.cells.map(cellKey));
-    const n=d.vias.filter(v=>pad.has(cellKey(v.at))).length;thermal={vias:n,need:b.thermal.vias};
-    if(n<b.thermal.vias){reliable=false;notes.push(`The exposed pad has ${n} thermal via${n===1?'':'s'}; it needs ${b.thermal.vias} to carry the chip's heat into layer 2. Without them it runs hot.`);}}
+    const n=d.vias.filter(v=>pad.has(cellKey(v.at))).length,temp=Math.round(chipTemp(n));thermal={vias:n,temp,limit:HEAT.limit};
+    if(temp>HEAT.limit){reliable=false;notes.push(`The chip runs at ${temp} °C (it must stay at or under ${HEAT.limit} °C). Heat leaves its exposed pad through the board${n?` and ${n} thermal via${n===1?'':'s'}`:''}; every via is one more path into layer 2.`);}}
   const len=length(d),c=cost(d);
   let tier:Report['tier']=problems.length?0:reliable?2:1;
   if(tier===2&&c<=b.par)tier=3;

@@ -2,26 +2,29 @@
 // clean grid with the QFN fixed in the middle; the other parts arrive scrambled around it. Pip
 // slides and turns them into place, then draws tracks between pads. Board 1 is one copper layer
 // (tracks can't cross), board 2 is about decoupling, board 3 adds layer 2, vias and a thermal pad.
-// Dashed lines are the ratsnest: connections still to route. Rules: ./logic.ts.
+// Dashed lines are the ratsnest: connections still to route. Input is modeless: drag a part's body
+// to move it (click it again to turn it), drag from a pad or track to draw, tap a track to cut it,
+// V drops a via (mid-stroke it changes layer and the track carries on). Each decoupling loop glows
+// on the copper and current bursts race round it on CHECK; the hot chip glows by temperature.
+// Rules: ./logic.ts.
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressFabBay} from './room';
-import {toon,box,rbox,cyl,part,group,canvasTex,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK} from '../../render/kit';
 import {hot} from '../../render/actors';
-import {BOARDS,blank,check,erase,footprint,netOfPin,isNC,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,viaProblem,same,
+import {BOARDS,HEAT,blank,check,erase,footprint,netOfPin,isNC,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,viaProblem,same,
   type Board,type Design,type Layer,type PartDef,type Place,type Report,type Rot,type XY} from './logic';
 import './qfn.css';
-import {cheer,walkHint} from '../shared';
+import {cheer} from '../shared';
 
 /** Cell size on the bench (world units) and the board's top above the worktop. */
 const S=.15,TOP=.07;
 const NET_COLORS:Record<string,string>={VDD:'#e5484d',VIN:'#e5484d',GND:'#3f7fd6',OUT:'#f08a24',SIG:'#9b6ee8',RST:'#e063b8',ISET:'#e0a800'};
 const netColor=(n:string)=>isNC(n)?'#cdbf95':NET_COLORS[n]??'#8a8fa3';
-const MASK='#4c9f76',GOLD='#e9c46a',JIG='#aeb4e8',TIERS=['Doesn\'t work','Works','Works reliably','Elegant to manufacture'];
-type Tool='move'|'pen'|'via'|'erase';
-const TOOL_KEYS:Record<string,[string,unknown?]>={KeyM:['tool','move'],KeyT:['tool','pen'],KeyV:['tool','via'],KeyX:['tool','erase'],KeyR:['rotate'],KeyL:['layer'],KeyC:['check'],Enter:['ship'],KeyZ:['undo'],Backspace:['undo']};
+const MASK='#4c9f76',JIG='#aeb4e8',TIERS=['Doesn\'t work','Works','Works reliably','Elegant to manufacture'];
+const KEYS:Record<string,[string,unknown?]>={KeyR:['rotate'],KeyL:['layer'],KeyV:['arm'],KeyC:['check'],Enter:['ship'],KeyZ:['undo'],Backspace:['undo']};
 
 /** Rounded label plate texture; the type shrinks until the words fit. */
 function label(text:string,bg='#fffaf0',fg=INK,w=256,h=96,sub?:string){
@@ -48,12 +51,16 @@ export class QfnBench implements Station {
   readonly limits={time:720,damage:1,cost:0};
   readonly stand={x:0,z:-.5};readonly table=new T.Vector3(0,.92,-2.2);readonly facing=Math.PI;
   readonly job:StationJob;
-  boardIx=0;design:Design;tool:Tool='move';layer:Layer=1;selected?:string;partsReady=false;active=false;
+  boardIx=0;design:Design;layer:Layer=1;selected?:string;partsReady=false;active=false;
+  /** VIA was pressed: the next click on the board drops a via there. */
+  viaArmed=false;
   shipped:{board:string;tier:number;cost:number}[]=[];mistakes=0;spent=0;checks=0;live:Report;
   private history:Design[]=[];private root=new T.Group();private boardRoot=new T.Group();private partsRoot=new T.Group();private copper=new T.Group();private rats=new T.Group();
   private preview=new T.Group();private marks=new T.Group();private hover!:T.Mesh;private selFrame=new T.Group();private partGroups=new Map<string,T.Group>();private qfnBody?:T.Mesh;
   private clickables:Clickable[]=[];private hovered?:Clickable;private toolPucks=new Map<string,T.Object3D>();private layerPlate!:T.Mesh;private legendPlate!:T.Mesh;private viaPlate!:T.Mesh;private boardPlate!:T.Mesh;
-  private stroke?:Stroke;private drag?:{id:string;grab:XY;to:XY;moved:boolean};private erasing=false;private hoverCell?:XY;
+  private stroke?:Stroke;private drag?:{id:string;grab:XY;to:XY;moved:boolean;wasSelected:boolean};private hoverCell?:XY;private hoverBody?:string;
+  /** Decoupling loops drawn on the copper, and the current bursts that race round them after CHECK. */
+  private loopFx=new T.Group();private beads:{mesh:T.Mesh;path:T.Vector3[];u:number;speed:number}[]=[];private burstT=0;private heatGlow?:T.Sprite;
   private drops:{g:T.Group;t:number}[]=[];private markUntil=0;private outbox:T.Group[]=[];
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';private crate?:Game['props'][number];private ready=false;
   constructor(private game:Game){
@@ -85,18 +92,18 @@ export class QfnBench implements Station {
     part(r,rbox(1,.84,1.4,.05),toon('#9aa3dc'),t.x+2.55,.42,t.z);part(r,box(1.08,.07,1.48),toon('#ecd3a6'),t.x+2.55,t.y-.035,t.z);this.solid(1,1,1.4,t.x+2.55,.5,t.z);
     const top=group(this.root,t.x,t.y,t.z);
     top.add(this.boardRoot);this.boardRoot.position.set(0,TOP,-.3);
-    this.boardRoot.add(this.partsRoot,this.copper,this.rats,this.preview,this.marks,this.selFrame);
+    this.boardRoot.add(this.partsRoot,this.copper,this.rats,this.preview,this.marks,this.selFrame,this.loopFx);
     this.hover=part(this.boardRoot,new T.PlaneGeometry(S*.94,S*.94),new T.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.35,depthWrite:false}),0,.03,0,false);
     this.hover.rotation.x=-Math.PI/2;(this.hover.material as T.Material).userData.outlineParameters={visible:false};this.hover.visible=false;this.hover.renderOrder=3;
-    // Tools: two columns of chunky buttons either side of the board's near half.
-    const tools:[string,string,string,unknown,string,number,number][]=[
-      ['MOVE','M','tool','move','#bfe3f5',-1,0],['TURN','R','rotate',undefined,'#d9d4f2',-1,1],['PEN','T','tool','pen','#ffd9a8',-1,2],['ERASE','X','tool','erase','#f5c4c4',-1,3],
-      ['LAYER','L','layer',undefined,'#c8f0dc',1,0],['VIA','V','tool','via','#ffe9a8',1,1],['CHECK','C','check',undefined,'#d6f5d0',1,2],['SHIP','⏎','ship',undefined,'#ffc629',1,3]];
-    for(const [name,k,act,arg,color,side,row] of tools){
+    // Buttons either side of the board's near half. There are no modes: the board itself is the tool.
+    const tools:[string,string,string,string,number,number][]=[
+      ['TURN','R','rotate','#d9d4f2',-1,1],['LAYER','L','layer','#c8f0dc',-1,2],['VIA','V','arm','#ffe9a8',-1,3],
+      ['CHECK','C','check','#d6f5d0',1,2],['SHIP','⏎','ship','#ffc629',1,3]];
+    for(const [name,k,act,color,side,row] of tools){
       const b=group(top,side*1.58,0,.3+row*.24);part(b,rbox(.4,.07,.21,.035),toon(color),0,.035,0);part(b,box(.42,.02,.23),toon(INK),0,.004,0);
       const p=plate(b,label(name,color,INK,256,128,k),.37,.185,0,.072,0);
-      if(act==='layer')this.layerPlate=p;if(arg==='via')this.viaPlate=p;
-      this.click(b,act,arg);this.toolPucks.set(act==='tool'?String(arg):act,b);}
+      if(act==='layer')this.layerPlate=p;if(act==='arm')this.viaPlate=p;
+      this.click(b,act);this.toolPucks.set(act,b);}
     const undo=group(top,-1.08,0,1.0);part(undo,rbox(.26,.05,.14,.03),toon('#fffaf0'),0,.025,0);plate(undo,label('UNDO','#fffaf0',INK,256,128,'Z'),.25,.125,0,.052,0);this.click(undo,'undo');
     // Title and ratsnest legend ride on the jig's near margin (loadBoard sets the depth), where no
     // part standing on the board can draw over them.
@@ -111,7 +118,7 @@ export class QfnBench implements Station {
   /** (Re)builds the board slab and every part for the current board. */
   private loadBoard(){
     const b=this.board();
-    for(const c of [...this.boardRoot.children])if(![this.partsRoot,this.copper,this.rats,this.preview,this.marks,this.selFrame,this.hover].includes(c as never)&&!c.userData.keep)this.boardRoot.remove(c);
+    for(const c of [...this.boardRoot.children])if(![this.partsRoot,this.copper,this.rats,this.preview,this.marks,this.selFrame,this.loopFx,this.hover].includes(c as never)&&!c.userData.keep)this.boardRoot.remove(c);
     this.partsRoot.clear();this.partGroups.clear();this.qfnBody=undefined;
     const w=b.w*S,h=b.h*S;
     part(this.boardRoot,rbox(w+.26,.05,h+.26,.03),toon(JIG),0,-.06,0);
@@ -125,7 +132,9 @@ export class QfnBench implements Station {
     for(const p of b.parts)this.buildPart(p);
     (this.boardPlate.material as T.MeshBasicMaterial).map=label(`BOARD ${this.boardIx+1} · ${b.title.toUpperCase()}`,'#fffaf0',INK,512,68);
     const near=h/2+.066;this.boardPlate.position.z=near;this.legendPlate.position.z=near;this.marks.clear();
-    this.layer=1;this.tool='move';this.selected=undefined;this.history=[];
+    this.layer=1;this.viaArmed=false;this.selected=undefined;this.history=[];this.burstT=0;
+    if(this.heatGlow){this.heatGlow.parent?.remove(this.heatGlow);this.heatGlow=undefined;}
+    if(b.thermal){const pid=b.thermal.pin.split('.')[0],g=this.partGroups.get(pid)!;this.heatGlow=glow(g,'rgba(255,90,40,1)',.9,0);this.heatGlow.position.y=.2;}
     this.syncParts(true);this.redraw();
   }
   private padTex=new Map<string,T.Texture>();
@@ -134,8 +143,8 @@ export class QfnBench implements Station {
     for(const pin of p.pins){const net=netOfPin(b,`${p.id}.${pin.id}`),col=netColor(net);
       if(pin.id==='EP'){const m=part(g,box(3*S-.035,.012,3*S-.035),mat(isNC(net)?'#d8cba2':col),0,.006,0);m.userData.pad=true;continue;}
       for(const c of pin.cells){
-        if(p.through){part(g,cyl(.058,.058,.014,20),mat(col),c[0]*S,.007,c[1]*S);part(g,cyl(.022,.022,.016,12),mat(INK,1,false),c[0]*S,.008,c[1]*S);}
-        else part(g,box(.112,.014,.112),mat(col),c[0]*S,.007,c[1]*S);}}
+        if(p.through){part(g,cyl(.058,.058,.014,20),mat(col),c[0]*S,.007,c[1]*S).userData.pad=true;part(g,cyl(.022,.022,.016,12),mat(INK,1,false),c[0]*S,.008,c[1]*S).userData.pad=true;}
+        else part(g,box(.112,.014,.112),mat(col),c[0]*S,.007,c[1]*S).userData.pad=true;}}
     if(p.kind==='qfn'){
       // Body over the exposed pad, with the pin-1 dot and each used pin's name printed beside it.
       const tex=canvasTex(512,512,c=>{c.fillStyle='#34364d';c.beginPath();c.roundRect(0,0,512,512,40);c.fill();c.fillStyle='rgba(255,255,255,.08)';c.fillRect(24,24,464,464);
@@ -159,9 +168,10 @@ export class QfnBench implements Station {
       // Chevron pointing out of the mouth.
       const chev=part(sh,new T.ConeGeometry(.035,.06,3),hot('#ffe36e',1.2),-.12,.07,0,false);chev.rotation.z=Math.PI/2;
     }else{
+      // A slim body between the pads (grab it to move the part); its end caps are the pins (drag from them to draw).
       const col=p.kind==='cap'?'#d8b88c':'#34364d',body=group(g,S/2,0,0);
-      part(body,rbox(.2,.06,.1,.022),toon(col),0,.045,0);p.pins.forEach((q,i)=>part(body,rbox(.045,.066,.106,.014),toon(netColor(netOfPin(b,`${p.id}.${q.id}`))),(i?1:-1)*.085,.045,0));
-      const tag=plate(body,label(p.id,col,p.kind==='cap'?INK:'#fffaf0',160,80),.12,.06,0,.077,0);tag.renderOrder=2;tags.push({m:tag,z:0});
+      part(body,rbox(.1,.07,.1,.022),toon(col),0,.05,0);p.pins.forEach((q,i)=>{part(body,rbox(.045,.066,.106,.014),toon(netColor(netOfPin(b,`${p.id}.${q.id}`))),(i?1:-1)*.072,.045,0).userData.pad=true;});
+      const tag=plate(body,label(p.id,col,p.kind==='cap'?INK:'#fffaf0',160,80),.09,.045,0,.087,0);tag.renderOrder=2;tags.push({m:tag,z:0});
     }
     g.userData.tags=tags;
   }
@@ -200,12 +210,24 @@ export class QfnBench implements Station {
       if(this.drag){const dx=(this.drag.to[0]-d.place[this.drag.id].at[0])*S,dz=(this.drag.to[1]-d.place[this.drag.id].at[1])*S;this.selFrame.position.set(dx,0,dz);}else this.selFrame.position.set(0,0,0);
       for(const [w,h,x,z] of [[x1-x0,.016,(x0+x1)/2,z0],[x1-x0,.016,(x0+x1)/2,z1],[.016,z1-z0,x0,(z0+z1)/2],[.016,z1-z0,x1,(z0+z1)/2]])part(this.selFrame,box(w+.016,.012,h),m,x,.02,z,false);}
     // Tool and layer states.
-    for(const [k,o] of this.toolPucks){const on=k===this.tool||(k==='layer'&&this.layer===2);o.position.y=(o.userData.baseY as number)+(on?.03:0);}
+    for(const [k,o] of this.toolPucks){const on=(k==='arm'&&this.viaArmed)||(k==='layer'&&this.layer===2);o.position.y=(o.userData.baseY as number)+(on?.03:0);}
     const L=b.layers===1?'L1 only':`L${this.layer}`;(this.layerPlate.material as T.MeshBasicMaterial).map=this.tex(`layer:${L}`,()=>label(`LAYER ${L}`,this.layer===2?'#8fd6b4':'#c8f0dc',INK,256,128,'L'));
     (this.viaPlate.material as T.MeshBasicMaterial).map=this.tex(`via:${b.layers}`,()=>label('VIA',b.layers===2?'#ffe9a8':'#e3e0d6',b.layers===2?INK:'#8a8a9a',256,128,'V'));
-    if(this.qfnBody){const see=b.layers===2&&(this.tool==='via'||this.layer===2),m=this.qfnBody.material as T.MeshToonMaterial,top=this.qfnBody.userData.top as T.Mesh;
+    if(this.qfnBody){const see=b.layers===2&&(this.viaArmed||this.layer===2),m=this.qfnBody.material as T.MeshToonMaterial,top=this.qfnBody.userData.top as T.Mesh;
       m.transparent=true;m.opacity=see?.28:1;m.depthWrite=!see;(top.material as T.MeshBasicMaterial).opacity=see?.3:1;}
-    this.drawPreview();this.shown='';
+    this.drawLoops();this.drawPreview();this.shown='';
+  }
+  /** Each decoupling loop as a glow over its copper: green when short enough, orange when too long. */
+  private drawLoops(){
+    this.loopFx.clear();this.beads=[];const b=this.board();if(!b.decouple)return;
+    for(const l of this.live.loops){if(l.path.length<2)continue;const ok=l.loop<=l.max,m=new T.MeshBasicMaterial({color:new T.Color(ok?'#7dffb0':'#ffa040').multiplyScalar(1.4),transparent:true,opacity:.55,depthWrite:false,blending:T.AdditiveBlending});
+      m.userData.outlineParameters={visible:false};
+      const pts=l.path.map(p=>this.at(p.c,p.l===1?.03:.016));
+      for(let i=1;i<pts.length;i++){const a=pts[i-1],z=pts[i];if(a.distanceTo(z)<1e-6)continue;const v=Math.abs(a.x-z.x)<1e-6,len=a.distanceTo(z)+.03;
+        const seg=part(this.loopFx,box(v?.03:len,.004,v?len:.03),m,(a.x+z.x)/2,Math.max(a.y,z.y),(a.z+z.z)/2,false);seg.userData.noAO=true;seg.renderOrder=4;}
+      // Current bursts: bright beads that run the loop after CHECK (a long loop takes visibly longer).
+      const len=pts.reduce((n,p,i)=>i?n+p.distanceTo(pts[i-1]):0,0);
+      for(let k=0;k<5;k++){const bead=part(this.loopFx,sphere(.024,10,8),hot(ok?'#c8ffe0':'#ffd0a0',2),0,.05,0,false);bead.visible=false;this.beads.push({mesh:bead,path:pts,u:-k*.09,speed:.55/Math.max(.3,len)});}}
   }
   private texCache=new Map<string,T.Texture>();
   private tex(k:string,make:()=>T.Texture){let t=this.texCache.get(k);if(!t){t=make();this.texCache.set(k,t);}return t;}
@@ -230,14 +252,14 @@ export class QfnBench implements Station {
     if(this.complete())return false;
     if(!this.partsReady){this.say('No parts yet: bring the parts crate from the stock shelf to the bench.');a.voice('hm',1.4);return false;}
     switch(name){
-      case 'tool':{const t=arg as Tool;if(!['move','pen','via','erase'].includes(t))return false;
-        if(t==='via'&&b.layers<2){this.say('Vias need a second copper layer. It unlocks on board 3.');a.tone(180,.12,.05,'square');return false;}
-        this.tool=t;a.tone(560,.05,.03,'triangle');break;}
+      case 'arm':{if(b.layers<2){this.say('Vias need a second copper layer. It unlocks on board 3.');a.tone(180,.12,.05,'square');return false;}
+        if(this.stroke){this.dropVia();return true;}
+        this.viaArmed=!this.viaArmed;a.tone(this.viaArmed?760:520,.05,.03,'triangle');break;}
       case 'select':{const id=arg as string;if(!b.parts.some(p=>p.id===id))return false;this.selected=id;a.pop();break;}
       case 'move':{const {part:id,at,rot}=arg as {part:string;at:XY;rot?:Rot};const p=b.parts.find(q=>q.id===id);if(!p)return false;const cur=d.place[id],to:Place={at:[at[0],at[1]],rot:rot??cur.rot};
         if(same(cur.at,to.at)&&cur.rot===to.rot)return false;const why=placeProblem(b,d,id,to);if(why){this.say(why,'bad');a.tone(170,.14,.05,'square');return false;}
         this.commit();d.place[id]=to;this.selected=id;a.tone(420,.05,.04,'triangle');a.noise(.04,.03,1800,'bandpass');break;}
-      case 'rotate':{const id=(arg as string|undefined)??this.selected;if(!id){this.say('Select a part first (MOVE tool, click it), then TURN.');return false;}
+      case 'rotate':{const id=(arg as string|undefined)??this.selected;if(!id){a.voice('hm',1.4);return false;}
         const p=partOf(b,id);if(p.kind==='qfn'||p.locked){this.say(`${id} is fixed${p.kind==='qfn'?': the QFN is the anchor everything else fits around':' by the enclosure'}.`);return false;}
         const cur=d.place[id],to:Place={at:cur.at,rot:((cur.rot+1)%4) as Rot},why=placeProblem(b,d,id,to);if(why){this.say(`Can't turn it here: ${why}`,'bad');a.tone(170,.14,.05,'square');return false;}
         this.commit();d.place[id]=to;this.selected=id;a.tone(620,.06,.04,'triangle');break;}
@@ -254,7 +276,7 @@ export class QfnBench implements Station {
         this.commit();d.vias.push({at:[c[0],c[1]],net:v.net!});a.noise(.12,.05,2400,'bandpass');a.tone(900,.05,.03);break;}
       case 'erase':{const c=arg as XY,before=structuredClone(d);if(!erase(d,this.layer,c)){return false;}this.history.push(before);a.noise(.05,.04,3000,'highpass');break;}
       case 'undo':{const prev=this.history.pop();if(!prev){this.say('Nothing to undo on this board.');return false;}this.design=prev;this.syncParts();a.tone(300,.06,.04,'triangle');break;}
-      case 'check':{const r=check(b,d);this.checks++;this.showMarks(r);
+      case 'check':{const r=check(b,d);this.checks++;this.showMarks(r);this.burstT=3;this.beads.forEach((x,k)=>x.u=-k*.09);
         this.say(r.tier===0?`Check: ${r.problems.slice(0,2).join(' ')}`:`${TIERS[r.tier]}. ${r.tier===3?'Reliable, and at or under par.':r.notes[0]??''}`,r.tier===0?'bad':'ok');
         if(r.tier>0)a.bell(1175,.4,.04);else a.tone(160,.25,.06,'square');this.redraw();return true;}
       case 'ship':{const r=check(b,d);this.spent+=r.cost;
@@ -282,32 +304,57 @@ export class QfnBench implements Station {
     return c[0]>=0&&c[1]>=0&&c[0]<b.w&&c[1]<b.h?c:undefined;
   }
   private partAt(c:XY){const b=this.board();return b.parts.find(p=>p.kind!=='qfn'&&footprint(p,this.design.place[p.id]).some(x=>same(x,c)))??b.parts.find(p=>footprint(p,this.design.place[p.id]).some(x=>same(x,c)));}
+  /** The movable part whose body (not a pad) is under the pointer, if any. */
+  private bodyAt(ray:T.Raycaster):string|undefined{
+    const hit=ray.intersectObjects(this.partsRoot.children,true).find(h=>visible(h.object));if(!hit)return undefined;
+    for(let o:T.Object3D|null=hit.object;o&&o!==this.partsRoot;o=o.parent){if(o.userData.pad)return undefined;
+      if(o.userData.part){const p=partOf(this.board(),o.userData.part as string);return p.kind==='qfn'||p.locked?undefined:p.id;}}
+    return undefined;
+  }
+  /** Copper of some net under a cell on the layer being drawn: a stroke may start there. */
+  private canStart(c:XY){const s=strokeNet(this.board(),this.design,this.layer,c);return !s.why;}
   pointer(e:Pointer){
     const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true);let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
     if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.setScalar(1);if(found)found.obj.scale.setScalar(1.08);this.hovered=found;}
-    const cell=found?undefined:this.cellFromRay(e.ray);
-    const hoverPart=cell&&this.partsReady&&this.tool==='move'?this.partAt(cell):undefined;
-    document.body.style.cursor=!this.active?'':found||hoverPart?'pointer':cell&&this.tool!=='move'?'crosshair':'';
-    this.hoverCell=cell;this.updateHover();
+    const cell=found?undefined:this.cellFromRay(e.ray),body=found||!this.partsReady||this.stroke?undefined:this.bodyAt(e.ray);
+    document.body.style.cursor=!this.active?'':found?'pointer':this.drag?'grabbing':body?'grab':cell&&(this.viaArmed||this.canStart(cell)||this.stroke)?'crosshair':'';
+    this.hoverCell=cell;this.hoverBody=body;this.updateHover();
     if(e.kind==='down'){
       if(found){this.act(found.act,found.arg);return;}
-      if(!cell||!this.partsReady){if(!this.partsReady&&cell)this.act('select','U1');return;}
-      if(this.tool==='move'){const p=this.partAt(cell);if(!p){this.selected=undefined;this.redraw();return;}
-        this.act('select',p.id);if(!p.locked&&p.kind!=='qfn'){const at=this.design.place[p.id].at;this.drag={id:p.id,grab:[cell[0]-at[0],cell[1]-at[1]],to:at,moved:false};}}
-      else if(this.tool==='pen'){const s=strokeNet(this.board(),this.design,this.layer,cell);if(s.why){this.say(s.why,'bad');return;}this.stroke={layer:this.layer,net:s.net!,cells:[cell],warned:false};this.drawPreview();}
-      else if(this.tool==='via')this.act('via',cell);
-      else if(this.tool==='erase'){this.erasing=true;this.act('erase',cell);}
+      if(!this.partsReady){if(cell)this.act('select','U1');return;}
+      if(e.button!==0)return;
+      if(this.viaArmed&&cell){this.viaArmed=false;this.act('via',cell);this.redraw();return;}
+      if(body){const at=this.design.place[body].at,wasSelected=this.selected===body;this.act('select',body);
+        this.drag={id:body,grab:cell?[cell[0]-at[0],cell[1]-at[1]]:[0,0],to:at,moved:false,wasSelected};return;}
+      if(!cell)return;
+      const st=strokeNet(this.board(),this.design,this.layer,cell);
+      if(!st.why){this.stroke={layer:this.layer,net:st.net!,cells:[cell],warned:false};this.drawPreview();return;}
+      // Copper that can't carry a track (an NC pin, the chip body) says why; bare board just deselects.
+      const p=this.partAt(cell);if(p){this.act('select',p.id);if(/NC|body/.test(st.why))this.say(st.why);}else{this.selected=undefined;this.redraw();}
       return;}
     if(e.kind==='move'){
       if(this.drag&&cell){const to:XY=[cell[0]-this.drag.grab[0],cell[1]-this.drag.grab[1]];if(!same(to,this.drag.to)){this.drag.to=to;this.drag.moved=true;this.ghost();}}
       if(this.stroke&&cell)this.extend(cell);
-      if(this.erasing&&cell)this.act('erase',cell);
       return;}
-    // up
-    if(this.drag){const d=this.drag;this.drag=undefined;if(d.moved&&!same(d.to,this.design.place[d.id].at))this.act('move',{part:d.id,at:d.to});this.syncParts();this.redraw();}
-    if(this.stroke){const s=this.stroke;this.stroke=undefined;if(s.cells.length>1)this.act('trace',{cells:s.cells,layer:s.layer});else this.drawPreview();}
-    this.erasing=false;
+    // up: a drag moves the part; a click on an already selected part turns it.
+    if(this.drag){const d=this.drag;this.drag=undefined;
+      if(d.moved&&!same(d.to,this.design.place[d.id].at))this.act('move',{part:d.id,at:d.to});else if(!d.moved&&d.wasSelected)this.act('rotate',d.id);
+      this.syncParts();this.redraw();}
+    // A drag lays a track; a tap on a track (or via) cuts it there.
+    if(this.stroke){const s=this.stroke,c=s.cells[0];this.stroke=undefined;if(s.cells.length>1)this.act('trace',{cells:s.cells,layer:s.layer});
+      else if(this.isTrack(c,s.layer))this.act('erase',c);else this.drawPreview();}
+  }
+  /** Track or via copper (not a pad) at a cell: a tap there cuts it. */
+  private isTrack(c:XY,l:Layer){const d=this.design;return d.vias.some(v=>same(v.at,c))||(d.traces.some(t=>t.layer===l&&t.cells.some(x=>same(x,c)))&&netOfCell(this.board(),d,l,c)===undefined);}
+  /** Mid-stroke VIA: lays the track so far, drops a via at its head, and carries on from there on the
+   *  other layer. */
+  private dropVia(){
+    const s=this.stroke!,head=s.cells[s.cells.length-1],b=this.board(),a=this.game.audio;
+    if(s.cells.length>1&&!this.act('trace',{cells:s.cells,layer:s.layer})){this.stroke=undefined;return;}
+    if(!this.act('via',head)){this.stroke=undefined;this.drawPreview();return;}
+    const next:Layer=s.layer===1?2:1;this.layer=next;a.tone(next===2?380:520,.07,.04,'triangle');
+    const st=strokeNet(b,this.design,next,head);this.stroke=st.why?undefined:{layer:next,net:st.net!,cells:[head],warned:false};this.redraw();
   }
   /** While dragging: the part follows the pointer; the frame turns red where it can't go. */
   private ghost(){const d=this.drag!,g=this.partGroups.get(d.id)!,p=this.at(d.to);g.position.set(p.x,.05,p.z);this.redraw();}
@@ -324,10 +371,10 @@ export class QfnBench implements Station {
       if(netOfCell(b,this.design,s.layer,next)===s.net)this.game.audio.bell(1319,.2,.03);}
     this.drawPreview();
   }
-  private updateHover(){const c=this.hoverCell;this.hover.visible=!!c&&this.active&&this.partsReady&&this.tool!=='move';
-    if(c){const p=this.at(c,.03);this.hover.position.copy(p);(this.hover.material as T.MeshBasicMaterial).color.set(this.tool==='erase'?'#ff8a8a':this.tool==='via'?'#ffe36e':'#ffffff');}}
-  key(code:string){const m=TOOL_KEYS[code];if(!m)return false;this.act(m[0],m[1]);return true;}
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';this.stroke=undefined;this.drag=undefined;this.erasing=false;this.hover.visible=false;this.syncParts();this.redraw();}this.shown='';}
+  private updateHover(){const c=this.hoverCell,show=!!c&&this.active&&this.partsReady&&!this.drag&&!this.hoverBody&&(this.viaArmed||!!this.stroke||this.canStart(c));this.hover.visible=show;
+    if(c&&show){const p=this.at(c,.03);this.hover.position.copy(p);(this.hover.material as T.MeshBasicMaterial).color.set(this.viaArmed?'#ffe36e':'#ffffff');}}
+  key(code:string){const m=KEYS[code];if(!m)return false;this.act(m[0],m[1]);return true;}
+  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';this.stroke=undefined;this.drag=undefined;this.viaArmed=false;this.hover.visible=false;this.syncParts();this.redraw();}this.shown='';}
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='parts'||this.partsReady)return;const q=p.body.translation(),sx=this.table.x+2.55,sz=this.table.z;
     if(Math.hypot(q.x-sx,q.z-sz)<2.2||Math.hypot(q.x-this.stand.x,q.z-this.stand.z)<2.2){
@@ -340,6 +387,13 @@ export class QfnBench implements Station {
     if(this.drops.length&&this.drops.every(d=>d.t>=.45)){this.drops=[];this.game.audio.clatter();}
     if(this.marks.children.length){const k=1+Math.sin(this.game.last*.012)*.15;this.marks.children.forEach(m=>m.scale.setScalar(k));if(this.game.time>this.markUntil)this.marks.clear();}
     this.preview.children.forEach(m=>{(m as T.Mesh).position.y=.016+Math.sin(this.game.last*.01)*.002;});
+    // Current bursts run the decoupling loops for a few seconds after CHECK.
+    this.burstT=Math.max(0,this.burstT-dt);
+    for(const bd of this.beads){bd.u+=bd.speed*dt;const on=this.burstT>0&&bd.u>=0;bd.mesh.visible=on;if(!on)continue;const p=bd.path,f=(bd.u%1)*(p.length-1),i=Math.floor(f);bd.mesh.position.lerpVectors(p[i],p[Math.min(p.length-1,i+1)],f-i).setY(.06);}
+    // The hot chip: its body warms toward orange-red with temperature and glows while over the limit.
+    const th=this.live.thermal;if(th&&this.qfnBody){const k=Math.min(1,Math.max(0,(th.temp-HEAT.ambient)/110)),over=th.temp>th.limit;
+      (this.qfnBody.material as T.MeshToonMaterial).color.set('#34364d').lerp(new T.Color(over?'#ff5a2a':'#d9a441'),k*.9);
+      if(this.heatGlow)(this.heatGlow.material as T.SpriteMaterial).opacity=over?.35+.25*Math.sin(this.game.time*5):0;}
     this.updatePanel();
   }
 
@@ -352,46 +406,50 @@ export class QfnBench implements Station {
   private updatePanel(){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const b=this.board(),r=this.live,done=this.complete();
-    const key=JSON.stringify([this.active,this.boardIx,this.tool,this.layer,this.partsReady,r.tier,r.cost,r.nets,r.loops.map(l=>l.loop),r.thermal,r.problems.length,done]);if(key===this.shown)return;this.shown=key;
+    const key=JSON.stringify([this.active,this.boardIx,this.viaArmed,this.layer,this.partsReady,r.tier,r.cost,r.nets,r.loops.map(l=>l.loop),r.thermal,r.problems.length,done]);if(key===this.shown)return;this.shown=key;
     if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel qfn-panel';this.layerEl()?.append(this.panel);}
     this.panel.hidden=done;if(done)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const nets=r.nets.map(n=>`<li class="${n.done?'ok':''}"><i style="--c:${netColor(n.net)}"></i><span>${n.net}</span><b>${n.done?'joined':`${n.joined}/${n.pads} pads`}</b></li>`).join('');
-    const loops=r.loops.map(l=>row(`Bypass ${l.cap??'cap'}`,l.loop===Infinity?'not wired':`loop ${l.loop} · want ≤ ${l.max}`,l.loop<=l.max)).join('');
+    const loops=r.loops.map(l=>row(`Loop ${l.cap??''}`,l.loop===Infinity?'not wired':`${l.loop} cells · ≤ ${l.max}`,l.loop<=l.max)).join('');
     const orient=r.problems.find(p=>/mouth/.test(p));
     this.panel.innerHTML=`<header><small>BOARD ${this.boardIx+1}/${BOARDS.length} · ${b.layers===1?'ONE LAYER':'TWO LAYERS'}</small><h4>${b.title}</h4><p>${b.ask}</p></header>`+
-      (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${b.layers===2?row("Drawing on",this.layer===1?"L1 · top, wide tracks":"L2 · bottom, thin tracks"):""}${orient?row('Connector','edge, mouth out',false):''}${loops}${r.thermal?row('Thermal vias',`${r.thermal.vias} / ${r.thermal.need}`,r.thermal.vias>=r.thermal.need):''}`+
+      (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${b.layers===2?row("Drawing on",this.layer===1?"L1 · top, wide tracks":"L2 · bottom, thin tracks"):""}${orient?row('Connector','edge, mouth out',false):''}${loops}${r.thermal?row('Chip',`${r.thermal.temp} °C · ≤ ${r.thermal.limit}`,r.thermal.temp<=r.thermal.limit):''}`+
         `${row('Track + vias',`${r.cost} · par ${r.par}`,r.tier===3)}${row('Grade now',TIERS[r.tier],r.tier>0)}</ul>`+
         `<p class="profile">Teaching grid: cell sizes and loop limits are this bench's rules. A real layout still needs the fab's DRC and an electrical review.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
     if(this.complete())return null;
-    if(!atBench){const p=this.game.player.translation();
-      if(this.game.held?.spec.id==='parts'&&Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<2.6)return {key:'E',text:'Set the parts crate on the bench'};
-      if(Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6)return this.partsReady?{key:'E',text:'Sit at the layout bench'}:{key:'E',text:'Sit at the bench (the parts crate is still on the shelf)'};
-      return walkHint(this.game,this.partsReady?'Walk to the layout bench (yellow arrow)':'Fetch the parts crate from the stock shelf (yellow arrow)');}
-    if(!this.partsReady)return {key:'E',text:'Step back and fetch the parts crate from the stock shelf'};
-    const b=this.board(),r=this.live;
-    if(r.problems.some(p=>/mouth/.test(p)))return {key:'M',text:'MOVE: drag the connector to a board edge, mouth out (R turns it)'};
-    if(r.nets.some(n=>!n.done)){
-      if(this.tool==='move')return {key:'T',text:'Parts placed? PEN: drag from a pad along a dashed line'};
-      if(b.layers===2)return {key:'V',text:'Blocked? A VIA on your track, then LAYER (L) to cross under'};
-      return {key:'T',text:'PEN (T): drag from a pad to its match. One layer: tracks can\'t cross'};}
-    if(r.tier===0)return {key:'C',text:'CHECK shows what the test would reject'};
-    if(r.tier===1)return r.loops.some(l=>l.loop>l.max)?{key:'M',text:'Works. Move each bypass cap beside its VDD and GND pins'}:{key:'V',text:'Works. Add thermal vias inside the exposed pad'};
-    return {key:'Enter',text:r.tier===3?'Elegant. SHIP it (Enter)':'Reliable. SHIP it, or shorten the route to reach par'};
+    if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z);
+      if(this.game.held?.spec.id==='parts'&&near<2.6)return {key:'E',text:'Set the crate on the bench'};
+      if(near<1.6)return {key:'E',text:'Work at the bench'};
+      return null;}
+    if(!this.partsReady)return {key:'E',text:'Fetch the parts crate'};
+    if(this.stroke)return this.board().layers===2?{key:'V',text:'Via here'}:null;
+    if(this.viaArmed)return {key:'Click',text:'Drop the via'};
+    if(this.hoverBody)return {key:'Drag',text:this.selected===this.hoverBody?'Move, or click to turn':'Move'};
+    const r=this.live;
+    if(r.nets.some(n=>!n.done))return {key:'Drag',text:'Draw from a pad'};
+    if(r.tier<2)return {key:'C',text:'Check'};
+    return {key:'Enter',text:'Ship'};
   }
   complete(){return this.shipped.length>=BOARDS.length;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent)};}
-  snapshot(){const r=this.live;return {board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,tool:this.tool,layer:this.layer,selected:this.selected,design:this.design,
+  snapshot(){const r=this.live;return {board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,viaArmed:this.viaArmed,layer:this.layer,selected:this.selected,design:this.design,
     report:{tier:r.tier,problems:r.problems,notes:r.notes,cost:r.cost,par:r.par,nets:r.nets,loops:r.loops,thermal:r.thermal},shipped:this.shipped,mistakes:this.mistakes,spent:this.spent,checks:this.checks,
-    hover:this.hoverCell,rings:this.marks.children.length,cells:this.active?this.cellScreens():undefined};}
+    hover:this.hoverCell,hoverBody:this.hoverBody??null,drag:this.drag?{id:this.drag.id,grab:this.drag.grab}:null,rings:this.marks.children.length,cells:this.active?this.cellScreens():undefined,bodies:this.active?this.bodyScreens():undefined};}
+  /** Page coordinates of each part's body (where a drag picks the part up). */
+  private bodyScreens(){const cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect(),out:Record<string,[number,number]>={};
+    for(const [id,g] of this.partGroups){const body=g.children.find(c=>!c.userData.pad&&c.type==='Group')??g;const v=body.localToWorld(new T.Vector3(0,.085,0)).project(cam);
+      out[id]=[Math.round(rect.left+(v.x+1)/2*rect.width),Math.round(rect.top+(1-v.y)/2*rect.height)];}
+    return out;}
   /** Page coordinates of every cell centre (browser tests drive the real pointer with these). */
   private cellScreens(){const b=this.board(),cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect(),out:Record<string,[number,number]>={};
     cam.updateMatrixWorld();this.boardRoot.updateMatrixWorld(true);
     for(let y=0;y<b.h;y++)for(let x=0;x<b.w;x++){const v=this.boardRoot.localToWorld(this.at([x,y])).project(cam);out[`${x},${y}`]=[Math.round(rect.left+(v.x+1)/2*rect.width),Math.round(rect.top+(1-v.y)/2*rect.height)];}
     return out;}
 }
+function visible(o:T.Object3D){for(let p:T.Object3D|null=o;p;p=p.parent)if(!p.visible)return false;return true;}
 function netOfCell(b:Board,d:Design,l:Layer,c:XY){
   for(const p of b.parts)for(const {pin,cells} of pinCells(p,d.place[p.id]))if((l===1||p.through)&&cells.some(x=>same(x,c)))return netOfPin(b,`${p.id}.${pin.id}`);
   return undefined;}

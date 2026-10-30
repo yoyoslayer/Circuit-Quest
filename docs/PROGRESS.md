@@ -163,7 +163,7 @@ tabletop, the station takes the pointer and keys, and E or Esc steps back.
 |---|---|---|---|
 | 03 | `arcade` | Overheating Arcade | LED current from the chain (I = (V − V<sub>f</sub>) ÷ R); blocks in a row add, side by side they share; P = I²R per block; polarity; the across-the-LED trap; battery life; base resistor. `arcade-rush` generates cabinets for three minutes. |
 | 04 | `garage` | Robot Garage | Inductive kickback, shown as current beads and an arc; flyback diode vs 24 V clamp or TVS and stop time; polarity; why a capacitor doesn't fix it; star ground. |
-| 05 | `qfn` | Fabrication Bay | Placement before routing; no crossings on one layer; decoupling loop length; a second layer, vias and thermal vias. |
+| 05 | `qfn` | Fabrication Bay | Placement before routing; no crossings on one layer; decoupling loop length (drawn on the copper); a second layer, vias, and thermal vias against the chip's temperature. |
 | 06 | `observatory` | Signal Observatory | RC and LC filters on a live scope; an inductor carries DC and opposes changes in current; a DC latch must hold; quarter-wave antenna (c = fλ). |
 | 07 | `spectrum` | Spectrum Delivery | Propagation through brick, glass, metal, mesh and smoke; mirrors; detector matching; link margin; c = fλ. |
 
@@ -304,6 +304,23 @@ Keys at the bench:
   "uses more power than this delivery needs"), and blocked-by messages say why, not what to do.
 - **Physics fixes** (from the review): every band now spreads by 20 log d; sunlight swamps the
   visible detector and blunts the filtered near-IR one; thermal IR's example is heat cameras.
+
+**Fabrication Bay (QFN): no modes.** The nine tool buttons became five (TURN, LAYER, VIA, CHECK,
+SHIP) plus UNDO; the board itself is the tool.
+
+- **Gestures.** Drag a part by its body (between its pads) to move it; click a selected part to
+  turn it. Drag from a pad or track to draw. Tap a track or via to cut it there.
+- **Vias.** VIA (V) arms one drop. Pressed mid-stroke, it lays the track so far, drops a via at
+  its head, and the stroke carries on in the other layer (no hidden "layer 2 starts on a via"
+  step).
+- **Decoupling you can see.** Each bypass loop glows over its copper: green when short enough,
+  orange when too long. On CHECK, current bursts race round it, so a long loop takes visibly
+  longer.
+- **Heat instead of a magic number.** The two-layer board's chip has a temperature:
+  T = 25 °C + 1 W ÷ (1/110 + n/300). Each thermal via is one more heat path in parallel, so it
+  helps less than the last. The chip's body warms and glows red while it is over 70 °C, and the
+  panel shows "Chip 88 °C · ≤ 70". Four vias happen to be enough; nothing says "4".
+- **Prompts** are short action labels.
 
 ## Performance
 

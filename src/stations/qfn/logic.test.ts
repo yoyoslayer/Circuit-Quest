@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {BOARDS,REFERENCE,blank,check,cost,erase,footprint,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,turn,viaProblem,netAt,type Design,type XY} from './logic';
+import {BOARDS,REFERENCE,blank,check,cost,erase,footprint,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,turn,viaProblem,netAt,chipTemp,viasNeeded,HEAT,type Design,type XY} from './logic';
 
 const board=(id:string)=>BOARDS.find(b=>b.id===id)!;
 const ref=(id:string):Design=>structuredClone(REFERENCE[id]);
@@ -70,9 +70,18 @@ describe('QFN layout rules',()=>{
   it('the thermal pad needs its vias, and they may sit inside the pad',()=>{
     const b=board('driver'),d=ref('driver');
     d.vias=d.vias.filter(v=>!(v.at[0]===6&&v.at[1]===5));
-    let r=check(b,d);expect(r.tier).toBe(1);expect(r.thermal).toEqual({vias:3,need:4});expect(r.notes.join()).toMatch(/thermal via/);
+    let r=check(b,d);expect(r.tier).toBe(1);expect(r.thermal).toEqual({vias:3,temp:77,limit:70});expect(r.notes.join()).toMatch(/77 °C/);
     expect(viaProblem(b,d,[6,5]).net).toBe('GND');
     d.vias.push({at:[6,5],net:'GND'});r=check(b,d);expect(r.tier).toBe(3);
+  });
+  it('thermal vias are heat paths in parallel: each one lowers the chip temperature less than the last',()=>{
+    const t=[0,1,2,3,4,5].map(chipTemp);for(let i=1;i<t.length;i++){expect(t[i]).toBeLessThan(t[i-1]);if(i>1)expect(t[i-1]-t[i]).toBeLessThan(t[i-2]-t[i-1]);}
+    expect(viasNeeded()).toBe(4);expect(chipTemp(4)).toBeLessThanOrEqual(HEAT.limit);expect(chipTemp(3)).toBeGreaterThan(HEAT.limit);
+  });
+  it('a decoupling loop reports the copper it runs along, cap to chip and back',()=>{
+    const b=board('sensor'),d=ref('sensor'),l=check(b,d).loops[0];expect(l.path.length).toBeGreaterThan(1);
+    // Consecutive cells touch (or are the same cell on the other layer).
+    for(let i=1;i<l.path.length;i++){const a=l.path[i-1].c,z=l.path[i].c;expect(Math.abs(a[0]-z[0])+Math.abs(a[1]-z[1])).toBeLessThanOrEqual(1);}
   });
   it('vias: not inside small pads, not beside another net\'s pad, not onto other copper',()=>{
     const b=board('driver'),d=ref('driver');

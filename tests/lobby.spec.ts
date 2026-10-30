@@ -6,15 +6,15 @@ test('the bare URL opens the HQ lobby: a door per job, and E at a door walks int
   await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
   await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);
   const s=await snapshot(page);expect(s.level).toBe('lobby');
-  const ids=s.hub.doors.map((d:{id:string})=>d.id);expect(ids).toEqual(expect.arrayContaining(['playground','meeting','lunch','vias']));
+  const ids=s.hub.doors.map((d:{id:string})=>d.id);expect(ids).toEqual(expect.arrayContaining(['playground','meeting','lunch','arcade']));
   await expect(page.locator('.objective .cur')).toContainText('Cable Playground');
-  const via=s.hub.doors.find((d:{id:string})=>d.id==='vias');
-  await walk(page,via.at.x,via.at.z,.4);await wait(page,.2);
-  await expect(page.locator('.prompt-pill')).toContainText('Via Counter');
-  await Promise.all([page.waitForURL(/level=vias/),page.keyboard.press('KeyE')]);
+  const door=s.hub.doors.find((d:{id:string})=>d.id==='arcade');
+  await walk(page,door.at.x,door.at.z,.4);await wait(page,.2);
+  await expect(page.locator('.prompt-pill')).toContainText('Overheating Arcade');
+  await Promise.all([page.waitForURL(/level=arcade/),page.keyboard.press('KeyE')]);
   await expect(page.locator('body')).toHaveAttribute('data-ready','true');
   // The autostart flag drops Pip straight into the job.
-  expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().level)).toBe('vias');
+  expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().level)).toBe('arcade');
   expect(errors).toEqual([]);
 });
 
@@ -25,6 +25,6 @@ test('the Workshop arch opens a practice picker; practice runs are flagged and n
   await expect(page.locator('.prompt-pill')).toContainText('Workshop');
   await page.keyboard.press('KeyE');await expect(page.locator('.workshop-picker')).toBeVisible();
   await expect(page.locator('.workshop-picker [data-practice]')).not.toHaveCount(0);
-  await Promise.all([page.waitForURL(/level=vias&practice/),page.locator('.workshop-picker [data-practice="vias"]').click()]);
+  await Promise.all([page.waitForURL(/level=arcade&practice/),page.locator('.workshop-picker [data-practice="arcade"]').click()]);
   await expect(page.locator('body')).toHaveAttribute('data-practice','true');
 });

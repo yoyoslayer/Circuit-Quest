@@ -24,5 +24,5 @@ const npcs:NpcSpot[]=[
   {x:-3.6,z:-6.3,standing:true,acc:['cap'],mood:'happy',yaw:Math.PI*.9},{x:8.2,z:-3.4,standing:true,acc:['glasses'],yaw:-Math.PI*.7},
   {x:7.6,z:4.6,standing:true,acc:['headphones','mug'],mood:'sleepy',yaw:-Math.PI/2},
 ];
-export const garage:Level={id:'garage',name:'ROBOT GARAGE',number:'09',tagline:'The robot resets its brain every time it stops. Tame the kick.',badge:'robot',station:'garage',
+export const garage:Level={id:'garage',name:'ROBOT GARAGE',number:'04',tagline:'The robot resets its brain every time it stops. Tame the kick.',badge:'robot',station:'garage',
   width:22,depth:16,spawn:{x:-1.2,z:3.4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};

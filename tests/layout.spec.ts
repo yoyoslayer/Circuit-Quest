@@ -3,7 +3,7 @@ import {open} from './navigation';
 
 // Nothing a level places may start out buried in a wall, a fixture or another prop: overlapping
 // props jump apart on the first physics step, and coworkers or Pip inside furniture look broken.
-const LEVELS=['','playground','meeting','lunch','vias','vias-rush','qfn','archive','waterworks','observatory','arcade','garage','clockwork','depot','spectrum'];
+const LEVELS=['','playground','meeting','lunch','arcade','arcade-rush','garage','qfn','observatory','spectrum'];
 test.describe.configure({timeout:120000});
 for(const level of LEVELS){
   test(`layout: nothing starts overlapping in ${level||'the lobby'}`,async({page})=>{

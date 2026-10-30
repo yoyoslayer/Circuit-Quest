@@ -221,6 +221,16 @@ before merging.
   fixable reliably from the rack (unit-tested over 300 seeds). The HUD clock counts down and
   the result card shows the count, as in Via Rush.
 
+## The cut (2026-10-30, product owner's choice)
+
+Two design reviews (`mockups/review4/DESIGN_A.md`, `DESIGN_B.md`) found most stations were menu
+puzzles whose prompts handed out the answer, and four rested on misleading metaphors. The product
+owner chose to cut and deepen. **Kept (8 rooms):** Playground, Big Meeting, Lunch Rush, Overheating
+Arcade (+ Arcade Rush), Robot Garage, Fabrication Bay (QFN), Signal Observatory, Spectrum Delivery,
+renumbered 00–07. **Cut:** Via Counter and Via Rush, the Archive, the Waterworks, the Clockwork
+Kitchen and the Delivery Depot. Their code, tests and thumbnails are deleted; they remain in git
+history before this commit if any idea is worth salvaging.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

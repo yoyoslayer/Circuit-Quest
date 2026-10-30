@@ -1,14 +1,11 @@
 import {playground} from './playground';
 import {meeting} from './meeting';
 import {lunch} from './lunch';
-import {vias,viasRush} from './vias';
 import {qfn} from './qfn';
-import {archive} from './archive';
-import {waterworks} from './waterworks';
 import {observatory} from './observatory';
 import {arcade,arcadeRush} from './arcade';
 import {garage} from './garage';
-import {clockwork} from './clockwork';
-import {depot} from './depot';
 import {spectrum} from './spectrum';
-export const levels=[playground,meeting,lunch,vias,viasRush,qfn,archive,waterworks,observatory,arcade,arcadeRush,garage,clockwork,depot,spectrum];
+// The eight rooms kept after the 2026-10-30 cut (via counter, archive, waterworks, clockwork and depot
+// were removed: see docs/PROGRESS.md). Order is the lobby and job-board order.
+export const levels=[playground,meeting,lunch,arcade,arcadeRush,garage,qfn,observatory,spectrum];

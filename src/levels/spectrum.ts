@@ -28,5 +28,5 @@ const npcs:NpcSpot[]=[
   {x:-9.8,z:-6.6,standing:true,acc:['cap'],yaw:.6},{x:3.4,z:-4.7,standing:true,acc:['glasses'],yaw:2.6,mood:'happy'},
   {x:6.3,z:5.5,standing:true,acc:['headphones'],mood:'sleepy',yaw:2.2},{x:3.8,z:5.7,standing:true,acc:['mug'],mood:'alarm',yaw:-2.6},
 ];
-export const spectrum:Level={id:'spectrum',name:'SPECTRUM DELIVERY',number:'12',tagline:'Brick, glass, metal, smoke. Pick the band that gets through.',badge:'spectrum',station:'spectrum',
+export const spectrum:Level={id:'spectrum',name:'SPECTRUM DELIVERY',number:'07',tagline:'Brick, glass, metal, smoke. Pick the band that gets through.',badge:'spectrum',station:'spectrum',
   width:22,depth:16,spawn:{x:-8,z:5.6},anchor:{x:-10.6,z:-7.7},target:{x:-3.5,z:3.55},length:10,obstacles:[],props,npcs};

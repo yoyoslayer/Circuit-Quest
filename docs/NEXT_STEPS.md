@@ -1,5 +1,10 @@
 # Next steps (updated 2026-10-30)
 
+> **Read first:** five stations were cut on 2026-10-30 (see PROGRESS.md "The cut"). Anything below
+> that names the via counter, archive, waterworks, clockwork or depot no longer applies. The plan
+> now is to deepen the eight kept rooms using `mockups/review4/DESIGN_A.md` and `DESIGN_B.md`.
+
+
 Work stopped here at the product owner's request. Read `docs/HANDOFF_TO_CODEX.md` first
 (setup, file map), then this file.
 

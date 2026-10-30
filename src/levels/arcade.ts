@@ -22,6 +22,6 @@ const npcs:NpcSpot[]=[
   {x:7.9,z:.3,standing:true,acc:['headphones'],mood:'happy',yaw:Math.PI/2},{x:-8,z:-2.45,standing:true,acc:['cap'],yaw:-Math.PI/2},
   {x:-6.5,z:-5.2,standing:true,acc:['glasses'],mood:'sleepy',yaw:Math.PI},{x:5.9,z:-5.3,standing:true,acc:['bun'],yaw:Math.PI},
 ];
-export const arcade:Level={id:'arcade',name:'OVERHEATING ARCADE',number:'08',tagline:'Too bright, too hot, too dark. Pick the resistor.',badge:'led',station:'arcade',
+export const arcade:Level={id:'arcade',name:'OVERHEATING ARCADE',number:'03',tagline:'Too bright, too hot, too dark. Pick the resistor.',badge:'led',station:'arcade',
   width:22,depth:16,spawn:{x:-3.5,z:5},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs};
-export const arcadeRush:Level={...arcade,id:'arcade-rush',name:'ARCADE RUSH',number:'08R',tagline:'Three minutes. Every cabinet is broken a new way.',requires:'arcade',next:undefined};
+export const arcadeRush:Level={...arcade,id:'arcade-rush',name:'ARCADE RUSH',number:'03R',tagline:'Three minutes. Every cabinet is broken a new way.',requires:'arcade',next:undefined};

@@ -162,7 +162,7 @@ tabletop, the station takes the pointer and keys, and E or Esc steps back.
 | # | Station | Room | What it teaches |
 |---|---|---|---|
 | 03 | `arcade` | Overheating Arcade | LED current from the chain (I = (V − V<sub>f</sub>) ÷ R); blocks in a row add, side by side they share; P = I²R per block; polarity; the across-the-LED trap; battery life; base resistor. `arcade-rush` generates cabinets for three minutes. |
-| 04 | `garage` | Robot Garage | Inductive kickback, flyback diode vs zener or TVS clamp and stop time, polarity, why a capacitor doesn't fix it, star ground. |
+| 04 | `garage` | Robot Garage | Inductive kickback, shown as current beads and an arc; flyback diode vs 24 V clamp or TVS and stop time; polarity; why a capacitor doesn't fix it; star ground. |
 | 05 | `qfn` | Fabrication Bay | Placement before routing; no crossings on one layer; decoupling loop length; a second layer, vias and thermal vias. |
 | 06 | `observatory` | Signal Observatory | RC and LC filters on a live scope; an inductor carries DC and opposes changes in current; a DC latch must hold; quarter-wave antenna (c = fλ). |
 | 07 | `spectrum` | Spectrum Delivery | Propagation through brick, glass, metal, mesh and smoke; mirrors; detector matching; link margin; c = fλ. |
@@ -209,9 +209,8 @@ before merging.
   Props stay instanced, so the extra parts cost a few draw calls in total, not one per copy.
   `tools/gallery/` renders every prop under the game's look; `tools/debug/gallery.mjs`
   screenshots it.
-- **One RESET control.** Garage (and the cut Depot) use `resetButton()` in
-  `src/stations/shared.ts`: a red dome that pops up, glows and pulses a ring when tripped. The
-  Arcade's fuse now resets itself (see below).
+- **One RESET control** (since removed: the Arcade and Garage fuses now reset themselves; see
+  below).
 - **Arcade Rush** (`arcade-rush`, locked until the Arcade is done): three minutes of generated
   LED cabinets with a 4-second soak each. Every generated cabinet starts broken and is
   fixable reliably from the rack (unit-tested over 300 seeds). The HUD clock counts down and
@@ -269,6 +268,25 @@ Keys at the bench:
 | Backspace | Put the block back |
 
 `tools/debug/bench-arcade.mjs` screenshots the bench.
+
+**Robot Garage: kickback you can see.**
+
+- **Current as beads.** Current shows as bright beads riding the copper. When PULSE opens the
+  switch, the beads keep circling the motor through whatever gives them a path, and fade as the
+  coil empties. The replay runs about 1200× slower than life.
+  - With a plain diode the fade is slow; with the 24 V clamp or a TVS it is quick.
+  - With no path, the beads pile up at the switch and an arc jumps across it. The robot's
+    controller reboots: red eyes, a dizzy wobble and stars.
+- **One honest part.** The zener is now a single 24 V clamp part (a diode and a zener back to
+  back, as on real boards). This removes the hidden rule that a zener only clamped when flipped
+  and paired with a diode. A backwards clamp never conducts, so it gives the kick no path.
+- **No printed fixes.** Job hints are gone, and failure messages say why, never which part to fit
+  (unit-tested).
+- **Fuse.** The PTC fuse resets itself after it cools; the RESET button is gone (and
+  `resetButton()` with it).
+- **Scope.** It picks the stop or start view by itself, and TEST no longer requires a PULSE
+  first.
+- **Keys:** 1–5 parts, A/S/D sockets, F flip, G ground, P pulse, Enter test (was 16 keys).
 
 ## Performance
 

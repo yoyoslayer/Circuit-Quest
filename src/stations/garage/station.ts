@@ -1,19 +1,22 @@
 // Robot Garage bench. The delivery robot sits on the rolling-road test stand behind the bench,
 // wired to a harness board on the table: BATTERY → FUSE → MOTOR → switch node → SWITCH (MOSFET)
-// → ground, with the CONTROLLER on the right. Pip fits protection parts from the tray into four
-// places (two sockets ACROSS MOTOR, one ACROSS SWITCH, one AT CONTROLLER), flips polarity, picks
-// the controller's ground route, captures a stop (and a start) on the scope with PULSE, and
-// certifies the fix with TEST (five start/stop cycles). After the third job the robot drives its
-// delivery route around the garage to the dock. Rules: ./logic.ts.
+// → ground, with the CONTROLLER on the right. Pip fits protection parts from the tray into three
+// places (ACROSS MOTOR, ACROSS SWITCH, AT CONTROLLER), flips polarity, picks the controller's ground
+// route, runs the motor once with PULSE and certifies the fix with TEST (five start/stop cycles).
+// Current shows as pulses of light along the copper: when the switch opens they keep circling the
+// motor through whatever gives them a path, fading as the coil empties; with no path they pile up
+// at the switch and arc across it, and the robot's controller reboots. The scope replays the last
+// stop (or start). The PTC fuse resets itself once it cools. After the third job the robot drives
+// its delivery route around the garage to the dock. Rules: ./logic.ts.
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressGarage,robotMesh,STAND,PAD,ROUTE,YELLOW,TEAL,CREAM,type RobotParts} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
-import {cheer,walkHint,resetButton} from '../shared';
-import {JOBS,PARTS,PART_IDS,SLOT_NAMES,SPEC,SWITCH,MOTOR,RUNNING,STALL,CTRL,judge,cost,cheapest,shutdownCached,startTrace,startDip,setupKey,partCount,
+import {cheer} from '../shared';
+import {JOBS,PARTS,PART_IDS,SPEC,SWITCH,MOTOR,RUNNING,CTRL,judge,cost,cheapest,shutdownCached,startTrace,startDip,setupKey,partCount,flyChain,
   type PartId,type SlotId,type Fit,type Setup,type Verdict,type Job,type Trace} from './logic';
 
 const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;
@@ -39,7 +42,8 @@ function partMesh(id:PartId){
   part(g,rbox(.32,.05,.24,.03),toon('#efe2c8'),0,.025,0);
   const body=group(g,0,.08,-.045);body.name='body';
   if(id==='diode'){part(body,cyl(.04,.04,.19,14,'x'),toon('#2b2d42'));part(body,cyl(.042,.042,.035,14,'x'),toon('#e9edf3'),-.07,0,0);}
-  if(id==='zener'){part(body,cyl(.038,.038,.18,14,'x'),toon('#f08a4b'));part(body,cyl(.04,.04,.035,14,'x'),toon(INK),-.065,0,0);}
+  // The clamp: an orange zener and a black diode joined in one sleeve, band toward the motor's +.
+  if(id==='clamp'){part(body,cyl(.038,.038,.1,14,'x'),toon('#f08a4b'),-.045,0,0);part(body,cyl(.04,.04,.03,14,'x'),toon(INK),-.08,0,0);part(body,cyl(.036,.036,.09,14,'x'),toon('#2b2d42'),.05,0,0);part(body,cyl(.038,.038,.022,14,'x'),toon('#e9edf3'),.015,0,0);}
   if(id==='tvs'){part(body,rbox(.18,.07,.1,.02),toon('#3a3d55'),0,0,0);part(body,box(.035,.072,.102),toon('#e9edf3'),-.065,0,0);}
   if(id==='snubber'){part(body,cyl(.03,.03,.12,12,'x'),toon('#e8c79a'),-.06,0,0);for(const [x,c] of [[-.09,'#8a4b2a'],[-.066,INK],[-.042,'#8a4b2a']] as const)part(body,cyl(.032,.032,.012,12,'x'),toon(c),x,0,0);part(body,rbox(.08,.08,.06,.015),toon('#5b9cf0'),.06,0,0);}
   if(id==='cap'){const c=group(body,0,.02,0);part(c,cyl(.055,.055,.16,18,'x'),toon('#3f6fd6'));part(c,box(.16,.02,.022),toon('#e9edf3'),0,.048,0);part(c,cyl(.057,.057,.014,18,'x'),toon('#e9edf3'),.08,0,0);
@@ -51,22 +55,39 @@ interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 interface Capture {job:number;key:string;verdict:Verdict;trace?:Trace;start:number[];at:number}
 const ROUTE_LEN=ROUTE.slice(1).reduce((n,[x,z],k)=>n+Math.hypot(x-ROUTE[k][0],z-ROUTE[k][1]),0);
 const DRIVE_SPEED=3.2,DRIVE_TIME=ROUTE_LEN/DRIVE_SPEED+.8;
-/** Keyboard keys for the four sockets (as in key()). */
-const SLOT_KEYS:Record<SlotId,string>={fly1:'Z',fly2:'X',switch:'C',ctrl:'V'};
+/** Keyboard keys for the three sockets (as in key()). */
+const SLOT_KEYS:Record<SlotId,string>={fly:'A',switch:'S',ctrl:'D'};
+/** Board-space copper loops the current pulses follow (x, z; closed). */
+type Loop=[number,number][];
+const MAINZ=.04,TOPZ=-.19,GNDZ=.22;
+const RUN_LOOP:Loop=[[-1.2,MAINZ],[.62,MAINZ],[.62,GNDZ],[-1.28,GNDZ],[-1.28,MAINZ]];
+const FLY_LOOP:Loop=[[-1.02,MAINZ],[-.2,MAINZ],[-.2,TOPZ],[-1.02,TOPZ]];
+const TVS_LOOP:Loop=[[-1.2,MAINZ],[.06,MAINZ],[.06,TOPZ],[.62,TOPZ],[.62,GNDZ],[-1.28,GNDZ],[-1.28,MAINZ]];
+const loopLen=(l:Loop)=>l.reduce((n,[x,z],k)=>{const [x1,z1]=l[(k+1)%l.length];return n+Math.hypot(x1-x,z1-z);},0);
+function along(l:Loop,u:number,out:T.Vector3){let d=((u%1)+1)%1*loopLen(l);
+  for(let k=0;k<l.length;k++){const [x0,z0]=l[k],[x1,z1]=l[(k+1)%l.length],seg=Math.hypot(x1-x0,z1-z0);if(d<=seg){const f=seg?d/seg:0;return out.set(x0+(x1-x0)*f,0,z0+(z1-z0)*f);}d-=seg;}
+  return out.set(l[0][0],0,l[0][1]);}
+/** Seconds on screen per real second of the shutdown (the pulses replay it slowed right down). */
+const SLOWMO=1200;
+const DOTS=18,FUSE_COOL=2.5,RUN_TIME=.8;
 const msText=(t:number|null)=>t===null?'never':`${(t*1e3).toFixed(2)} ms`;
 
 export class GarageBench implements Station {
   readonly view={distance:6.8,pitch:.86,lookY:.4};
   readonly limits={time:420,damage:1,cost:Math.ceil(JOBS.reduce((n,j)=>n+(cheapest(j)?.cost??0),0)*1.25*10)/10};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
-  slots:Partial<Record<SlotId,Fit>>={};star=false;held?:PartId;fuse=true;scopeMode:'stop'|'start'='stop';
+  slots:Partial<Record<SlotId,Fit>>={};star=false;held?:PartId;fuse=true;cooling=0;scopeMode:'stop'|'start'='stop';
   jobIndex=0;logged:{job:string;verdict:Verdict}[]=[];mistakes=0;spent=0;onStand=false;driving=false;driveT=0;delivered=false;active=false;
   capture?:Capture;captures=0;lastSlot?:SlotId;
   readonly job:StationJob;
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private parts=new Map<PartId,T.Group>();private trayAt=new Map<PartId,T.Vector3>();private slotAt=new Map<SlotId,{pos:T.Vector3;pad:T.Mesh}>();
   private flipBtns=new Map<SlotId,T.Object3D>();private marks=new Map<SlotId,T.Mesh>();private shared!:T.Object3D;private starWire!:T.Object3D;private lever!:T.Object3D;private routeSign!:T.Mesh;
-  private fuseCtl!:ReturnType<typeof resetButton>;private fuseSign!:T.Mesh;private ctrlLamp!:T.Mesh;private cycleLamps:T.Mesh[]=[];private modeButtons:T.Mesh[]=[];
+  private fuseDisc!:T.Mesh;private fuseHot=hot('#ff3b2a',1.4);private ctrlLamp!:T.Mesh;private cycleLamps:T.Mesh[]=[];
+  /** Current pulses on the copper, the arc across the switch, and the robot's dizzy reboot. */
+  private dots:T.Mesh[]=[];private dotU:number[]=[];private dotMat=hot('#9ff3ea',2);
+  private flow:{loop:Loop;amp:number;decay:number;run:boolean}={loop:RUN_LOOP,amp:0,decay:0,run:false};
+  private kickT=-1;private kickV?:Verdict;private kickLoop:Loop|null=null;private arc=new T.Group();private arcSegs:T.Mesh[]=[];private arcGlow!:T.Sprite;private arcT=0;private arcLight!:T.PointLight;private dizzy=0;
   private scopeCanvas!:HTMLCanvasElement;private scopeTex!:T.CanvasTexture;private scopeKey='';private sweep=1;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';
   private bot?:Game['props'][number];private robot:RobotParts;private spin=0;private motorOn=0;private resetFlash=0;private cycleT=-1;private cycleFail=false;private ready=false;
@@ -107,9 +128,8 @@ export class GarageBench implements Station {
     // Battery with its + and − terminals, and the resettable fuse on its + lead.
     const bat=group(board,-1.3,y,.12);part(bat,rbox(.22,.13,.36,.04),toon('#3a3d55'),0,.065,0);part(bat,rbox(.23,.02,.11,.02),toon('#e5484d'),0,.13,-.11);
     sign(bat,'12 V',0,.14,.05,.2,.09,YELLOW,INK,-1.2);
-    // The resettable fuse: a chunky holder with a RESET dome that glows red when it has tripped.
-    this.fuseCtl=resetButton(board,-1.12,y,MAIN,1,false);this.click(this.fuseCtl.group,'fuse');
-    this.fuseSign=sign(board,'FUSE · R',-1.0,y+.02,.17,.24,.09,'#fffaf0',INK,-1.2);
+    // The PTC fuse: a yellow disc on two legs. Tripped, it glows red; once cool it conducts again.
+    this.fuseDisc=part(board,cyl(.055,.055,.028,20,'z'),toon(YELLOW),-1.12,y+.075,MAIN);for(const d of [-.025,.025])part(board,cyl(.005,.005,.06,6),toon('#c9ced8'),-1.12+d,y+.03,MAIN,false);
     // The motor (a can on its side) between +12 V and the switch node.
     const mot=group(board,-.61,y,MAIN);part(mot,cyl(.085,.085,.26,18,'x'),glossyToon('#9aa3b2',{spec:.7,size:.97}),0,.09,0);part(mot,cyl(.087,.087,.04,18,'x'),toon(INK),-.13,.09,0);part(mot,cyl(.014,.014,.07,8,'x'),toon('#dfe3ea'),.165,.09,0);
     sign(board,'MOTOR',-.61,y+.02,.16,.3,.1,'#fffaf0',INK,-1.2);
@@ -134,11 +154,11 @@ export class GarageBench implements Station {
     const socket=(id:SlotId,x:number,z:number)=>{const pad=part(board,rbox(.36,.016,.26,.04),toon(PAD_OFF),x,y+.004,z);this.click(pad,'slot',id);
       const mark=part(board,new T.PlaneGeometry(.34,.24),new T.MeshBasicMaterial({map:dashed,transparent:true}),x,y+.014,z,false);mark.rotation.x=-Math.PI/2;(mark.material as T.Material).userData.outlineParameters={visible:false};mark.userData.noAO=true;this.marks.set(id,mark);
       this.slotAt.set(id,{pos:new T.Vector3(bx+x,.09,bz+z),pad});};
-    socket('fly1',-.81,TOP);socket('fly2',-.41,TOP);socket('switch',.34,TOP);socket('ctrl',1.0,TOP-.02);
+    socket('fly',-.61,TOP);socket('switch',.34,TOP);socket('ctrl',1.0,TOP-.02);
     // Section names stand on little posts along the board's back edge, above the fitted parts.
     for(const [text,x] of [['ACROSS MOTOR',-.61],['ACROSS SWITCH',.34],['AT CONTROLLER',.94]] as const){for(const s of [-.14,.14])part(board,cyl(.008,.008,.12,6),toon(DMETAL),x+s,y+.06,-.36,false);sign(board,text,x,y+.15,-.36,.46,.1,'#fffaf0',INK,-.75);}
     // Flip buttons beside each socket.
-    for(const [id,x,z] of [['fly1',-1.06,TOP],['fly2',-.16,TOP],['switch',.58,TOP],['ctrl',.76,TOP-.02]] as const){
+    for(const [id,x,z] of [['fly',-.91,TOP],['switch',.58,TOP],['ctrl',.76,TOP-.02]] as const){
       const b=group(board,x,y+.01,z);part(b,cyl(.055,.06,.04,18),toon(INK),0,.02,0);const cap=part(b,cyl(.046,.046,.03,18),toon(TEAL),0,.045,0);cap.name='cap';
       sign(b,'⇄',0,.062,0,.075,.075,TEAL,'#fffaf0');this.flipBtns.set(id,b);this.click(b,'flip',id);}
     // ---- Parts tray, front right: five parts.
@@ -151,8 +171,6 @@ export class GarageBench implements Station {
     this.scopeCanvas=document.createElement('canvas');this.scopeCanvas.width=780;this.scopeCanvas.height=456;this.scopeTex=new T.CanvasTexture(this.scopeCanvas);this.scopeTex.colorSpace=T.SRGBColorSpace;this.scopeTex.anisotropy=4;
     const screenMat=new T.MeshBasicMaterial({map:this.scopeTex,toneMapped:false});screenMat.userData.outlineParameters={visible:false};
     const screen=part(body,new T.PlaneGeometry(1.3,.76),screenMat,0,.48,.128,false);screen.userData.noAO=true;part(body,box(1.48,.05,.24),toon(TEAL),0,.94,0);
-    (['stop','start'] as const).forEach((m,k)=>{const b=part(scope,rbox(.4,.05,.14,.04),toon(CREAM),-.23+k*.46,.12,.12);this.modeButtons.push(b);this.click(b,'scope',m);
-      sign(b,m==='stop'?'SHUTDOWN':'START-UP',0,.027,0,.36,.1).position.set(0,.027,0);});
     // ---- Test pod, back right: PULSE (scope one stop) and TEST (five cycles), with five cycle lamps.
     const pod=group(top,.92,.04,-.34);part(pod,rbox(.96,.08,.48,.05),toon('#3a3d55'),0,.04,0);
     const button=(x:number,color:string,act:string,text:string)=>{const b=group(pod,x,.08,-.06);part(b,cyl(.15,.17,.05,24),toon(INK),0,.025,0);part(b,cyl(.12,.12,.06,24),toon(color),0,.07,0);this.click(b,act);
@@ -162,6 +180,13 @@ export class GarageBench implements Station {
     // Probe lead from the node to the scope; the harness from the bench to the robot on the stand.
     const lead=new T.CatmullRomCurve3([[bx-.06,.2,bz+MAIN],[bx-.1,.3,bz-.12],[bx-.14,.2,-.13],[bx-.12,.15,-.27]].map(([a,b,c])=>new T.Vector3(a,b,c)));
     part(top,new T.TubeGeometry(lead,20,.014,6),toon(YELLOW),0,0,0,false);
+    // Current pulses: small bright beads that ride the copper.
+    for(let k=0;k<DOTS;k++){const d=part(board,sphere(.028,10,8),this.dotMat,0,y+.03,0,false);d.visible=false;this.dots.push(d);this.dotU.push(k/DOTS);}
+    // The arc across the switch: a jagged chain of white-hot segments, re-jittered every frame while it burns.
+    const arcCore=hot('#e8f8ff',3),arcSeg=cyl(.012,.012,1,6);board.add(this.arc);this.arc.visible=false;
+    for(let k=0;k<9;k++){const m=new T.Mesh(arcSeg,arcCore);m.userData.noAO=true;this.arc.add(m);this.arcSegs.push(m);}
+    this.arcGlow=glow(this.arc,'rgba(170,220,255,1)',.7,.8);this.arcGlow.position.set(.14,y+.2,MAIN);
+    this.arcLight=new T.PointLight('#bfe8ff',0,2.2,1.6);this.arcLight.position.set(.34,y+.3,MAIN);board.add(this.arcLight);
   }
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
   private click(obj:T.Object3D,act:string,arg?:unknown){this.clickables.push({obj,act,arg});obj.userData.baseScale=obj.scale.clone();}
@@ -176,37 +201,30 @@ export class GarageBench implements Station {
         this.held=id;a.pop();break;}
       case 'slot':{const s=arg as SlotId;if(!this.slotAt.has(s))return false;
         if(this.held){const p=PARTS[this.held];
-          if(!p.slots.includes(s)){this.say(`The ${p.name} goes ${SLOT_NAMES[p.slots[0]]}.`);a.voice('hm',1.4);return false;}
+          if(!p.slots.includes(s)){a.voice('hm',1.4);return false;}
           this.slots[s]={part:this.held,flipped:false};this.held=undefined;this.lastSlot=s;a.plug();break;}
         if(this.slots[s]){delete this.slots[s];a.tone(300,.06,.04,'triangle');break;}
-        this.say('Click a part in the tray first, then click a socket to fit it.');a.voice('hm',1.4);return false;}
+        a.voice('hm',1.4);return false;}
       case 'flip':{const s=(arg as SlotId|undefined)??this.lastSlot;const f=s&&this.slots[s];
-        if(!s||!f){this.say('Nothing fitted there to flip.');return false;}
-        if(!PARTS[f.part].polar){this.say('The RC snubber has no polarity: either way round is the same.');return false;}
+        if(!s||!f||!PARTS[f.part].polar)return false;
         f.flipped=!f.flipped;this.lastSlot=s;a.tone(f.flipped?520:440,.06,.04,'triangle');a.pop();break;}
-      case 'ground':{this.star=!this.star;a.noise(.05,.05,2400,'highpass');a.tone(this.star?520:330,.08,.04,'triangle');
-        this.say(this.star?'Star ground: the controller has its own wire back to the battery, so motor current no longer flows through its ground.':'Shared ground: the controller\'s ground joins the motor\'s return wire.');break;}
+      case 'ground':{this.star=!this.star;a.noise(.05,.05,2400,'highpass');a.tone(this.star?520:330,.08,.04,'triangle');break;}
       case 'clear':{if(!Object.keys(this.slots).length&&!this.held)return false;this.slots={};this.held=undefined;a.clatter();break;}
-      case 'scope':{this.scopeMode=arg==='start'?'start':'stop';a.tone(this.scopeMode==='start'?700:560,.05,.03);break;}
-      case 'fuse':{if(this.fuse){this.say('The fuse is fine: it only needs a reset after it trips.');return false;}
-        this.fuse=true;a.tone(900,.05,.04);a.pop();this.say('Fuse reset.');break;}
       case 'pulse':case 'test':{
-        if(!this.onStand){this.say('The robot is still on its charging pad. Carry it onto the test stand behind the bench.');a.voice('hm',1.4);return false;}
-        if(!this.fuse){this.say('The fuse has tripped. Fix the short, then press the red RESET on the fuse (R).');a.voice('hm',1.2);return false;}
-        if(name==='test'&&this.jobIndex===0&&this.captures===0){this.say('Diagnose first: press PULSE to catch one shutdown on the scope.');a.voice('hm',1.4);return false;}
+        if(!this.onStand){this.say('The robot is still on its charging pad.');a.voice('hm',1.4);return false;}
+        if(!this.fuse){a.voice('hm',1.2);return false;}
         const s=this.setup(),v=judge(j,s),tr=v.fault==='short'||v.fault==='cap'?undefined:shutdownCached(s);
-        this.capture={job:this.jobIndex,key:setupKey(s),verdict:v,trace:tr,start:startTrace(j,s),at:this.game.time};this.captures++;this.sweep=0;this.motorOn=.8;
-        if(v.fault==='short'){this.fuse=false;this.mistakes++;this.say(v.problems[0],'bad');a.noise(.2,.12,1800,'bandpass');a.tone(120,.3,.06,'square');this.spark(-.86);this.redraw();return true;}
+        this.capture={job:this.jobIndex,key:setupKey(s),verdict:v,trace:tr,start:startTrace(j,s),at:this.game.time};this.captures++;this.sweep=0;
+        this.scopeMode=v.fault==='start'?'start':'stop';
+        if(v.fault==='short'){this.tripFuse();this.mistakes++;this.say(v.problems[0],'bad');this.redraw();return true;}
         if(v.fault==='cap'){this.mistakes++;this.say(v.problems[0],'bad');a.noise(.35,.1,900);this.game.burst(this.boardPoint(.84,-.2).setY(this.table.y+.25),'#e9e4d6',10,'dust');this.redraw();return true;}
-        if(name==='pulse'){this.scopeMode=v.fault==='start'?'start':this.scopeMode;
-          if(v.fault==='stop'||v.fault==='start')this.resetFlash=1.6;
-          this.say(this.captionFor(v),v.tier>0?'ok':'info');a.tone(v.tier>0?660:220,.12,.05,v.tier>0?'triangle':'square');this.redraw();return true;}
+        if(name==='pulse'){this.kick(v,s);this.say(this.captionFor(v),v.tier>0?'ok':'bad');this.redraw();return true;}
         // TEST: five start/stop cycles.
-        this.cycleT=0;this.cycleFail=v.tier===0;this.spent+=cost(s);
-        if(v.tier===0){this.mistakes++;this.resetFlash=v.fault==='stop'||v.fault==='start'?1.6:0;if(v.fault==='start'||v.fault==='stop')this.scopeMode=v.fault==='start'?'start':'stop';
-          this.say(`Test failed: ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();return true;}
+        this.cycleT=0;this.cycleFail=v.tier===0;this.spent+=cost(s);this.kick(v,s,true);
+        if(v.tier===0){this.mistakes++;
+          this.say(v.problems[0],'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();return true;}
         this.logged.push({job:j.id,verdict:v});
-        this.say(`${['','Works','Reliable','Elegant'][v.tier]}: no resets in ${SPEC.cycles} cycles (spike ${Math.round(v.spike)} V${j.stopSpec?`, current off in ${msText(v.offTime)}`:''})${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
+        this.say(`${['','Works','Reliable','Elegant'][v.tier]}${v.notes[0]?`: ${v.notes[0]}`:''}`,'ok');
         a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,YELLOW);
         this.jobIndex++;this.capture=undefined;this.captures=0;
         if(this.jobIndex>=JOBS.length)this.startDrive();
@@ -215,9 +233,20 @@ export class GarageBench implements Station {
     }
     this.redraw();return true;
   }
+  /** Dead short: the PTC fuse trips with a bang and a shower of sparks, then cools and resets itself. */
+  private tripFuse(){const a=this.game.audio;this.fuse=false;this.cooling=FUSE_COOL;this.flow.run=false;this.flow.amp=0;
+    a.noise(.2,.12,1800,'bandpass');a.tone(120,.3,.06,'square');a.voice('groan',1.1);this.spark(-1.12);this.game.alarm({x:this.table.x,z:this.table.z},3);}
+  /** Runs the motor for a moment, then opens the switch: the pulses show where the coil's current goes. */
+  private kick(v:Verdict,s:Setup,test=false){
+    this.kickV=v;const fly=flyChain(s),tvsOk=s.switch?.part==='tvs'&&!s.switch.flipped;
+    // Where the current goes once the switch opens (used when the kick lands).
+    this.kickLoop=fly&&fly.fwd<SWITCH.avalanche?FLY_LOOP:tvsOk||v.fault==='stuck'?TVS_LOOP:null;
+    if(test){this.kickT=-1;return;}
+    this.kickT=0;this.flow={loop:RUN_LOOP,amp:1,decay:0,run:true};
+  }
   private captionFor(v:Verdict){
     if(v.fault==='stop')return `Caught it: the switch node spiked to ${Math.round(v.spike)} V at shutdown and the controller reset.`;
-    if(v.fault==='start')return `Caught it: at start the controller's supply sagged ${v.dip.toFixed(2)} V and it browned out (START-UP view).`;
+    if(v.fault==='start')return `Caught it: at start the controller's supply sagged ${v.dip.toFixed(2)} V and it browned out.`;
     if(v.fault==='stuck')return 'The motor never stopped: something across the switch is conducting like a closed switch.';
     if(v.fault==='slow')return `No reset (spike ${Math.round(v.spike)} V), but the current took ${msText(v.offTime)} to die: too slow for the stop line.`;
     return `Clean stop: spike ${Math.round(v.spike)} V, current off in ${msText(v.offTime)}, start sag ${v.dip.toFixed(2)} V. TEST it.`;
@@ -242,8 +271,6 @@ export class GarageBench implements Station {
       this.marks.get(id)!.visible=!fit;const fb=this.flipBtns.get(id)!;fb.visible=!!fit&&PARTS[fit.part].polar;const cap=fb.getObjectByName('cap') as T.Mesh;cap.material=toon(fit?.flipped?'#f08a4b':TEAL);}
     this.shared.visible=!this.star;this.starWire.visible=this.star;this.lever.rotation.z=this.star?-.5:.5;
     setSign(this.routeSign,this.star?'GROUND: STAR':'GROUND: SHARED',this.star?'#b8d6ff':'#ffe7a8',INK,512,128);
-    setSign(this.fuseSign,this.fuse?'FUSE · R':'RESET · R',this.fuse?'#fffaf0':'#ff8a7a',INK,512,177);
-    this.modeButtons.forEach((b,k)=>b.position.y=(k===0)===(this.scopeMode==='stop')?.12:.14);
     this.scopeKey='';this.shown='';this.updatePanel();
   }
   /** Scope screen: the last capture (switch-node volts + motor current, or the controller's rail at start). */
@@ -300,9 +327,8 @@ export class GarageBench implements Station {
     if(e.kind==='down'&&e.button===0&&found)this.act(found.act,found.arg);
   }
   key(code:string){
-    const map:Record<string,[string,unknown?]>={Digit1:['pick','diode'],Digit2:['pick','zener'],Digit3:['pick','tvs'],Digit4:['pick','snubber'],Digit5:['pick','cap'],
-      KeyZ:['slot','fly1'],KeyX:['slot','fly2'],KeyC:['slot','switch'],KeyV:['slot','ctrl'],KeyF:['flip'],KeyG:['ground'],KeyP:['pulse'],Enter:['test'],KeyR:['fuse'],
-      KeyT:['scope',this.scopeMode==='stop'?'start':'stop'],Backspace:['clear']};
+    const map:Record<string,[string,unknown?]>={Digit1:['pick','diode'],Digit2:['pick','clamp'],Digit3:['pick','tvs'],Digit4:['pick','snubber'],Digit5:['pick','cap'],
+      KeyA:['slot','fly'],KeyS:['slot','switch'],KeyD:['slot','ctrl'],KeyF:['flip'],KeyG:['ground'],KeyP:['pulse'],Enter:['test'],Backspace:['clear']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
   setActive(active:boolean){this.active=active;if(active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';if(this.ready)this.updatePanel();}
@@ -318,7 +344,15 @@ export class GarageBench implements Station {
     this.redraw();}
   update(dt:number){
     if(!this.ready)this.init();
-    this.fuseCtl.set(!this.fuse,this.game.time);
+    // The PTC fuse glows while hot and conducts again once it has cooled.
+    if(!this.fuse){this.cooling-=dt;if(this.cooling<=0){this.fuse=true;this.cooling=0;this.game.audio.tone(900,.05,.03,'triangle');this.redraw();}}
+    const fh=this.fuse?0:Math.min(1,this.cooling/FUSE_COOL);
+    if(fh>0){this.fuseHot.color.set(YELLOW).lerp(new T.Color('#ff3b2a'),Math.min(1,fh*1.4)).multiplyScalar(1+fh);this.fuseDisc.material=this.fuseHot;}else this.fuseDisc.material=toon(YELLOW);
+    // PULSE: the motor runs for a moment, then the switch opens and the kick lands.
+    if(this.kickT>=0){const was=this.kickT;this.kickT+=dt;this.motorOn=this.kickT<RUN_TIME?1:0;
+      if(was===0&&this.kickV?.fault==='start')this.reboot();
+      if(was<RUN_TIME&&this.kickT>=RUN_TIME)this.land(false);
+      if(this.kickT>RUN_TIME+5)this.kickT=-1;}
     const b=this.bot,r=this.robot;
     if(this.driving&&b){this.driveT+=dt;const d=Math.min(ROUTE_LEN,Math.max(0,(this.driveT-.4)*DRIVE_SPEED));
       let left=d,k=1;while(k<ROUTE.length-1&&left>Math.hypot(ROUTE[k][0]-ROUTE[k-1][0],ROUTE[k][1]-ROUTE[k-1][1])){left-=Math.hypot(ROUTE[k][0]-ROUTE[k-1][0],ROUTE[k][1]-ROUTE[k-1][1]);k++;}
@@ -330,17 +364,51 @@ export class GarageBench implements Station {
       this.motorOn=d<ROUTE_LEN?1:0;if(this.driveT>=DRIVE_TIME&&!this.delivered){this.delivered=true;this.game.audio.bell(1568,.6,.05);this.game.burst({x,y:1.2,z},'#8dffb0',20,'confetti');}}
     if(b){const p=b.body.translation(),q=b.body.rotation();r.root.position.set(p.x,p.y,p.z);r.root.quaternion.set(q.x,q.y,q.z,q.w);}
     // Wheels spin while the motor runs; the eyes and antenna show the controller's state.
-    if(this.cycleT>=0){this.cycleT+=dt;const c=Math.floor(this.cycleT/.6),on=this.cycleT%.6<.4;this.motorOn=c<SPEC.cycles&&on?1:0;
+    if(this.cycleT>=0){const before=this.motorOn;this.cycleT+=dt;const c=Math.floor(this.cycleT/.6),on=this.cycleT%.6<.4;this.motorOn=c<SPEC.cycles&&on?1:0;
+      if(this.motorOn&&!before){this.flow={loop:RUN_LOOP,amp:1,decay:0,run:true};if(this.kickV?.fault==='start')this.reboot();}
+      if(!this.motorOn&&before)this.land(true);
       this.cycleLamps.forEach((l,k)=>l.material=k<Math.min(c+(on?0:1),SPEC.cycles)?(this.cycleFail?hot('#ff7a6b',1.4):hot('#8dffb0',1.4)):toon('#4a4f63'));
       if(this.cycleFail&&c===0&&!on&&this.resetFlash<=0)this.resetFlash=1.2;if(c>=SPEC.cycles+2)this.cycleT=-1;}
-    else if(!this.driving&&this.motorOn>0)this.motorOn=Math.max(0,this.motorOn-dt);
+    else if(!this.driving&&this.kickT<0&&this.motorOn>0)this.motorOn=Math.max(0,this.motorOn-dt);
     this.spin+=dt*(this.motorOn>0?18:0);r.wheels.forEach(w=>w.rotation.z=-this.spin);
     this.resetFlash=Math.max(0,this.resetFlash-dt);
     const resetNow=this.resetFlash>0&&Math.floor(this.resetFlash*6)%2===0,dead=!this.fuse;
     const eye=dead?toon('#34424a'):resetNow?hot('#ff5a4d',1.6):hot('#7fffe8',1.6);r.eyes.forEach(e=>e.material=eye);r.lamp.material=dead?toon('#4a4f63'):resetNow?hot('#ff5a4d',2):hot('#8dffb0',1.6);
     this.ctrlLamp.material=dead?toon('#4a4f63'):resetNow?hot('#ff5a4d',2):hot('#8dffb0',1.6);
+    this.animateKick(dt);
+    if(this.dizzy>0&&b){this.dizzy=Math.max(0,this.dizzy-dt);const w=Math.sin(this.game.time*17)*.14*Math.min(1,this.dizzy);r.root.quaternion.multiply(new T.Quaternion().setFromEuler(new T.Euler(w,0,w*.6)));}
     this.sweep=Math.min(1,this.sweep+dt*1.4);this.drawScope();
     this.updatePanel();
+  }
+  /** The controller reboots: red eyes, a dizzy wobble and stars over the robot's head. */
+  private reboot(){this.resetFlash=1.6;this.dizzy=1.8;const q=this.bot?.body.translation();if(q)this.game.burst({x:q.x,y:q.y+.9,z:q.z},'#ffe36e',6,'star');this.game.audio.voice('alarm',1.4);}
+  /** The switch has just opened: where does the coil's current go? */
+  private land(test:boolean){
+    const v=this.kickV;if(!v)return;const tr=this.capture?.trace;
+    if(v.fault==='stop'){
+      // Nowhere to go: the current piles up at the switch and arcs across it, and the controller reboots.
+      this.flow.decay=.12;this.flow.run=false;this.arcT=test?.25:.6;this.reboot();
+      const a=this.game.audio;a.noise(test?.15:.35,.14,4200,'highpass');a.noise(.08,.1,900,'bandpass');
+      const p=this.boardPoint(.34,.02);this.game.burst(p,'#d8f4ff',test?4:8,'spark');return;}
+    if(!this.kickLoop){this.flow.decay=.1;this.flow.run=false;return;}
+    // A path: the pulses keep circling the motor through it, fading as the coil empties (slowed right down).
+    const off=v.fault==='stuck'||!tr?.offTime?3:tr.offTime;
+    this.flow={loop:this.kickLoop,amp:1,decay:v.fault==='stuck'?(test?.4:3):Math.min(test?.35:4,Math.max(.25,off*SLOWMO)),run:false};
+    this.game.audio.tone(v.fault==='slow'?180:320,.25,.03,'sine');
+  }
+  private animateKick(dt:number){
+    const f=this.flow,w=new T.Vector3();
+    if(!f.run&&f.decay>0)f.amp*=Math.exp(-dt*2.3/f.decay);
+    if(!f.run&&f.amp<.04)f.amp=0;
+    const len=loopLen(f.loop),speed=(f.run?.9:1.6)*f.amp;
+    this.dots.forEach((d,k)=>{this.dotU[k]=(this.dotU[k]+speed*dt/len)%1;d.visible=f.amp>0&&this.fuse;if(!d.visible)return;
+      along(f.loop,this.dotU[k],w);d.position.set(w.x,.07,w.z);d.scale.setScalar(.5+.7*f.amp);});
+    // The arc: a jagged bright line between the switch node and the switch, redrawn every frame.
+    this.arcT=Math.max(0,this.arcT-dt);this.arc.visible=this.arcT>0;this.arcLight.intensity=this.arcT>0?6+Math.random()*10:0;
+    if(this.arcT>0){const n=this.arcSegs.length,pts:T.Vector3[]=[];
+      for(let k=0;k<=n;k++){const t=k/n,j=k===0||k===n?0:.06;pts.push(new T.Vector3(-.06+.4*t,.16+Math.sin(t*Math.PI)*.1+(Math.random()-.5)*j,MAINZ+(Math.random()-.5)*j*1.4));}
+      this.arcSegs.forEach((m,k)=>{const a=pts[k],b=pts[k+1];m.position.copy(a).add(b).multiplyScalar(.5);m.scale.set(1,a.distanceTo(b),1);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize());});
+      (this.arcGlow.material as T.SpriteMaterial).opacity=.5+Math.random()*.5;}
   }
 
   // ---------- panels ----------
@@ -359,44 +427,43 @@ export class GarageBench implements Station {
     this.panel.hidden=!j||!this.active;if(!j||!this.active)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const fit=(f?:Fit)=>f?`${PARTS[f.part].label}${PARTS[f.part].polar&&f.flipped?' (flipped)':''}`:'';
-    const motor=[this.slots.fly1,this.slots.fly2].map(fit).filter(Boolean).join(' + ')||'—';
+    const motor=fit(this.slots.fly)||'—';
     const v=cap?.verdict,m=(x:string)=>stale?'PULSE again':x;
     this.panel.innerHTML=`<header><small>JOB ${this.jobIndex+1}/${JOBS.length} · ${partCount(s)} PART${partCount(s)===1?'':'S'} FITTED</small><h4>${j.title}</h4><p>${j.ask}</p></header>`+
       `<ul class="build">${row('Across motor',motor)}${row('Across switch',fit(this.slots.switch)||'—')}${row('At controller',fit(this.slots.ctrl)||'—')}${row('Ground',this.star?'star (own wire)':'shared with motor',this.star?true:undefined)}`+
-      (!this.fuse?row('Fuse','TRIPPED',false):'')+
+      (!this.fuse?row('Fuse',`cooling ${this.cooling.toFixed(1)} s`,false):'')+
       (v&&v.fault!=='short'&&v.fault!=='cap'?`${row('Stop spike',m(`${Math.round(v.spike)} V`),!stale&&v.spike<=SPEC.spikeReset)}`+
         (j.stopSpec?row('Current off',m(msText(v.offTime)),!stale&&v.offTime!==null&&v.offTime<=j.stopSpec):'')+
-        row('Start sag',m(`${v.dip.toFixed(2)} V`),!stale&&v.dip<=SPEC.dipReset):row('Scope','no capture yet'))+`</ul>`+
-      `<p class="profile">Simplified model, this robot's tuning values: motor ${MOTOR.V} V, ${MOTOR.L*1e3} mH, ${MOTOR.R} Ω, ${RUNNING} A running. Switch abs max ${SWITCH.absMax} V. Controller resets above ${SPEC.spikeReset} V at the switch or a ${SPEC.dipReset} V supply sag.</p>`;
+        row('Start sag',m(`${v.dip.toFixed(2)} V`),!stale&&v.dip<=SPEC.dipReset):'')+`</ul>`+
+      `<p class="profile">The beads on the copper are the current, replayed about ${SLOWMO}× slower than life. Simplified model, this robot's tuning values: motor ${MOTOR.V} V, ${MOTOR.L*1e3} mH, ${MOTOR.R} Ω, ${RUNNING} A running. Switch abs max ${SWITCH.absMax} V. Controller resets above ${SPEC.spikeReset} V at the switch or a ${SPEC.dipReset} V supply sag.</p>`;
   }
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;
     switch(h.act){
-      case 'pick':{const p=PARTS[h.arg as PartId];return {key:String(PART_IDS.indexOf(h.arg as PartId)+1),text:`Click to pick up the ${p.name}: fits ${SLOT_NAMES[p.slots[0]]}${p.polar?' (band/+ on the left)':''}`};}
-      case 'slot':return {key:SLOT_KEYS[h.arg as SlotId],text:this.held?`Click to fit the ${PARTS[this.held].name} here`:this.slots[h.arg as SlotId]?'Click to take this part out':`${SLOT_NAMES[h.arg as SlotId]} socket`};
-      case 'flip':return {key:'F',text:'Flip the fitted part round'};
-      case 'ground':return {key:'G',text:this.star?'Controller ground: its own wire (star). Click for shared':'Controller ground: shared with the motor. Click for star'};
-      case 'pulse':return {key:'P',text:'PULSE: run the motor once and catch the stop on the scope'};
-      case 'test':return {key:'Enter',text:`TEST: ${SPEC.cycles} start/stop cycles, graded`};
-      case 'fuse':return {key:'R',text:this.fuse?'Resettable fuse (OK)':'Click RESET to reset the tripped fuse'};
-      case 'scope':return {key:'T',text:h.arg==='start'?'Scope: the controller\'s supply as the motor starts':'Scope: the switch node as the motor stops'};
+      case 'pick':{const id=h.arg as PartId;return {key:String(PART_IDS.indexOf(id)+1),text:this.held===id?'Put it back':`Take the ${PARTS[id].name}`};}
+      case 'slot':{const id=h.arg as SlotId,fits=this.held&&PARTS[this.held].slots.includes(id);
+        return {key:SLOT_KEYS[id],text:this.held?(fits?'Fit it here':'It does not fit here'):this.slots[id]?'Take it out':'Empty socket'};}
+      case 'flip':return {key:'F',text:'Flip it round'};
+      case 'ground':return {key:'G',text:this.star?'Ground: own wire':'Ground: shared'};
+      case 'pulse':return {key:'P',text:'Pulse the motor'};
+      case 'test':return {key:'Enter',text:`Test (${SPEC.cycles} cycles)`};
     }
     return null;
   }
   prompt(atBench:boolean):Prompt|null{
     const j=this.current();if(this.driving)return null;if(!j)return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
-      if(this.game.held===this.bot&&this.bot){const q=this.bot.body.translation();return {key:'E',text:Math.hypot(q.x-STAND.x,q.z-STAND.z)<2.6?'Set the robot down on the test stand':'Carry the robot to the test stand behind the bench'};}
-      if(near)return {key:'E',text:this.onStand?'Work at the garage bench':'Work at the bench (the robot is still on its charging pad)'};
-      return walkHint(this.game,this.onStand?'Walk to the garage bench (yellow arrow)':'Fetch the delivery robot from its charging pad (yellow arrow)');}
+      if(this.game.held===this.bot&&this.bot){const q=this.bot.body.translation();return {key:'E',text:Math.hypot(q.x-STAND.x,q.z-STAND.z)<2.6?'Set the robot on the stand':'Carry the robot'};}
+      if(near)return {key:'E',text:'Work at the bench'};
+      return null;}
     const h=this.hoverHint();if(h)return h;
-    if(!this.onStand)return {key:'E',text:'Step back and carry the robot onto the test stand'};
-    if(!this.fuse)return {key:'R',text:'Fuse tripped: flip the backwards part (click ⇄ or F), then press RESET on the fuse'};
-    if(this.held){const s=PARTS[this.held].slots[0];return {key:SLOT_KEYS[s],text:`Click a glowing socket to fit the ${PARTS[this.held].name}`};}
+    if(!this.onStand)return {key:'E',text:'Fetch the robot'};
+    if(!this.fuse)return {key:'P',text:'Fuse cooling'};
+    if(this.held){const s=PARTS[this.held].slots[0];return {key:SLOT_KEYS[s],text:'Fit it'};}
     const cap=this.capture&&this.capture.job===this.jobIndex?this.capture:undefined;
-    if(!cap||this.setupStale())return {key:'P',text:this.jobIndex===0&&!cap?'Press PULSE to catch the shutdown on the scope':'Press PULSE to check the change on the scope'};
-    if(cap.verdict.tier===0)return {key:'1–5',text:j.hint};
-    return {key:'Enter',text:'Clean capture: press TEST (5 cycles)'};
+    if(!cap||this.setupStale())return {key:'P',text:'Pulse the motor'};
+    if(cap.verdict.tier===0)return {key:'1–5',text:'Change the parts'};
+    return {key:'Enter',text:`Test (${SPEC.cycles} cycles)`};
   }
   complete(){return this.delivered;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}

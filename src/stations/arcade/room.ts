@@ -6,7 +6,7 @@ import * as T from 'three';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
 import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,INK,DMETAL} from '../../render/kit';
-import {hot,glossyToon} from '../../render/actors';
+import {hot} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pointLamp,lampPool,rug} from '../../levels/dressing';
 import {solid} from '../../levels/decor';

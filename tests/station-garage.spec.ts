@@ -21,11 +21,11 @@ test('robot garage: catch the kick, clamp it, stop fast, star-ground the control
   expect((await act(page,'pulse')).ok).toBe(false);
   await setUp(page);
   await expect(page.locator('.station-panel')).toContainText('Resets on shutdown');
-  // 1 · Diagnose first: TEST is refused until a stop has been caught on the scope.
-  expect((await act(page,'test')).ok).toBe(false);
-  await steps(page,[['pulse']]);
+  // 1 · With nothing fitted, the kick arcs across the switch and the controller reboots.
+  await steps(page,[['pulse']]);await wait(page,1);
   let s=await station(page);expect(s.capture.fault).toBe('stop');expect(s.capture.spike).toBeGreaterThan(60);
-  await steps(page,[['pick','diode'],['slot','fly1'],['pulse']]);
+  await expect(page.locator('.station-toast')).toContainText('controller reset');
+  await steps(page,[['pick','diode'],['slot','fly'],['pulse']]);
   s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.spike).toBeLessThan(14);
   await steps(page,[['test']]);s=await station(page);expect(s.logged[0].tier).toBe(3);
   // 2 · The stop line: the plain diode empties the coil too slowly; one TVS across the switch is quick and lean.
@@ -48,23 +48,26 @@ test('robot garage: catch the kick, clamp it, stop fast, star-ground the control
   expect(errors).toEqual([]);
 });
 
-test('robot garage: a backwards diode trips the fuse, a slow clamp fails the stop line, and both are recoverable',async({page})=>{
+test('robot garage: a backwards diode trips the self-resetting fuse, a backwards clamp gives no path, and both are recoverable',async({page})=>{
   const errors=await open(page,'garage');await wait(page,.1);await setUp(page);
   // A diode fitted backwards is a dead short while the motor runs: the fuse trips.
-  await steps(page,[['pick','diode'],['slot','fly1'],['flip','fly1'],['pulse']]);
+  await steps(page,[['pick','diode'],['slot','fly'],['flip','fly'],['pulse']]);
   let s=await station(page);expect(s.fuse).toBe(false);expect(s.mistakes).toBe(1);
   await expect(page.locator('.station-toast')).toContainText('fuse tripped');
+  await expect(page.locator('.station-toast')).not.toContainText('band');
   expect((await act(page,'pulse')).ok).toBe(false);
-  // Flip it back, reset the fuse, and the diode clamps the kick.
-  await steps(page,[['flip','fly1'],['fuse'],['pulse'],['test']]);
-  s=await station(page);expect(s.fuse).toBe(true);expect(s.logged[0].tier).toBe(3);
+  // Flip it back; the PTC fuse cools and conducts again by itself, and the diode clamps the kick.
+  await steps(page,[['flip','fly']]);await wait(page,2.6);
+  s=await station(page);expect(s.fuse).toBe(true);
+  await steps(page,[['pulse'],['test']]);s=await station(page);expect(s.logged[0].tier).toBe(3);
   // Job 2: testing the plain diode fails the stop line (a mistake, with the reason).
   await steps(page,[['test']]);s=await station(page);expect(s.mistakes).toBe(2);expect(s.job).toBe(1);
   await expect(page.locator('.station-toast')).toContainText('stop-line brake');
-  // A zener fitted the diode way round is just a second diode drop: still slow. In breakdown it clamps at ~37 V.
-  await steps(page,[['pick','zener'],['slot','fly2'],['pulse']]);expect((await station(page)).capture.fault).toBe('slow');
-  await steps(page,[['flip','fly2'],['pulse']]);s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.spike).toBeGreaterThan(30);
-  await steps(page,[['test']]);s=await station(page);expect(s.job).toBe(2);expect(s.logged[1].tier).toBe(2);
+  // The zener clamp fitted backwards: its diode never conducts, so the kick has no path again.
+  await steps(page,[['pick','clamp'],['slot','fly'],['flip','fly'],['pulse']]);s=await station(page);expect(s.capture.fault).toBe('stop');expect(s.fuse).toBe(true);
+  // The right way round it clamps at about 37 V and empties the coil fast: one part, elegant.
+  await steps(page,[['flip','fly'],['pulse']]);s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.spike).toBeGreaterThan(30);
+  await steps(page,[['test']]);s=await station(page);expect(s.job).toBe(2);expect(s.logged[1].tier).toBe(3);
   // Job 3: a bulk capacitor at the controller rides through part of the start sag, but not enough.
   await steps(page,[['pick','cap'],['slot','ctrl'],['pulse']]);s=await station(page);expect(s.capture.fault).toBe('start');expect(s.capture.dip).toBeLessThan(.9);
   await expect(page.locator('.station-toast')).toContainText('browned out');

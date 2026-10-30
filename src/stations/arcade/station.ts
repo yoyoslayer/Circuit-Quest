@@ -36,7 +36,7 @@ const POSX=[-.36,-.1,.16],PAIRZ=.065,PADW=.22;
 const BOARD={x:.12,z:.16};
 const BINSAT={x:-1.5,z:.12},METER={x:.1,z:-.56},POWERAT={x:1.36,z:.38};
 const BAND_COLORS=['#1d1d24','#8a4b2a','#e5484d','#ff8a3d','#ffd84d','#3fae5a','#3f7fd6','#8b5cc7','#9aa0ad','#fbfbf6'];
-const POS_KEYS=['KeyA','KeyS','KeyD'],POS_LETTERS=['A','S','D'];
+const POS_LETTERS=['A','S','D'];
 
 // ---------- canvas helpers ----------
 const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;

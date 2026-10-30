@@ -4,7 +4,7 @@
 // keeps flowing and drives the switch node up (v = −L·di/dt) until something conducts it. Pip
 // fits protection parts into four places on the harness board and captures the result on a scope.
 //
-// Places:  ACROSS MOTOR (two sockets in series: diode, zener) · ACROSS SWITCH (TVS or RC snubber)
+// Places:  ACROSS MOTOR (a diode, or a 24 V zener clamp) · ACROSS SWITCH (TVS or RC snubber)
 //          · AT CONTROLLER (bulk capacitor) · the controller's GROUND route (shared or star).
 //
 // Model (simplified, labelled in game):
@@ -25,25 +25,28 @@
 //   * An absolute maximum is a stress limit, not a design target: "reliable" keeps 20 % margin.
 //   * Numbers are this game's tuning values for one robot, not a datasheet.
 
-export type PartId='diode'|'zener'|'tvs'|'snubber'|'cap';
-export type SlotId='fly1'|'fly2'|'switch'|'ctrl';
+export type PartId='diode'|'clamp'|'tvs'|'snubber'|'cap';
+export type SlotId='fly'|'switch'|'ctrl';
 export interface Part {id:PartId;label:string;name:string;slots:SlotId[];polar:boolean;
-  /** Forward drop and reverse breakdown (V) for diode-like parts. */
+  /** Forward drop and reverse breakdown (V) for diode-like parts: the voltage it takes to conduct
+   *  from anode to band, and from band to anode. */
   vf?:number;vbr?:number;cost:number}
+/** The zener clamp is one package holding a diode and a 24 V zener back to back: the diode stops it
+ *  conducting while the motor runs, the zener sets how high the kick may rise before it conducts. */
 export const PARTS:Record<PartId,Part>={
-  diode:{id:'diode',label:'DIODE',name:'Flyback diode',slots:['fly1','fly2'],polar:true,vf:.7,vbr:400,cost:.4},
-  zener:{id:'zener',label:'ZENER 24 V',name:'24 V zener',slots:['fly1','fly2'],polar:true,vf:.7,vbr:24,cost:.6},
+  diode:{id:'diode',label:'DIODE',name:'Flyback diode',slots:['fly'],polar:true,vf:.7,vbr:400,cost:.4},
+  clamp:{id:'clamp',label:'CLAMP 24 V',name:'24 V zener clamp',slots:['fly'],polar:true,vf:.7+24,vbr:400+.7,cost:1},
   tvs:{id:'tvs',label:'TVS 33 V',name:'33 V TVS clamp',slots:['switch'],polar:true,vf:.7,vbr:33,cost:1.2},
   snubber:{id:'snubber',label:'RC SNUBBER',name:'RC snubber (10 Ω + 1 µF)',slots:['switch'],polar:false,cost:.8},
   cap:{id:'cap',label:'1000 µF',name:'1000 µF bulk capacitor',slots:['ctrl'],polar:true,cost:.9},
 };
 export const PART_IDS=Object.keys(PARTS) as PartId[];
-export const SLOT_IDS:SlotId[]=['fly1','fly2','switch','ctrl'];
-export const SLOT_NAMES:Record<SlotId,string>={fly1:'ACROSS MOTOR',fly2:'ACROSS MOTOR',switch:'ACROSS SWITCH',ctrl:'AT CONTROLLER'};
+export const SLOT_IDS:SlotId[]=['fly','switch','ctrl'];
+export const SLOT_NAMES:Record<SlotId,string>={fly:'ACROSS MOTOR',switch:'ACROSS SWITCH',ctrl:'AT CONTROLLER'};
 /** A fitted part. Not flipped = the band (cathode) toward +12 V across the motor, toward the switch
  *  node across the switch; the capacitor's + toward the 5 V rail. */
 export interface Fit {part:PartId;flipped:boolean}
-export interface Setup {fly1?:Fit;fly2?:Fit;switch?:Fit;ctrl?:Fit;star:boolean}
+export interface Setup {fly?:Fit;switch?:Fit;ctrl?:Fit;star:boolean}
 
 /** The robot (game tuning values). Running current = (V − E)/R = 3 A; stall = V/R = 6 A. */
 export const MOTOR={V:12,R:2,L:5e-3,emf:6,spinUp:4e-3};
@@ -70,26 +73,25 @@ export interface Job {id:string;title:string;ask:string;
   /** Resistance of the ground wire the controller shares with the motor (Ω). */
   shared:number;
   /** The motor current must die within this time at a stop (s), when the job has a stop line. */
-  stopSpec?:number;hint:string}
+  stopSpec?:number}
 export const JOBS:Job[]=[
-  {id:'kickback',title:'Resets on shutdown',ask:'The controller resets every time the motor stops. Catch the spike on the scope, then give the coil\'s current a safe path.',
-    shared:.05,hint:'Give the current a path: a flyback diode across the motor, band toward +12 V'},
+  {id:'kickback',title:'Resets on shutdown',ask:'The controller resets every time the motor stops.',
+    shared:.05},
   {id:'stopline',title:'Stop at the line',ask:'At the delivery stop, the brake only bites once the motor current has died. It must die within 1.0 ms.',
-    shared:.05,stopSpec:1e-3,hint:'Too slow: a higher clamp empties the coil faster (a zener in breakdown, or a TVS)'},
+    shared:.05,stopSpec:1e-3},
   {id:'cargo',title:'Heavy cargo start',ask:'The new cargo bed moved the controller to the back, on a long ground wire shared with the motor. Now it resets when the motor STARTS.',
-    shared:.15,stopSpec:1e-3,hint:'Flip the GROUND lever: give the controller its own wire back to the battery'},
+    shared:.15,stopSpec:1e-3},
 ];
 
 // ---------- the parts in each place ----------
 export const fitted=(s:Setup)=>SLOT_IDS.map(k=>s[k]).filter((f):f is Fit=>!!f);
 export const partCount=(s:Setup)=>fitted(s).length;
 export const cost=(s:Setup)=>Math.round(fitted(s).reduce((n,f)=>n+PARTS[f.part].cost,0)*10)/10;
-/** Thresholds of the across-motor chain: conducts node → +12 V above `fwd` volts, the other way
+/** Thresholds of the part across the motor: conducts node → +12 V above `fwd` volts, the other way
  *  above `rev` volts (undefined = nothing fitted, no path). */
 export function flyChain(s:Setup):{fwd:number;rev:number}|undefined{
-  const parts=[s.fly1,s.fly2].filter((f):f is Fit=>!!f);if(!parts.length)return undefined;
-  let fwd=0,rev=0;for(const f of parts){const p=PARTS[f.part];fwd+=f.flipped?p.vbr!:p.vf!;rev+=f.flipped?p.vf!:p.vbr!;}
-  return {fwd,rev};
+  const f=s.fly;if(!f)return undefined;const p=PARTS[f.part];
+  return f.flipped?{fwd:p.vbr!,rev:p.vf!}:{fwd:p.vf!,rev:p.vbr!};
 }
 /** With the motor ON the switch node sits near 0 V, so the across-motor chain sees −12 V: if it
  *  conducts that way, it is a dead short across the battery (the fuse trips). */
@@ -171,26 +173,23 @@ const ms=(t:number)=>`${(t*1e3).toFixed(t<1e-3?2:1)} ms`;
 export function judge(job:Job,s:Setup):Verdict{
   const parts=partCount(s),problems:string[]=[],notes:string[]=[];
   const base={parts,problems,notes};
-  if(shorted(s)){const z=[s.fly1,s.fly2].some(f=>f?.part==='zener');
-    problems.push(z&&!(s.fly1?.part==='diode'||s.fly2?.part==='diode')?'The zener is round the wrong way on its own: with the motor ON it conducts from +12 V straight to ground. Dead short, the fuse tripped.':
-      'A part across the motor is backwards: with the motor ON it is a dead short from +12 V to ground, so the fuse tripped. The band (cathode) must face +12 V.');
+  if(shorted(s)){problems.push('With the motor ON, the part across the motor conducts from +12 V straight to ground: a dead short, so the fuse tripped.');
     return {tier:0,fault:'short',spike:0,offTime:null,dip:0,...base};}
-  if(capReversed(s)){problems.push('The electrolytic capacitor is in backwards: it would heat up and vent. Flip it so + faces the 5 V rail.');return {tier:0,fault:'cap',spike:0,offTime:null,dip:0,...base};}
+  if(capReversed(s)){problems.push('The electrolytic capacitor is in backwards: it heats up and vents.');return {tier:0,fault:'cap',spike:0,offTime:null,dip:0,...base};}
   const tr=shutdownCached(s),dip=startDip(job,s),spike=+tr.peak.toFixed(1),out={spike,offTime:tr.offTime,dip:+dip.toFixed(2),...base};
-  if(tr.offTime===null){problems.push('The motor never switched off: the TVS is backwards, so it conducts forwards like a closed switch. Flip it (band to the switch node).');return {tier:0,fault:'stuck',...out};}
+  if(tr.offTime===null){problems.push('The motor never switched off: the part across the switch conducts forwards, like a closed switch.');return {tier:0,fault:'stuck',...out};}
   if(spike>SPEC.spikeReset){
     let why=`Shutdown spike: ${Math.round(spike)} V at the switch. The coil's current had nowhere to go, so the switch was forced into breakdown and the kick reset the controller.`;
     if(s.ctrl?.part==='cap')why+=' The capacitor at the controller doesn\'t help here: it can smooth brief supply dips, but it gives the coil\'s current no path.';
     else if(s.switch?.part==='snubber')why+=' The small RC snubber softens fast ringing but can\'t soak up the coil\'s stored energy.';
-    else if(!s.fly1&&!s.fly2&&!s.switch)why+=' Give the current a path: a flyback diode across the motor.';
     problems.push(why);return {tier:0,fault:'stop',...out};}
   if(dip>SPEC.dipReset){
     let why=`Start surge: ${STALL} A through the shared ground wire sags the controller's supply by ${dip.toFixed(2)} V (it browns out past ${SPEC.dipReset} V).`;
-    why+=s.ctrl?.part==='cap'?' The capacitor rides through part of it, but the surge lasts milliseconds and the running current stays: reroute the ground.':' Give the controller its own ground wire (star ground).';
+    if(s.ctrl?.part==='cap')why+=' The capacitor rides through part of it, but the surge lasts milliseconds and the running current keeps flowing in that wire.';
     problems.push(why);return {tier:0,fault:'start',...out};}
   if(job.stopSpec&&tr.offTime>job.stopSpec){
     const plain=flyChain(s)&&flyChain(s)!.fwd<5;
-    problems.push(`Motor current took ${ms(tr.offTime)} to die; the stop-line brake needs it under ${ms(job.stopSpec)}.${plain?' The diode clamps only 0.7 V above the supply, so the coil empties slowly. A higher clamp (a zener in breakdown, or a TVS) empties it faster.':''}`);
+    problems.push(`Motor current took ${ms(tr.offTime)} to die; the stop-line brake needs it under ${ms(job.stopSpec)}.${plain?' The diode holds the coil only 0.7 V above the supply, so its energy drains slowly.':''}`);
     return {tier:0,fault:'slow',...out};}
   // Works. Reliable: margins on the spike, the supply and the stop time.
   let tier:1|2|3=2;
@@ -207,8 +206,7 @@ export function judge(job:Job,s:Setup):Verdict{
 export function allSetups():Setup[]{
   const opts=(slot:SlotId)=>[undefined,...PART_IDS.filter(p=>PARTS[p].slots.includes(slot)).flatMap(p=>PARTS[p].polar?[{part:p,flipped:false},{part:p,flipped:true}]:[{part:p,flipped:false}])] as (Fit|undefined)[];
   const out:Setup[]=[];
-  for(const fly1 of opts('fly1'))for(const fly2 of opts('fly2')){if(fly1&&fly2&&fly1.part===fly2.part)continue;
-    for(const sw of opts('switch'))for(const ctrl of opts('ctrl'))for(const star of [false,true])out.push({fly1,fly2,switch:sw,ctrl,star});}
+  for(const fly of opts('fly'))for(const sw of opts('switch'))for(const ctrl of opts('ctrl'))for(const star of [false,true])out.push({fly,switch:sw,ctrl,star});
   return out;
 }
 const fewest=new Map<string,number>();

@@ -5,7 +5,7 @@ import {JOBS,MOTOR,RUNNING,STALL,SPEC,SWITCH,PARTS,judge,shutdown,startDip,start
 const job=(id:string)=>JOBS.find(j=>j.id===id)!;
 const f=(part:Fit['part'],flipped=false):Fit=>({part,flipped});
 const S=(s:Partial<Setup>={}):Setup=>({star:false,...s});
-const diode=S({fly1:f('diode')}),dz=S({fly1:f('diode'),fly2:f('zener',true)}),tvs=S({switch:f('tvs')});
+const diode=S({fly:f('diode')}),dz=S({fly:f('clamp')}),tvs=S({switch:f('tvs')});
 
 describe('robot garage: the shutdown kick',()=>{
   it('with no path, the coil drives the switch into breakdown (far past its abs max)',()=>{
@@ -23,16 +23,20 @@ describe('robot garage: the shutdown kick',()=>{
     const d=shutdown(diode),z=shutdown(dz),t=shutdown(tvs);
     expect(z.offTime!).toBeLessThan(d.offTime!/3);expect(t.offTime!).toBeLessThan(d.offTime!/3);
     expect(z.peak).toBeGreaterThan(d.peak);expect(z.peak).toBeLessThan(SPEC.spikeReliable);expect(t.peak).toBeLessThan(SPEC.spikeReliable);
-    // The diode + zener clamp sits at V + Vf + Vz.
-    expect(z.peak).toBeCloseTo(MOTOR.V+PARTS.diode.vf!+PARTS.zener.vbr!,0);
+    // The clamp (a diode and a 24 V zener back to back) sits at V + Vf + Vz.
+    expect(z.peak).toBeCloseTo(MOTOR.V+PARTS.clamp.vf!,0);expect(PARTS.clamp.vf!).toBeCloseTo(24.7,6);
   });
-  it('a zener only clamps high in breakdown: fitted the diode way round it acts like a plain diode',()=>{
-    expect(flyChain(S({fly1:f('diode'),fly2:f('zener')}))!.fwd).toBeCloseTo(1.4,6);
-    expect(judge(job('stopline'),S({fly1:f('diode'),fly2:f('zener')})).fault).toBe('slow');
+  it('a clamp fitted backwards never conducts at either voltage: no short, but no path for the kick either',()=>{
+    const back=S({fly:f('clamp',true)});expect(flyChain(back)!.fwd).toBeGreaterThan(SWITCH.avalanche);
+    expect(shorted(back)).toBe(false);expect(judge(job('kickback'),back).fault).toBe('stop');
   });
-  it('a backwards diode (or a lone zener in breakdown direction) is a dead short while the motor runs',()=>{
-    expect(shorted(S({fly1:f('diode',true)}))).toBe(true);expect(shorted(S({fly1:f('zener',true)}))).toBe(true);
-    expect(shorted(dz)).toBe(false);expect(judge(job('kickback'),S({fly1:f('diode',true)})).fault).toBe('short');
+  it('a backwards diode is a dead short while the motor runs',()=>{
+    expect(shorted(S({fly:f('diode',true)}))).toBe(true);
+    expect(shorted(dz)).toBe(false);expect(judge(job('kickback'),S({fly:f('diode',true)})).fault).toBe('short');
+  });
+  it('failure messages say why, never which part to fit',()=>{
+    const all=[S(),S({fly:f('diode',true)}),S({switch:f('tvs',true)}),S({ctrl:f('cap',true)}),diode].flatMap(s=>JOBS.flatMap(j=>judge(j,s).problems));
+    for(const m of all)expect(m).not.toMatch(/flyback diode across|Flip|star ground|own ground wire|reroute|zener in breakdown|TVS\)/);
   });
   it('a backwards TVS across the switch conducts forwards: the motor never stops',()=>{
     const t=shutdown(S({switch:f('tvs',true)}));expect(t.offTime).toBeNull();expect(judge(job('kickback'),S({switch:f('tvs',true)})).fault).toBe('stuck');
@@ -63,17 +67,18 @@ describe('robot garage: jobs and grades',()=>{
   it('job 1: a flyback diode alone is the elegant fix',()=>{
     const v=judge(job('kickback'),diode);expect(v.tier).toBe(3);expect(fewestParts(job('kickback'))).toBe(1);
   });
-  it('job 2: the plain diode is too slow for the stop line; diode + zener meets it reliably',()=>{
+  it('job 2: the plain diode is too slow for the stop line; the zener clamp or a TVS meets it',()=>{
     expect(judge(job('stopline'),diode).fault).toBe('slow');
-    const v=judge(job('stopline'),dz);expect(v.tier).toBeGreaterThanOrEqual(2);expect(v.offTime!).toBeLessThan(job('stopline').stopSpec!);
-    // One part (a TVS across the switch) also meets it: fewest parts is elegant.
-    expect(judge(job('stopline'),tvs).tier).toBe(3);expect(v.tier).toBe(2);
+    const v=judge(job('stopline'),dz);expect(v.tier).toBe(3);expect(v.offTime!).toBeLessThan(job('stopline').stopSpec!);
+    expect(judge(job('stopline'),tvs).tier).toBe(3);
+    // Two parts where one does is reliable, not elegant.
+    expect(judge(job('stopline'),{...dz,switch:f('tvs')}).tier).toBe(2);
   });
   it('job 3: the shared ground resets the controller at start; a star ground (no extra part) fixes it',()=>{
-    expect(judge(job('cargo'),dz).fault).toBe('start');expect(judge(job('cargo'),{...dz,star:true}).tier).toBe(2);expect(judge(job('cargo'),{...tvs,star:true}).tier).toBe(3);
+    expect(judge(job('cargo'),dz).fault).toBe('start');expect(judge(job('cargo'),{...dz,star:true}).tier).toBe(3);expect(judge(job('cargo'),{...tvs,star:true}).tier).toBe(3);
   });
   it('the solver: every job is solvable, the fewest-parts answer really is fewest, and the cheapest answer is reliable',()=>{
-    const all=allSetups();expect(all.length).toBeGreaterThan(200);
+    const all=allSetups();expect(all.length).toBe(5*4*3*2);
     for(const j of JOBS){const n=fewestParts(j);expect(n).toBe(1);expect(all.some(s=>partCount(s)<n&&reliable(j,s))).toBe(false);
       const c=cheapest(j)!;expect(c).toBeDefined();expect(reliable(j,c.setup)).toBe(true);expect(judge(j,c.setup).tier).toBeGreaterThanOrEqual(2);}
     expect(cheapest(job('kickback'))!.cost).toBe(PARTS.diode.cost);

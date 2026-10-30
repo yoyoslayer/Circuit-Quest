@@ -17,12 +17,10 @@ export function cheer(game:Game,st:{table:T.Vector3;stand:{x:number;z:number}},c
   game.burst(at,color,count,'confetti');
 }
 
-/** In the room, when Pip holds nothing and stands next to nothing she could grab, the prompt says
- *  where the current step is instead of staying empty (the yellow arrow marks the spot). Clutter in
- *  reach keeps its own grab prompt, so nothing stops her picking it up. */
-export function walkHint(game:Game,text:string|undefined):Prompt|null{
-  if(!text||game.atBench||game.held||game.holdingPlug||game.nearest())return null;
-  return {key:'WASD',text};
+/** Walking hints for the key pill: retired (the job card and the arrow carry them). */
+export function walkHint(_game:Game,_text:string|undefined):Prompt|null{
+  // The job card and the yellow arrow already say where to go; the key pill is kept for actions.
+  return null;
 }
 
 /** The one fuse/breaker reset control every bench uses (Arcade, Garage, Depot): a black holder

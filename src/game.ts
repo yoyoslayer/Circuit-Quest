@@ -177,7 +177,7 @@ export class Game {
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
       if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
       const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera',10:'survey'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
-  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;gameUI(this)?.paused(this.paused);this.audio.strain(0);}
+  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. */
   reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id?2:0);}

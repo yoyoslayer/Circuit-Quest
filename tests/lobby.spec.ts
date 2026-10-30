@@ -7,7 +7,7 @@ test('the bare URL opens the HQ lobby: a door per job, and E at a door walks int
   await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);
   const s=await snapshot(page);expect(s.level).toBe('lobby');
   const ids=s.hub.doors.map((d:{id:string})=>d.id);expect(ids).toEqual(expect.arrayContaining(['playground','meeting','lunch','vias']));
-  await expect(page.locator('.objective')).toContainText('pick a door');
+  await expect(page.locator('.objective .cur')).toContainText('Cable Playground');
   const via=s.hub.doors.find((d:{id:string})=>d.id==='vias');
   await walk(page,via.at.x,via.at.z,.4);await wait(page,.2);
   await expect(page.locator('.prompt-pill')).toContainText('Via Counter');

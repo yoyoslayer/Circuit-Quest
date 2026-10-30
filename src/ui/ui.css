@@ -27,14 +27,14 @@
 /* ---------- buttons: chunky, tactile ---------- */
 .btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:12px;pointer-events:auto;
   min-width:56px;min-height:56px;padding:0 16px;border:var(--edge);border-radius:var(--r-btn);
-  background:var(--paper);box-shadow:var(--drop);font-weight:600;font-size:19px;cursor:pointer;
+  background:var(--paper);box-shadow:var(--drop);font-weight:600;font-size:18px;cursor:pointer;
   transition:transform .12s var(--ease-pop),box-shadow .12s,background .12s}
 .btn:hover{transform:translateY(-2px);box-shadow:0 7px 0 var(--ink)}
 .btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
 .btn:focus-visible,.act:focus-visible,.job:focus-visible{outline:4px solid var(--snap);outline-offset:4px}
 .btn.primary{background:var(--hat);--ic:var(--paper)}
 .btn.primary::after{content:"";position:absolute;inset:3px 3px auto 3px;height:38%;border-radius:11px 11px 20px 20px;background:rgba(255,255,255,.28);pointer-events:none}
-.btn.big{min-height:76px;border-radius:22px;font-size:26px;padding:0 30px}
+.btn.big{min-height:76px;border-radius:22px;font-size:28px;padding:0 30px}
 .btn.big .ico{width:40px;height:40px}
 
 /* keycap / pad glyph chip */
@@ -58,7 +58,7 @@
 .medal{--m:var(--gold);--rim:var(--gold-rim);position:relative;display:grid;place-items:center;width:var(--size,56px);height:var(--size,56px);flex-shrink:0;
   border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.55) 0 18%,transparent 19%),var(--m);
   border:var(--edge);box-shadow:inset 0 0 0 calc(var(--size,56px)*.07) var(--rim),inset 0 0 0 calc(var(--size,56px)*.07 + 2px) rgba(38,42,64,.9),0 4px 0 var(--ink);
-  font-weight:700;font-size:calc(var(--size,56px)*.56);line-height:1;color:var(--ink);font-stretch:110%}
+  font-weight:700;font-size:calc(var(--size,56px)*.56);line-height:1;color:var(--ink);font-stretch:104%}
 .medal.b{--m:var(--silver);--rim:var(--silver-rim)}
 .medal.c{--m:var(--bronze);--rim:var(--bronze-rim)}
 .medal.d{--m:var(--tin);--rim:var(--tin-rim)}
@@ -84,7 +84,7 @@
 .tallies{display:flex;gap:4px;margin-left:6px}
 .tally{display:flex;flex-direction:column;align-items:center;gap:3px;width:62px}
 .tally .ico{width:34px;height:34px}
-.tally b{font-size:19px;font-weight:600;line-height:1}
+.tally b{font-size:18px;font-weight:600;line-height:1}
 .tally + .tally{border-left:2px solid var(--paper-3)}
 
 /* strain + reel + pause (top right) */
@@ -192,43 +192,41 @@
 @media (prefers-reduced-motion:reduce){#hud *,#hud *::before,#hud *::after{animation:none!important;transition:none!important}}
 
 /* ---------- objectives (job card, key prompt, bonus stars) ---------- */
-.objective{position:absolute;left:calc(var(--inset) + var(--safe-l));top:calc(128px + var(--safe-t));width:min(360px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:22px;pointer-events:none;font-size:15px;line-height:1.25;color:var(--ink)}
-.objective h3{margin:0 0 8px;font-size:17px;font-weight:700;font-stretch:104%}
-.objective h3 small{display:block;font-size:11px;letter-spacing:.14em;color:var(--ink-2);margin-bottom:2px}
-.objective ol{list-style:none;margin:0;padding:0;display:grid;gap:5px}
-.objective li{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start}
-.objective li i{width:14px;height:14px;margin-top:2px;border-radius:50%;border:2.5px solid var(--ink-2)}
-.objective li.done{color:var(--muted)}.objective li.done span{text-decoration:line-through}
-.objective li.done i{background:var(--live);border-color:var(--live)}
-.objective li.now{font-weight:700}.objective li.now i{border-color:var(--ink);background:var(--hat);animation:nowpulse 1.2s ease-in-out infinite alternate}
-.objective li.todo{color:var(--ink-2);opacity:.75}
-.objective li.flash{animation:stepdone .9s ease-out}
-.objective .bonus{list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:2px dashed var(--paper-3);display:grid;gap:3px;font-size:13px}
-.objective .bonus li{grid-template-columns:18px 1fr;color:var(--ink-2)}
-.objective .bonus li i,.result-bonus li i{border:0;width:auto;height:auto;margin:0;font-style:normal;color:var(--paper-3);background:none;animation:none}
-.objective .bonus li.ok i,.result-bonus li.ok i{color:var(--gold,#ffc53d);text-shadow:0 1px 0 var(--ink)}
+.objective{position:absolute;left:calc(var(--inset) + var(--safe-l));top:calc(128px + var(--safe-t));max-width:min(340px,calc(100vw - 32px));padding:10px 14px 10px 12px;border-radius:18px;pointer-events:none;color:var(--ink);display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:12px;min-width:240px;row-gap:6px;align-items:center}
+.objective .dots{grid-column:1/3;display:flex;gap:5px}
+.objective .dots b{width:9px;height:9px;border-radius:50%;border:2px solid var(--ink-2);opacity:.6}
+.objective .dots b.done{background:var(--live);border-color:var(--live);opacity:1}
+.objective .dots b.now{background:var(--hat);border-color:var(--ink);opacity:1;animation:nowpulse 1.2s ease-in-out infinite alternate}
+.objective .cur{grid-column:1/2;margin:0;font-size:16px;font-weight:700;line-height:1.25}
+.objective .stars{grid-column:2/3;grid-row:2;justify-self:end;display:flex;gap:2px;font-size:14px}
+.objective .stars i{font-style:normal;color:var(--paper-3)}.objective .stars i.ok{color:var(--gold,#ffc53d);text-shadow:0 1px 0 var(--ink)}
+.objective.flash .cur{animation:stepdone .9s ease-out;color:var(--live)}
+.result-bonus li i{border:0;width:auto;height:auto;margin:0;font-style:normal;color:var(--paper-3);background:none;animation:none}
+.result-bonus li.ok i{color:var(--gold,#ffc53d);text-shadow:0 1px 0 var(--ink)}
 @keyframes nowpulse{to{transform:scale(1.25)}}
 @keyframes stepdone{0%{background:var(--hat)}100%{background:transparent}}
-.prompt-pill{position:absolute;left:50%;bottom:calc(128px + var(--safe-b));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 16px 8px 8px;border-radius:30px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:17px;font-weight:600;color:var(--ink);pointer-events:none;white-space:nowrap;animation:promptin .18s ease-out}
+.prompt-pill{position:absolute;left:50%;bottom:calc(128px + var(--safe-b));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 16px 8px 8px;border-radius:30px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:16px;font-weight:600;color:var(--ink);pointer-events:none;white-space:nowrap;animation:promptin .18s ease-out}
 .prompt-pill kbd{display:grid;place-items:center;min-width:34px;height:34px;padding:0 8px;border-radius:9px;background:var(--hat);border:var(--edge);font:inherit;font-weight:700}
 @keyframes promptin{from{opacity:0;transform:translate(-50%,6px)}}
 .result-served{margin:4px 0 8px;font-size:18px;font-weight:600;text-align:center}
-.result-bonus{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px;font-size:15px;font-weight:600}
+.result-bonus{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px;font-size:14px;font-weight:600}
 .result-bonus li{display:flex;gap:8px;align-items:center}.result-bonus li.miss{opacity:.55}
 body[data-screen="play"] .won .objective,body[data-screen="play"] .won .prompt-pill{display:none}
-@media (max-width:700px){.objective{top:calc(96px + var(--safe-t));font-size:13px;padding:10px 12px}.objective .bonus{display:none}.prompt-pill{bottom:calc(250px + var(--safe-b));font-size:14px;white-space:normal;max-width:calc(100vw - 32px)}}
+@media (max-width:700px){.objective{top:calc(96px + var(--safe-t))}.objective .cur{font-size:14px}.prompt-pill{bottom:calc(250px + var(--safe-b));font-size:14px;white-space:normal;max-width:calc(100vw - 32px)}}
 @media (prefers-reduced-motion:reduce){.objective li.now i,.prompt-pill{animation:none}}
 /* Station panels (src/stations): the order ticket and live build card top right, and a result toast. */
 .station-panel{position:absolute;right:calc(var(--inset) + var(--safe-r));top:calc(96px + var(--safe-t));width:min(330px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:22px;pointer-events:none;font-size:14px;line-height:1.3;color:var(--ink)}
 .station-panel header small{display:block;font-size:11px;letter-spacing:.14em;color:var(--ink-2);margin-bottom:2px}
-.station-panel h4{margin:0 0 4px;font-size:17px;font-weight:700;font-stretch:104%}
+.station-panel h4{margin:0 0 4px;font-size:16px;font-weight:700;font-stretch:104%}
 .station-panel header p{margin:0;color:var(--ink-2)}
 .station-panel .build{list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:2px dashed var(--paper-3);display:grid;gap:3px}
 .station-panel .build li{display:flex;justify-content:space-between;gap:10px}
 .station-panel .build li span{color:var(--ink-2)}
 .station-panel .build li.ok b{color:#1f7a4d}.station-panel .build li.bad b{color:#c0392b}.station-panel .build li.no b{color:var(--ink-2);font-weight:600}
-.station-panel .profile{margin:8px 0 0;font-size:11.5px;color:var(--muted)}
-.station-toast{position:absolute;left:50%;bottom:calc(186px + var(--safe-b));transform:translateX(-50%);max-width:min(620px,calc(100vw - 32px));padding:10px 16px;border-radius:18px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:15px;font-weight:600;line-height:1.3;text-align:center;pointer-events:none;animation:promptin .18s ease-out}
+.station-panel .profile{display:none;margin:8px 0 0;font-size:12px;color:var(--muted)}
+/* Teaching caveats ("game tuning values", "a real layout still needs DRC") show when paused, not mid-play. */
+body[data-paused] .station-panel .profile{display:block}
+.station-toast{position:absolute;left:50%;bottom:calc(186px + var(--safe-b));transform:translateX(-50%);max-width:min(620px,calc(100vw - 32px));padding:10px 16px;border-radius:18px;background:var(--paper);border:var(--edge);box-shadow:0 4px 0 var(--ink);font-size:14px;font-weight:600;line-height:1.3;text-align:center;pointer-events:none;animation:promptin .18s ease-out}
 .station-toast[data-tone="ok"]{background:#dff5e6}.station-toast[data-tone="bad"]{background:#ffe1dc}
 body[data-screen="play"] .won .station-panel,body[data-screen="play"] .won .station-toast{display:none}
 @media (max-width:700px){.station-panel{top:auto;bottom:calc(330px + var(--safe-b));font-size:12px;padding:10px 12px}.station-panel .build,.station-panel .profile{display:none}.station-toast{bottom:calc(300px + var(--safe-b));font-size:13px}}
@@ -260,7 +258,7 @@ body[data-bench] .station-toast{bottom:calc(84px + var(--safe-b))}
 }
 /* At a bench the job card shrinks to the current step and the order panel narrows, so the table has the middle. */
 body[data-bench] .objective{width:min(300px,calc(100vw - 32px));padding:10px 14px}
-body[data-bench] .objective .bonus,body[data-bench] .objective li.done,body[data-bench] .objective li.todo{display:none}
+
 body[data-bench] .station-panel{width:min(290px,calc(100vw - 32px));font-size:13px}
 .workshop-picker{max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 0 0 100vmax rgba(20,22,40,.45),var(--drop-lg)}
 .workshop-picker .grid .btn{text-align:left}

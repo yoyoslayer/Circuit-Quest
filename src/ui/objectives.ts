@@ -102,11 +102,14 @@ export class ObjectivesHUD{
     const bonus=this.job.bonuses.map(b=>b.ok(g));
     const key=`${[...this.done].join()}|${current}|${bonus.join()}|${[...this.flash].join()}`;
     if(key!==this.shown){this.shown=key;
-      // Long jobs stay compact: a done count, the current step and the one after it.
-      const steps=this.job.steps.map((st,i)=>({st,i})).filter(({i})=>this.job.steps.length<=4||this.flash.has(i)||(current>=0&&i>=current&&i<=current+1));
-      const doneCount=this.done.size,hiddenDone=doneCount-steps.filter(({i})=>this.done.has(i)).length;
-      this.card.innerHTML=`<h3><small>JOB · ${doneCount}/${this.job.steps.length}</small>${this.job.goal}</h3><ol>${hiddenDone>0?`<li class="done summary"><i></i><span>${hiddenDone} step${hiddenDone>1?'s':''} done</span></li>`:''}${steps.map(({st,i})=>`<li class="${this.done.has(i)?'done':i===current?'now':'todo'}${this.flash.has(i)?' flash':''}"><i></i><span>${st.text}</span></li>`).join('')}</ol>`+
-        `<ul class="bonus">${this.job.bonuses.map((b,i)=>`<li class="${bonus[i]?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`;}
+      // One line: progress dots, the current step, and three stars for the bonus goals (their wording
+      // is on the pause and result screens). Steps that just finished flash a tick before moving on.
+      const n=this.job.steps.length,cur=current<0?n-1:current,flashing=[...this.flash].pop();
+      const dots=this.job.steps.map((_,i)=>`<b class="${this.done.has(i)?'done':i===current?'now':''}"></b>`).join('');
+      const text=flashing!==undefined&&current!==flashing?this.job.steps[flashing].text:this.job.steps[cur].text;
+      this.card.classList.toggle('flash',flashing!==undefined);
+      this.card.innerHTML=`<div class="dots" aria-label="Step ${Math.min(n,this.done.size+1)} of ${n}">${dots}</div><p class="cur">${current<0?'Done!':text}</p>`+
+        `<div class="stars" aria-label="Bonus goals">${bonus.map(ok=>`<i class="${ok?'ok':''}">★</i>`).join('')}</div>`;}
     // A bouncing arrow over whatever the current step needs.
     const at=current>=0&&g.running&&!g.won&&!g.atBench?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;
     if(at){this.marker.position.set(at.x,2.1+Math.sin(g.last*.006)*.18,at.z);this.marker.rotation.y=g.last*.002;}

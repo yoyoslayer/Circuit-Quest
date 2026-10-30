@@ -1,9 +1,10 @@
 // Spectrum Delivery dispatch desk. The job is room-scale: Pip carries the receiver pod to each
-// destination and stands mirror boards on the floor marks; the transmitter tower beside the desk
-// aims itself and its beam (or broadcast) is drawn through the hall, stopping where an obstacle
-// stops it. At the desk: the band keys with the wave ribbon (c = f λ), a live map of the hall, the
-// detector heads for the pod, the power buttons, the lab shutter's hatch lever, the link meter and
-// SEND. Rules: ./logic.ts.
+// destination and stands mirror boards on the floor marks. At the desk Pip aims by hand on the live
+// hall map: click or drag to point the tower, drag a mirror to turn its board (the reflected leg
+// swings toward the cursor). The beam (or broadcast) is drawn through the hall and on the map,
+// stopping where an obstacle stops it or running on past a pod it misses. Also at the desk: the
+// band keys with the wave ribbon (c = f λ; the pod fits the matching detector head itself), the
+// power buttons, the lab shutter's hatch lever, the link meter and SEND. Rules: ./logic.ts.
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
@@ -12,10 +13,10 @@ import {prefabs} from '../../props/prefabs';
 import {dressSpectrum,CREAM,PAPER,COPPER,type SpectrumRoom} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
-import {JOBS,BANDS,BAND_IDS,DETECTORS,DETECTOR_IDS,POWERS,SPEC,PADS,PAD_NAMES,SPOTS,SPOT_IDS,TX,SMOKE,STORE,LAB,QUIET,HATCH,MATERIAL_NAMES,POD_HOME,
-  walls,read,judge,cost,leanest,lambdaText,freqText,dist,type Band,type Detector,type Power,type Pad,type Spot,type Setup,type Verdict,type Job,type Reading,type P} from './logic';
+import {JOBS,BANDS,BAND_IDS,DETECTOR_IDS,POWERS,SPEC,PADS,PAD_NAMES,SPOTS,SPOT_IDS,TX,SMOKE,STORE,LAB,QUIET,HATCH,MATERIAL_NAMES,POD_HOME,
+  walls,read,judge,cost,leanest,lambdaText,freqText,dist,heading,mirrorYaw,idleYaw,type Band,type Detector,type Power,type Pad,type Spot,type Setup,type Verdict,type Job,type Reading,type P,type Aim} from './logic';
 import './spectrum.css';
-import {cheer,walkHint} from '../shared';
+import {cheer} from '../shared';
 
 type Prop=Game['props'][number];
 const BEAM_Y=1.25,UP=new T.Vector3(0,1,0);
@@ -63,6 +64,9 @@ export class SpectrumDesk implements Station {
   jobIndex=0;delivered:{job:string;verdict:Verdict}[]=[];mistakes=0;spent=0;active=false;
   /** Where the pod is parked (null while carried or loose); which mark each mirror board stands on. */
   podPad:Pad|null=null;mirrorAt=new Map<Prop,Spot>();
+  /** The player's aim: the tower's heading and each standing mirror's yaw. It starts on the first pad. */
+  aim:Aim={tx:heading(TX,PADS[JOBS[0].pad]),mirrors:{}};
+  private drag?:'tx'|Spot;private mapMesh!:T.Mesh;private mapHover=false;private tickT=0;
   private room?:SpectrumRoom;private pod?:Prop;private mirrors:Prop[]=[];private ready=false;
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private podTop=new T.Group();private podHeads=new Map<Detector,T.Object3D>();private podLamp!:T.Mesh;private mirrorTops=new Map<Prop,T.Object3D>();
@@ -71,7 +75,7 @@ export class SpectrumDesk implements Station {
   private padRings=new Map<Pad,T.Mesh>();private hatchT=0;
   private map=new Live(1100,800);private link=new Live(640,360);private wave=new Live(640,360);
   private ribbon!:T.Mesh;private ribbonCycles=BANDS.vis.cycles;private ribbonBase!:Float32Array;
-  private bandKeys=new Map<Band,T.Object3D>();private deskHeads=new Map<Detector,T.Object3D>();private powerKeys=new Map<Power,T.Object3D>();private lever!:T.Object3D;private sendCap!:T.Mesh;
+  private bandKeys=new Map<Band,T.Object3D>();private powerKeys=new Map<Power,T.Object3D>();private lever!:T.Object3D;private sendCap!:T.Mesh;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';private lastMessage='';
   readonly job:StationJob;
   constructor(private game:Game){
@@ -96,7 +100,7 @@ export class SpectrumDesk implements Station {
   }
   dress(kit:RoomKit){this.room=dressSpectrum(this.game,kit);return {lightUp:this.room.lightUp};}
   current():Job|undefined{return JOBS[this.jobIndex];}
-  state():Setup{return {band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,mirrors:[...new Set(this.mirrorAt.values())],pod:this.podPad};}
+  state():Setup{return {band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,mirrors:[...new Set(this.mirrorAt.values())],pod:this.podPad,aim:this.aim};}
   reading():Reading{return read(this.current()??JOBS[JOBS.length-1],this.state());}
   private podAt():P{const p=this.pod?.body.translation();return p?{x:p.x,z:p.z}:POD_HOME;}
   private freeMirror():P|undefined{const m=this.mirrors.find(p=>!this.mirrorAt.has(p));const q=m?.body.translation();return q&&{x:q.x,z:q.z};}
@@ -124,14 +128,9 @@ export class SpectrumDesk implements Station {
     // ---- Centre front: the live hall map on a low lectern.
     part(top,rbox(1.3,.18,.5,.04),toon('#8e5a36'),0,.13,-.08);part(top,rbox(1.3,.05,.9,.04),toon('#8e5a36'),0,.07,.17);
     const lect=group(top,0,.21,.17);lect.rotation.x=.3;part(lect,rbox(1.4,.05,1.02,.05),toon('#c98a55'),0,.02,0);
-    const mapMesh=part(lect,new T.PlaneGeometry(1.34,.975),flatMat(this.map.tex),0,.047,0,false);mapMesh.rotation.x=-Math.PI/2;mapMesh.userData.noAO=true;
-    // ---- Right: detector heads (back), power keys and SEND (middle), the hatch lever (front).
+    this.mapMesh=part(lect,new T.PlaneGeometry(1.34,.975),flatMat(this.map.tex),0,.047,0,false);this.mapMesh.rotation.x=-Math.PI/2;this.mapMesh.userData.noAO=true;
+    // ---- Right: power keys and SEND (middle), the hatch lever (front).
     part(top,rbox(1.26,.02,1.12,.06),toon('#3a3d55'),1.53,.045,0);
-    DETECTOR_IDS.forEach((d,k)=>{const x=1.05+k*.24,peg=group(top,x,.055,-.2);part(peg,cyl(.08,.09,.03,16),toon('#fffaf0'),0,.015,0);const h=headMesh(d,.9);h.position.y=.03;peg.add(h);
-      this.deskHeads.set(d,peg);this.click(peg,'detector',d);});
-    const HEAD_TAGS:Record<Detector,string>={dipole:'DIPOLE',patch:'PATCH',thermopile:'THERMO',nirdiode:'NEAR IR',visdiode:'GREEN'};
-    DETECTOR_IDS.forEach((d,k)=>sign(top,HEAD_TAGS[d],1.05+k*.24,.082,-.01,.235,-1.1,CREAM,INK,.1));
-    sign(top,'POD DETECTOR',1.53,.057,-.4,.44,-Math.PI/2,'#ffd66b',INK,.07);
     POWERS.forEach((p,k)=>{const x=1.05+k*.26,key=group(top,x,.055,.22);part(key,rbox(.24,.05,.16,.03),toon('#fffaf0'),0,.025,0);sign(key,`${p} mW`,0,.052,0,.22,-Math.PI/2,'#fffaf0',INK,.11);
       this.powerKeys.set(p as Power,key);this.click(key,'power',p);});
     sign(top,'POWER  (P)',1.31,.082,.37,.4,-1.1,CREAM,INK,.1);
@@ -191,23 +190,39 @@ export class SpectrumDesk implements Station {
     if(p===this.pod){const pad=(Object.keys(PADS) as Pad[]).find(k=>Math.min(dist(q,PADS[k]),dist(me,PADS[k])-.6)<1.6);if(!pad)return;
       this.park(p,PADS[pad],0);this.podPad=pad;this.game.audio.plug();this.game.burst({x:PADS[pad].x,y:.2,z:PADS[pad].z},'#8ff3ea',1,'ring');this.redraw();return;}
     if(this.mirrors.includes(p)){const taken=new Set(this.mirrorAt.values());const s=SPOT_IDS.find(k=>!taken.has(k)&&Math.min(dist(q,SPOTS[k]),dist(me,SPOTS[k])-.6)<1.5);if(!s)return;
-      this.mirrorAt.set(p,s);this.park(p,SPOTS[s],this.aimYaw(s));this.game.audio.plug();this.game.burst({x:SPOTS[s].x,y:.2,z:SPOTS[s].z},'#c9c0ff',1,'ring');this.redraw();}
+      this.mirrorAt.set(p,s);this.aim.mirrors[s]=idleYaw(s);this.park(p,SPOTS[s],this.aimYaw(s));this.game.audio.plug();this.game.burst({x:SPOTS[s].x,y:.2,z:SPOTS[s].z},'#c9c0ff',1,'ring');this.redraw();}
   }
-  /** Mirror yaw: its face normal bisects the incoming and outgoing beam (or faces the tower when idle). */
-  private aimYaw(s:Spot,r=this.reading().route){
-    const i=r.spots.indexOf(s),at=SPOTS[s];
-    if(i<0)return Math.atan2(TX.x-at.x,TX.z-at.z);
-    const prev=r.path[i],next=r.path[i+2],a=new T.Vector2(prev.x-at.x,prev.z-at.z).normalize(),b=new T.Vector2(next.x-at.x,next.z-at.z).normalize(),n=a.add(b);
-    return Math.atan2(n.x,n.y);
+  /** A mirror board's yaw, as the player aimed it (it faces the tower until then). */
+  private aimYaw(s:Spot){return this.aim.mirrors[s]??idleYaw(s);}
+  /** Points the tower at a spot on the map, or turns a mirror so its reflection heads there. */
+  private aimTo(what:'tx'|Spot,at:P){
+    if(what==='tx'){if(dist(at,TX)<.3)return false;this.aim.tx=heading(TX,at);}
+    else{if(![...this.mirrorAt.values()].includes(what))return false;const r=this.reading().route,i=r.spots.indexOf(what),from=i>=0?r.path[i]:TX;
+      if(dist(at,SPOTS[what])<.3)return false;this.aim.mirrors[what]=mirrorYaw(SPOTS[what],from,at);}
+    if(this.game.time>this.tickT){this.tickT=this.game.time+.06;this.game.audio.tone(what==='tx'?700:900,.02,.015,'triangle');}
+    this.redraw();return true;
+  }
+  /** Map coordinates under the pointer (plan metres), when the ray hits the desk's map. */
+  private mapPoint(ray:T.Raycaster):P|undefined{
+    const h=ray.intersectObject(this.mapMesh,false)[0];if(!h?.uv)return undefined;
+    const L=this.game.level,w=this.map.canvas.width,hh=this.map.canvas.height,sx=(w-60)/L.width;
+    return {x:(h.uv.x*w-30)/sx-L.width/2,z:((1-h.uv.y)*hh-28)/sx-L.depth/2};
+  }
+  /** The tower or a standing mirror under a map point, if the pointer is on one. */
+  private handleNear(at:P):'tx'|Spot|undefined{
+    for(const s of this.mirrorAt.values())if(dist(at,SPOTS[s])<1.2)return s;
+    return undefined;
   }
 
   // ---------- actions ----------
   act(name:string,arg?:unknown):boolean{
     const j=this.current(),a=this.game.audio;if(!j)return false;
     switch(name){
-      case 'band':{const b=arg as Band;if(!BANDS[b])return false;this.band=b;a.tone(300+BAND_IDS.indexOf(b)*140,.08,.04,'triangle');
+      case 'band':{const b=arg as Band;if(!BANDS[b])return false;this.band=b;this.detector=BANDS[b].detector;a.tone(300+BAND_IDS.indexOf(b)*140,.08,.04,'triangle');
         this.say(`${BANDS[b].name}: λ = ${lambdaText(b)}, f = ${freqText(b)}. Every band obeys c = f × λ.`);break;}
-      case 'detector':{const d=arg as Detector;if(!DETECTORS[d])return false;this.detector=d;a.pop();a.tone(900,.05,.03);break;}
+      case 'aim':{const o=arg as {what:'tx'|Spot;to:Spot|Pad|P};if(!o)return false;
+        const to=typeof o.to==='string'?(SPOTS as Record<string,P>)[o.to]??(PADS as Record<string,P>)[o.to]:o.to;if(!to)return false;return this.aimTo(o.what,to);}
+      case 'turn':{this.aim.tx+=Number(arg)*Math.PI/90;a.tone(700,.02,.015,'triangle');break;}
       case 'power':{const p=Number(arg) as Power;if(!POWERS.includes(p))return false;this.power=p;a.tone(420+POWERS.indexOf(p)*180,.07,.04,'triangle');break;}
       case 'hatch':{this.hatchOpen=typeof arg==='boolean'?arg:!this.hatchOpen;a.noise(.12,.05,900,'lowpass');a.tone(this.hatchOpen?520:300,.1,.04,'triangle');
         this.say(this.hatchOpen?'Hatch open: a 30 cm hole in the lab\'s metal shutter.':'Hatch shut: the shutter is solid metal again.');break;}
@@ -218,7 +233,7 @@ export class SpectrumDesk implements Station {
         this.delivered.push({job:j.id,verdict:v});this.lastMessage=j.message;
         this.say(`“${j.message}” · ${['','Received','Reliable','Elegant'][v.tier]} (${v.margin} dB)${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
         a.cheer();a.bell(1319,.5,.05);const at=PADS[j.pad];cheer(this.game,this,'#ffd66b',{x:at.x,y:1.4,z:at.z});if(!this.game.atBench)this.game.burst({x:at.x,y:1.5,z:at.z},'#fff3c8',6,'star');
-        this.jobIndex++;this.redraw();return true;}
+        this.jobIndex++;const next=this.current();if(next)this.aim.tx=heading(TX,PADS[next.pad]);this.redraw();return true;}
       default:return false;
     }
     this.redraw();return true;
@@ -238,13 +253,12 @@ export class SpectrumDesk implements Station {
   redraw(){
     const r=this.reading();
     this.bandKeys.forEach((k,b)=>k.position.y=b===this.band?.075:.055);
-    this.deskHeads.forEach((k,d)=>{k.position.y=d===this.detector?.1:.055;(k.children[0] as T.Mesh).material=toon(d===this.detector?'#ffd66b':'#fffaf0');});
     this.powerKeys.forEach((k,p)=>{k.position.y=p===this.power?.07:.055;(k.children[0] as T.Mesh).material=toon(p===this.power?'#ffd66b':'#fffaf0');});
     this.lever.rotation.x=this.hatchOpen?-.35:.35;
     this.sendCap.material=toon(r.podOk?'#3fae6a':'#9aa0ad');
     (this.ribbon.material as T.MeshBasicMaterial).color.set(BANDS[this.band].color);
     this.podHeads.forEach((h,d)=>h.visible=d===this.detector);
-    if(this.ready){for(const [m,s] of this.mirrorAt)m.body.setRotation(yawQuat(this.aimYaw(s,r.route)),true);}
+    if(this.ready){for(const [m,s] of this.mirrorAt)m.body.setRotation(yawQuat(this.aimYaw(s)),true);}
     this.shown='';this.beamKey='';
   }
   /** The beam through the hall: bright where it travels, a red stop disc where something blocks it. */
@@ -264,7 +278,7 @@ export class SpectrumDesk implements Station {
   }
   /** The hall map on the desk: walls by material, the smoke, marks, pads, pod and the beam. */
   private drawMap(r:Reading){
-    const pod=this.podAt(),key=JSON.stringify([this.band,this.hatchOpen,[...this.mirrorAt.values()],this.podPad,Math.round(pod.x*4),Math.round(pod.z*4),this.jobIndex,this.drawnPath(r),r.margin>=SPEC.works]);
+    const pod=this.podAt(),key=JSON.stringify([this.band,this.hatchOpen,[...this.mirrorAt.values()],this.podPad,Math.round(pod.x*4),Math.round(pod.z*4),this.jobIndex,this.drawnPath(r),r.margin>=SPEC.works,this.aim,this.drag??'',this.mapHover]);
     this.map.draw(key,(c,w,h)=>{
       const L=this.game.level,sx=(w-60)/L.width,X=(x:number)=>30+(x+L.width/2)*sx,Z=(z:number)=>28+(z+L.depth/2)*sx;
       c.fillStyle=INK;c.beginPath();c.roundRect(0,0,w,h,26);c.fill();c.fillStyle='#fbf6ec';c.beginPath();c.roundRect(12,12,w-24,h-24,18);c.fill();
@@ -283,7 +297,9 @@ export class SpectrumDesk implements Station {
       c.fillStyle='#e7c89a';c.fillRect(X(this.table.x-2.2),Z(this.table.z-.65),4.4*sx,1.3*sx);c.fillStyle='rgba(43,45,66,.7)';c.font=FONT(34);c.fillText('DESK',X(this.table.x),Z(this.table.z)+12);
       const taken=new Map([...this.mirrorAt.entries()].map(([m,s])=>[s,m]));
       for(const s of SPOT_IDS){const p=SPOTS[s];c.setLineDash([8,6]);c.strokeStyle='#8b7be8';c.lineWidth=5;c.beginPath();c.arc(X(p.x),Z(p.z),24,0,7);c.stroke();c.setLineDash([]);
-        const m=taken.get(s);if(m){const yaw=this.aimYaw(s,r.route),dx=Math.cos(yaw)*.8*sx,dz=-Math.sin(yaw)*.8*sx;c.strokeStyle='#5b6d8a';c.lineWidth=14;c.beginPath();c.moveTo(X(p.x)-dx,Z(p.z)-dz);c.lineTo(X(p.x)+dx,Z(p.z)+dz);c.stroke();
+        const m=taken.get(s);if(m){const yaw=this.aimYaw(s),dx=Math.cos(yaw)*.8*sx,dz=-Math.sin(yaw)*.8*sx;
+          // A grab ring: mirrors turn by dragging them on the map.
+          c.strokeStyle=this.drag===s?'#ffb020':'rgba(43,45,66,.35)';c.lineWidth=this.drag===s?6:3;c.beginPath();c.arc(X(p.x),Z(p.z),1.05*sx,0,7);c.stroke();c.strokeStyle='#5b6d8a';c.lineWidth=14;c.beginPath();c.moveTo(X(p.x)-dx,Z(p.z)-dz);c.lineTo(X(p.x)+dx,Z(p.z)+dz);c.stroke();
           c.strokeStyle='#dff3ff';c.lineWidth=6;c.beginPath();c.moveTo(X(p.x)-dx,Z(p.z)-dz);c.lineTo(X(p.x)+dx,Z(p.z)+dz);c.stroke();}
         c.fillStyle='#6a5bd0';c.font=FONT(36);c.fillText(s,X(p.x)+34,Z(p.z)-20);}
       // Pads: the current one glows.
@@ -297,6 +313,9 @@ export class SpectrumDesk implements Station {
       if(r.route.blocked){const e=pts[pts.length-1];c.strokeStyle='#e5484d';c.lineWidth=12;for(const s of [-1,1]){c.beginPath();c.moveTo(X(e.x)-22,Z(e.z)-22*s);c.lineTo(X(e.x)+22,Z(e.z)+22*s);c.stroke();}}
       // Tower and pod.
       c.fillStyle=INK;c.beginPath();c.arc(X(TX.x),Z(TX.z),22,0,7);c.fill();c.fillStyle=b.color;c.beginPath();c.arc(X(TX.x),Z(TX.z),13,0,7);c.fill();
+      // The tower's pointer: a short arrow along its heading (beams only).
+      if(b.beam){const hx=Math.sin(this.aim.tx),hz=Math.cos(this.aim.tx),ax=X(TX.x)+hx*48,az=Z(TX.z)+hz*48;c.strokeStyle=INK;c.lineWidth=8;c.beginPath();c.moveTo(X(TX.x)+hx*24,Z(TX.z)+hz*24);c.lineTo(ax,az);c.stroke();
+        c.fillStyle=INK;c.beginPath();c.moveTo(ax+hx*16,az+hz*16);c.lineTo(ax-hz*11,az+hx*11);c.lineTo(ax+hz*11,az-hx*11);c.fill();}
       c.fillStyle='#fffaf0';c.strokeStyle=INK;c.lineWidth=5;c.beginPath();c.roundRect(X(pod.x)-30,Z(pod.z)-21,60,42,10);c.fill();c.stroke();c.fillStyle='#3fae6a';c.beginPath();c.arc(X(pod.x),Z(pod.z),9,0,7);c.fill();
     });
   }
@@ -330,6 +349,12 @@ export class SpectrumDesk implements Station {
   }
 
   pointer(e:Pointer){
+    // The map: drag a mirror to turn it, or click or drag anywhere else to point the tower.
+    const at=this.active?this.mapPoint(e.ray):undefined;
+    if(this.drag){if(at&&e.kind!=='up')this.aimTo(this.drag,at);if(e.kind==='up'){this.drag=undefined;this.redraw();}return;}
+    this.mapHover=!!at;
+    if(at){if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}document.body.style.cursor=this.handleNear(at)?'grab':'crosshair';
+      if(e.kind==='down'&&e.button===0&&BANDS[this.band].beam){this.drag=this.handleNear(at)??'tx';this.aimTo(this.drag,at);}return;}
     const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true);let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
     if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);if(found)found.obj.scale.copy(found.obj.userData.baseScale).multiplyScalar(1.12);this.hovered=found;}
@@ -339,10 +364,10 @@ export class SpectrumDesk implements Station {
   key(code:string){
     const next=<X>(list:readonly X[],v:X)=>list[(list.indexOf(v)+1)%list.length];
     const map:Record<string,[string,unknown?]>={Digit1:['band','radio'],Digit2:['band','micro'],Digit3:['band','thermal'],Digit4:['band','nir'],Digit5:['band','vis'],
-      KeyF:['detector',next(DETECTOR_IDS,this.detector)],KeyP:['power',next(POWERS,this.power)],KeyH:['hatch'],Enter:['send']};
+      ArrowLeft:['turn',-1],ArrowRight:['turn',1],KeyP:['power',next(POWERS,this.power)],KeyH:['hatch'],Enter:['send']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
+  setActive(active:boolean){this.active=active;this.drag=undefined;this.mapHover=false;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
   update(dt:number){
     // At the desk the hall map shows the beam and the marks; the room's own copies would only cross the
     // close camera (over the detector knobs and SEND), so they step aside until Pip stands up.
@@ -351,14 +376,14 @@ export class SpectrumDesk implements Station {
     const g=this.game;
     // Picking a parked pod or mirror up frees it again.
     if(g.held&&g.held===this.pod&&this.podPad){this.unpark(this.pod);this.podPad=null;this.redraw();}
-    if(g.held&&this.mirrorAt.has(g.held)){this.unpark(g.held);this.mirrorAt.delete(g.held);this.redraw();}
+    if(g.held&&this.mirrorAt.has(g.held)){delete this.aim.mirrors[this.mirrorAt.get(g.held)!];this.unpark(g.held);this.mirrorAt.delete(g.held);this.redraw();}
     const r=this.reading();
     // The pod's mast rides on the case; its lamp shows whether the link is up.
     if(this.pod){const p=this.pod.body.translation(),q=this.pod.body.rotation();this.podTop.position.set(p.x,p.y,p.z);this.podTop.quaternion.set(q.x,q.y,q.z,q.w);
       this.podLamp.material=r.podOk&&r.margin>=SPEC.works?LAMP_OK:r.podOk?LAMP_BAD:LAMP_OFF;}
     for(const [m,top] of this.mirrorTops){const p=m.body.translation(),q=m.body.rotation();top.position.set(p.x,p.y,p.z);top.quaternion.set(q.x,q.y,q.z,q.w);}
     // The tower aims at the first point of the route; its beacon wears the band's colour.
-    const first=r.route.path[1]??PADS[this.current()?.pad??'store'],want=Math.atan2(first.x-TX.x,first.z-TX.z);
+    const want=BANDS[this.band].beam?this.aim.tx:heading(TX,PADS[this.current()?.pad??'store']);
     this.turret.rotation.y+=Math.atan2(Math.sin(want-this.turret.rotation.y),Math.cos(want-this.turret.rotation.y))*Math.min(1,dt*5);
     (this.beacon.material as T.MeshBasicMaterial).color.set(BANDS[this.band].color).multiplyScalar(1.6);
     // At the desk the hall map draws the route; the room's own beam would only cut across the view.
@@ -396,30 +421,32 @@ export class SpectrumDesk implements Station {
     const m=r.margin,b=BANDS[this.band];
     this.panel.innerHTML=`<header><small>DELIVERY ${this.jobIndex+1}/${JOBS.length} · TO THE ${PAD_NAMES[j.pad].toUpperCase()}</small><h4>${j.title}</h4><p>${j.ask}</p></header>`+
       (this.active?`<ul class="build">${row('Pod',r.podOk?`on the ${PAD_NAMES[j.pad]} pad`:'not on the pad',r.podOk)}`+
-        `${row('Band',`<i class="sp-chip" style="--c:${b.color}"></i>${b.name}`)}${row('Detector',DETECTORS[this.detector].label,r.detectorOk)}${row('Power',`${this.power} mW`)}`+
+        `${row('Band',`<i class="sp-chip" style="--c:${b.color}"></i>${b.name}`)}${row('Power',`${this.power} mW`)}`+
         (j.hatch||this.hatchOpen?row('Lab hatch',this.hatchOpen?'open':'shut'):'')+
-        (j.hatch||r.route.spots.length?row('Mirrors in beam',String(r.route.spots.length)):'')+`${row('Path',r.route.blocked?`blocked: ${MATERIAL_NAMES[r.route.blocked.mat]}`:'clear',!r.route.blocked)}`+
+        (j.hatch||r.route.spots.length?row('Mirrors in beam',String(r.route.spots.length)):'')+`${row('Path',r.route.blocked?`blocked: ${MATERIAL_NAMES[r.route.blocked.mat]}`:r.route.missed?'misses the pod':'clear',!r.route.blocked&&!r.route.missed)}`+
         `${row('Link margin',Number.isFinite(m)?`${m.toFixed(1)} dB`:'no signal',m>=SPEC.reliable)}</ul>`+
         `<p class="profile">Simplified link model: ≥ ${SPEC.works} dB works, ≥ ${SPEC.reliable} dB is reliable. Game values, not a real link budget. Light links use wide LED beams, not lasers.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
     const j=this.current();if(!j)return null;const g=this.game;
     if(!atBench){const p=g.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
-      if(g.held&&g.held===this.pod){const pad=(Object.keys(PADS) as Pad[]).find(k=>dist(p,PADS[k])<2.2);return pad?{key:'E',text:`Set the pod down on the ${PAD_NAMES[pad]} pad`}:{key:'E',text:`Carry the pod to the ${PAD_NAMES[j.pad]} pad`};}
-      if(g.held&&this.mirrors.includes(g.held)){const s=SPOT_IDS.find(k=>dist(p,SPOTS[k])<2.1&&![...this.mirrorAt.values()].includes(k));return s?{key:'E',text:`Stand the mirror on mark ${s}`}:{key:'E',text:'Carry the mirror to a floor mark (A, B or C)'};}
-      const grab=g.held?undefined:g.nearest();if(grab&&grab===this.pod)return {key:'E',text:'Pick up the receiver pod'};if(grab&&this.mirrors.includes(grab))return {key:'E',text:'Pick up the mirror board'};
-      if(near)return {key:'E',text:this.podPad===j.pad?'Work at the dispatch desk':`Work at the desk (the pod isn't on the ${PAD_NAMES[j.pad]} pad yet)`};
-      return walkHint(g,this.podPad!==j.pad?`Take the receiver pod to the ${PAD_NAMES[j.pad]} pad (yellow arrow)`:'Walk to the dispatch desk (yellow arrow)');}
-    const r=this.reading();
-    if(!r.podOk)return {key:'E',text:`Step back and carry the pod to the ${PAD_NAMES[j.pad]} pad`};
-    if(!r.detectorOk)return {key:'F',text:'Fit the detector head that matches the band: click it, or F'};
-    if(r.route.blocked)return {key:'1–5',text:BANDS[this.band].beam?`The ${MATERIAL_NAMES[r.route.blocked.mat]} stops this band: try another band key, or steer the beam with mirrors`:`The ${MATERIAL_NAMES[r.route.blocked.mat]} stops this band: try another band key`};
-    if(r.margin<SPEC.reliable)return {key:'P',text:r.margin<SPEC.works?'Too weak: more power, or a band these obstacles pass':'Readable but weak: more power makes it reliable'};
-    return {key:'Enter',text:'Clear link: SEND the message (Enter)'};
+      if(g.held&&g.held===this.pod){const pad=(Object.keys(PADS) as Pad[]).find(k=>dist(p,PADS[k])<2.2);return pad?{key:'E',text:'Set the pod on the pad'}:{key:'E',text:'Carry the pod'};}
+      if(g.held&&this.mirrors.includes(g.held)){const s=SPOT_IDS.find(k=>dist(p,SPOTS[k])<2.1&&![...this.mirrorAt.values()].includes(k));return s?{key:'E',text:'Stand the mirror on the mark'}:{key:'E',text:'Carry the mirror'};}
+      const grab=g.held?undefined:g.nearest();if(grab&&grab===this.pod)return {key:'E',text:'Pick up the pod'};if(grab&&this.mirrors.includes(grab))return {key:'E',text:'Pick up the mirror'};
+      if(near)return {key:'E',text:'Work at the desk'};
+      return null;}
+    const r=this.reading(),beam=BANDS[this.band].beam;
+    if(this.drag)return {key:'Drag',text:this.drag==='tx'?'Aim the tower':'Turn the mirror'};
+    if(this.mapHover&&beam)return {key:'Drag',text:'Aim the beam'};
+    if(!r.podOk)return {key:'E',text:'Fetch the pod'};
+    if(r.route.blocked||r.route.missed)return beam?{key:'Drag',text:'Aim, or another band'}:{key:'1–5',text:'Another band'};
+    if(r.margin<SPEC.reliable)return {key:'P',text:'Power'};
+    return {key:'Enter',text:'Send'};
   }
   complete(){return this.delivered.length>=JOBS.length;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const r=this.reading();return {job:this.jobIndex,delivered:this.delivered.map(d=>({job:d.job,tier:d.verdict.tier,margin:d.verdict.margin})),band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,
     podPad:this.podPad,mirrors:[...this.mirrorAt.values()],mistakes:this.mistakes,spent:this.spent,
-    reading:{margin:Number.isFinite(r.margin)?+r.margin.toFixed(2):null,blocked:r.route.blocked?.mat??null,spots:r.route.spots,detectorOk:r.detectorOk,podOk:r.podOk}};}
+    aim:{tx:+this.aim.tx.toFixed(4),mirrors:{...this.aim.mirrors}},
+    reading:{margin:Number.isFinite(r.margin)?+r.margin.toFixed(2):null,blocked:r.route.blocked?.mat??null,missed:!!r.route.missed,spots:r.route.spots,detectorOk:r.detectorOk,podOk:r.podOk}};}
 }

@@ -25,8 +25,9 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   await toDesk(page,[[-10.1,-4.4],[-10.1,-2.2],[-6.4,1.2],...DESK_FRONT]);
   await expect(page.locator('.station-panel')).toContainText('Through the brick wall');
   let s=await station(page);expect(s.band).toBe('vis');expect(s.reading.blocked).toBe('brick');
-  await steps(page,[['band','radio'],['detector','dipole']]);
-  s=await station(page);expect(s.reading.margin).toBeGreaterThanOrEqual(10);
+  // The pod fits the matching detector head by itself.
+  await steps(page,[['band','radio']]);
+  s=await station(page);expect(s.detector).toBe('dipole');expect(s.reading.margin).toBeGreaterThanOrEqual(10);
   await steps(page,[['send']]);
   // 2 · The lab: the pod goes in through the lab door, a mirror stands on mark A, the hatch opens.
   await E(page);
@@ -38,11 +39,17 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   expect((await station(page)).mirrors).toEqual(['A']);
   await toDesk(page,[[1.5,1.2],[.6,4.2]]);
   await expect(page.locator('.station-panel')).toContainText('Into the shuttered lab');
-  // With the hatch shut the metal shutter stops the beam; radio can't use the hatch at all.
-  await steps(page,[['band','nir'],['detector','nirdiode']]);
+  // The tower points at the lab pad: straight into the metal shutter.
+  await steps(page,[['band','nir']]);
+  s=await station(page);expect(s.reading.blocked).toBe('metal');
+  // Aim the tower at the mirror: the board still faces the tower, so the beam comes straight back.
+  await steps(page,[['aim',{what:'tx',to:'A'}]]);
+  s=await station(page);expect(s.reading.spots).toEqual(['A']);expect(s.reading.missed).toBe(true);
+  // Turn the mirror toward the lab: the shutter is still down, then the hatch opens and the beam is through.
+  await steps(page,[['aim',{what:'A',to:'lab'}]]);
   s=await station(page);expect(s.reading.blocked).toBe('metal');
   await steps(page,[['hatch']]);
-  s=await station(page);expect(s.reading.blocked).toBeNull();expect(s.reading.spots).toEqual(['A']);expect(s.reading.margin).toBeGreaterThanOrEqual(10);
+  s=await station(page);expect(s.reading.blocked).toBeNull();expect(s.reading.missed).toBe(false);expect(s.reading.spots).toEqual(['A']);expect(s.reading.margin).toBeGreaterThanOrEqual(10);
   await steps(page,[['send']]);
   // 3 · The quiet room: mesh stops radio and microwave, smoke eats visible light; thermal IR gets through both.
   await E(page);
@@ -50,9 +57,10 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   await route(page,[[10.2,-4.4],[10.2,-1.4],[10.2,1],[10.2,2.8],[9.4,3.9]]);await E(page);
   expect((await station(page)).podPad).toBe('quiet');
   await toDesk(page,[[10.2,2.8],[10.2,.6],[4.5,-.6],[-.2,4.2]]);
-  await steps(page,[['band','micro'],['detector','patch'],['power',100]]);
+  await steps(page,[['band','micro'],['power',100]]);
   s=await station(page);expect(s.reading.blocked).toBe('mesh');
-  await steps(page,[['band','thermal'],['detector','thermopile'],['power',1],['send']]);
+  // The tower re-aimed at the new pad; thermal IR crosses the smoke and the mesh.
+  await steps(page,[['band','thermal'],['power',1],['send']]);
   await wait(page,.2);s=await snapshot(page);
   expect(s.station.delivered.map((d:{tier:number})=>d.tier)).toEqual([3,3,3]);
   expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);expect(s.damage).toBe(0);
@@ -61,7 +69,7 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   expect(errors).toEqual([]);
 });
 
-test('spectrum delivery: sends that fail are explained, and fixing the band and detector recovers',async({page})=>{
+test('spectrum delivery: sends that fail are explained, and a better choice recovers',async({page})=>{
   const errors=await open(page,'spectrum');await wait(page,.1);
   // At the desk before the pod is out: SEND does nothing and says why (not a mistake).
   await toDesk(page,DESK_FRONT);
@@ -73,14 +81,11 @@ test('spectrum delivery: sends that fail are explained, and fixing the band and 
   await steps(page,[['power',100],['send']]);
   let s=await station(page);expect(s.mistakes).toBe(1);expect(s.job).toBe(0);
   await expect(page.locator('.station-toast')).toContainText('Brick');
-  // The right band with the wrong head: the photodiode can't hear radio.
+  await expect(page.locator('.station-toast')).not.toContainText('Radio');
+  // Radio gets through; 100 mW is reliable but more than needed (not elegant), and the note says so without naming the answer.
   await steps(page,[['band','radio'],['send']]);
-  s=await station(page);expect(s.mistakes).toBe(2);
-  await expect(page.locator('.station-toast')).toContainText('only responds');
-  // Fitting the dipole fixes it; 100 mW is reliable but more than needed (not elegant).
-  await steps(page,[['detector','dipole'],['send']]);
   s=await station(page);expect(s.job).toBe(1);expect(s.delivered[0].tier).toBe(2);
-  await expect(page.locator('.station-toast')).toContainText('Leaner');
+  await expect(page.locator('.station-toast')).toContainText('more power');
   // Stepping back from the desk returns the keys to walking.
   await page.keyboard.press('Escape');expect((await snapshot(page)).atBench).toBe(false);
   expect(errors).toEqual([]);

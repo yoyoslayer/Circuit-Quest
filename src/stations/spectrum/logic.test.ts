@@ -1,6 +1,6 @@
 import {describe,expect,it} from 'vitest';
-import {JOBS,BANDS,BAND_IDS,LOSS,SPOTS,PADS,HATCH,TX,C_LIGHT,frequency,read,judge,bestRoute,solutions,leanest,legHits,crossing,lambdaText,freqText,
-  type Setup,type Band} from './logic';
+import {JOBS,BANDS,BAND_IDS,LOSS,SPOTS,PADS,HATCH,TX,C_LIGHT,frequency,read,judge,bestRoute,solutions,leanest,legHits,crossing,lambdaText,freqText,traceBeam,heading,mirrorYaw,
+  type Setup,type Band,type Aim} from './logic';
 
 const job=(id:string)=>JOBS.find(j=>j.id===id)!;
 const setup=(band:Band,s:Partial<Setup>={}):Setup=>({band,detector:BANDS[band].detector,power:1,hatchOpen:false,mirrors:[],pod:null,...s});
@@ -33,14 +33,14 @@ describe('spectrum delivery rules',()=>{
   });
   it('a detector only responds to its own band',()=>{
     const v=judge(job('store'),setup('radio',{detector:'visdiode',pod:'store'}));
-    expect(v.tier).toBe(0);expect(v.problems[0]).toContain('only responds');
+    expect(v.tier).toBe(0);expect(v.problems[0]).toContain('only responds');expect(v.problems[0]).not.toMatch(/Fit /);
   });
   it('job 1: light stops at the brick wall; radio gets through at 1 mW; microwave needs more power',()=>{
     const j=job('store');
     let v=judge(j,setup('vis',{pod:'store',power:100}));expect(v.tier).toBe(0);expect(v.problems[0]).toMatch(/^Brick wall/);
     expect(judge(j,setup('radio',{pod:'store'})).tier).toBe(3);
     v=judge(j,setup('micro',{pod:'store'}));expect(v.tier).toBe(1);
-    v=judge(j,setup('micro',{pod:'store',power:10}));expect(v.tier).toBe(2);expect(v.notes[0]).toContain('Radio 100 MHz at 1 mW');
+    v=judge(j,setup('micro',{pod:'store',power:10}));expect(v.tier).toBe(2);expect(v.notes[0]).toContain('more power');
     // Radio at more power than needed is reliable but not elegant.
     expect(judge(j,setup('radio',{pod:'store',power:10})).tier).toBe(2);
     // The pod has to be on the storeroom pad.
@@ -76,5 +76,34 @@ describe('spectrum delivery rules',()=>{
     for(const j of JOBS)expect(solutions(j).length).toBeGreaterThan(0);
     // The lab can only be reached with the hatch open.
     expect(solutions(job('lab')).every(s=>s.setup.hatchOpen)).toBe(true);
+  });
+});
+
+describe('aiming the beam by hand',()=>{
+  const lab=job('lab'),aimAt=(a:Aim)=>setup('nir',{pod:'lab',hatchOpen:true,mirrors:['A'],aim:a});
+  const onto=(from=TX)=>({tx:heading(from,SPOTS.A),mirrors:{A:mirrorYaw(SPOTS.A,from,PADS.lab)}});
+  it('a beam aimed straight at the pod arrives; aimed away, it misses (and says so)',()=>{
+    const q=job('quiet'),s=(tx:number)=>setup('thermal',{pod:'quiet',aim:{tx,mirrors:{}}});
+    const r=read(q,s(heading(TX,PADS.quiet)));expect(r.route.missed).toBe(false);expect(r.margin).toBeGreaterThan(10);
+    const off=read(q,s(heading(TX,PADS.quiet)+.5));expect(off.route.missed).toBe(true);expect(off.margin).toBe(-Infinity);
+    expect(judge(q,s(heading(TX,PADS.quiet)+.5)).problems[0]).toBe('The beam misses the pod.');
+  });
+  it('a mirror reflects angle in = angle out: aimed at the bisector it turns the beam through the hatch',()=>{
+    const r=read(lab,aimAt(onto()));expect(r.route.spots).toEqual(['A']);expect(r.route.blocked).toBeUndefined();expect(r.route.missed).toBe(false);
+    expect(judge(lab,aimAt(onto())).tier).toBe(3);
+    // The reflected leg leaves at the same angle to the board's normal as the incoming one.
+    const tr=traceBeam('nir',true,onto(),['A'],PADS.lab),[a,m,b]=tr.path,n={x:Math.sin(onto().mirrors.A),z:Math.cos(onto().mirrors.A)};
+    const cos=(p:{x:number;z:number})=>{const v={x:p.x-m.x,z:p.z-m.z},l=Math.hypot(v.x,v.z);return (v.x*n.x+v.z*n.z)/l;};expect(cos(a)).toBeCloseTo(cos(b),6);
+  });
+  it('a few degrees off and the beam hits the metal shutter beside the 60 cm hatch',()=>{
+    const a=onto();a.mirrors.A!+=.06;expect(read(lab,aimAt(a)).route.blocked?.mat).toBe('metal');
+    const b=onto();b.mirrors.A!-=.06;expect(read(lab,aimAt(b)).route.blocked?.mat).toBe('metal');
+  });
+  it('a mirror left facing the tower sends the beam straight back: a miss',()=>{
+    const r=read(lab,aimAt({tx:heading(TX,SPOTS.A),mirrors:{}}));expect(r.route.spots).toEqual(['A']);expect(r.route.missed).toBe(true);
+  });
+  it('radio and microwave broadcast: aim makes no difference to them',()=>{
+    const st=job('store'),a=setup('radio',{pod:'store'}),b=setup('radio',{pod:'store',aim:{tx:2,mirrors:{}}});
+    expect(read(st,b).margin).toBeCloseTo(read(st,a).margin,9);
   });
 });

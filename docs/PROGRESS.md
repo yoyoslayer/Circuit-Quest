@@ -288,6 +288,23 @@ Keys at the bench:
   first.
 - **Keys:** 1–5 parts, A/S/D sockets, F flip, G ground, P pulse, Enter test (was 16 keys).
 
+**Spectrum Delivery: aim it yourself.** The tower and the mirrors no longer aim themselves.
+
+- **Aiming.** On the desk's hall map, click or drag to point the tower; drag a standing mirror to
+  turn its board, so the reflected leg swings toward the pointer (← / → nudge the tower 2°).
+- **Tracing.** The beam is traced as a ray: angle in = angle out at each board. It stops at
+  anything its band can't cross, or runs on to the hall's edge if it misses the pod ("The beam
+  misses the pod"). The lab's hatch is 60 cm wide, so a mirror a few degrees off puts the beam on
+  the metal shutter (unit-tested).
+- **Unchanged.** Radio and microwave still broadcast, so aim doesn't matter to them. The solver
+  still assumes perfect aim to decide what is leanest.
+- **Detector.** The pod fits the detector head that matches the band (the separate detector menu
+  was redundant).
+- **Messages.** Notes no longer print the answer ("Leaner: Near IR at 1 mW with 1 mirror" is now
+  "uses more power than this delivery needs"), and blocked-by messages say why, not what to do.
+- **Physics fixes** (from the review): every band now spreads by 20 log d; sunlight swamps the
+  visible detector and blunts the filtered near-IR one; thermal IR's example is heat cameras.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

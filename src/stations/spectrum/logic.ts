@@ -1,14 +1,16 @@
 // Spectrum Delivery rules. A transmitter tower by the dispatch desk sends a message to a receiver
 // pod that Pip carries around the research hall. Between them stand real obstacles: a brick
 // storeroom, a glass lab behind a metal shutter (with one small hatch), toaster smoke in the tea
-// corner and a copper-mesh screened room. Pip picks the band, the matching detector head, the
-// transmit power, opens or shuts the hatch, and stands mirror boards on floor marks.
+// corner and a copper-mesh screened room. Pip picks the band (the pod fits the matching detector
+// head), the transmit power, opens or shuts the hatch, stands mirror boards on floor marks, and
+// aims the tower and each mirror by hand: the beam is traced as a ray that reflects off the boards
+// (angle in = angle out) and either reaches the pod, stops at an obstacle, or misses.
 //
 // The model (simplified, and labelled as such for the player):
 //   link margin (dB) = P_tx (dBm) + K_band − spreading − Σ obstacle losses − 1 dB per mirror
-//                      − ambient light (visible band only, in a sunny room)
-//   spreading = 20·log10(d) for radio and microwave (the wave spreads out in all directions);
-//               10·log10(d) for the light and infrared links (wide LED beams, not lasers).
+//                      − ambient light (in a sunny room: visible detectors badly, filtered near-IR ones a little)
+//   spreading = 20·log10(d) for every band: any wave spreading from a small source loses power with
+//               the square of distance. Beams start concentrated, which their higher K_band carries.
 //   works = margin ≥ 0 dB; works reliably = margin ≥ 10 dB.
 // Teaching guardrails:
 //   * Every band is the same kind of wave: c = f·λ in vacuum (air is close enough).
@@ -36,7 +38,7 @@ export const C_LIGHT=299_792_458;
 export interface BandInfo {id:Band;name:string;short:string;lambda:number;detector:Detector;
   /** Link constant (dB at 1 mW and 1 m, detector sensitivity included). */
   k:number;
-  /** Spreading exponent: 2 for a wave spreading everywhere, 1 for a wide beam. */
+  /** Spreading exponent: 2 (inverse square) for every band. */
   n:number;
   /** Optical bands travel as a beam (line of sight, mirrors steer them). */
   beam:boolean;color:string;example:string;
@@ -45,9 +47,9 @@ export interface BandInfo {id:Band;name:string;short:string;lambda:number;detect
 export const BANDS:Record<Band,BandInfo>={
   radio:{id:'radio',name:'Radio 100 MHz',short:'RADIO',lambda:C_LIGHT/100e6,detector:'dipole',k:36,n:2,beam:false,color:'#e5484d',example:'FM radio',cycles:1},
   micro:{id:'micro',name:'Microwave 2.4 GHz',short:'MICROWAVE',lambda:C_LIGHT/2.4e9,detector:'patch',k:38,n:2,beam:false,color:'#f08a4b',example:'Wi-Fi',cycles:2},
-  thermal:{id:'thermal',name:'Thermal IR 10 µm',short:'THERMAL IR',lambda:10e-6,detector:'thermopile',k:26,n:1,beam:true,color:'#d9822b',example:'body heat',cycles:4},
-  nir:{id:'nir',name:'Near IR 850 nm',short:'NEAR IR',lambda:850e-9,detector:'nirdiode',k:24,n:1,beam:true,color:'#b0406a',example:'TV remote',cycles:6.5},
-  vis:{id:'vis',name:'Visible 530 nm',short:'VISIBLE',lambda:530e-9,detector:'visdiode',k:23,n:1,beam:true,color:'#3fae6a',example:'green light',cycles:9},
+  thermal:{id:'thermal',name:'Thermal IR 10 µm',short:'THERMAL IR',lambda:10e-6,detector:'thermopile',k:38,n:2,beam:true,color:'#d9822b',example:'heat cameras',cycles:4},
+  nir:{id:'nir',name:'Near IR 850 nm',short:'NEAR IR',lambda:850e-9,detector:'nirdiode',k:36,n:2,beam:true,color:'#b0406a',example:'TV remote',cycles:6.5},
+  vis:{id:'vis',name:'Visible 530 nm',short:'VISIBLE',lambda:530e-9,detector:'visdiode',k:35,n:2,beam:true,color:'#3fae6a',example:'green light',cycles:9},
 };
 export const BAND_IDS=Object.keys(BANDS) as Band[];
 export const frequency=(b:Band)=>C_LIGHT/BANDS[b].lambda;
@@ -138,7 +140,8 @@ export function legHits(p:P,q:P,band:Band,hatchOpen:boolean):Hit[]{
 
 // ---------- jobs ----------
 export interface Job {id:string;pad:Pad;title:string;ask:string;message:string;
-  /** Sunlight in the room swamps a plain visible-light detector (dB lost, visible band only). */
+  /** Sunlight swamps a plain visible detector by this much (dB). Sunlight carries near IR too, but the
+   *  near-IR photodiode sits behind a daylight filter that blocks the visible part, so it loses a third. */
   ambient?:number;
   /** The shutter hatch matters for this delivery. */
   hatch?:boolean}
@@ -155,9 +158,13 @@ export interface Setup {band:Band;detector:Detector;power:Power;hatchOpen:boolea
   /** Floor marks with a mirror board standing on them. */
   mirrors:Spot[];
   /** Where the pod stands (a pad, or loose somewhere). */
-  pod:Pad|null}
+  pod:Pad|null;
+  /** The player's aim for beams; without it the best aim is assumed. */
+  aim?:Aim}
 export interface Leg {a:P;b:P;hits:Hit[]}
 export interface Route {path:P[];spots:Spot[];legs:Leg[];length:number;spread:number;loss:number;margin:number;
+  /** An aimed beam that ran to the hall's edge without finding the pod. */
+  missed?:boolean;
   /** The margin with each outright block counted as 1000 dB: ranks blocked routes by how close they came. */
   score:number;
   /** First obstacle that stops it outright (Infinity loss). */
@@ -183,10 +190,58 @@ export function bestRoute(job:Job,s:Pick<Setup,'band'|'power'|'hatchOpen'|'mirro
     if(!best||r.score>best.score+1e-9||(Math.abs(r.score-best.score)<1e-9&&r.spots.length<best.spots.length))best=r;}
   return best!;
 }
+// ---------- aiming ----------
+/** The hall's outer walls (plan, half sizes): an aimed beam that reaches them has missed. */
+export const HALL={x:11,z:8};
+/** Half the width of a mirror board, and how close a beam must pass the pod's centre to be caught. */
+export const MIRROR_HALF=.78,POD_R=.75;
+/** Where things point (radians). `tx` is the tower's beam heading, atan2(dx, dz). Each mirror's value
+ *  is its board's yaw: the face normal points along (sin yaw, cos yaw), the board runs across it. */
+export interface Aim {tx:number;mirrors:Partial<Record<Spot,number>>}
+export const heading=(from:P,to:P)=>Math.atan2(to.x-from.x,to.z-from.z);
+const unit=(v:P):P=>{const l=Math.hypot(v.x,v.z)||1;return {x:v.x/l,z:v.z/l};};
+/** The board yaw that turns a beam arriving from `from` toward `to`: its normal bisects the two. */
+export function mirrorYaw(at:P,from:P,to:P){const a=unit(sub(from,at)),b=unit(sub(to,at));return Math.atan2(a.x+b.x,a.z+b.z);}
+/** A mirror with no aim yet faces the tower. */
+export const idleYaw=(s:Spot)=>heading(SPOTS[s],TX);
+/** Traces an aimed beam: out of the tower along its heading, reflecting off any standing mirror board
+ *  it meets, until it passes close enough to the pod, stops at an obstacle this band cannot cross, or
+ *  reaches the hall's edge. Obstacles it can cross are left for along() to charge. */
+export function traceBeam(band:Band,hatchOpen:boolean,aim:Aim,spots:Spot[],target:P):{path:P[];spots:Spot[];missed:boolean}{
+  const R=60,stops=walls(hatchOpen).filter(w=>w.mat.some(m=>!Number.isFinite(LOSS[m][band])));
+  let p=TX,d={x:Math.sin(aim.tx),z:Math.cos(aim.tx)},last:Spot|undefined;const path:P[]=[TX],used:Spot[]=[];
+  for(let bounce=0;bounce<6;bounce++){
+    const far={x:p.x+d.x*R,z:p.z+d.z*R};
+    // The hall's edge.
+    const tx=d.x>1e-9?(HALL.x-p.x)/(d.x*R):d.x< -1e-9?(-HALL.x-p.x)/(d.x*R):Infinity,tz=d.z>1e-9?(HALL.z-p.z)/(d.z*R):d.z< -1e-9?(-HALL.z-p.z)/(d.z*R):Infinity;
+    let t=Math.min(1,tx,tz),kind:'edge'|'wall'|'mirror'|'pod'='edge',hitSpot:Spot|undefined;
+    for(const w of stops){const c=crossing(p,far,w.a,w.b);if(c!==undefined&&c<t){t=c;kind='wall';}}
+    for(const s of spots){if(s===last)continue;const y=aim.mirrors[s]??idleYaw(s),u={x:Math.cos(y),z:-Math.sin(y)},at=SPOTS[s];
+      const c=crossing(p,far,{x:at.x-u.x*MIRROR_HALF,z:at.z-u.z*MIRROR_HALF},{x:at.x+u.x*MIRROR_HALF,z:at.z+u.z*MIRROR_HALF});if(c!==undefined&&c<t){t=c;kind='mirror';hitSpot=s;}}
+    // The pod: the beam's closest approach to its centre.
+    const tp=((target.x-p.x)*d.x+(target.z-p.z)*d.z)/R,cx=p.x+d.x*R*tp,cz=p.z+d.z*R*tp;
+    if(tp>0&&tp<t&&Math.hypot(cx-target.x,cz-target.z)<POD_R){t=tp;kind='pod';}
+    const hit={x:p.x+d.x*R*t,z:p.z+d.z*R*t};
+    if(kind==='mirror'){const y=aim.mirrors[hitSpot!]??idleYaw(hitSpot!),n={x:Math.sin(y),z:Math.cos(y)},k=2*(d.x*n.x+d.z*n.z);
+      d=unit({x:d.x-k*n.x,z:d.z-k*n.z});path.push(hit);used.push(hitSpot!);p=hit;last=hitSpot;continue;}
+    // A blocking wall: end just past it, so the leg records the crossing (and the route is blocked).
+    if(kind==='wall'){path.push({x:hit.x+d.x*.02,z:hit.z+d.z*.02});return {path,spots:used,missed:false};}
+    path.push(hit);return {path,spots:used,missed:kind==='edge'};
+  }
+  return {path,spots:used,missed:true};
+}
+/** The route of an aimed beam, priced like any other. */
+export function aimedRoute(job:Job,s:Pick<Setup,'band'|'power'|'hatchOpen'|'mirrors'>&{aim:Aim}):Route{
+  const tr=traceBeam(s.band,s.hatchOpen,s.aim,s.mirrors,PADS[job.pad]),r=along(s.band,s.power,tr.path,tr.spots,s.hatchOpen);
+  return {...r,missed:tr.missed&&!r.blocked};
+}
+
 export interface Reading {route:Route;margin:number;detectorOk:boolean;ambient:number;podOk:boolean}
+/** Beams follow the player's aim when there is one; without it (the solver), the best aim is assumed.
+ *  Radio and microwave broadcast, so aim doesn't matter to them. */
 export function read(job:Job,s:Setup):Reading{
-  const route=bestRoute(job,s),detectorOk=DETECTORS[s.detector].band===s.band,ambient=s.band==='vis'?job.ambient??0:0;
-  return {route,margin:detectorOk?route.margin-ambient:-Infinity,detectorOk,ambient,podOk:s.pod===job.pad};
+  const route=BANDS[s.band].beam&&s.aim?aimedRoute(job,{...s,aim:s.aim}):bestRoute(job,s),detectorOk=DETECTORS[s.detector].band===s.band,ambient=s.band==='vis'?job.ambient??0:s.band==='nir'?(job.ambient??0)/3:0;
+  return {route,margin:detectorOk&&!route.missed?route.margin-ambient:-Infinity,detectorOk,ambient,podOk:s.pod===job.pad};
 }
 export const tierOf=(margin:number):0|1|2=>margin>=SPEC.reliable?2:margin>=SPEC.works?1:0;
 export const cost=(s:Pick<Setup,'power'>,r:Route)=>POWER_COST[s.power]+r.spots.length;
@@ -195,10 +250,10 @@ export const cost=(s:Pick<Setup,'power'>,r:Route)=>POWER_COST[s.power]+r.spots.l
 export function whyBlocked(m:Material,band:Band):string{
   const n=BANDS[band].short.toLowerCase();
   switch(m){
-    case 'brick':return `Brick is opaque to ${n}: the beam stops at the wall. Radio's long wave passes through brick.`;
+    case 'brick':return `Brick is opaque to ${n}: the beam stops at the wall.`;
     case 'wood':return `Wood is opaque to ${n}.`;
     case 'glass':return 'Window glass lets visible and near-IR light through, but it absorbs 10 µm thermal infrared.';
-    case 'metal':return band==='radio'||band==='micro'?`Metal reflects ${n}: the shutter stops it. Light could use the hatch, if it can get to it.`:`Metal reflects ${n}: the closed shutter stops the beam. Open the hatch and send the beam through it.`;
+    case 'metal':return `Metal reflects ${n}: the shutter stops it.`;
     case 'hatch':return 'The hatch is 30 cm across. Radio\'s 3 m wave can\'t pass a hole much smaller than half a wavelength.';
     case 'mesh':return `The quiet room is a mesh cage: its holes are far smaller than the ${n} wavelength, so the mesh reflects it. Light passes between the wires.`;
     case 'smoke':return 'Smoke scatters it away.';
@@ -208,15 +263,17 @@ export interface Verdict {tier:0|1|2|3;problems:string[];notes:string[];margin:n
 export function judge(job:Job,s:Setup):Verdict{
   const r=read(job,s),c=cost(s,r.route),problems:string[]=[],notes:string[]=[],margin=+r.margin.toFixed(1);
   if(!r.podOk)problems.push(`The receiver pod isn't on the ${PAD_NAMES[job.pad]} pad.`);
-  else if(!r.detectorOk){const d=DETECTORS[s.detector],want=DETECTOR_IDS.find(k=>DETECTORS[k].band===s.band)!;
-    problems.push(`A ${d.label.toLowerCase()} only responds to ${BANDS[d.band].name.toLowerCase()}; it can't hear ${BANDS[s.band].name.toLowerCase()}. Fit the ${DETECTORS[want].label.toLowerCase()}.`);}
+  else if(!r.detectorOk){const d=DETECTORS[s.detector];
+    problems.push(`A ${d.label.toLowerCase()} only responds to ${BANDS[d.band].name.toLowerCase()}; it can't hear ${BANDS[s.band].name.toLowerCase()}.`);}
   else if(r.route.blocked)problems.push(`${MATERIAL_NAMES[r.route.blocked.mat][0].toUpperCase()+MATERIAL_NAMES[r.route.blocked.mat].slice(1)}: ${whyBlocked(r.route.blocked.mat,s.band)}`);
+  else if(r.route.missed)problems.push('The beam misses the pod.');
   else if(r.margin<SPEC.works){const smoke=r.route.legs.some(l=>l.hits.some(h=>h.mat==='smoke'));
-    problems.push(`Too weak: ${margin} dB. ${smoke&&(s.band==='vis'||s.band==='nir')?'Smoke scatters short wavelengths hardest; long-wave thermal IR slips through. ':''}${r.ambient?'Sunlight swamps the green photodiode here. ':''}More power, fewer losses, or another band.`);}
+    problems.push(`Too weak: ${margin} dB. ${smoke&&(s.band==='vis'||s.band==='nir')?'Smoke scatters short wavelengths hardest; long-wave thermal IR slips through. ':''}${r.ambient?(s.band==='vis'?'Sunlight swamps the green photodiode here. ':'Sunlight carries near IR too; the daylight filter only blunts it. '):''}`.trim());}
   if(problems.length)return {tier:0,problems,notes,margin,cost:c};
   if(r.margin<SPEC.reliable){notes.push(`Received, but only ${margin} dB of margin (reliable needs ${SPEC.reliable} dB).`);return {tier:1,problems,notes,margin,cost:c};}
   const best=leanest(job,s);
-  if(best&&(best.power<s.power||(best.power===s.power&&best.mirrors<r.route.spots.length))){notes.push(`Reliable. Leaner: ${best.hint}.`);return {tier:2,problems,notes,margin,cost:c};}
+  if(best&&(best.power<s.power||(best.power===s.power&&best.mirrors<r.route.spots.length))){
+    notes.push(best.power<s.power?'Reliable, but it uses more power than this delivery needs.':'Reliable, but the beam bounces off more mirrors than it needs.');return {tier:2,problems,notes,margin,cost:c};}
   return {tier:3,problems,notes,margin,cost:c};
 }
 

@@ -66,7 +66,7 @@ export class SpectrumDesk implements Station {
   private room?:SpectrumRoom;private pod?:Prop;private mirrors:Prop[]=[];private ready=false;
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private podTop=new T.Group();private podHeads=new Map<Detector,T.Object3D>();private podLamp!:T.Mesh;private mirrorTops=new Map<Prop,T.Object3D>();
-  private turret=new T.Group();private beacon!:T.Mesh;private beam=new T.Group();private rings:T.Mesh[]=[];private beamKey='';
+  private turret=new T.Group();private beacon!:T.Mesh;private beam=new T.Group();private rings:T.Mesh[]=[];private beamKey='';private markMeshes:T.Mesh[]=[];
   private pulse!:T.Mesh;private pulseT=-1;private pulsePath:T.Vector3[]=[];private pulseOk=false;
   private padRings=new Map<Pad,T.Mesh>();private hatchT=0;
   private map=new Live(1100,800);private link=new Live(640,360);private wave=new Live(640,360);
@@ -160,7 +160,7 @@ export class SpectrumDesk implements Station {
     // Mirror marks: dashed rings with their letter.
     for(const s of SPOT_IDS){const at=SPOTS[s],m=part(r,new T.PlaneGeometry(1.5,1.5),flatMat(canvasTex(256,256,c=>{c.setLineDash([18,12]);c.lineWidth=10;c.strokeStyle='#8b7be8';c.beginPath();c.arc(128,128,110,0,7);c.stroke();c.setLineDash([]);
       c.fillStyle='rgba(139,123,232,.16)';c.beginPath();c.arc(128,128,104,0,7);c.fill();c.fillStyle='#6a5bd0';c.font=FONT(72);c.textAlign='center';c.textBaseline='middle';c.fillText(s,128,120);c.font=FONT(26);c.fillText('MIRROR',128,178);})),at.x,.014,at.z,false);
-      m.rotation.x=-Math.PI/2;m.userData.noAO=true;}
+      m.rotation.x=-Math.PI/2;m.userData.noAO=true;this.markMeshes.push(m);}
     // Broadcast rings for radio and microwave, and the pulse that runs the route on SEND.
     for(let k=0;k<3;k++){const ring=new T.Mesh(new T.TorusGeometry(1,.02,6,64),new T.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.5,depthWrite:false}));ring.material.userData.outlineParameters={visible:false};
       ring.rotation.x=Math.PI/2;ring.position.set(TX.x,BEAM_Y,TX.z);ring.userData.noAO=true;r.add(ring);this.rings.push(ring);}
@@ -344,6 +344,9 @@ export class SpectrumDesk implements Station {
   }
   setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
   update(dt:number){
+    // At the desk the hall map shows the beam and the marks; the room's own copies would only cross the
+    // close camera (over the detector knobs and SEND), so they step aside until Pip stands up.
+    const desk=this.game.atBench;this.beam.visible=!desk;for(const m of this.markMeshes)m.visible=!desk;
     if(!this.ready){this.setup();this.redraw();}
     const g=this.game;
     // Picking a parked pod or mirror up frees it again.
@@ -361,7 +364,7 @@ export class SpectrumDesk implements Station {
     // At the desk the hall map draws the route; the room's own beam would only cut across the view.
     this.drawBeam(r);this.beam.visible=!g.atBench;
     const t=g.time,bcast=!BANDS[this.band].beam&&!g.atBench;
-    this.rings.forEach((ring,k)=>{const u=((t*.35+k/3)%1);ring.visible=bcast;ring.scale.setScalar(.3+u*5.5);(ring.material as T.MeshBasicMaterial).opacity=.55*(1-u);});
+    this.rings.forEach((ring,k)=>{const u=((t*.35+k/3)%1);ring.visible=bcast&&!this.game.atBench;ring.scale.setScalar(.3+u*5.5);(ring.material as T.MeshBasicMaterial).opacity=.55*(1-u);});
     // The pulse runs the route after SEND.
     if(this.pulseT>=0&&this.pulsePath.length>1){this.pulseT+=dt*9;let d=this.pulseT,i=1;
       for(;i<this.pulsePath.length;i++){const len=this.pulsePath[i-1].distanceTo(this.pulsePath[i]);if(d<=len)break;d-=len;}

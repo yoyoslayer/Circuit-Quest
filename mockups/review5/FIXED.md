@@ -45,6 +45,29 @@ Not done from these entries:
 - R5-004's optional key remaps for QFN and Observatory (R stays a bench verb there; it is harmless now because the bench owns its keys).
 - R5-015's pad glyphs in bench prompts (prompts still show keyboard keys).
 
+## Batch B3: camera, occlusion and framing
+
+| ID | Fix | Files |
+|---|---|---|
+| R5-003 (P1) | New **see-through oval**: anything nearer the camera than Pip (or than the item he carries), near him on screen and off the floor, dithers away around him. It runs per fragment in a shared shader include, so it covers merged decor, instanced props, pillars, walls, fixtures and their outlines with no per-object registration. Shadows stay whole (shadow materials don't get the values). Pip and the plug opt out (`seeOff`). Off at a bench, in the survey and on title/win shots. | `src/render/toon.ts` (`seeThrough`, `seeOff`), `src/game.ts` (`updateSeeThrough`) |
+| R5-140 (P1) | The old single-ray opacity fade is gone (pillars and interior walls now stay opaque outside the oval), so faded pillars no longer leave caps and rails floating. | `src/game.ts` |
+| R5-323 (P2) | Moot with the fade gone. The wall cutaway lerp is now frame-rate independent. | `src/game.ts` |
+| R5-005 (P1) | Shell-wall cutaway uses the camera's signed distance to the wall plane (stub when outside or within 0.6 m inside), not the direction to the wall centre. | `src/game.ts` |
+| R5-025 (P1) | Survey distance is fitted: a binary search finds the nearest zoom where all eight corners of the room box land between the job card and the action bar. Cached per orbit, lens and window shape. Works for any room size and aspect. | `src/game.ts` (`surveyZoom`) |
+| R5-165 (P2) | The stored orbit tilt is clamped to the range the camera can use at the current zoom, so there's no dead zone. | `src/game.ts` |
+| R5-241 (P2, partial) | Lobby starts and resets turned toward its left wall (`homeYaw` 0.4); the back wall, board, Workshop and most left-wall doors are in the first frame. One left door can still sit under the job card. | `src/game.ts` |
+
+Also: `?manual` now exposes `window.__game` for the review camera tools (the reviewer's hook failed after dev-server reloads).
+
+Verified:
+- `tools/camera-render/corners.mjs`: un-cut walls blocking Pip went from meeting 2/32 and playground 1/32 to 0/32 in all five rooms.
+- `tools/fix-b3/look.mjs` shots: [arcade storeroom](shots/fix-b3-arcade-storeroom-orbit.jpg), [arcade back cabinets](shots/fix-b3-arcade-back-cabinets-behind.jpg), [playground pillar at zoom 9](shots/fix-b3-playground-pillar-z9.jpg), [lobby board](shots/fix-b3-lobby-behind-board.jpg), [meeting survey](shots/fix-b3-meeting-survey.jpg), [lobby survey, all 9 doors](shots/fix-b3-lobby-survey.jpg), [lobby start](shots/fix-b3-lobby-start.jpg).
+
+Not done in B3 (P2):
+- R5-312: clutter keep-out lanes in front of the station showpieces.
+- R5-322: void when orbiting toward the open front.
+- R5-241: the rest (card vs left-wall doors).
+
 ## R5-001 (P0) — Phone: bench cameras cropped their own controls
 
 - `src/stations/types.ts`: new optional `view.width`, the full width (m) of everything tappable at the bench.

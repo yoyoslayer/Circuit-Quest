@@ -30,6 +30,49 @@ function rimShader(s:T.WebGLProgramParametersWithUniforms){
       outgoingLight+=rimColor*edge*up*rimStrength*diffuseColor.rgb; }
     #include <opaque_fragment>`);
 }
+// See-through (AGENTS rule 8, DR-12): whatever stands between the camera and Pip, close to him on
+// screen, dithers away in an oval around him, so shelves, racks, cabinets, pillars and props never
+// hide him. It works per fragment, so merged decor and instanced props need no registration.
+// Game.updateCamera fills these each frame. They are shared by reference into every material's
+// uniforms (UniformsUtils.clone copies plain objects by reference), and shadow materials don't get
+// them, so shadows stay whole. A material opts out with defines.SEE_OFF (Pip himself).
+/** x,y: oval centre in drawing-buffer pixels; z: radius in px (0 = off); w: cut everything nearer than this view depth (m). */
+export const seeThrough={x:0,y:0,z:0,w:0};
+/** x,y: tan of the half field of view horizontally and vertically; z,w: drawing-buffer size. */
+export const seeProj={x:1,y:1,z:1,w:1};
+/** Row 2 of the camera's world matrix (world y = dot(xyz, view position) + w). */
+export const seeY={x:0,y:1,z:0,w:0};
+/** Camera near and far. */
+export const seeClip={x:.1,y:200};
+{
+  const decl='uniform vec4 seeThrough; uniform vec4 seeProj; uniform vec4 seeY; uniform vec2 seeClip;\n';
+  const test=`
+#ifndef SEE_OFF
+  if(seeThrough.z>0.){
+    vec2 seeD=gl_FragCoord.xy-seeThrough.xy;seeD.y*=.8;float seeR=length(seeD)/seeThrough.z;
+    if(seeR<1.){
+      float seeZ=gl_FragCoord.z*2.-1.,seeV=2.*seeClip.x*seeClip.y/(seeClip.y+seeClip.x-seeZ*(seeClip.y-seeClip.x));
+      vec2 seeN=gl_FragCoord.xy/seeProj.zw*2.-1.;vec3 seeP=vec3(seeN.x*seeV*seeProj.x,seeN.y*seeV*seeProj.y,-seeV);
+      float seeWorldY=dot(seeY.xyz,seeP)+seeY.w;
+      // Only things nearer than Pip and off the floor (rugs, decals and cables lying flat stay).
+      if(seeV<seeThrough.w&&seeWorldY>.14){
+        const float seeB[16]=float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
+        ivec2 seeQ=ivec2(mod(floor(gl_FragCoord.xy),4.));
+        if(seeR<.72||seeB[seeQ.x+seeQ.y*4]/16.>(seeR-.72)/.28)discard;
+      }
+    }
+  }
+#endif
+`;
+  T.ShaderChunk.clipping_planes_pars_fragment=decl+T.ShaderChunk.clipping_planes_pars_fragment;
+  T.ShaderChunk.clipping_planes_fragment=test+T.ShaderChunk.clipping_planes_fragment;
+  const shared={seeThrough:{value:seeThrough},seeProj:{value:seeProj},seeY:{value:seeY},seeClip:{value:seeClip}};
+  // Every built-in material that draws the scene (and OutlineEffect, which merges UniformsLib.fog).
+  Object.assign(T.UniformsLib.fog,shared);
+  for(const [name,lib] of Object.entries(T.ShaderLib))if(!['depth','distanceRGBA','shadow'].includes(name))Object.assign(lib.uniforms,shared);
+}
+/** Gives every mesh under `root` its own material copy that the see-through never cuts (Pip, the plug in hand). */
+export function seeOff(root:T.Object3D){root.traverse(o=>{if(!(o instanceof T.Mesh)||Array.isArray(o.material)||o.material.defines?.SEE_OFF!==undefined)return;const m=o.material.clone();m.defines={...(m.defines??{}),SEE_OFF:''};o.material=m;});}
 // Materials are shared by colour/options so props batch into instanced meshes.
 export function toon(color:string,opts:ToonOptions={}):T.MeshToonMaterial {
   const key = `${color}|${opts.emissive??''}|${opts.ei??''}|${opts.map?.uuid??''}|${opts.opacity??1}`;

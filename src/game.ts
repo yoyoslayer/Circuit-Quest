@@ -1,7 +1,7 @@
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createRenderer,toon} from './render/toon';
+import {createRenderer,toon,seeOff,seeThrough,seeProj,seeY,seeClip} from './render/toon';
 import {BLOBC,bangTexture,freeze,glyph,cachedTexture,part,cyl,sphere,box,group,INK} from './render/kit';
 import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type Mood} from './render/actors';
 const GOLD=new T.Color('#ffd451');
@@ -75,7 +75,7 @@ export class Game {
   constructor(public level:Level){
     try{const saved=Number(localStorage.getItem('circuit-crew-quality'));if(saved===0||saved===1)this.view.setQuality(saved);}catch{/* storage unavailable */}
     try{const f=Number(localStorage.getItem('circuit-crew-fov'));if((FOVS as readonly number[]).includes(f))this.fov=f;}catch{/* storage unavailable */}
-    const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=this.homeZoom();
+    const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=this.homeZoom();this.yaw=this.homeYaw();
     this.rope=new Rope({...level.anchor},level.length);this.obstacles=[...level.obstacles];
     if(level.station)this.station=makeStation(level.station,this);
     if(level.hub)this.hub=new Lobby(this);
@@ -89,7 +89,7 @@ export class Game {
     this.controller=this.world.createCharacterController(.025);this.controller.enableAutostep(.25,.2,true);this.controller.enableSnapToGround(.2);this.controller.setApplyImpulsesToDynamicBodies(true);this.controller.setCharacterMass(65);
     this.buildAvatar();
     this.plugPosition=new T.Vector3(level.anchor.x+.7,.3,level.anchor.z+.7);
-    this.plug=makeProp('coupler','#ffcc52');this.root.add(this.plug);
+    this.plug=makeProp('coupler','#ffcc52');seeOff(this.plug);this.root.add(this.plug);
     this.target=new T.Mesh(new T.TorusGeometry(.42,.07,8,28),new T.MeshBasicMaterial({color:'#64ddd4'}));this.target.rotation.x=-Math.PI/2;this.target.position.set(level.target.x,.15,level.target.z);this.root.add(this.target);
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
     // The anchor reel: its wound cable shrinks as cable pays out, so the length left reads at a glance.
@@ -111,6 +111,8 @@ export class Game {
     freeze(this.decorRoot);this.updateCamera(1);this.view.render();
     document.body.dataset.ready='true';
     Object.assign(window,{__circuitCrew:{snapshot:()=>this.snapshot(),drive:this.manual?this.driver():undefined}});
+    // Test mode exposes the live game for camera and render checks (mockups/review5/tools).
+    if(this.manual)Object.assign(window,{__game:this});
     requestAnimationFrame(t=>this.frame(t));
   }
   box(w:number,h:number,d:number,x:number,y:number,z:number,color:string,fixed=true,fade=false){
@@ -157,8 +159,8 @@ export class Game {
     const body=new T.Mesh(new T.CapsuleGeometry(.3,.48,5,12),toon('#347cac'));body.position.y=.85;body.castShadow=true;this.avatar.add(body);
     const head=new T.Mesh(new T.SphereGeometry(.3,16,10),toon('#eab387'));head.position.y=1.43;this.avatar.add(head);
     const hat=new T.Mesh(new T.SphereGeometry(.33,16,8,0,Math.PI*2,0,Math.PI/2),toon('#ffc44b'));hat.position.y=1.52;this.avatar.add(hat);
-    this.root.add(this.avatar);
-    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=/lens/i.test(old.name)?hot('#fff0b8',2):/hat|gloves|boots/i.test(old.name)?glossyToon('#'+old.color.getHexString(),{spec:.6,size:.975}):toon('#'+old.color.getHexString());o.castShadow=true;o.receiveShadow=true;}});this.avatar.add(gltf.scene);
+    seeOff(this.avatar);this.root.add(this.avatar);
+    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=/lens/i.test(old.name)?hot('#fff0b8',2):/hat|gloves|boots/i.test(old.name)?glossyToon('#'+old.color.getHexString(),{spec:.6,size:.975}):toon('#'+old.color.getHexString());o.castShadow=true;o.receiveShadow=true;}});seeOff(gltf.scene);this.avatar.add(gltf.scene);
       // Parts are grouped by name prefix onto pivots (src/render/pipRig.ts).
       this.rig=new PipRig(gltf.scene);this.hand=this.rig.hand;},undefined,()=>{document.body.dataset.assetFallback='true';});
   }
@@ -197,7 +199,7 @@ export class Game {
     canvas.addEventListener('wheel',e=>{if(this.atBench)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
   action(action:string){
-    if(action==='restart'){const ui=gameUI(this);if(ui)ui.restart();else location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='lens'){this.fov=FOVS[(FOVS.indexOf(this.fov as Lens)+1)%FOVS.length];try{localStorage.setItem('circuit-crew-fov',String(this.fov));}catch{/* storage unavailable */}return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.14;return;}
+    if(action==='restart'){const ui=gameUI(this);if(ui)ui.restart();else location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='lens'){this.fov=FOVS[(FOVS.indexOf(this.fov as Lens)+1)%FOVS.length];try{localStorage.setItem('circuit-crew-fov',String(this.fov));}catch{/* storage unavailable */}return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=this.homeYaw();return;}
     if(!this.running||this.paused||this.won)return;
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
     if(action==='jump'&&this.grounded&&(!this.held||prefabs[this.held.spec.kind].mass<15)){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
@@ -412,9 +414,11 @@ export class Game {
     const p=this.player.translation(),cam=this.view.camera,ease=1-Math.exp(-dt*5);
     this.lead.lerp(new T.Vector3(Math.sin(this.heading),0,Math.cos(this.heading)).multiplyScalar(this.grounded&&this.airborne===0&&(this.keys.size>0||this.stick)?1.2:0),ease*.5);
     // Zoomed out it frames the floor like a diorama; zooming in drops to Pip's eye line (mockups/look/LOOK.md).
-    // The survey pulls further back on narrow (portrait) screens so the whole floor still fits across.
-    const zoom=this.survey?44*T.MathUtils.clamp(1.45/cam.aspect,1,3):this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.62+near*.6,.62,1);
+    // The survey distance is fitted so the whole room fits between the job card and the action bar.
+    const zoom=this.survey?this.surveyZoom():this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.62+near*.6,.62,1);
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
+    // Keep the stored tilt inside the range the camera can use at this zoom, so dragging back never hits a dead zone.
+    if(!this.survey){const base=.68-.24*near;this.pitch=T.MathUtils.clamp(this.pitch,.3-base,1.25-base);}
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;
     if(this.atBench&&this.station){const st=this.station,v=st.view,portrait=cam.aspect<1;
@@ -435,11 +439,43 @@ export class Game {
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo*lensScale(this.fov,this.atBench||titling));
     const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
-    // Cutaway: shell walls whose outside faces the camera drop to 0.9 m stubs.
-    for(const wall of this.shellWalls){const at=wall.group.parent!.getWorldPosition(new T.Vector3()),toCam=new T.Vector3(cam.position.x-at.x,0,cam.position.z-at.z).normalize();const stub=wall.normal.dot(toCam)>.2;
-      wall.group.scale.y=T.MathUtils.lerp(wall.group.scale.y,stub?.01:1,.15);wall.group.visible=wall.group.scale.y>.03;}
-    const start=cam.position,end=new T.Vector3(p.x,p.y+.4,p.z),ray=new T.Raycaster(start,end.clone().sub(start).normalize(),0,start.distanceTo(end));const hit=new Set(ray.intersectObjects(this.occluders).map(h=>h.object));
-    for(const mesh of this.occluders){const material=mesh.material as T.MeshToonMaterial;material.opacity=T.MathUtils.lerp(material.opacity,hit.has(mesh)?.15:1,.15);material.depthWrite=material.opacity>.8;}
+    // Cutaway: a shell wall drops to a 0.9 m stub once the camera is outside its plane (or within
+    // 0.6 m inside it). The signed distance to the plane works at corners and diagonal orbits, where
+    // the direction to the wall's centre did not. Frame-rate independent.
+    const k=1-Math.exp(-dt*9);
+    for(const wall of this.shellWalls){const at=wall.group.parent!.getWorldPosition(new T.Vector3()),side=(cam.position.x-at.x)*wall.normal.x+(cam.position.z-at.z)*wall.normal.z,stub=side>-.6;
+      wall.group.scale.y=T.MathUtils.lerp(wall.group.scale.y,stub?.01:1,k);wall.group.visible=wall.group.scale.y>.03;}
+    this.updateSeeThrough();
+  }
+  private surveyFit={key:'',zoom:44};
+  /** Survey (Tab) distance: the nearest zoom at which all eight corners of the room box (floor to
+   *  wall tops) project inside the screen, clear of the job card at the top and the action bar at the
+   *  bottom. Recomputed only when the orbit, lens or window shape changes. */
+  surveyZoom(){
+    const cam=this.view.camera,key=`${this.yaw.toFixed(2)}|${this.pitch.toFixed(2)}|${cam.aspect.toFixed(3)}|${this.fov}`;if(key===this.surveyFit.key)return this.surveyFit.zoom;
+    const l=this.level,probe=cam.clone(),target=new T.Vector3(.2,0,1),pitch=T.MathUtils.clamp(.68+this.pitch,.3,1.25),corners:T.Vector3[]=[];
+    for(const x of [-l.width/2,l.width/2])for(const z of [-l.depth/2,l.depth/2])for(const y of [0,3])corners.push(new T.Vector3(x,y,z));
+    probe.fov=this.fov;probe.aspect=cam.aspect;probe.updateProjectionMatrix();
+    const fits=(zoom:number)=>{probe.position.copy(target).add(new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(zoom*lensScale(this.fov)));
+      probe.lookAt(target);probe.updateMatrixWorld();return corners.every(c=>{const n=c.clone().project(probe);return Math.abs(n.x)<.94&&n.y>-.62&&n.y<.74;});};
+    // Never closer than 36.5, where the survey pitch starts to flatten (see `near` in updateCamera).
+    let lo=36.5,hi=170;if(fits(lo))hi=lo;else for(let i=0;i<16;i++){const m=(lo+hi)/2;if(fits(m))hi=m;else lo=m;}
+    this.surveyFit={key,zoom:hi};return hi;
+  }
+  /** Feeds the see-through oval (render/toon.ts): centred on Pip, sized to him on screen, cutting
+   *  only what is nearer the camera than he is (or than the item he carries). Off at a bench, in the
+   *  survey and on the title and win shots. */
+  updateSeeThrough(){
+    const cam=this.view.camera,on=this.running&&!this.atBench&&!this.survey&&!this.won;
+    if(!on){seeThrough.z=0;return;}
+    cam.updateMatrixWorld();const size=this.view.renderer.getDrawingBufferSize(new T.Vector2()),p=this.player.translation();
+    const screen=(v:T.Vector3)=>{const n=v.clone().project(cam);return new T.Vector2((n.x*.5+.5)*size.x,(n.y*.5+.5)*size.y);};
+    const depth=(x:number,y:number,z:number)=>-new T.Vector3(x,y,z).applyMatrix4(cam.matrixWorldInverse).z;
+    const chest=screen(new T.Vector3(p.x,p.y+.1,p.z)),tall=screen(new T.Vector3(p.x,p.y+.85,p.z)).distanceTo(screen(new T.Vector3(p.x,p.y-.77,p.z)));
+    let near=depth(p.x,p.y+.1,p.z)-.25;if(this.held){const q=this.held.body.translation();near=Math.min(near,depth(q.x,q.y,q.z)-.5);}
+    Object.assign(seeThrough,{x:chest.x,y:chest.y+tall*.08,z:tall*.78,w:near});
+    const t=Math.tan(T.MathUtils.degToRad(cam.fov/2));Object.assign(seeProj,{x:t*cam.aspect,y:t,z:size.x,w:size.y});
+    const e=cam.matrixWorld.elements;Object.assign(seeY,{x:e[1],y:e[5],z:e[9],w:e[13]});seeClip.x=cam.near;seeClip.y=cam.far;
   }
   /** Steps rendering quality down when frames stay slow (AO first, then bloom and resolution),
    *  and remembers the result for next time. */
@@ -449,6 +485,8 @@ export class Game {
     this.qualityTimer=0;this.slowAvg=1/60;const next=(q-1) as 0|1;this.view.setQuality(next);try{localStorage.setItem('circuit-crew-quality',String(next));}catch{/* storage unavailable */}
   }
   homeZoom(){return this.level.id==='playground'?17:this.station?18.5:this.hub?23:22;}
+  /** Start and reset orbit. The lobby turns a little toward its left wall so those doors clear the job card. */
+  homeYaw(){return this.level.hub?.4:.14;}
   winFocus(){const l=this.level;if(this.station)return this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */

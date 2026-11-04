@@ -329,7 +329,11 @@ export class GarageBench implements Station {
   key(code:string){
     const map:Record<string,[string,unknown?]>={Digit1:['pick','diode'],Digit2:['pick','clamp'],Digit3:['pick','tvs'],Digit4:['pick','snubber'],Digit5:['pick','cap'],
       KeyA:['slot','fly'],KeyS:['slot','switch'],KeyD:['slot','ctrl'],KeyF:['flip'],KeyG:['ground'],KeyP:['pulse'],Enter:['test'],Backspace:['clear']};
-    const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
+    const m=map[code];if(!m)return false;
+    // A S D only fit the part in hand: with empty hands they do nothing, so a player reaching for WASD
+    // never pulls a fitted part out (taking a part out is a click on it).
+    if(m[0]==='slot'&&!this.held)return true;
+    this.act(m[0],m[1]);return true;
   }
   setActive(active:boolean){this.active=active;if(active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';if(this.ready)this.updatePanel();}
   dropped(p:Game['props'][number]){
@@ -442,7 +446,7 @@ export class GarageBench implements Station {
     switch(h.act){
       case 'pick':{const id=h.arg as PartId;return {key:String(PART_IDS.indexOf(id)+1),text:this.held===id?'Put it back':`Take the ${PARTS[id].name}`};}
       case 'slot':{const id=h.arg as SlotId,fits=this.held&&PARTS[this.held].slots.includes(id);
-        return {key:SLOT_KEYS[id],text:this.held?(fits?'Fit it here':'It does not fit here'):this.slots[id]?'Take it out':'Empty socket'};}
+        return this.held?{key:SLOT_KEYS[id],text:fits?'Fit it here':'It does not fit here'}:{key:'Click',text:this.slots[id]?'Take it out':'Empty socket'};}
       case 'flip':return {key:'F',text:'Flip it round'};
       case 'ground':return {key:'G',text:this.star?'Ground: own wire':'Ground: shared'};
       case 'pulse':return {key:'P',text:'Pulse the motor'};

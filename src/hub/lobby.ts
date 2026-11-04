@@ -106,14 +106,28 @@ export class Lobby {
   }
   nearWorkshop(pos:Point){return Math.hypot(pos.x-this.workshopAt.x,pos.z-this.workshopAt.z)<1.6;}
   /** A small picker of every station job, opened at the Workshop arch. */
+  /** The picker is a modal: while it is open the game ignores walking, survey and action keys. */
+  get pickerOpen(){return !!this.picker&&!this.picker.hidden;}
+  closePicker(){if(!this.picker)return;this.picker.hidden=true;this.game.menu=false;delete document.body.dataset.menu;(document.activeElement as HTMLElement|null)?.blur?.();}
+  private pickerButtons(){return Array.from(this.picker?.querySelectorAll<HTMLButtonElement>('button')??[]);}
+  /** Arrow keys or the d-pad move between the picker's buttons (dir: -1 back, +1 forward). */
+  movePicker(dir:number){const b=this.pickerButtons();if(!b.length)return;const i=b.indexOf(document.activeElement as HTMLButtonElement);b[(i<0?0:i+dir+b.length)%b.length].focus();}
+  /** Gamepad while the picker is open: d-pad moves, A picks, B closes. */
+  padPicker(button:number){if(button===0)(document.activeElement as HTMLButtonElement|null)?.click?.();else if(button===1)this.closePicker();else if(button===12||button===14)this.movePicker(-1);else if(button===13||button===15)this.movePicker(1);}
   openPicker(){
-    if(this.picker){this.picker.hidden=false;return;}
+    const g=this.game;g.menu=true;g.keys.clear();g.stick=undefined;document.body.dataset.menu='true';
+    if(this.picker){this.picker.hidden=false;this.pickerButtons()[0]?.focus();return;}
     const el=document.createElement('section');el.className='workshop-picker panel';el.setAttribute('aria-label','Workshop');
     const jobs=levels.filter(l=>l.station&&!l.id.endsWith('-rush'));
     el.innerHTML=`<h3>Workshop</h3><p>Practise any station. The whole job plays, nothing is graded or recorded.</p><div class="grid">${jobs.map(l=>`<button class="btn" data-practice="${l.id}" style="--lvl:${LOOK[l.id]?.color??'#5ED6CC'}"><small>${l.number}</small>${title(l)}</button>`).join('')}</div><button class="btn close" data-close>Close <span class="key">Esc</span></button>`;
-    el.addEventListener('click',e=>{const t=(e.target as Element).closest<HTMLElement>('[data-practice],[data-close]');if(!t)return;if(t.dataset.close!==undefined){el.hidden=true;return;}flagAutostart(t.dataset.practice as Level['id']);location.href=`?level=${t.dataset.practice}&practice`;});
-    addEventListener('keydown',e=>{if(e.code==='Escape'&&!el.hidden){el.hidden=true;e.stopPropagation();}},true);
-    document.querySelector('[data-layer="hud"]')?.append(el);this.picker=el;
+    el.addEventListener('click',e=>{const t=(e.target as Element).closest<HTMLElement>('[data-practice],[data-close]');if(!t)return;if(t.dataset.close!==undefined){this.closePicker();return;}flagAutostart(t.dataset.practice as Level['id']);location.href=`?level=${t.dataset.practice}&practice`;});
+    // While open, the picker owns the keyboard: Esc or E closes, arrows move, Enter or Space presses
+    // the focused button (the browser default). Nothing reaches the game behind it.
+    addEventListener('keydown',e=>{if(el.hidden)return;e.stopPropagation();
+      if(e.code==='Escape'||e.code==='KeyE'){e.preventDefault();if(!e.repeat)this.closePicker();}
+      else if(e.code==='ArrowRight'||e.code==='ArrowDown'){e.preventDefault();this.movePicker(1);}
+      else if(e.code==='ArrowLeft'||e.code==='ArrowUp'){e.preventDefault();this.movePicker(-1);}},true);
+    document.querySelector('[data-layer="hud"]')?.append(el);this.picker=el;this.pickerButtons()[0]?.focus();
   }
   near(pos:Point){return this.doors.find(d=>Math.hypot(pos.x-d.at.x,pos.z-d.at.z)<1.5);}
   /** E at a door walks through it into that job. */

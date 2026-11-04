@@ -5,6 +5,8 @@ import {createRenderer,toon} from './render/toon';
 import {BLOBC,bangTexture,freeze,glyph,cachedTexture,part,cyl,sphere,box,group,INK} from './render/kit';
 import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type Mood} from './render/actors';
 const GOLD=new T.Color('#ffd451');
+/** How long R is held during play before the job restarts (ms). */
+const RESTART_HOLD=800;
 /** Samples a rope polyline for drawing: it lies on the floor (sagging a little when slack) and
  *  only rises over the last metre to the end point (a hand or a socket). */
 export function cablePath(route:Point[],end:T.Vector3,startY:number,strain:number){
@@ -54,6 +56,10 @@ export class Game {
   private stepT=0;private stepSide=1;
   /** The anchor reel's wound cable (scaled as the cable pays out). */
   spool?:T.Mesh;
+  /** When R went down during play (ms), or 0: restart needs a hold (holdRestart). */
+  restartHold=0;
+  /** A modal menu (the lobby's Workshop picker) is open: walking, survey and action keys do nothing. */
+  menu=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
   yaw=.14;pitch=0;zoom=26;fov:number=FOVS[1];survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
   audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint=new T.Group();reticle=new T.Group();pipRing:T.Mesh;
@@ -159,23 +165,39 @@ export class Game {
   /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
   setupUI(){setupGameUI(this);}
   setupInput(){
-    addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
-      // At a bench the station takes the keys; E or Esc steps back.
-      if(this.atBench&&this.running&&!this.paused&&!this.won){if(e.repeat)return;if(e.code==='KeyE'||e.code==='Escape'){this.leaveBench();return;}if(this.station!.key(e.code)){e.preventDefault();return;}}
+    addEventListener('keydown',e=>{if(this.menu){if(e.code==='Tab')e.preventDefault();return;}if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+      // At a bench the station takes the keys; E or Esc steps back. Keys the bench doesn't use do
+      // nothing there, so a stray R, Space, Tab or WASD never acts on the floor behind the bench.
+      if(this.atBench&&this.running&&!this.paused&&!this.won){if(e.code==='Tab')e.preventDefault();if(e.repeat)return;if(e.code==='KeyE'||e.code==='Escape'){this.leaveBench();return;}if(this.station!.key(e.code))e.preventDefault();return;}
       this.keys.add(e.code);if(e.repeat)return;
-      if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');const playing=this.running&&!this.won;if(e.code==='Tab'&&playing&&!this.paused){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');if(e.code==='KeyR'&&playing)this.action('restart');});
-    addEventListener('keyup',e=>this.keys.delete(e.code));
-    addEventListener('blur',()=>{this.keys.clear();if(this.running&&!this.won&&!this.paused)this.togglePause();});
+      if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');const playing=this.running&&!this.won;if(e.code==='Tab'&&playing&&!this.paused){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');
+      // R restarts at once from the pause menu; during play it has to be held (the pause button fills).
+      if(e.code==='KeyR'&&playing){if(this.paused)this.action('restart');else this.restartHold=performance.now();}});
+    addEventListener('keyup',e=>{this.keys.delete(e.code);if(e.code==='KeyR')this.restartHold=0;});
+    addEventListener('blur',()=>{this.keys.clear();this.restartHold=0;if(this.running&&!this.won&&!this.paused)this.togglePause();});
     const canvas=this.view.renderer.domElement;
     canvas.addEventListener('contextmenu',e=>e.preventDefault());
-    const benchPointer=(kind:'down'|'move'|'up',e:PointerEvent)=>{const r=canvas.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1),this.view.camera);this.station!.pointer({kind,ray,button:e.button});};
-    canvas.addEventListener('pointerdown',e=>{this.audio.start();if(this.atBench&&e.button===0&&this.running&&!this.paused&&!this.won){benchPointer('down',e);return;}if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
-    canvas.addEventListener('pointerup',e=>{this.orbit=false;if(this.atBench&&e.button===0)benchPointer('up',e);});
-    canvas.addEventListener('pointermove',e=>{if(this.atBench&&!this.orbit)benchPointer('move',e);if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
+    const benchPointer=(kind:'down'|'move'|'up',e:PointerEvent)=>this.benchPointerAt(kind,e.clientX,e.clientY,e.button);
+    // Touch on the floor: one finger drags to orbit, two fingers pinch to zoom, a quick tap grabs.
+    const touches=new Map<number,{x:number;y:number;sx:number;sy:number;t:number}>();
+    const pinch=()=>{const [a,b]=[...touches.values()];return a&&b?Math.hypot(a.x-b.x,a.y-b.y):0;};
+    const touchUp=(e:PointerEvent)=>{const t=touches.get(e.pointerId);if(!t)return false;touches.delete(e.pointerId);
+      if(e.type==='pointerup'&&touches.size===0&&Math.hypot(e.clientX-t.sx,e.clientY-t.sy)<10&&performance.now()-t.t<280&&this.running)this.action('grab');return true;};
+    canvas.addEventListener('pointercancel',touchUp);
+    canvas.addEventListener('pointerdown',e=>{this.audio.start();if(this.atBench&&e.button===0&&this.running&&!this.paused&&!this.won){benchPointer('down',e);return;}
+      if(e.pointerType==='touch'){touches.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()});canvas.setPointerCapture(e.pointerId);return;}
+      if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
+    canvas.addEventListener('pointerup',e=>{this.orbit=false;if(touchUp(e))return;if(this.atBench&&e.button===0)benchPointer('up',e);});
+    canvas.addEventListener('pointermove',e=>{const t=touches.get(e.pointerId);
+      if(t){const before=pinch(),dx=e.clientX-t.x,dy=e.clientY-t.y;t.x=e.clientX;t.y=e.clientY;
+        if(touches.size>=2){const after=pinch();this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom-(after-before)*.05,9,38);}
+        else{this.yaw-=dx*.006;this.pitch=T.MathUtils.clamp(this.pitch+dy*.004,-.3,.45);}
+        return;}
+      if(this.atBench&&!this.orbit)benchPointer('move',e);if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
     canvas.addEventListener('wheel',e=>{if(this.atBench)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
   action(action:string){
-    if(action==='restart'){location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='lens'){this.fov=FOVS[(FOVS.indexOf(this.fov as Lens)+1)%FOVS.length];try{localStorage.setItem('circuit-crew-fov',String(this.fov));}catch{/* storage unavailable */}return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.14;return;}
+    if(action==='restart'){const ui=gameUI(this);if(ui)ui.restart();else location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='lens'){this.fov=FOVS[(FOVS.indexOf(this.fov as Lens)+1)%FOVS.length];try{localStorage.setItem('circuit-crew-fov',String(this.fov));}catch{/* storage unavailable */}return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=.14;return;}
     if(!this.running||this.paused||this.won)return;
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
     if(action==='jump'&&this.grounded&&(!this.held||prefabs[this.held.spec.kind].mass<15)){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
@@ -184,10 +206,33 @@ export class Game {
   }
   begin(){if(this.running)return;const ui=gameUI(this);if(ui?.beforeBegin())return;this.running=true;this.survey=false;this.audio.start();ui?.started();}
   /** Gamepad buttons are read every frame so Start/A also work on the intro card and while paused. */
-  pollPad(){const pad=navigator.getGamepads?.()[0];if(!pad)return;
+  pollPad(dt=1/60){const pad=navigator.getGamepads?.()[0];if(!pad)return;
+    const bench=this.atBench&&this.running&&!this.paused&&!this.won;if(bench)this.padBench(pad,dt);
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
       if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
-      const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',8:'camera',10:'survey'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
+      if(this.menu){this.hub?.padPicker(i);return;}
+      // At a bench: A clicks through the cursor (padBench), Y presses the bench's main key, B stands up.
+      if(bench){if(i===1)this.leaveBench();else if(i===3)this.station!.key('Enter');else if(i===9)this.action('pause');return;}
+      // RS (11) recentres the camera, matching its label on the action bar; View (8) and LS (10) survey.
+      const action=({0:'jump',2:'grab',1:'cable',3:'throw',9:'pause',11:'camera',8:'survey',10:'survey'} as Record<number,string>)[i];if(action&&(!this.paused||action==='pause'))this.action(action);});}
+  /** Gamepad at a bench: the left stick or d-pad moves an on-screen cursor over the tabletop and A
+   *  is the mouse button (hold to drag), so every bench plays exactly as it does with a mouse. */
+  padCursor?:{x:number;y:number;down:boolean;el:HTMLElement};
+  private padBench(pad:Gamepad,dt:number){
+    const r=this.view.renderer.domElement.getBoundingClientRect(),b=(i:number)=>!!pad.buttons[i]?.pressed;
+    if(!this.padCursor){const el=document.createElement('div');el.className='pad-cursor';this.hud.append(el);this.padCursor={x:r.left+r.width/2,y:r.top+r.height/2,down:false,el};}
+    const c=this.padCursor;let ax=pad.axes[0]??0,ay=pad.axes[1]??0;if(Math.hypot(ax,ay)<.18){ax=0;ay=0;}
+    ax+=Number(b(15))-Number(b(14));ay+=Number(b(13))-Number(b(12));
+    const speed=Math.min(r.width,r.height)*.8*(b(4)||b(5)?.35:1);
+    if(ax||ay){c.x=T.MathUtils.clamp(c.x+ax*speed*dt,r.left,r.right);c.y=T.MathUtils.clamp(c.y+ay*speed*dt,r.top,r.bottom);this.benchPointerAt('move',c.x,c.y);}
+    if(b(0)!==c.down){c.down=b(0);this.benchPointerAt(c.down?'down':'up',c.x,c.y);}
+    c.el.hidden=false;c.el.classList.toggle('down',c.down);c.el.style.transform=`translate(${c.x}px,${c.y}px)`;
+  }
+  /** Sends a pointer event at a screen position to the station (mouse, touch and pad cursor). */
+  benchPointerAt(kind:'down'|'move'|'up',clientX:number,clientY:number,button=0){
+    if(!this.station)return;const r=this.view.renderer.domElement.getBoundingClientRect(),ray=new T.Raycaster();
+    ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-((clientY-r.top)/r.height)*2+1),this.view.camera);this.station.pointer({kind,ray,button});
+  }
   togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. The
@@ -241,7 +286,7 @@ export class Game {
   }
   nearBench(pos:Point){return !!this.station&&distance(pos,this.station.stand)<1.6;}
   enterBench(){if(!this.station)return;this.atBench=true;document.body.dataset.bench='true';this.survey=false;this.station.setActive(true);this.audio.pop();this.keys.clear();this.stick=undefined;}
-  leaveBench(){if(!this.station)return;this.atBench=false;delete document.body.dataset.bench;this.station.setActive(false);this.audio.tone(260,.08,.03,'triangle');}
+  leaveBench(){if(!this.station)return;this.atBench=false;if(this.padCursor){if(this.padCursor.down)this.benchPointerAt('up',this.padCursor.x,this.padCursor.y);this.padCursor.down=false;this.padCursor.el.hidden=true;}delete document.body.dataset.bench;this.station.setActive(false);this.audio.tone(260,.08,.03,'triangle');}
   nearSwitch(pos:Point){return !this.lunch&&!this.holdingPlug&&!!this.level.switchAt&&distance(pos,this.level.switchAt)<1.9;}
   /** The power strip must sit by the boardroom door before the reel can feed the projector. */
   needsStrip(){return this.props.some(q=>q.spec.id==='strip');}
@@ -312,6 +357,7 @@ export class Game {
     let x=Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft'));
     let z=Number(this.keys.has('KeyS')||this.keys.has('ArrowDown'))-Number(this.keys.has('KeyW')||this.keys.has('ArrowUp'));
     if(this.stick){x+=this.stick.x;z+=this.stick.z;}
+    if(this.menu){x=0;z=0;}
     if(this.atBench){x=0;z=0;this.heading=this.station!.facing;}
     const pad=navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
     const move=new T.Vector3(x,0,z);if(move.length()>1)move.normalize();move.applyAxisAngle(new T.Vector3(0,1,0),this.yaw);
@@ -340,7 +386,9 @@ export class Game {
       if(pos.y< -3||Math.abs(pos.x)>this.level.width/2+1||Math.abs(pos.z)>this.level.depth/2+1){prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);}
     }
     // Required items stranded out of reach (on top of tall furniture, or inside a sealed space) go back home.
-    if(Math.floor(this.time)!==Math.floor(this.time-dt))for(const prop of this.props){if(!prop.spec.id||prop===this.held||!prop.body.isEnabled()||!prop.body.isDynamic())continue;const q=prop.body.translation();const sealed=this.level.sealed?.some(s=>q.x>s.minX&&q.x<s.maxX&&q.z>s.minZ&&q.z<s.maxZ);const n=q.y>2.1||sealed?(this.stuck.get(prop)??0)+1:0;this.stuck.set(prop,n);if(n>=4){prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);this.burst(prop.home,'#fffaf0',6,'dust');this.stuck.set(prop,0);}}
+    if(Math.floor(this.time)!==Math.floor(this.time-dt))for(const prop of this.props){if(!prop.spec.id||prop===this.held||!prop.body.isEnabled()||!prop.body.isDynamic())continue;const q=prop.body.translation();const sealed=this.level.sealed?.some(s=>q.x>s.minX&&q.x<s.maxX&&q.z>s.minZ&&q.z<s.maxZ)||
+        // Lunch: an item thrown into the dark storeroom can't be grabbed there, so it comes back (items that live in the store stay).
+        (!!this.lunch&&!this.lunch.canGrab(q)&&this.lunch.canGrab(prop.home));const n=q.y>2.1||sealed?(this.stuck.get(prop)??0)+1:0;this.stuck.set(prop,n);if(n>=4){prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);this.burst(prop.home,'#fffaf0',6,'dust');this.stuck.set(prop,0);}}
     if(p.y< -3){this.player.setTranslation({x:this.level.spawn.x,y:1,z:this.level.spawn.z},true);this.vertical=0;}
     // Past the deadline the meeting waits impatiently; running late only costs time grade.
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
@@ -364,7 +412,8 @@ export class Game {
     const p=this.player.translation(),cam=this.view.camera,ease=1-Math.exp(-dt*5);
     this.lead.lerp(new T.Vector3(Math.sin(this.heading),0,Math.cos(this.heading)).multiplyScalar(this.grounded&&this.airborne===0&&(this.keys.size>0||this.stick)?1.2:0),ease*.5);
     // Zoomed out it frames the floor like a diorama; zooming in drops to Pip's eye line (mockups/look/LOOK.md).
-    const zoom=this.survey?44:this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.62+near*.6,.62,1);
+    // The survey pulls further back on narrow (portrait) screens so the whole floor still fits across.
+    const zoom=this.survey?44*T.MathUtils.clamp(1.45/cam.aspect,1,3):this.zoom,near=T.MathUtils.clamp((36.5-zoom)/26.5,0,1),follow=cam.aspect<1?1:T.MathUtils.clamp(.62+near*.6,.62,1);
     const room=new T.Vector3(.2,0,1),pip=new T.Vector3(p.x,p.y-.77+.7*near,p.z).add(this.lead.clone().multiplyScalar(near));
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
     const pushing=this.won&&this.winAt>0;
@@ -456,7 +505,15 @@ export class Game {
     this.view.renderer.info.autoReset=false;this.view.renderer.info.reset();
     this.updateCamera(dt);const d0=performance.now();this.view.render();this.profile.draw+=(performance.now()-d0-this.profile.draw)*.05;
   }
-  frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad();
+  /** Hold-to-restart: shows the hold as a ring filling the pause button; restarts once it is full. */
+  holdRestart(){
+    const btn=this.hud.querySelector<HTMLElement>('.pausebtn');
+    if(!this.restartHold||!this.running||this.paused||this.won||this.atBench){this.restartHold=0;if(btn)btn.style.background='';return;}
+    const f=(performance.now()-this.restartHold)/RESTART_HOLD;
+    if(btn)btn.style.background=`conic-gradient(#ffd451 ${Math.min(1,f)*360}deg, var(--paper) 0)`;
+    if(f>=1){this.restartHold=0;this.action('restart');}
+  }
+  frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad(dt);this.holdRestart();if(this.menu){this.keys.clear();this.stick=undefined;}
     const t0=performance.now();
     if(this.hitstop>0)this.hitstop-=dt;
     else if(this.running&&!this.paused&&!this.won&&!this.manual){this.accumulator+=dt;let steps=0;while(this.accumulator>=1/60&&steps++<5){this.step(1/60);this.accumulator-=1/60;}}

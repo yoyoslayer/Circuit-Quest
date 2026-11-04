@@ -235,6 +235,7 @@ body[data-screen="fail"] canvas#game{filter:saturate(.35) brightness(.5) blur(3p
   .actions .throw{right:112px;bottom:92px;width:70px;height:70px}
   .actions .jump{right:12px;bottom:128px;width:70px;height:70px}
   .actions .cam{right:150px;bottom:174px;width:52px;height:52px;border-radius:50%}.actions .cam .ico{width:28px;height:28px}
+  .actions .survey{right:96px;bottom:202px;width:46px;height:46px}.actions .survey .ico{width:26px;height:26px}
   .actions .act.on{transform:translateY(-6px)}
   .actions .act.ready::before{border-radius:50%}
   .stick{display:block;left:22px;bottom:calc(var(--safe-b) + 18px);width:140px;height:140px;border-radius:50%;pointer-events:auto;touch-action:none;

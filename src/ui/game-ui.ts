@@ -116,7 +116,8 @@ export class GameUI {
   key(e:KeyboardEvent){
     if(e.repeat)return;
     const s=this.screen,onButton=document.activeElement instanceof HTMLButtonElement;
-    if(e.code==='KeyR'&&(s==='play'||s==='pause'||s==='result'||s==='fail'))flagAutostart(this.game.level.id);
+    // R on the result and fail cards retries (their R keycap says so). In play, R is a hold (Game.holdRestart).
+    if(e.code==='KeyR'&&(s==='result'||s==='fail')){e.preventDefault();this.restart();return;}
     if(s==='title'){if(e.code==='Enter'&&!onButton){e.preventDefault();this.game.begin();}if(e.code==='KeyJ')this.show('jobs');}
     else if(s==='jobs'){
       if(e.code==='ArrowLeft'||e.code==='KeyA')this.selectJob(this.sel-1);

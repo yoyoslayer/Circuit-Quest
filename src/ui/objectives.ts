@@ -122,7 +122,7 @@ export class ObjectivesHUD{
     if(at){this.marker.position.set(at.x,2.1+Math.sin(g.last*.006)*.18,at.z);this.marker.rotation.y=g.last*.002;}
     this.stand.hidden=!g.atBench;
     const p=promptFor(g),pk=p?`${p.key}|${p.text}`:'';this.current=p;
-    if(pk!==this.promptShown){this.promptShown=pk;this.prompt.hidden=!p;if(p)this.prompt.innerHTML=`<kbd>${p.key}</kbd><span>${p.text}</span>`;}
+    if(pk!==this.promptShown){this.promptShown=pk;this.prompt.hidden=!p;if(p)this.prompt.innerHTML=`${p.key?`<kbd>${p.key}</kbd>`:''}<span>${p.text}</span>`;this.prompt.classList.toggle('status',!!p&&!p.key);}
   }
   /** Bonus results for the grade card. */
   results(){return this.job.bonuses.map(b=>({text:b.text,ok:b.ok(this.g)}));}

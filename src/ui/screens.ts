@@ -52,6 +52,7 @@ export const hudMarkup=(l:Level)=>`
     <button class="act throw" data-action="throw" aria-label="Throw">${icon('throw')}${kb('Q')}${pad('Y')}</button>
     <button class="act jump" data-action="jump" aria-label="Jump">${icon('jump')}${space()}${pad('A')}</button>
     <i class="sep"></i>
+    <button class="act small survey" data-action="survey" aria-label="Overview">${icon('survey')}${kb('Tab')}${pill('View')}</button>
     <button class="act small cam" data-action="camera" aria-label="Reset camera">${icon('camera')}${kb('C')}${pill('RS')}</button>
   </div>
   <div class="stick" aria-hidden="true"><i class="knob"></i></div>

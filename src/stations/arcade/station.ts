@@ -266,6 +266,8 @@ export class ArcadeBench implements Station {
         a.voice('hm',1.4);return false;}
       case 'flip':{if(j.load.kind!=='led')return false;this.setup.reversed=!this.setup.reversed;this.changed();a.tone(this.setup.reversed?440:560,.06,.04,'triangle');a.pop();break;}
       case 'power':{
+        // Tripped, the PTC fuse comes back by itself once it cools, so P leaves the power on.
+        if(this.powered&&this.tripped){a.voice('hm',1.4);return false;}
         if(this.powered){this.powerOff();a.noise(.03,.07,2500,'highpass');a.tone(220,.09,.04);break;}
         this.powered=true;this.changed();a.noise(.03,.07,2500,'highpass');a.tone(420,.09,.04);break;}
       case 'signoff':{
@@ -351,7 +353,10 @@ export class ArcadeBench implements Station {
   key(code:string){
     const map:Record<string,[string,unknown?]>={Digit1:['pick',47],Digit2:['pick',100],Digit3:['pick',220],Digit4:['pick',470],
       KeyA:['slot',0],KeyS:['slot',1],KeyD:['slot',2],KeyX:['slot','across'],KeyF:['flip'],KeyP:['power'],Enter:['signoff'],Backspace:['clear']};
-    const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
+    const m=map[code];if(!m)return false;
+    // A S D X only place the block in hand; with empty hands they do nothing (WASD never empties a slot).
+    if(m[0]==='slot'&&this.held===undefined)return true;
+    this.act(m[0],m[1]);return true;
   }
   setActive(active:boolean){this.active=active;if(active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';this.updatePanel();}
   dropped(p:Game['props'][number]){
@@ -459,12 +464,12 @@ export class ArcadeBench implements Station {
     switch(h.act){
       case 'pick':{const v=Number(h.arg) as Block;return {key:String(BLOCKS.indexOf(v)+1),text:this.held===v?'Put it back':`Take a ${v} Ω block`};}
       case 'slot':{const s=h.arg as Slot;
-        if(s==='across')return {key:'X',text:this.held?'Put it across the LED':this.setup.across?'Take it out':'Across the LED'};
+        if(s==='across')return this.held!==undefined?{key:'X',text:'Put it across the LED'}:{key:'Click',text:this.setup.across?'Take it out':'Across the LED'};
         const p=this.setup.chain[s],key=POS_LETTERS[s];
-        if(this.held)return {key,text:p.length>=PER_POSITION?'Full':p.length?'Put it beside':'Put it here'};
-        return {key,text:p.length?'Take a block out':'Empty: plain wire'};}
+        if(this.held!==undefined)return {key,text:p.length>=PER_POSITION?'Full':p.length?'Put it beside':'Put it here'};
+        return {key:'Click',text:p.length?'Take a block out':'Empty: plain wire'};}
       case 'flip':return {key:'F',text:'Flip the LED'};
-      case 'power':return {key:'P',text:this.powered?'Power off':'Power on'};
+      case 'power':return this.powered&&this.tripped?{key:'',text:'Fuse cooling…'}:{key:'P',text:this.powered?'Power off':'Power on'};
       case 'signoff':return {key:'Enter',text:'Sign off'};
     }
     return null;
@@ -477,11 +482,12 @@ export class ArcadeBench implements Station {
       if(near<1.6)return {key:'E',text:'Work at the bench'};
       return null;}
     if(!this.trayReady)return {key:'E',text:'Fetch the resistor tray'};
-    const hint=this.hoverHint();if(hint)return hint;
+    // The step prompt always says what its key does now; states with nothing to press show no key.
     if(this.soakDone)return {key:'Enter',text:'Sign off'};
+    const hint=this.hoverHint();if(hint)return hint;
     if(this.held)return {key:'A S D',text:'Place it in the chain'};
-    if(this.tripped)return {key:'P',text:'Fuse cooling'};
-    if(this.powered)return {key:'P',text:this.soak>0?'Play test':'Power off'};
+    if(this.tripped)return {key:'',text:'Fuse cooling…'};
+    if(this.powered)return this.soak>0?{key:'',text:'Play-testing…'}:{key:'P',text:'Power off'};
     return this.setup.chain.some(p=>p.length)?{key:'P',text:'Power on'}:{key:'1–4',text:'Take a block'};
   }
   complete(){return this.rush?this.game.time>=RUSH_TIME:this.served.length>=JOBS.length;}

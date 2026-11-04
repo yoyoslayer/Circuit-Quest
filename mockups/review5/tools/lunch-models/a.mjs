@@ -1,0 +1,28 @@
+import {launch} from '../cap.mjs';
+import {hook} from './hook.mjs';
+import {writeFileSync} from 'node:fs';
+const P='lunch-models';
+const g=await launch('lunch',{fullfx:true});
+const au=await g.audit(.02);console.log('audit.02',JSON.stringify(au));
+const au0=await g.audit(.005);console.log('audit.005 count',au0.length);
+console.log('hook',await hook(g));
+const dump=await g.page.evaluate(()=>{const G=window.__g;const r=v=>Math.round(v*100)/100;
+  const props=G.props.map(p=>{const t=p.body.translation();return {kind:p.spec.kind,id:p.spec.id,color:p.spec.color,x:r(t.x),y:r(t.y),z:r(t.z),sx:r(p.spec.x),sz:r(p.spec.z),sy:p.spec.y,rot:p.spec.rotation};});
+  let lights=0,mats={},meshes=0;G.view.scene.traverse(o=>{if(o.isPointLight)lights++;if(o.isMesh){meshes++;const m=Array.isArray(o.material)?o.material:[o.material];for(const x of m)mats[x.type]=(mats[x.type]||0)+1;}});
+  const npcs=G.npcs.map(n=>({x:r(n.group.position.x),z:r(n.group.position.z),yaw:r(n.group.rotation.y)}));
+  return {props,lights,mats,meshes,npcs,yaw:G.yaw};});
+writeFileSync('mockups/review5/tools/lunch-models/props.json',JSON.stringify(dump,null,1));
+const kinds={};for(const p of dump.props)kinds[p.kind]=(kinds[p.kind]||0)+1;console.log('props',dump.props.length,JSON.stringify(kinds),'lights',dump.lights,'mats',JSON.stringify(dump.mats),'meshes',dump.meshes,'yaw',dump.yaw);
+await g.advance(1.5);
+let s=await g.snap();console.log('dc',s.drawCalls,'fps',s.fps,'player',JSON.stringify(s.player));
+await g.shot(`${P}-01-start`);
+await g.survey();s=await g.snap();console.log('survey dc',s.drawCalls);await g.shot(`${P}-02-survey`);
+await g.key('Tab',.1);await g.advance(1.2);
+for(const [i,dx] of [[3,350],[4,350],[5,350],[6,350]]){await g.orbit(dx,0);await g.shot(`${P}-0${i}-orbit${i-2}`);}
+await g.zoom(2000);await g.shot(`${P}-07-zoom38`);
+await g.zoom(-2000);await g.shot(`${P}-08-zoom9-spawn`);
+await g.orbit(700,0);await g.shot(`${P}-09-zoom9-spawn-back`);
+await g.orbit(0,-200);await g.shot(`${P}-10-zoom9-low`);
+console.log('errors',JSON.stringify(await g.close()));
+const n=await launch('lunch',{fullfx:true,query:'norim'});await n.advance(1.5);await n.shot(`${P}-11-norim-start`);
+console.log('errors norim',JSON.stringify(await n.close()));

@@ -1,0 +1,13 @@
+import {launch} from '../cap.mjs';import {txt} from '../arcade-rush-play/common.mjs';
+const P='verify-arcade-rush-play-';const log=(...a)=>console.log(...a);
+const g=await launch('arcade-rush',{fullfx:true});await g.advance(.5);
+await g.page.evaluate(()=>{for(const k of Object.keys(localStorage))if(/circuit/i.test(k))log0=1;});
+log('stored before',await g.page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage)))));
+for(let i=0;i<17;i++)await g.advance(10);
+await g.advance(1);let s=await g.snap();log('t',s.time.toFixed(1),'ring',await g.page.evaluate(()=>{const r=document.querySelector('.badge circle:last-child, svg circle[stroke-dasharray], circle');return [...document.querySelectorAll('circle')].map(c=>c.getAttribute('class')+':'+c.style.strokeDasharray).join(' ; ');}));
+await g.crop(P+'20-hud-171s',{x:0,y:0,width:520,height:240});
+await g.advance(10);s=await g.snap();log('idle end',s.time.toFixed(1),'won',s.won,'served',s.station.served.length,'dmg',s.damage,'cost',s.cost);
+await g.page.waitForTimeout(4000);await g.shot(P+'21-idle-result');
+log('result',await g.page.evaluate(()=>document.querySelector('.result-screen')?.innerText?.replace(/\n+/g,' | ')));
+log('stored after',await g.page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage)))));
+log('errors',JSON.stringify(await g.close()));

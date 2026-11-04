@@ -1,0 +1,2 @@
+export const txt=g=>g.page.evaluate(()=>({card:document.querySelector('.objective')?.innerText?.replace(/\n+/g,' | '),prompt:[...document.querySelectorAll('.prompt-pill')].filter(e=>!e.hidden).map(e=>e.innerText.replace(/\n/g,' ')).join(' / '),toast:[...document.querySelectorAll('.station-toast')].filter(e=>!e.hidden).map(e=>e.innerText).join(' / '),panel:document.querySelector('.station-panel:not([hidden])')?.innerText?.replace(/\n+/g,' | ')}));
+export const log=(...a)=>console.log(...a.map(x=>typeof x==='object'?JSON.stringify(x):x));

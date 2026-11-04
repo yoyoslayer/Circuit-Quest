@@ -1,0 +1,10 @@
+import {launch} from '../cap.mjs';
+const P='meeting-models';
+const g=await launch('meeting',{fullfx:true});
+await g.advance(.5);
+const go=async (pts,r=.5)=>{for(const [x,z] of pts){const res=await g.walk(x,z,r);if(!res.arrived)console.log('stuck',x,z,JSON.stringify(res.state.player));}};
+await go([[-8,-1.4],[-8.9,-.4]],.3);
+await g.zoom(-2000);
+await g.orbit(175,0);await g.shot(`${P}-66-pod-seated-side`);
+await g.orbit(175,0);await g.shot(`${P}-67-pod-seated-back`);
+console.log('errors',JSON.stringify(await g.close()));

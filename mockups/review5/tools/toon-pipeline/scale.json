@@ -1,0 +1,582 @@
+{
+ "pip": null,
+ "meshNames": [],
+ "blob": {
+  "w": 0.887,
+  "h": 1.01,
+  "d": 0.735,
+  "minY": 0.045
+ },
+ "kinds": {
+  "box": {
+   "size": [
+    0.7,
+    0.6,
+    0.7
+   ],
+   "model": {
+    "w": 0.7,
+    "h": 0.607,
+    "d": 0.721,
+    "minY": -0.3
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.60 (3.3%)"
+   ]
+  },
+  "desk": {
+   "size": [
+    1.6,
+    0.95,
+    0.85
+   ],
+   "model": {
+    "w": 1.6,
+    "h": 1.146,
+    "d": 0.85,
+    "minY": -0.481
+   },
+   "issues": [
+    "extrude-bevel 0.014 min=0.07 (20.0%)",
+    "rbox-small r=0.012 min=0.06 (20.0%)",
+    "extrude-bevel 0.006 min=0.03 (20.0%)"
+   ]
+  },
+  "chair": {
+   "size": [
+    0.62,
+    0.95,
+    0.62
+   ],
+   "model": {
+    "w": 0.62,
+    "h": 1.052,
+    "d": 0.632,
+    "minY": -0.475
+   },
+   "issues": [
+    "extrude-bevel 0.012 min=0.06 (20.0%)",
+    "extrude-bevel 0.006 min=0.03 (20.0%)",
+    "rbox-small r=0.010 min=0.05 (20.0%)",
+    "extrude-bevel 0.013 min=0.09 (15.0%)",
+    "extrude-bevel 0.003 min=0.02 (15.0%)",
+    "rbox-small r=0.008 min=0.04 (20.0%)",
+    "extrude-bevel 0.008 min=0.04 (20.0%)",
+    "rbox-small r=0.007 min=0.04 (20.0%)"
+   ]
+  },
+  "monitor": {
+   "size": [
+    0.63,
+    0.48,
+    0.17
+   ],
+   "model": {
+    "w": 0.63,
+    "h": 0.482,
+    "d": 0.15,
+    "minY": -0.24
+   },
+   "issues": [
+    "rbox-small r=0.010 min=0.05 (20.0%)",
+    "rbox-small r=0.012 min=0.06 (20.0%)",
+    "rbox-small r=0.006 min=0.03 (20.0%)"
+   ]
+  },
+  "mug": {
+   "size": [
+    0.16,
+    0.2,
+    0.16
+   ],
+   "model": {
+    "w": 0.181,
+    "h": 0.2,
+    "d": 0.134,
+    "minY": -0.1
+   },
+   "issues": []
+  },
+  "paper": {
+   "size": [
+    0.3,
+    0.03,
+    0.23
+   ],
+   "model": {
+    "w": 0.3,
+    "h": 0.03,
+    "d": 0.23,
+    "minY": -0.015
+   },
+   "issues": [
+    "rbox-small r=0.006 min=0.03 (20.0%)"
+   ]
+  },
+  "plant": {
+   "size": [
+    0.58,
+    1.25,
+    0.58
+   ],
+   "model": {
+    "w": 0.701,
+    "h": 1.251,
+    "d": 0.551,
+    "minY": -0.625
+   },
+   "issues": []
+  },
+  "cabinet": {
+   "size": [
+    0.7,
+    1.6,
+    0.7
+   ],
+   "model": {
+    "w": 0.714,
+    "h": 1.6,
+    "d": 0.73,
+    "minY": -0.8
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.67 (3.0%)",
+    "rbox-small r=0.008 min=0.04 (20.0%)",
+    "extrude-bevel 0.004 min=0.03 (15.0%)",
+    "rbox-small r=0.006 min=0.03 (20.0%)"
+   ]
+  },
+  "sofa": {
+   "size": [
+    2.6,
+    1.1,
+    1
+   ],
+   "model": {
+    "w": 2.6,
+    "h": 0.925,
+    "d": 0.945,
+    "minY": -0.425
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.45 (4.4%)"
+   ]
+  },
+  "bin": {
+   "size": [
+    0.38,
+    0.48,
+    0.38
+   ],
+   "model": {
+    "w": 0.389,
+    "h": 0.519,
+    "d": 0.389,
+    "minY": -0.24
+   },
+   "issues": []
+  },
+  "reel": {
+   "size": [
+    0.7,
+    0.7,
+    0.55
+   ],
+   "model": {
+    "w": 0.672,
+    "h": 0.672,
+    "d": 0.448,
+    "minY": -0.336
+   },
+   "issues": []
+  },
+  "coupler": {
+   "size": [
+    0.36,
+    0.24,
+    0.24
+   ],
+   "model": {
+    "w": 0.42,
+    "h": 0.26,
+    "d": 0.26,
+    "minY": -0.13
+   },
+   "issues": []
+  },
+  "coffee": {
+   "size": [
+    0.55,
+    0.65,
+    0.55
+   ],
+   "model": {
+    "w": 0.55,
+    "h": 0.65,
+    "d": 0.6,
+    "minY": -0.325
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.55 (3.6%)"
+   ]
+  },
+  "cart": {
+   "size": [
+    1.2,
+    0.65,
+    0.75
+   ],
+   "model": {
+    "w": 1.34,
+    "h": 0.945,
+    "d": 0.75,
+    "minY": -0.325
+   },
+   "issues": [
+    "extrude-bevel 0.008 min=0.04 (20.0%)",
+    "extrude-bevel 0.010 min=0.05 (20.0%)",
+    "rbox-small r=0.007 min=0.04 (20.0%)"
+   ]
+  },
+  "glass": {
+   "size": [
+    0.12,
+    2.6,
+    2.5
+   ],
+   "model": {
+    "w": 0.1,
+    "h": 2.6,
+    "d": 2.5,
+    "minY": -1.3
+   },
+   "issues": [
+    "rbox-small r=0.012 min=0.06 (20.0%)"
+   ]
+  },
+  "printer": {
+   "size": [
+    0.85,
+    1,
+    0.75
+   ],
+   "model": {
+    "w": 0.85,
+    "h": 0.94,
+    "d": 0.919,
+    "minY": -0.5
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.75 (2.7%)",
+    "rbox-small r=0.008 min=0.04 (20.0%)"
+   ]
+  },
+  "whiteboard": {
+   "size": [
+    1.7,
+    1.7,
+    0.2
+   ],
+   "model": {
+    "w": 1.7,
+    "h": 1.7,
+    "d": 0.5,
+    "minY": -0.85
+   },
+   "issues": [
+    "rbox-small r=0.012 min=0.06 (20.0%)",
+    "rbox-small r=0.010 min=0.05 (20.0%)"
+   ]
+  },
+  "bookshelf": {
+   "size": [
+    2,
+    1.8,
+    0.45
+   ],
+   "model": {
+    "w": 2,
+    "h": 1.87,
+    "d": 0.45,
+    "minY": -0.9
+   },
+   "issues": [
+    "rbox-small r=0.014 min=0.07 (20.0%)",
+    "rbox-small r=0.012 min=0.06 (20.0%)"
+   ]
+  },
+  "vending": {
+   "size": [
+    1,
+    2,
+    0.8
+   ],
+   "model": {
+    "w": 1,
+    "h": 2,
+    "d": 0.84,
+    "minY": -1
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.80 (2.5%)",
+    "rbox-small r=0.010 min=0.05 (20.0%)"
+   ]
+  },
+  "cooler": {
+   "size": [
+    0.6,
+    1.25,
+    0.6
+   ],
+   "model": {
+    "w": 0.51,
+    "h": 1.25,
+    "d": 0.51,
+    "minY": -0.625
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.51 (3.9%)"
+   ]
+  },
+  "pingpong": {
+   "size": [
+    2.6,
+    0.9,
+    1.5
+   ],
+   "model": {
+    "w": 2.6,
+    "h": 1.06,
+    "d": 1.5,
+    "minY": -0.45
+   },
+   "issues": [
+    "extrude-bevel 0.012 min=0.06 (20.0%)",
+    "rbox-small r=0.008 min=0.04 (20.0%)",
+    "rbox-small r=0.012 min=0.06 (20.0%)"
+   ]
+  },
+  "bridge": {
+   "size": [
+    1.8,
+    0.2,
+    1
+   ],
+   "model": {
+    "w": 1.8,
+    "h": 0.22,
+    "d": 1,
+    "minY": -0.1
+   },
+   "issues": [
+    "UNBEVELLED extrude 1.80,0.20,1.00"
+   ]
+  },
+  "mop": {
+   "size": [
+    0.6,
+    1.5,
+    0.6
+   ],
+   "model": {
+    "w": 0.672,
+    "h": 1.549,
+    "d": 0.58,
+    "minY": -0.75
+   },
+   "issues": [
+    "torus seg=6/20"
+   ]
+  },
+  "tray": {
+   "size": [
+    0.8,
+    0.15,
+    0.5
+   ],
+   "model": {
+    "w": 0.8,
+    "h": 0.12,
+    "d": 0.5,
+    "minY": -0.075
+   },
+   "issues": [
+    "extrude-bevel 0.010 min=0.05 (20.0%)"
+   ]
+  },
+  "lamp": {
+   "size": [
+    0.65,
+    1.5,
+    0.65
+   ],
+   "model": {
+    "w": 0.64,
+    "h": 1.42,
+    "d": 0.64,
+    "minY": -0.75
+   },
+   "issues": []
+  },
+  "dolly": {
+   "size": [
+    1.2,
+    1.3,
+    0.9
+   ],
+   "model": {
+    "w": 1.342,
+    "h": 1.365,
+    "d": 0.9,
+    "minY": -0.65
+   },
+   "issues": []
+  },
+  "supply": {
+   "size": [
+    1.7,
+    1.3,
+    1.1
+   ],
+   "model": {
+    "w": 1.842,
+    "h": 1.34,
+    "d": 1.1,
+    "minY": -0.65
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.80 (2.5%)"
+   ]
+  },
+  "capcart": {
+   "size": [
+    1.6,
+    1.2,
+    1
+   ],
+   "model": {
+    "w": 1.742,
+    "h": 1.259,
+    "d": 1,
+    "minY": -0.6
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.36 (5.6%)",
+    "rbox-small r=0.010 min=0.05 (20.0%)"
+   ]
+  },
+  "coolbox": {
+   "size": [
+    1,
+    0.6,
+    0.65
+   ],
+   "model": {
+    "w": 1.1,
+    "h": 0.79,
+    "d": 0.701,
+    "minY": -0.3
+   },
+   "issues": [
+    "extrude-bevel 0.020 min=0.48 (4.2%)",
+    "rbox-small r=0.008 min=0.04 (20.0%)",
+    "rbox-small r=0.012 min=0.06 (20.0%)",
+    "rbox-small r=0.006 min=0.03 (20.0%)",
+    "torus seg=6/16"
+   ]
+  },
+  "splitter": {
+   "size": [
+    0.5,
+    0.24,
+    0.4
+   ],
+   "model": {
+    "w": 0.62,
+    "h": 0.275,
+    "d": 0.4,
+    "minY": -0.12
+   },
+   "issues": [
+    "extrude-bevel 0.004 min=0.02 (20.0%)"
+   ]
+  },
+  "plug": {
+   "size": [
+    0.3,
+    0.22,
+    0.22
+   ],
+   "model": {
+    "w": 0.42,
+    "h": 0.26,
+    "d": 0.26,
+    "minY": -0.13
+   },
+   "issues": []
+  },
+  "wedge": {
+   "size": [
+    0.8,
+    0.35,
+    0.5
+   ],
+   "model": {
+    "w": 0.8,
+    "h": 0.35,
+    "d": 0.5,
+    "minY": -0.175
+   },
+   "issues": [
+    "UNBEVELLED extrude 0.80,0.35,0.50",
+    "rbox-small r=0.006 min=0.03 (20.0%)"
+   ]
+  },
+  "beanbag": {
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "model": {
+    "w": 0.9,
+    "h": 0.611,
+    "d": 0.9,
+    "minY": -0.306
+   },
+   "issues": []
+  },
+  "cone": {
+   "size": [
+    0.5,
+    0.62,
+    0.5
+   ],
+   "model": {
+    "w": 0.5,
+    "h": 0.62,
+    "d": 0.5,
+    "minY": -0.31
+   },
+   "issues": [
+    "rbox-small r=0.010 min=0.05 (20.0%)"
+   ]
+  },
+  "strip": {
+   "size": [
+    0.9,
+    0.14,
+    0.26
+   ],
+   "model": {
+    "w": 0.9,
+    "h": 0.18,
+    "d": 0.26,
+    "minY": -0.07
+   },
+   "issues": [
+    "extrude-bevel 0.004 min=0.02 (20.0%)"
+   ]
+  }
+ }
+}

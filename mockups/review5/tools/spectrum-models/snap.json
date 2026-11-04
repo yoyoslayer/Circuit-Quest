@@ -1,0 +1,101 @@
+{
+ "level": "spectrum",
+ "running": true,
+ "paused": false,
+ "won": false,
+ "player": {
+  "x": -8,
+  "y": 0.7698415517807007,
+  "z": 5.600000858306885
+ },
+ "props": 82,
+ "items": [
+  {
+   "id": "pod",
+   "pos": {
+    "x": -6.397202014923096,
+    "y": 0.27487173676490784,
+    "z": 5.202072620391846
+   },
+   "visible": true
+  },
+  {
+   "id": "mirror1",
+   "pos": {
+    "x": -3.398210048675537,
+    "y": 0.8249377012252808,
+    "z": -5.498281002044678
+   },
+   "visible": true
+  },
+  {
+   "id": "mirror2",
+   "pos": {
+    "x": -0.8982107043266296,
+    "y": 0.8249375820159912,
+    "z": -5.498279571533203
+   },
+   "visible": true
+  }
+ ],
+ "holdingPlug": false,
+ "rope": {
+  "length": 0,
+  "maxLength": 10,
+  "bends": [],
+  "strain": 0
+ },
+ "time": 0.49999999999999994,
+ "damage": 0,
+ "cost": 0,
+ "fps": 60,
+ "drawCalls": 1133,
+ "electrical": "off",
+ "station": {
+  "job": 0,
+  "delivered": [],
+  "band": "vis",
+  "detector": "visdiode",
+  "power": 1,
+  "hatchOpen": false,
+  "podPad": null,
+  "mirrors": [],
+  "mistakes": 0,
+  "spent": 0,
+  "aim": {
+   "tx": -2.3751,
+   "mirrors": {}
+  },
+  "reading": {
+   "margin": null,
+   "blocked": "brick",
+   "missed": false,
+   "spots": [],
+   "detectorOk": true,
+   "podOk": false
+  }
+ },
+ "atBench": false,
+ "alarmed": 0,
+ "stripPlaced": true,
+ "switchedOn": false,
+ "pose": {
+  "arms": [
+   0,
+   0
+  ],
+  "legs": [
+   -0.03,
+   0.03
+  ],
+  "torso": 0.01,
+  "grounded": true,
+  "airborne": 0
+ },
+ "profile": {
+  "step": 0,
+  "render": 4.443807731590306,
+  "draw": 6.926917851413166
+ },
+ "fastestProp": 0.0013231540819267566
+}

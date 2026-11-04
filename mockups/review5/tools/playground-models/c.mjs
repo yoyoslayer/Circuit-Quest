@@ -1,0 +1,20 @@
+// Close-ups part 2: lamp + socket (front/back), pins, pallet stack, trainees, cooler, spare reel; norim.
+import {launch} from '../cap.mjs';
+const K='playground-models';let n=21;const nn=()=>String(n++).padStart(2,'0');
+const g=await launch('playground',{fullfx:true});
+await g.advance(1);await g.zoom(-2000);
+const visit=async(x,z,name,orbits=[0])=>{const w=await g.walk(x,z,.4,25);console.log(name,'arrived',w.arrived,JSON.stringify(w.state.player));
+  for(const o of orbits){if(o)await g.orbit(o,0);await g.shot(`${K}-${nn()}-close-${name}${o?'-o'+o:''}`);}};
+await visit(-4.4,-7.9,'spare-reel-splitter',[0]);
+await visit(1.1,-7.4,'cooler',[0]);
+await visit(5.6,-5.2,'lamp-socket',[0,450,450,450]);
+await g.orbit(-1350,0);
+await g.orbit(0,-200);await g.shot(`${K}-${nn()}-close-lamp-lowpitch`);await g.orbit(0,200);
+await visit(8.1,1.0,'trainee-yellow',[0,500]);await g.orbit(-500,0);
+await visit(3.6,4.6,'pins',[0,400]);await g.orbit(-400,0);
+await visit(7.4,7.2,'pallet-stack',[0,-500]);await g.orbit(500,0);
+await visit(4.2,7.8,'trainee-pink',[0]);
+const s=await g.snap();console.log('items',JSON.stringify(s.items.map(i=>[i.id,+i.pos.x.toFixed(2),+i.pos.y.toFixed(2),+i.pos.z.toFixed(2)])));
+console.log('errors',JSON.stringify(await g.close()));
+const h=await launch('playground',{fullfx:true,query:'norim'});await h.advance(1.5);await h.shot(`${K}-${nn()}-start-norim`);await h.zoom(-2000);await h.shot(`${K}-${nn()}-close-norim`);
+console.log('errors',JSON.stringify(await h.close()));

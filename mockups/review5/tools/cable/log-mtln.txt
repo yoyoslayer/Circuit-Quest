@@ -1,0 +1,28 @@
+##### mt1
+strip true 8.5
+plug true 13.1
+mid 0.535 [[-6.85,-4.46],[-4.18,-3.47]]
+6,-1.2 0.826 [[-6.85,-4.46],[-2.33,-2.54]]
+walk D 10.16 -1.58 1.022
+sprint 10.49 -1.58 1.036 alarmed 3 dmg 0
+plugged false strain 1.086
+[]
+##### mt2
+at cart 0.729 23.2
+after ext 37.2 0.455
+[]
+##### ln1
+held { id: 'thick', end: 1 }
+thick at 1,3 0.491
+thick at post 0.587
+lit true oven on
+held { id: 'thin-1', end: 1 }
+thin at .3,2.4 0.419
+thin at 6,3 0.598 { id: 'thin-1', end: 1 }
+sprint 8.69 2.51 strain 0.696 held {"id":"thin-1","end":1}
+sprint 12.05 2.04 strain 0.802 held {"id":"thin-1","end":1}
+sprint 15.25 1.59 strain 0.903 held {"id":"thin-1","end":1}
+sprint 16.00 1.15 strain 0.927 held {"id":"thin-1","end":1}
+fastest after Q 0.00 held null
+fastest 1s 0.00 dmg 0
+[]

@@ -1,0 +1,17 @@
+import {launch,now} from './hook.mjs';
+const g=await launch('garage');await g.advance(.3);await g.drain('start');
+const steps=async l=>{for(const [n,a] of l){const r=await g.act(n,a);if(!r.ok)console.log('FAIL act',n,a);}};
+await g.walk(6.4,-4.2,.5);await g.page.keyboard.press('KeyE');await g.drain('grab robot');
+for(const [x,z] of [[3.4,-4],[2.5,-4.4]])await g.walk(x,z,.5);await g.page.keyboard.press('KeyE');await g.advance(.3);await g.drain('robot on stand');
+for(const [x,z] of [[2.9,-4],[2.9,-1.1]])await g.walk(x,z,.5);await g.walk(0,-1.55,.4);await g.page.keyboard.press('KeyE');await g.advance(.3);await g.drain('sit');
+await steps([['pulse']]);await g.advance(.3);await now(g,'juice-audio-21-garage-reset-on-shutdown');await g.drain('PULSE bare: controller reset');await g.advance(1);
+await steps([['test']]);await g.advance(.2);await now(g,'juice-audio-22-garage-test-fail');await g.drain('TEST fail (nothing fitted)');await g.advance(1);
+await steps([['pick','diode'],['slot','fly'],['flip','fly']]);await g.drain('fit diode, flip');await steps([['pulse']]);await g.advance(.15);await now(g,'juice-audio-23-garage-fuse-short');await g.drain('PULSE flipped diode: FUSE SHORT');
+let s=(await g.snap()).station;console.log('fuse',s.fuse,'mistakes',s.mistakes);
+await g.advance(3);await g.drain('fuse cools');
+await steps([['flip','fly'],['pulse']]);await g.advance(1);await g.drain('pulse ok');await steps([['test']]);await g.page.waitForTimeout(1200);await g.drain('TEST pass job1');
+await steps([['pulse']]);await steps([['pick','diode'],['pick','diode'],['pick','tvs'],['slot','switch'],['pulse']]);await g.advance(1);await steps([['test']]);await g.page.waitForTimeout(1200);await g.drain('job2 pass');
+await steps([['pulse'],['ground'],['pulse']]);await g.advance(1);await steps([['test']]);await g.page.waitForTimeout(600);await g.drain('job3 pass -> drive');
+await g.advance(6);await g.drain('driving');await g.advance(6);await now(g,'juice-audio-24-garage-delivered-win');await g.drain('delivered/win');s=await g.snap();console.log('won',s.won);
+await g.page.waitForTimeout(3200);await g.drain('result');await g.shot('juice-audio-25-garage-result');
+console.log('errors',await g.close());

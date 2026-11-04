@@ -1,0 +1,24 @@
+import {launch} from '../cap.mjs';
+const K='verify-progression';
+const g=await launch('lobby',{fullfx:true,start:false});
+await g.page.evaluate(()=>{localStorage.clear();sessionStorage.clear();});
+await g.page.reload();await g.page.waitForSelector('body[data-ready="true"]');
+await g.page.locator('[data-ui="jobs"]').click();await g.advance(.3);
+await g.page.locator(`[data-job="arcade-rush"]`).click({force:true});await g.advance(.3);
+console.log('go label',await g.page.locator('[data-ui="go"]').getAttribute('aria-label'));
+await g.shot(`${K}-05-jobs-rush-selected-fresh`);
+await Promise.all([g.page.waitForURL(/level=arcade-rush/,{timeout:15000}).catch(()=>console.log('no nav')),g.page.locator('[data-ui="go"]').click({force:true})]);
+await g.page.waitForSelector('body[data-ready="true"]',{timeout:120000});await g.page.waitForTimeout(2000);
+console.log('url',g.page.url(),'screen',await g.page.evaluate(()=>document.body.dataset.screen));
+const s=await g.page.evaluate(()=>window.__circuitCrew.snapshot());console.log('level',s.level??s.id,'running',s.running,'rush?',JSON.stringify(s.station?.rush??null));
+await g.shot(`${K}-06-rush-loaded-fresh-profile`);
+console.log('objective',(await g.page.locator('.objective').innerText().catch(()=>'')).replace(/\n/g,' '));
+// seed arcade C and check lobby next marker / job card
+await g.page.evaluate(()=>localStorage.setItem('circuit-crew:best:v1',JSON.stringify({playground:{grade:'A',time:9,damage:0,cost:0},meeting:{grade:'A',time:30,damage:0,cost:0},lunch:{grade:'A',time:200,damage:0,cost:0},arcade:{grade:'C',time:900,damage:5,cost:40}})));
+await g.page.goto('http://127.0.0.1:4173/?level=lobby&manual&fullfx');await g.page.waitForSelector('body[data-ready="true"]');
+await g.page.getByRole('button',{name:'Start playing'}).click().catch(()=>{});
+await g.page.evaluate(()=>window.__circuitCrew.drive.advance(1.5));
+const h=await g.page.evaluate(()=>window.__circuitCrew.snapshot());console.log('doors',JSON.stringify(h.hub.doors.map(d=>[d.id,d.done,d.locked])));
+console.log('lobby card',(await g.page.locator('.objective').innerText().catch(()=>'')).replace(/\n/g,' '));
+await g.shot(`${K}-07-lobby-arcadeC`);
+console.log('errors',JSON.stringify(await g.close()));

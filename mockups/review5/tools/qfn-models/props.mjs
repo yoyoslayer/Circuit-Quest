@@ -1,0 +1,13 @@
+import {launch} from '../cap.mjs';
+import {writeFileSync} from 'node:fs';
+const g=await launch('qfn',{fullfx:false});
+const urls=await g.page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name).filter(n=>/src\/game\.ts/.test(n)));
+console.log(urls);
+const out=await g.page.evaluate(async(u)=>{const M=await import(u);const G=M.Game;const o=G.prototype.render;let game;G.prototype.render=function(...a){game=this;return o.apply(this,a);};
+  window.__circuitCrew.drive.advance(.05);G.prototype.render=o;window.__game=game;
+  if(!game)return null;return game.props.map(p=>{const t=p.body.translation();return {k:p.spec.kind,id:p.spec.id,x:+t.x.toFixed(2),y:+t.y.toFixed(2),z:+t.z.toFixed(2),c:p.spec.color,rot:p.spec.rotation};});},urls[0]);
+writeFileSync('mockups/review5/tools/qfn-models/props.json',JSON.stringify(out,null,0));
+const counts={};for(const p of out||[])counts[p.k]=(counts[p.k]||0)+1;console.log(counts);
+const cols={};for(const p of out||[])if(p.k==='box'||p.k==='cabinet'||p.k==='bookshelf'||p.k==='cart'||p.k==='chair'){const k=p.k+' '+p.c;cols[k]=(cols[k]||0)+1;}console.log(cols);
+for(const p of out)if(['bookshelf','reel','splitter','cart','cabinet','desk','lamp','beanbag','cooler'].includes(p.k))console.log(p.k,p.x,p.y,p.z,p.c,p.rot);
+console.log(await g.close());

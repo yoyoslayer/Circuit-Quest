@@ -1,0 +1,14 @@
+import {launch,SHOTS} from '../cap.mjs';
+import {resolve} from 'node:path';
+const g=await launch('meeting',{fullfx:true});
+const quick=n=>g.page.screenshot({path:resolve(SHOTS,n+'.png')});
+await g.advance(.5);
+await g.walk(-10,-5);await g.walk(-10,3.5);await g.walk(-11.2,4.3,.4);
+await g.zoom(-1500);await g.orbit(-120,0);
+await g.shot('characters-47-coffee-standing-blobs-zoom9');
+await g.walk(-12,4.5,.4);
+await g.key('KeyE',0);await g.advance(.15);
+const s=await g.snap();console.log('alarmed',s.alarmed,s.holdingPlug);
+await quick('characters-48-coffee-blobs-alarmed');
+await g.advance(.3);await quick('characters-48b-coffee-blobs-alarmed-later');
+console.log(await g.close());

@@ -1,0 +1,11 @@
+import {launch} from '../cap.mjs';
+const P='observatory-models-';const log=(...a)=>console.log(...a);
+const g=await launch('observatory',{fullfx:true});
+await g.advance(.5);await g.zoom(-2000);
+const at=async(x,z,name,views)=>{const r=await g.walk(x,z,.5,40);const s=await g.snap();log(name,'arrived',r?.arrived,JSON.stringify(s.player));
+  for(const [dx,dy,suffix] of views){if(dx||dy)await g.orbit(dx,dy);await g.shot(P+name+suffix);}};
+await at(2.4,-4.4,'20-gallery-left',[[0,0,''],[0,250,'-top'],[0,-500,'-low']]);await g.orbit(0,250);
+await at(6.4,-4.6,'21-gallery-right',[[0,0,''],[200,0,'-o55'],[-400,0,'-o-55']]);await g.orbit(200,0);
+await at(7.8,-5.4,'22-plinths',[[0,0,''],[300,0,'-o80'],[-600,0,'-o-80']]);await g.orbit(300,0);
+await at(-9.6,-1.6,'23-mural',[[-350,0,''],[0,-250,'-low'],[0,500,'-top']]);await g.orbit(350,-250);
+log('errors',JSON.stringify(await g.close()));

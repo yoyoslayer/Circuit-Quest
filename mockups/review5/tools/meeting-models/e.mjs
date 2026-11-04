@@ -1,0 +1,17 @@
+import {launch} from '../cap.mjs';
+import {writeFileSync} from 'node:fs';
+const P='meeting-models';
+const g=await launch('meeting',{fullfx:true});
+writeFileSync('mockups/review5/tools/meeting-models/audit.json',JSON.stringify(await g.audit(.02),null,1));
+await g.advance(.5);
+const go=async (pts,r=.5)=>{for(const [x,z] of pts){const res=await g.walk(x,z,r);if(!res.arrived)console.log('stuck',x,z,JSON.stringify(res.state.player));}};
+await go([[-8.6,-3.9]],.4);await g.key('KeyE');
+await go([[-8,-1.4],[6,-1.2],[11.2,-1.4]]);await g.key('KeyE');await g.advance(.3);
+await go([[6,-1.2],[-8,-1.4],[-10,3.5]]);await g.walk(-12,4.5,.4);await g.key('KeyE');
+await go([[-9,5.3],[6.9,5.3],[8,-1.3],[11.4,-1.4]]);await g.key('KeyF');await g.advance(.3);
+await g.zoom(-2000);
+await go([[14.4,-.2]],.3);await g.advance(.6);await g.shot(`${P}-41-appliances-on-close`);
+await g.crop(`${P}-42-crop-heater-kettle`,{x:520,y:200,width:900,height:500});
+await g.orbit(-120,0);await g.shot(`${P}-43-appliances-on-orbit`);
+console.log(JSON.stringify((await g.snap()).strip));
+console.log('errors',JSON.stringify(await g.close()));

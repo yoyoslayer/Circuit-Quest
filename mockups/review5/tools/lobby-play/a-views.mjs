@@ -1,0 +1,20 @@
+import {launch} from '../cap.mjs';
+// Title, start, survey, orbits, close-ups.
+const g=await launch('lobby',{fullfx:true,start:false});
+await g.ev('return drive.advance(1)');await g.shot('lobby-play-00-title');
+await g.page.getByRole('button',{name:'Start playing'}).click();
+await g.advance(.3);await g.shot('lobby-play-01-start');
+const s=await g.snap();console.log(JSON.stringify({hub:s.hub,player:s.player,props:s.props,fps:s.fps,dc:s.drawCalls,alarm:s.alarmed}));
+console.log('card:',await g.page.locator('.objective').innerText());
+console.log('prompt:',await g.page.locator('.prompt-pill').isVisible(), await g.page.locator('.prompt-pill').textContent());
+await g.survey();await g.shot('lobby-play-02-survey');console.log('survey dc',(await g.snap()).drawCalls);
+await g.survey();
+await g.orbit(400,0);await g.shot('lobby-play-03-orbit-left');
+await g.orbit(-800,0);await g.shot('lobby-play-04-orbit-right');
+await g.orbit(400,120);await g.shot('lobby-play-05-orbit-high');
+await g.orbit(0,-250);await g.shot('lobby-play-06-orbit-low');
+await g.orbit(0,130);
+await g.zoom(-1500);await g.shot('lobby-play-07-zoom9-spawn');
+await g.zoom(1500);await g.shot('lobby-play-08-zoom38');
+console.log('audit',JSON.stringify(await g.audit(.02)));
+console.log(await g.close());

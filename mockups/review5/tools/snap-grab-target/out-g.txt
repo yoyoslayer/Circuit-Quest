@@ -1,0 +1,18 @@
+GARAGE stand while carrying
+z9 y0: stand:ok marker:ok
+z9 y45: stand:HID(Mesh h0.6) marker:ok
+z9 y90: stand:ok marker:ok
+z9 y135: stand:HID(Mesh h0.04) marker:ok
+z9 y180: stand:ok marker:ok
+z9 y225: stand:ok marker:ok
+z9 y270: stand:ok marker:ok
+z9 y315: stand:ok marker:ok
+z38 y0: stand:ok marker:ok
+z38 y45: stand:ok marker:ok
+z38 y90: stand:ok marker:ok
+z38 y135: stand:ok marker:ok
+z38 y180: stand:ok marker:ok
+z38 y225: stand:ok marker:ok
+z38 y270: stand:ok marker:ok
+z38 y315: stand:HID(Mesh h0.67) marker:ok
+[]

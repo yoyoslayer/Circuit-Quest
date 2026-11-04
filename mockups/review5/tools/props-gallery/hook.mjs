@@ -1,0 +1,2 @@
+// Grabs the running Game instance (read-only inspection) by wrapping Game.prototype.snapshot once.
+export async function grab(g){return g.page.evaluate(async()=>{const m=await import('/src/game.ts');const o=m.Game.prototype.snapshot;if(!o.__w){m.Game.prototype.snapshot=function(){window.__g=this;return o.call(this);};m.Game.prototype.snapshot.__w=1;}window.__circuitCrew.snapshot();return !!window.__g;});}

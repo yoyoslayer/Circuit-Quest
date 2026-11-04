@@ -1,0 +1,36 @@
+MEETING spawn step1
+z9 y0: strip:ok marker:ok pip:ok
+z9 y45: strip:ok marker:ok pip:ok
+z9 y90: strip:HID(Mesh h0.38) marker:ok pip:ok
+z9 y135: strip:ok marker:ok pip:HID(Mesh h0.04)
+z9 y180: strip:HID(Mesh h1.94) marker:ok pip:HID(Mesh h1.94)
+z9 y225: strip:ok marker:ok pip:ok
+z9 y270: strip:ok marker:ok pip:ok
+z9 y315: strip:ok marker:ok pip:ok
+z38 y0: strip:ok marker:ok pip:ok
+z38 y45: strip:ok marker:ok pip:ok
+z38 y90: strip:ok marker:ok pip:ok
+z38 y135: strip:ok marker:ok pip:ok
+z38 y180: strip:ok marker:ok pip:ok
+z38 y225: strip:ok marker:ok pip:ok
+z38 y270: strip:ok marker:ok pip:ok
+z38 y315: strip:ok marker:ok pip:ok
+occl y180 {"cam":[-10.9,3.7,-12],"pip":[-10,0.8,-5.8],"yaw":3.28,"pitch":0,"zoom":9,"blocked":{"feet":[{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":2.59,"bbH":1.94,"bbTop":3,"at":[-10.6,-10.1]},{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":2.45,"bbH":1.95,"bbTop":3,"at":[-10.6,-9.9]},{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":2.42,"bbH":0.06,"bbTop":2.45,"at":[-10.6,-9.8]}],"chest":[{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":2.8,"bbH":1.94,"bbTop":3,"at":[-10.6,-10.1]},{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":2.69,"bbH":1.95,"bbTop":3,"at":[-10.6,-9.9]},{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":2.67,"bbH":0.09,"bbTop":2.72,"at":[-10.6,-9.8]}],"head":[{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":3.05,"bbH":0.14,"bbTop":3.14,"at":[-10.6,-10.2]},{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":3,"bbH":1.94,"bbTop":3,"at":[-10.6,-10.1]},{"name":"Mesh","mat":"MeshToonMaterial","op":1,"occluder":false,"hitY":2.93,"bbH":1.95,"bbTop":3,"at":[-10.6,-9.9]}]}}
+MEETING step2 from (-9,-6)
+z9 y0: plug:ok marker:ok
+z9 y45: plug:ok marker:ok
+z9 y90: plug:ok marker:ok
+z9 y135: plug:HID(Mesh h0.14) marker:HID(Mesh h0.04)
+z9 y180: plug:ok marker:ok
+z9 y225: plug:HID(Mesh h0.04 occ op1) marker:ok
+z9 y270: plug:HID(Mesh h0.55 occ op1) marker:ok
+z9 y315: plug:ok marker:ok
+z38 y0: plug:ok marker:ok
+z38 y45: plug:ok marker:ok
+z38 y90: plug:ok marker:ok
+z38 y135: plug:ok marker:ok
+z38 y180: plug:ok marker:ok
+z38 y225: plug:ok marker:ok
+z38 y270: plug:ok marker:ok
+z38 y315: plug:ok marker:ok
+[]

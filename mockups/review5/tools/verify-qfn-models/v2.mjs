@@ -1,0 +1,11 @@
+import {launch} from '../cap.mjs';
+const g=await launch('qfn',{fullfx:false});
+await g.advance(.5);
+const u=(await g.page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name))).find(n=>/src\/game\.ts/.test(n));
+await g.page.evaluate(async(u)=>{const M=await import(u);const G=M.Game;const o=G.prototype.render;G.prototype.render=function(...a){window.__game=this;return o.apply(this,a);};window.__circuitCrew.drive.advance(.05);G.prototype.render=o;},u);
+const chair=()=>g.page.evaluate(()=>{const p=window.__game.props.find(p=>p.spec.kind==='chair'&&p.spec.x===-3.4);const t=p.body.translation(),r=p.body.rotation();return {x:+t.x.toFixed(2),y:+t.y.toFixed(2),z:+t.z.toFixed(2),up:+(1-2*(r.x*r.x+r.z*r.z)).toFixed(2)};});
+console.log('before',JSON.stringify(await chair()));
+await g.walk(-8.8,2.95,.5);await g.key('KeyE',.3);
+const t0=Date.now();await g.walk(1.3,-.6,.5);console.log('after carry walk',JSON.stringify(await chair()));
+await g.advance(2);console.log('settled',JSON.stringify(await chair()));
+console.log('errors',JSON.stringify(await g.close()));

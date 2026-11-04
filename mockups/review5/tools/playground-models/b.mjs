@@ -1,0 +1,21 @@
+// Close-ups of every fixture: walk Pip next to each, zoom fully in, orbit.
+import {launch} from '../cap.mjs';
+const K='playground-models';let n=10;const nn=()=>String(n++).padStart(2,'0');
+const g=await launch('playground',{fullfx:true});
+await g.advance(1);await g.zoom(-2000);
+await g.shot(`${K}-${nn()}-close-spawn-reel`);
+await g.orbit(-350,0);await g.shot(`${K}-${nn()}-close-reel-side`);
+await g.orbit(-350,0);await g.shot(`${K}-${nn()}-close-reel-back`);
+await g.orbit(700,0);
+const visit=async(x,z,name,orbits=[0])=>{const w=await g.walk(x,z,.4,25);console.log(name,'arrived',w.arrived,JSON.stringify(w.state.player));
+  for(const o of orbits){if(o)await g.orbit(o,0);await g.shot(`${K}-${nn()}-close-${name}${o?'-o'+o:''}`);}};
+await visit(-7,-3.9,'cage',[0,-400]);
+await g.orbit(400,0);
+await visit(-8.6,0,'howto-board',[0,300]);
+await g.orbit(-300,0);
+await visit(-3.6,-8.7,'practice-wall',[0]);
+await visit(-1.3,-2.7,'pillar-a',[0,600]);
+await g.orbit(-600,0);
+await visit(-1.2,2.4,'beanbag-lounge',[0,500]);
+await g.orbit(-500,0);
+console.log('errors',JSON.stringify(await g.close()));

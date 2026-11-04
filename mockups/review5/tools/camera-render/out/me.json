@@ -1,0 +1,645 @@
+{
+ "level": "meeting",
+ "start": {
+  "stats": {
+   "draw": 1156,
+   "tris": 3102368,
+   "fps": 60,
+   "points": 3,
+   "mats": {
+    "MeshToonMaterial": 493,
+    "MeshBasicMaterial": 141
+   },
+   "occluders": 15,
+   "shell": 2,
+   "quality": 0,
+   "camNear": 0.1
+  },
+  "cam": {
+   "cam": [
+    -7.44,
+    9.25,
+    8.95
+   ],
+   "focus": [
+    -9.47,
+    0.36,
+    -5.45
+   ],
+   "yaw": 0.14,
+   "pitch": 0,
+   "zoom": 22,
+   "survey": false,
+   "w": 33,
+   "d": 20
+  },
+  "occ": {
+   "cam": [
+    -7.4,
+    9.2,
+    8.9
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": 0.14,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  "snap": {
+   "drawCalls": 1156,
+   "fps": 60.009837678307896,
+   "props": 310
+  }
+ },
+ "survey": {
+  "stats": {
+   "draw": 1421,
+   "tris": 3286618,
+   "fps": 60,
+   "points": 3,
+   "mats": {
+    "MeshToonMaterial": 493,
+    "MeshBasicMaterial": 140
+   },
+   "occluders": 15,
+   "shell": 2,
+   "quality": 0,
+   "camNear": 0.1
+  },
+  "cam": {
+   "cam": [
+    3.58,
+    21.43,
+    27.02
+   ],
+   "focus": [
+    0.04,
+    0.01,
+    0.89
+   ],
+   "yaw": 0.14,
+   "pitch": 0,
+   "zoom": 22,
+   "survey": true,
+   "w": 33,
+   "d": 20
+  }
+ },
+ "sweepDefault": [
+  {
+   "cam": [
+    -8.1,
+    11.1,
+    12.9
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -0.65,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -17.2,
+    9.8,
+    4.4
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -1.43,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -20.8,
+    9.4,
+    -6.2
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -2.22,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -15.8,
+    9.2,
+    -17.6
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -3,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -7,
+    9.2,
+    -18
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -3.79,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    0.1,
+    9.2,
+    -13.1
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -4.58,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    3.9,
+    9.2,
+    -2.3
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -5.36,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -1.7,
+    9.2,
+    4.5
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -6.15,
+   "pitch": 0,
+   "zoom": 22,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  }
+ ],
+ "low": {
+  "cam": [
+   -5.8,
+   6.7,
+   8.9
+  ],
+  "pip": [
+   -10,
+   0.8,
+   -5.8
+  ],
+  "yaw": -6.15,
+  "pitch": -0.3,
+  "zoom": 22,
+  "blocked": {
+   "feet": [],
+   "chest": [],
+   "head": []
+  }
+ },
+ "sweep9": [
+  {
+   "cam": [
+    -10.7,
+    3.4,
+    3.2
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -6.93,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -14.3,
+    2.9,
+    -1.3
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -7.72,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -15.4,
+    2.8,
+    -6.1
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -8.51,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": true,
+      "hitY": 1.12,
+      "bbH": 0.55,
+      "bbTop": 1.35,
+      "at": [
+       -12,
+       -5.9
+      ]
+     }
+    ],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -13.3,
+    2.8,
+    -10
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -9.29,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 2.66,
+      "bbH": 1.95,
+      "bbTop": 3,
+      "at": [
+       -13.2,
+       -9.9
+      ]
+     },
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 2.3,
+      "bbH": 2.3,
+      "bbTop": 2.3,
+      "at": [
+       -12.8,
+       -9.3
+      ]
+     }
+    ],
+    "chest": [
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 2.69,
+      "bbH": 1.95,
+      "bbTop": 3,
+      "at": [
+       -13.2,
+       -9.9
+      ]
+     },
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 2.3,
+      "bbH": 2.3,
+      "bbTop": 2.3,
+      "at": [
+       -12.5,
+       -9
+      ]
+     }
+    ],
+    "head": [
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 2.71,
+      "bbH": 1.95,
+      "bbTop": 3,
+      "at": [
+       -13.2,
+       -9.9
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cam": [
+    -8.6,
+    2.8,
+    -11.9
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -10.08,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 1.74,
+      "bbH": 2.2,
+      "bbTop": 2.17,
+      "at": [
+       -9.1,
+       -9.6
+      ]
+     },
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 1.57,
+      "bbH": 1.6,
+      "bbTop": 1.57,
+      "at": [
+       -9.2,
+       -9.2
+      ]
+     },
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 1.57,
+      "bbH": 0.04,
+      "bbTop": 1.57,
+      "at": [
+       -9.2,
+       -9.2
+      ]
+     }
+    ],
+    "chest": [
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 2.01,
+      "bbH": 2.2,
+      "bbTop": 2.17,
+      "at": [
+       -9.1,
+       -9.6
+      ]
+     }
+    ],
+    "head": [
+     {
+      "name": "Mesh",
+      "mat": "MeshToonMaterial",
+      "op": 1,
+      "occluder": false,
+      "hitY": 2.17,
+      "bbH": 2.2,
+      "bbTop": 2.17,
+      "at": [
+       -9.2,
+       -9
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cam": [
+    -5.5,
+    2.8,
+    -9.4
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -10.86,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -4.5,
+    2.8,
+    -5.2
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -11.65,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  },
+  {
+   "cam": [
+    -6.6,
+    2.8,
+    -1.5
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -12.44,
+   "pitch": -0.3,
+   "zoom": 9,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  }
+ ],
+ "z38": {
+  "cam": {
+   "cam": [
+    -9.23,
+    7.36,
+    -0.13
+   ],
+   "focus": [
+    -9.69,
+    0.64,
+    -5.59
+   ],
+   "yaw": -12.44,
+   "pitch": 0.45,
+   "zoom": 38,
+   "survey": false,
+   "w": 33,
+   "d": 20
+  },
+  "stats": {
+   "draw": 1026,
+   "tris": 2970312,
+   "fps": 60,
+   "points": 3,
+   "mats": {
+    "MeshToonMaterial": 493,
+    "MeshBasicMaterial": 141
+   },
+   "occluders": 15,
+   "shell": 2,
+   "quality": 0,
+   "camNear": 0.1
+  },
+  "occ": {
+   "cam": [
+    -9.2,
+    7.4,
+    -0.1
+   ],
+   "pip": [
+    -10,
+    0.8,
+    -5.8
+   ],
+   "yaw": -12.44,
+   "pitch": 0.45,
+   "zoom": 38,
+   "blocked": {
+    "feet": [],
+    "chest": [],
+    "head": []
+   }
+  }
+ },
+ "errors": []
+}

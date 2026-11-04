@@ -1,0 +1,21 @@
+import {launch} from '../cap.mjs';
+const P='verify-qfn-models';
+const g=await launch('qfn',{fullfx:true});
+await g.advance(.6);
+const s=await g.snap();console.log('dc start',s.drawCalls,'fps',s.fps);
+await g.shot(`${P}-01-start`);
+const u=(await g.page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name))).find(n=>/src\/game\.ts/.test(n));
+const props=await g.page.evaluate(async(u)=>{const M=await import(u);const G=M.Game;const o=G.prototype.render;let game;G.prototype.render=function(...a){game=this;return o.apply(this,a);};window.__circuitCrew.drive.advance(.05);G.prototype.render=o;window.__game=game;
+  return game.props.map(p=>{const t=p.body.translation();return {k:p.spec.kind,id:p.spec.id,x:+t.x.toFixed(2),z:+t.z.toFixed(2),c:p.spec.color};});},u);
+const cnt={};for(const p of props)cnt[p.k]=(cnt[p.k]||0)+1;console.log('total',props.length,JSON.stringify(cnt));
+const boxes=props.filter(p=>p.k==='box');console.log('nonkraft boxes',boxes.filter(b=>!['#c98f5a','#d7a56d','#e0b47a'].includes(b.c)).length,'of',boxes.length);
+const nl=props.filter(p=>!['paper','mug'].includes(p.k));const lone=nl.filter(p=>!nl.some(q=>q!==p&&Math.hypot(q.x-p.x,q.z-p.z)<1.2));console.log('nonlitter',nl.length,'lone',lone.length);
+for(const p of props)if(['bookshelf','cabinet','reel','splitter'].includes(p.k)||(p.k==='box'&&p.z<-4.5&&Math.abs(p.x)<9))console.log(p.k,p.x,p.z,p.c);
+console.log('yellowish',props.filter(p=>/^#ffc/.test(p.c??'')).map(p=>p.k+'@'+p.x+','+p.z).join(' '));
+await g.survey();const s2=await g.snap();console.log('dc survey',s2.drawCalls);await g.shot(`${P}-02-survey`);
+await g.key('Tab',.8);
+// pip at bench stand side, crate delivered route
+await g.walk(-8.8,2.95,.5);await g.key('KeyE',.3);await g.walk(1.3,-.6,.5);await g.key('KeyE',.4);await g.advance(1);
+await g.shot(`${P}-03-gamecam-delivered`);
+const s3=await g.snap();console.log('chair',JSON.stringify((s3.items||[]).filter(i=>i.kind==='chair').map(i=>i.pos)));
+console.log('errors',JSON.stringify(await g.close()));

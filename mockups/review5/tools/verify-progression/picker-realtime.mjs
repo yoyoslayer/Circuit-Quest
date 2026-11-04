@@ -1,0 +1,16 @@
+import {chromium} from '@playwright/test';
+const b=await chromium.launch({args:['--enable-webgl','--ignore-gpu-blocklist','--enable-gpu','--use-angle=d3d11']});
+const page=await b.newPage({viewport:{width:1440,height:900}});
+await page.goto('http://127.0.0.1:4173/?level=lobby');await page.waitForSelector('body[data-ready="true"]');
+const st=page.getByRole('button',{name:'Start playing'});if(await st.count())await st.click();
+await page.waitForTimeout(800);
+const pos=()=>page.evaluate(()=>window.__circuitCrew.snapshot().player);
+console.log('start',JSON.stringify(await pos()));
+await page.keyboard.down('KeyD');for(let i=0;i<60;i++){await page.waitForTimeout(50);const p=await pos();if(p.x>7.1)break;}await page.keyboard.up('KeyD');
+await page.waitForTimeout(300);console.log('near ws',JSON.stringify(await pos()));
+await page.keyboard.press('KeyE');await page.waitForTimeout(400);
+console.log('picker visible',await page.locator('.workshop-picker').isVisible().catch(()=>false));
+const p0=await pos();await page.keyboard.down('KeyW');await page.waitForTimeout(900);await page.keyboard.up('KeyW');await page.waitForTimeout(300);
+const p1=await pos();console.log('before W',JSON.stringify(p0),'after W',JSON.stringify(p1),'picker still',await page.locator('.workshop-picker').isVisible().catch(()=>false));
+await page.screenshot({path:'mockups/review5/shots/verify-progression-10-picker-after-W-realtime.png'});
+await b.close();

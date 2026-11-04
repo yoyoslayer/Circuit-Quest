@@ -1,0 +1,10 @@
+import {launch} from '../cap.mjs';
+const P='observatory-models-';
+const g=await launch('observatory',{fullfx:true});
+await g.advance(.5);await g.zoom(-2000);
+let r=await g.walk(-3.0,-6.7,.4);console.log('a',JSON.stringify(r.state.player));
+r=await g.walk(-5.2,-6.9,.3,20);console.log('b',r.arrived,JSON.stringify(r.state.player));
+await g.shot(P+'66-pip-inside-dome-shell');
+await g.orbit(300,0);await g.shot(P+'66b-pip-inside-dome-shell-o');
+const n=await g.page.evaluate(()=>0);
+console.log(JSON.stringify(await g.close()));

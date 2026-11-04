@@ -1,0 +1,15 @@
+import {launch} from '../cap.mjs';
+const g=await launch('playground',{fullfx:true});
+await g.advance(.5);await g.key('KeyF');
+for(const [x,z] of [[-5,-1],[-4,-4],[5.8,-5.5]])await g.walk(x,z);
+await g.zoom(-1500);await g.orbit(-150,0);
+await g.shot('characters-60-plug-at-socket-before');
+await g.key('KeyF',.05);await g.shot('characters-61-plug-in-moment');
+await g.advance(.6);
+await g.walk(6.6,-5.9,.4);await g.shot('characters-62-at-switch');
+await g.key('KeyE',0);await g.advance(.25);
+await g.shot('characters-63-win-0p25s');
+await g.advance(1.2);await g.shot('characters-64-win-push');
+await g.advance(2.5);await g.shot('characters-65-win-result-card');
+const s=await g.snap();console.log('won',s.won,s.player);
+console.log(await g.close());

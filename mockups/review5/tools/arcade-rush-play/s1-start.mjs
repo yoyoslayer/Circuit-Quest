@@ -1,0 +1,15 @@
+import {launch} from '../cap.mjs';import {txt,toBench} from './common.mjs';
+const P='arcade-rush-play-';const log=(...a)=>console.log(...a);
+const g=await launch('arcade-rush',{fullfx:true});
+await g.advance(.5);await g.shot(P+'01-start');
+log('start',JSON.stringify(await txt(g)));
+let s=await g.snap();log('snap',JSON.stringify({t:s.time,p:s.player,props:s.props,items:s.items,fps:s.fps,dc:s.drawCalls,rope:s.rope,st:{rush:s.station.rush,job:s.station.job,setup:s.station.setup}}));
+log('audit',JSON.stringify(await g.audit(.02)).slice(0,800));
+await g.survey();await g.shot(P+'02-survey');s=await g.snap();log('survey dc',s.drawCalls,s.fps);await g.survey();
+await g.orbit(350,0);await g.shot(P+'03-orbit-right');
+await g.orbit(-700,0);await g.shot(P+'04-orbit-left');await g.orbit(350,0);
+await toBench(g,log);
+log('bench',JSON.stringify(await txt(g)));
+await g.shot(P+'05-bench-first');
+s=await g.snap();log('station',JSON.stringify({t:s.time,job:s.station.job,setup:s.station.setup,fix:s.station.fix,dc:s.drawCalls}));
+log('errors',JSON.stringify(await g.close()));

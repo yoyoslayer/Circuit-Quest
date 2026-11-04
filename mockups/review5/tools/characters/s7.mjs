@@ -1,0 +1,12 @@
+import {launch} from '../cap.mjs';
+const g=await launch('meeting',{fullfx:true});
+await g.advance(.5);
+await g.walk(-8.5,-7,.4);await g.walk(-6.85,-7.05,.25);
+let s=await g.snap();console.log(s.player);
+await g.zoom(-1500);await g.orbit(-150,0);
+await g.shot('characters-50-meeting-before-chair-grab');
+await g.key('KeyE');await g.advance(.3);s=await g.snap();console.log('held',s.held);
+await g.walk(-8.6,-7.4,.4);await g.advance(.5);
+await g.shot('characters-51-meeting-blob-floating-no-chair');
+await g.orbit(260,0);await g.shot('characters-52-meeting-blob-floating-no-chair-side');
+console.log(await g.close());

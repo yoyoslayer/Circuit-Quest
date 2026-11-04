@@ -1,0 +1,11 @@
+import {launch} from '../cap.mjs';
+export {launch};
+export const W=async(g,x,z,r=.5,l=40)=>{const res=await g.walk(x,z,r,l);if(!res.arrived)console.log('STUCK toward',x,z,JSON.stringify(res.state.player));return res;};
+export const R=async(g,pts,r=.5)=>{for(const [x,z] of pts)await W(g,x,z,r);};
+export const L=async g=>(await g.snap()).lunch;
+export const brief=async(g,tag='')=>{const s=await g.snap(),l=s.lunch;console.log(tag,JSON.stringify({t:+s.time.toFixed(1),p:{x:+s.player.x.toFixed(1),z:+s.player.z.toFixed(1)},held:s.held,lheld:l.held,src:l.sources.map(q=>q.id+(q.tripped?':TRIP':':ok')),loads:l.loads.map(q=>q.id+':'+q.state),cables:l.cables.map(c=>c.id+':'+c.ports.join('>')+(c.dead?':DEAD':'')+':h'+c.heat.toFixed(2)),job:{temp:+l.job.temperature.toFixed(2),bake:+l.job.bake.toFixed(1),tray:l.job.tray,failed:l.job.failed,done:l.job.done},water:+l.water.toFixed(2),cap:l.loads.find(q=>q.id==='lift').capacitor,capDocked:l.capDocked,capHint:l.capHint,ev:l.events.slice(-4).map(e=>e.kind+':'+e.id),won:s.won,damage:s.damage,cost:s.cost}));return s;};
+export const hudText=g=>g.page.evaluate(()=>[...document.querySelectorAll('.objective .cur,.prompt-pill')].map(e=>e.hidden?'':e.textContent).join(' | '));
+export const wedge=async g=>{await W(g,-3,7,.4);await g.key('KeyE');await W(g,0,1.4);await g.key('KeyE');await g.advance(.5);};
+export const mop=async g=>{await W(g,2,8,.4);await g.key('KeyE');await W(g,.3,2,.45);await g.advance(4);await W(g,2,2);await g.key('KeyE');};
+export const takeThick=async g=>{await W(g,-10,7.5,.3);await g.key('KeyF');};
+export const feedKitchen=async g=>{await R(g,[[1,3],[.2,-1.2],[-3.5,-3]],.45);await g.key('KeyF');await g.advance(.4);};

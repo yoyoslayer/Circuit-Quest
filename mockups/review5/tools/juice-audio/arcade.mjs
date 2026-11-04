@@ -1,0 +1,25 @@
+import {launch,now} from './hook.mjs';
+const g=await launch('arcade');await g.advance(.3);await g.drain('start');
+const route=async pts=>{for(const [x,z] of pts){const r=await g.walk(x,z,.5);if(!r.arrived)console.log('STUCK',x,z);}};
+const steps=async l=>{for(const [n,a] of l){const r=await g.act(n,a);if(!r.ok)console.log('FAIL act',n,a);}};
+const place=(...ps)=>ps.flatMap((p,k)=>p.flatMap(v=>[['pick',v],['slot',k]]));
+await route([[-5.5,6.6],[-7.2,5.8]]);await g.walk(-8.3,4.4,.3);await g.page.keyboard.press('KeyE');await g.drain('grab tray');
+await route([[-7.2,5.8],[-5.5,6.4]]);await g.walk(1.2,-1.3,.5);await g.page.keyboard.press('KeyE');await g.advance(.2);await g.drain('tray onto bench (unlock)');
+await g.walk(0,-1.55,.4);await g.page.keyboard.press('KeyE');await g.advance(.3);await g.drain('sit at bench');
+await steps([['power']]);await g.advance(.5);await now(g,'juice-audio-14-arcade-fuse-trip-instant');await g.drain('power -> FUSE TRIP');
+await steps([['slot','across'],...place([220])]);await g.advance(2.6);await g.drain('fix + fuse cools');await g.advance(3.2);await g.drain('play test done');
+await steps([['signoff']]);await now(g,'juice-audio-15-arcade-signoff-instant');await g.page.waitForTimeout(1200);await g.drain('SIGN OFF cabinet 1');
+await steps([['flip'],...place([47]),['power']]);await g.advance(3.4);await steps([['signoff']]);await g.page.waitForTimeout(1200);await g.drain('cab 2 signoff');
+await steps([['power']]);await g.advance(2.4);await now(g,'juice-audio-16-arcade-block-pop');await g.drain('claw: BLOCK POP');
+await steps([...place([470],[470]),['power']]);await g.advance(3.4);await steps([['signoff']]);await g.page.waitForTimeout(1200);await g.drain('cab3 signoff');
+await steps([['slot',0],...place([470],[470]),['power']]);await g.advance(3.4);await steps([['signoff']]);await g.page.waitForTimeout(1200);await g.drain('cab4 signoff');
+await steps([...place([470],[470]),['power']]);await g.advance(3.4);await steps([['signoff']]);await now(g,'juice-audio-17-arcade-final-signoff-instant');await g.drain('cab5 signoff (same frame?)');
+await g.advance(.3);await g.drain('win step');let s=await g.snap();console.log('won',s.won);await g.advance(.2);await g.shot('juice-audio-18-arcade-win');
+await g.page.waitForTimeout(3000);await g.drain('result');await g.shot('juice-audio-19-arcade-result');
+console.log('errors',await g.close());
+// LED pop in a fresh run
+const h=await launch('arcade');await h.advance(.3);
+for(const [x,z] of [[-5.5,6.6],[-7.2,5.8]])await h.walk(x,z,.5);await h.walk(-8.3,4.4,.3);await h.page.keyboard.press('KeyE');for(const [x,z] of [[-7.2,5.8],[-5.5,6.4]])await h.walk(x,z,.5);await h.walk(1.2,-1.3,.5);await h.page.keyboard.press('KeyE');await h.advance(.2);await h.walk(0,-1.55,.4);await h.page.keyboard.press('KeyE');await h.advance(.3);await h.drain('setup');
+for(const [n,a] of [['slot','across'],['pick',47],['slot',0],['power']])await h.act(n,a);await h.advance(1.5);await now(h,'juice-audio-20-arcade-led-overdrive');await h.drain('47 ohm alone: LED over rating');await h.advance(2);await h.drain('LED +2s');
+const st=(await h.snap()).station;console.log('mistakes',st.mistakes,'toast',await h.page.evaluate(()=>document.querySelector('.station-toast')?.textContent));
+console.log('errors',await h.close());

@@ -1,0 +1,13 @@
+import {launch} from '../cap.mjs';
+const g=await launch('playground',{fullfx:true});const P='props-gallery-4';
+await g.advance(.5);await g.shot(P+'0-playground-start');
+await g.survey();await g.shot(P+'1-playground-survey');await g.key('Tab',1);
+console.log(JSON.stringify((await g.walk(-7.2,-0.6,.5)).arrived));
+await g.shot(P+'2-playground-lounge-gamecam');
+await g.zoom(-1500);await g.shot(P+'3-playground-lounge-close');
+await g.orbit(400,0);await g.shot(P+'4-playground-lounge-close-o400');
+await g.zoom(1500);await g.orbit(-400,0);
+console.log(JSON.stringify((await g.walk(-1.5,0.6,.5)).arrived));
+await g.zoom(-1500);await g.shot(P+'5-playground-mid-close');
+await g.orbit(700,0);await g.shot(P+'6-playground-mid-close-o700');
+console.log(await g.close());

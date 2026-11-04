@@ -1,0 +1,459 @@
+start 
+ CARD: Carry the receiver pod into the brick storeroom
+
+★
+★
+★ 
+ PROMPT: (hidden) 
+ TOAST:  
+ PANEL: DELIVERY 1/3 · TO THE STOREROOM
+Through the brick wall 
+ READING: {"margin":null,"blocked":"brick","missed":false,"spots":[],"detectorOk":true,"podOk":false}
+podPad store
+desk job1 
+ CARD: Delivery 1: Through the brick wall
+
+★
+★
+★ 
+ PROMPT: Drag
+Aim, or another band 
+ TOAST:  
+ PANEL: DELIVERY 1/3 · TO THE STOREROOM
+Through the brick wall
+
+The storeroom keeper needs a message. The pod sits behind a solid brick wall.
+
+Pod
+on the storeroom pad
+Band
+Visible 530 nm
+Power
+1 mW
+Path
+blocked: brick wall
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"brick","missed":false,"spots":[],"detectorOk":true,"podOk":true}
+fail vis 
+ CARD: Delivery 1: Through the brick wall
+
+★
+★
+★ 
+ PROMPT: Drag
+Aim, or another band 
+ TOAST: Not delivered. Brick wall: Brick is opaque to visible: the beam stops at the wall. 
+ PANEL: DELIVERY 1/3 · TO THE STOREROOM
+Through the brick wall
+
+The storeroom keeper needs a message. The pod sits behind a solid brick wall.
+
+Pod
+on the storeroom pad
+Band
+Visible 530 nm
+Power
+100 mW
+Path
+blocked: brick wall
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"brick","missed":false,"spots":[],"detectorOk":true,"podOk":true}
+radio sel 
+ CARD: Delivery 1: Through the brick wall
+
+★
+★
+★ 
+ PROMPT: Enter
+Send 
+ TOAST: Radio 100 MHz: λ = 3 m, f = 100 MHz. Every band obeys c = f × λ. 
+ PANEL: DELIVERY 1/3 · TO THE STOREROOM
+Through the brick wall
+
+The storeroom keeper needs a message. The pod sits behind a solid brick wall.
+
+Pod
+on the storeroom pad
+Band
+Radio 100 MHz
+Power
+1 mW
+Path
+clear
+Link margin
+11.0 dB 
+ READING: {"margin":10.98,"blocked":null,"missed":false,"spots":[],"detectorOk":true,"podOk":true}
+radio sent 
+ CARD: Move the pod into the glass lab, and stand a mirror on a floor mark
+
+★
+★
+★ 
+ PROMPT: E
+Fetch the pod 
+ TOAST: “STOCK CHECK AT 4” · Elegant (11 dB) 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab
+
+The glass lab has its metal shutter down. Only a small hatch opens. The lab is sunny.
+
+Pod
+not on the pad
+Band
+Radio 100 MHz
+Power
+1 mW
+Lab hatch
+shut
+Mirrors in beam
+0
+Path
+blocked: metal shutter
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"metal","missed":false,"spots":[],"detectorOk":true,"podOk":false}
+hall after job1 
+ CARD: Move the pod into the glass lab, and stand a mirror on a floor mark
+
+★
+★
+★ 
+ PROMPT: E
+Work at the desk 
+ TOAST: “STOCK CHECK AT 4” · Elegant (11 dB) 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab 
+ READING: {"margin":null,"blocked":"metal","missed":false,"spots":[],"detectorOk":true,"podOk":false}
+podPad lab
+held mirror2
+mirror carry 
+ CARD: Move the pod into the glass lab, and stand a mirror on a floor mark
+
+★
+★
+★ 
+ PROMPT: E
+Stand the mirror on the mark 
+ TOAST: (hidden) 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab 
+ READING: {"margin":null,"blocked":"metal","missed":false,"spots":[],"detectorOk":true,"podOk":true}
+mirrors [ 'A' ]
+job2 initial 
+ CARD: Delivery 2: Into the shuttered lab
+
+★
+★
+★ 
+ PROMPT: 1–5
+Another band 
+ TOAST: (hidden) 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab
+
+The glass lab has its metal shutter down. Only a small hatch opens. The lab is sunny.
+
+Pod
+on the glass lab pad
+Band
+Radio 100 MHz
+Power
+1 mW
+Lab hatch
+shut
+Mirrors in beam
+0
+Path
+blocked: metal shutter
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"metal","missed":false,"spots":[],"detectorOk":true,"podOk":true}
+job2 nir 
+ CARD: Delivery 2: Into the shuttered lab
+
+★
+★
+★ 
+ PROMPT: Drag
+Aim, or another band 
+ TOAST: Near IR 850 nm: λ = 850 nm, f = 353 THz. Every band obeys c = f × λ. 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab
+
+The glass lab has its metal shutter down. Only a small hatch opens. The lab is sunny.
+
+Pod
+on the glass lab pad
+Band
+Near IR 850 nm
+Power
+1 mW
+Lab hatch
+shut
+Mirrors in beam
+0
+Path
+blocked: metal shutter
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"metal","missed":false,"spots":[],"detectorOk":true,"podOk":true}
+job2 aimA 
+ CARD: Delivery 2: Into the shuttered lab
+
+★
+★
+★ 
+ PROMPT: Drag
+Aim, or another band 
+ TOAST: Near IR 850 nm: λ = 850 nm, f = 353 THz. Every band obeys c = f × λ. 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab
+
+The glass lab has its metal shutter down. Only a small hatch opens. The lab is sunny.
+
+Pod
+on the glass lab pad
+Band
+Near IR 850 nm
+Power
+1 mW
+Lab hatch
+shut
+Mirrors in beam
+1
+Path
+misses the pod
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":null,"missed":true,"spots":["A"],"detectorOk":true,"podOk":true}
+job2 mirror->lab 
+ CARD: Delivery 2: Into the shuttered lab
+
+★
+★
+★ 
+ PROMPT: Drag
+Aim, or another band 
+ TOAST: Near IR 850 nm: λ = 850 nm, f = 353 THz. Every band obeys c = f × λ. 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab
+
+The glass lab has its metal shutter down. Only a small hatch opens. The lab is sunny.
+
+Pod
+on the glass lab pad
+Band
+Near IR 850 nm
+Power
+1 mW
+Lab hatch
+shut
+Mirrors in beam
+1
+Path
+blocked: metal shutter
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"metal","missed":false,"spots":["A"],"detectorOk":true,"podOk":true}
+job2 hatch 
+ CARD: Delivery 2: Into the shuttered lab
+
+★
+★
+★ 
+ PROMPT: Enter
+Send 
+ TOAST: Hatch open: a 30 cm hole in the lab's metal shutter. 
+ PANEL: DELIVERY 2/3 · TO THE GLASS LAB
+Into the shuttered lab
+
+The glass lab has its metal shutter down. Only a small hatch opens. The lab is sunny.
+
+Pod
+on the glass lab pad
+Band
+Near IR 850 nm
+Power
+1 mW
+Lab hatch
+open
+Mirrors in beam
+1
+Path
+clear
+Link margin
+10.8 dB 
+ READING: {"margin":10.78,"blocked":null,"missed":false,"spots":["A"],"detectorOk":true,"podOk":true}
+job2 sent 
+ CARD: Move the pod into the quiet room
+
+★
+★
+★ 
+ PROMPT: E
+Fetch the pod 
+ TOAST: “LAB TEA IS READY” · Elegant (10.8 dB) 
+ PANEL: DELIVERY 3/3 · TO THE QUIET ROOM
+Past the smoke, into the quiet room
+
+Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage. Find a band that gets through both.
+
+Pod
+not on the pad
+Band
+Near IR 850 nm
+Power
+1 mW
+Lab hatch
+open
+Path
+clear
+Link margin
+2.0 dB 
+ READING: {"margin":1.96,"blocked":null,"missed":false,"spots":[],"detectorOk":true,"podOk":false}
+podPad quiet
+job3 micro 
+ CARD: Delivery 3: Past the smoke, into the quiet room
+
+★
+★
+★ 
+ PROMPT: 1–5
+Another band 
+ TOAST: Microwave 2.4 GHz: λ = 125 mm, f = 2.4 GHz. Every band obeys c = f × λ. 
+ PANEL: DELIVERY 3/3 · TO THE QUIET ROOM
+Past the smoke, into the quiet room
+
+Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage. Find a band that gets through both.
+
+Pod
+on the quiet room pad
+Band
+Microwave 2.4 GHz
+Power
+100 mW
+Lab hatch
+open
+Path
+blocked: mesh cage
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"mesh","missed":false,"spots":[],"detectorOk":true,"podOk":true}
+job3 micro fail 
+ CARD: Delivery 3: Past the smoke, into the quiet room
+
+★
+★
+★ 
+ PROMPT: 1–5
+Another band 
+ TOAST: Not delivered. Mesh cage: The quiet room is a mesh cage: its holes are far smaller than the microwave wavelength, so the mesh reflects it. Light passes between the wires. 
+ PANEL: DELIVERY 3/3 · TO THE QUIET ROOM
+Past the smoke, into the quiet room
+
+Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage. Find a band that gets through both.
+
+Pod
+on the quiet room pad
+Band
+Microwave 2.4 GHz
+Power
+100 mW
+Lab hatch
+open
+Path
+blocked: mesh cage
+Link margin
+no signal 
+ READING: {"margin":null,"blocked":"mesh","missed":false,"spots":[],"detectorOk":true,"podOk":true}
+job3 vis 
+ CARD: Delivery 3: Past the smoke, into the quiet room
+
+★
+★
+★ 
+ PROMPT: P
+Power 
+ TOAST: Visible 530 nm: λ = 530 nm, f = 566 THz. Every band obeys c = f × λ. 
+ PANEL: DELIVERY 3/3 · TO THE QUIET ROOM
+Past the smoke, into the quiet room
+
+Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage. Find a band that gets through both.
+
+Pod
+on the quiet room pad
+Band
+Visible 530 nm
+Power
+1 mW
+Lab hatch
+open
+Path
+clear
+Link margin
+-12.0 dB 
+ READING: {"margin":-12.04,"blocked":null,"missed":false,"spots":[],"detectorOk":true,"podOk":true}
+job3 vis fail 
+ CARD: Delivery 3: Past the smoke, into the quiet room
+
+★
+★
+★ 
+ PROMPT: P
+Power 
+ TOAST: Not delivered. Too weak: -12 dB. Smoke scatters short wavelengths hardest; long-wave thermal IR slips through. 
+ PANEL: DELIVERY 3/3 · TO THE QUIET ROOM
+Past the smoke, into the quiet room
+
+Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage. Find a band that gets through both.
+
+Pod
+on the quiet room pad
+Band
+Visible 530 nm
+Power
+1 mW
+Lab hatch
+open
+Path
+clear
+Link margin
+-12.0 dB 
+ READING: {"margin":-12.04,"blocked":null,"missed":false,"spots":[],"detectorOk":true,"podOk":true}
+job3 thermal 
+ CARD: Delivery 3: Past the smoke, into the quiet room
+
+★
+★
+★ 
+ PROMPT: Enter
+Send 
+ TOAST: Thermal IR 10 µm: λ = 10 µm, f = 30 THz. Every band obeys c = f × λ. 
+ PANEL: DELIVERY 3/3 · TO THE QUIET ROOM
+Past the smoke, into the quiet room
+
+Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage. Find a band that gets through both.
+
+Pod
+on the quiet room pad
+Band
+Thermal IR 10 µm
+Power
+1 mW
+Lab hatch
+open
+Path
+clear
+Link margin
+15.0 dB 
+ READING: {"margin":14.96,"blocked":null,"missed":false,"spots":[],"detectorOk":true,"podOk":true}
+win 
+ CARD: Done!★★★ 
+ PROMPT: (hidden) 
+ TOAST: “ALL CLEAR, PIP” · Elegant (15 dB) 
+ PANEL: (hidden) 
+ READING: {"margin":14.96,"blocked":null,"missed":false,"spots":[],"detectorOk":true,"podOk":true}
+snap {"won":true,"st":{"job":3,"delivered":[{"job":"store","tier":3,"margin":11},{"job":"lab","tier":3,"margin":10.8},{"job":"quiet","tier":3,"margin":15}],"band":"thermal","detector":"thermopile","power":1,"hatchOpen":true,"podPad":"quiet","mirrors":["A"],"mistakes":3,"spent":13,"aim":{"tx":1.2879,"mirrors":{"A":-2.354062306416649}},"reading":{"margin":14.96,"blocked":null,"missed":false,"spots":[],"detectorOk":true,"podOk":true}}}
+errors []

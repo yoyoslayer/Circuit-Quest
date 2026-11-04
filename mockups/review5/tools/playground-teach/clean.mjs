@@ -1,0 +1,24 @@
+import {launch} from '../cap.mjs';
+const P='playground-teach';
+const g=await launch('playground',{fullfx:true});
+const log=(k,s)=>console.log(k,JSON.stringify({t:+s.time.toFixed(2),won:s.won,hp:s.holdingPlug,el:s.electrical,sw:s.switchedOn,strain:+s.rope.strain.toFixed(3),len:+s.rope.length.toFixed(2),max:s.rope.maxLength,dc:s.drawCalls,fps:s.fps,player:s.player}));
+const txt=async()=>g.page.evaluate(()=>({card:document.querySelector('.objective')?.innerText,prompt:document.querySelector('.prompt-pill:not([hidden])')?.innerText}));
+await g.advance(1);log('start',await g.snap());console.log(await txt());
+await g.shot(`${P}-01-start`);
+await g.survey();await g.shot(`${P}-02-survey`);await g.key('Tab',.1);await g.advance(1);
+// close on reel/spool
+await g.zoom(-1500);await g.shot(`${P}-03-reel-close`);
+await g.zoom(1500);await g.advance(.8);
+await g.key('KeyF');console.log(await txt());
+await g.walk(-5,-1);log('leg1',await g.snap());await g.shot(`${P}-04-drag-leg1`);
+await g.walk(-4,-4);log('leg2',await g.snap());
+await g.walk(5.8,-5.5);log('atsocket',await g.snap());console.log(await txt());await g.shot(`${P}-05-at-socket`);
+await g.key('KeyF',.3);log('plugged',await g.snap());console.log(await txt());await g.shot(`${P}-06-plugged-switch-off`);
+await g.zoom(-1500);await g.shot(`${P}-07-plugged-close`);
+await g.walk(6.6,-5.9,.4);console.log(await txt());await g.shot(`${P}-08-at-switch-close`);
+await g.orbit(-350,0);await g.shot(`${P}-08b-socket-orbit`);
+await g.key('KeyE',.05);log('switched',await g.snap());await g.shot(`${P}-09-win-instant`);
+await g.page.waitForTimeout(400);await g.shot(`${P}-10-win-pushin`);
+await g.page.waitForTimeout(3000);await g.shot(`${P}-11-result-card`);
+console.log(await g.page.evaluate(()=>document.body.innerText.slice(0,1500)));
+console.log('errors',await g.close());

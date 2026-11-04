@@ -1,0 +1,27 @@
+import {launch} from '../cap.mjs';
+const P='observatory-models-';const log=(...a)=>console.log(...a);
+const g=await launch('observatory',{fullfx:true});
+await g.advance(.5);
+await g.walk(-3.7,-.1,.6);await g.key('KeyE',.3);await g.zoom(-2000);await g.shot(P+'40-carry-cart-zoom9');
+await g.walk(-5,1.8,.6);await g.shot(P+'41-rolling-cart-zoom9');
+await g.walk(-6,3.5,.6);await g.key('KeyE',.4);await g.shot(P+'42-cart-set-down');await g.zoom(1500);
+await g.walk(0,-1.55,.4);await g.key('KeyE',1.2);
+const s=await g.snap();log('atBench',s.atBench,s.drawCalls);
+await g.shot(P+'43-bench-view');
+const C=(n,x,y,w,h)=>g.crop(P+n,{x,y,width:w,height:h});
+await C('43a-crop-board',380,330,700,420);await C('43b-crop-tray',900,330,540,420);await C('43c-crop-antenna-rack',100,250,560,450);await C('43d-crop-scope',380,40,760,400);
+await g.act('pick','C');await g.advance(.2);await g.act('slot','shunt');await g.advance(.3);
+for(let k=0;k<7;k++)await g.key('ArrowRight',.05);await g.act('route');await g.advance(.4);
+await g.shot(P+'44-bench-shunt-rerouted');await C('44a-crop-board-can',380,330,700,420);await C('44b-crop-route',100,250,560,450);
+await g.act('log');await g.advance(2);
+await g.act('pick','L');await g.act('slot','series');await g.act('value',{slot:'series',value:.01});await g.act('value',{slot:'shunt',value:1e-6});await g.advance(.4);
+await g.shot(P+'45-bench-LC');await C('45a-crop-board-LC',380,330,700,420);
+await g.act('log');await g.advance(1);await g.shot(P+'46-bench-gust-flat');await C('46a-crop-whip-flat',100,250,700,450);
+await g.act('rod','r150');await g.advance(.3);await g.shot(P+'47-bench-r150-flat');await C('47a-crop-r150-flat',100,200,800,500);
+await g.act('rod','r75');await g.act('orient');await g.advance(.3);await C('48a-crop-r75-up',100,100,700,600);
+// leave bench and look at the bench from the room, orbiting
+await g.key('Escape',.5);await g.zoom(-2000);await g.shot(P+'49-bench-room-zoom9');await g.orbit(-300,0);await g.shot(P+'49b-bench-room-left');await g.orbit(600,0);await g.shot(P+'49c-bench-room-right');await g.orbit(-300,0);
+await g.walk(0,-1.55,.4);await g.key('KeyE',.6);
+await g.act('log');await g.advance(.25);await g.shot(P+'50-win-0.25');await g.advance(1.2);await g.shot(P+'51-win-1.5');await g.advance(3);await g.shot(P+'52-result');
+const f=await g.snap();log('won',f.won,f.time);
+log('errors',JSON.stringify(await g.close()));

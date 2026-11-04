@@ -1,0 +1,12 @@
+import {launch} from '../cap.mjs';
+const P='research-art';let n=38;const nn=()=>String(n++).padStart(2,'0');
+const g=await launch('lunch',{fullfx:true});await g.advance(.5);
+await g.walk(-3,7,.4);await g.key('KeyE');await g.walk(0,1.4);await g.key('KeyE',.5);
+await g.walk(2,8,.4);await g.key('KeyE');await g.walk(.3,2,.45);await g.advance(4);await g.walk(2,2);await g.key('KeyE');
+await g.walk(-10,7.5,.3);await g.key('KeyF');
+for(const [x,z] of [[1,3],[.2,-1.2]])await g.walk(x,z,.45);
+await g.advance(.3);await g.shot(`${P}-${nn()}-lunch-thick-cable-drag`);
+await g.zoom(-900);await g.shot(`${P}-${nn()}-lunch-thick-cable-close`);
+await g.walk(-3.5,-3,.45);await g.key('KeyF',.5);await g.zoom(900);await g.advance(1);await g.shot(`${P}-${nn()}-lunch-oven-plugged`);
+console.log(JSON.stringify((await g.snap()).lunch).slice(0,600));
+console.log('errors',JSON.stringify(await g.close()));

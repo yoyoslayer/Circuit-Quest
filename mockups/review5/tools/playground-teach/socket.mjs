@@ -1,0 +1,11 @@
+import {launch} from '../cap.mjs';
+const P='playground-teach';
+const g=await launch('playground');
+await g.key('KeyF');for(const [x,z] of [[-5,-1],[-4,-4],[5.8,-5.5]])await g.walk(x,z);await g.key('KeyF',.3);
+await g.walk(5.2,-4.2,.4);await g.zoom(-1500);await g.orbit(500,0);await g.shot(`${P}-27-socket-side-close`);
+await g.orbit(500,0);await g.shot(`${P}-28-socket-back-close`);
+await g.walk(6.6,-5.9,.4);await g.page.keyboard.press('KeyE');await g.ev('return drive.advance(a[0])',.3);
+await g.page.addStyleTag({content:'.result,.card,.panel,#hud,.screen{visibility:hidden!important}'});
+await g.page.waitForTimeout(2500);await g.shot(`${P}-29-win-nohud-pulses`);
+console.log(JSON.stringify((await g.snap()).electrical));
+console.log('errors',await g.close());

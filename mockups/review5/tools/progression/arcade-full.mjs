@@ -1,0 +1,36 @@
+import {launch} from '../cap.mjs';
+const K='progression';
+const g=await launch('arcade',{fullfx:true});
+const W=async(pts,r=.5)=>{for(const [x,z] of pts){const res=await g.walk(x,z,r);if(!res.arrived)console.log('stuck',x,z);}};
+await g.advance(.3);
+// chaos: grab and throw a few nearby props
+for(let k=0;k<4;k++){await g.key('KeyE',.15);const h=(await g.snap()).held;await g.key('KeyQ',1.2);const s=await g.snap();console.log('throw',h,'dmg',s.damage,'cost',s.cost,'alarmed',s.alarmed);await g.advance(.3,['KeyA']);}
+await g.shot(`${K}-26-arcade-after-throws`);
+await W([[-5.5,6.6],[-7.2,5.8]]);await W([[-8.3,4.4]],.3);await g.key('KeyE');
+await W([[-7.2,5.8],[-5.5,6.4]]);await W([[1.2,-1.3]]);await g.key('KeyE',.2);
+await W([[0,-1.55]],.4);await g.key('KeyE');
+const act=async(n,a)=>{const r=await g.act(n,a);if(!r.ok)console.log('act fail',n,a,JSON.stringify(r));};
+const place=(...ps)=>ps.flatMap((p,k)=>p.flatMap(v=>[['pick',v],['slot',k]]));
+const steps=async l=>{for(const [n,a] of l)await act(n,a);};
+await steps([['slot','across'],...place([220]),['power']]);await g.advance(2.8);await g.advance(3.2);
+let s=await g.snap();console.log('cab1 tier',s.station.verdict?.tier,'mist',s.station.mistakes);
+await g.shot(`${K}-27-arcade-cab1-pass`);
+await steps([['signoff']]);
+await steps([['flip'],...place([47]),...place([47]),['power']]);await g.advance(3.4);await steps([['signoff']]);
+s=await g.snap();console.log('after cab2 served',s.station.served.length);
+await steps([...place([470],[470]),['power']]);await g.advance(3.4);await steps([['signoff']]);
+await steps([['slot',0],['slot',1],...place([470],[470]),['power']]);await g.advance(3.4);await steps([['signoff']]);
+s=await g.snap();console.log('cab4 setup',JSON.stringify(s.station.setup),'served',s.station.served.length);
+await steps([...place([470],[470]),['power']]);await g.advance(3.4);await steps([['signoff']]);
+await g.advance(.6);s=await g.snap();console.log('won',s.won,'time',s.time.toFixed(1),'dmg',s.damage,'cost',s.cost,'served',JSON.stringify(s.station.served.map(v=>v.tier)));
+await g.shot(`${K}-28-arcade-win-push`);
+await g.page.waitForSelector('body[data-complete="true"]',{timeout:15000}).catch(()=>console.log('no complete'));
+await g.page.waitForTimeout(2600);await g.shot(`${K}-29-arcade-result`);
+console.log('result',await g.page.locator('.result-screen').innerText().catch(()=>'none'));
+const jobs=g.page.locator('.result-screen [data-ui="jobs-reload"]');
+await Promise.all([g.page.waitForURL(/level=lobby/),jobs.first().click()]);
+await g.page.waitForSelector('body[data-ready="true"]',{timeout:120000});await g.page.waitForTimeout(2500);
+await g.shot(`${K}-30-lobby-after-arcade`);
+console.log('card',await g.page.locator('.objective').innerText().catch(()=>''));
+console.log('ls',await g.page.evaluate(()=>localStorage.getItem('circuit-crew:best:v1')));
+console.log('errors',JSON.stringify(await g.close()));

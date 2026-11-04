@@ -1,0 +1,22 @@
+import {launch} from '../cap.mjs';
+const K='progression';
+const g=await launch('meeting',{fullfx:true});
+const R=async(pts,r=.5)=>{for(const [x,z] of pts){const res=await g.walk(x,z,r);if(!res.arrived)console.log('stuck',x,z);}};
+const legs=[];let last=0;const lap=async n=>{const t=(await g.snap()).time;legs.push([n,+(t-last).toFixed(1)]);last=t;};
+await g.advance(.3);await g.shot(`${K}-31-meeting-start`);
+console.log('card',await g.page.locator('.objective').innerText(),'| prompt',await g.page.locator('.prompt-pill').innerText().catch(()=>''));
+await R([[-8.6,-3.9]],.4);await g.key('KeyE');await lap('to strip');
+await R([[-8,-1.4],[6,-1.2],[11.2,-1.4]]);await g.key('KeyE',.2);await lap('strip to door');
+await R([[6,-1.2],[-8,-1.4]]);await R([[-9,-6],[-9,5.3],[-3.65,5.3]],.3);await g.key('KeyE');await lap('to coupler');console.log('held c',(await g.snap()).held);
+await R([[-9,5.3],[-9,-6.8],[-10.7,-6.8]],.4);await g.key('KeyE');await lap('coupler to reel');
+await R([[-9,-6],[-9,5.3],[-3,5.3]],.3);await g.key('KeyE');await lap('to ext reel');console.log('held e',(await g.snap()).held);
+await R([[-9,5.3],[-9,-6.8],[-10.7,-6.8]],.4);await g.key('KeyE');await lap('ext to reel');{const q=await g.snap();console.log('maxLen',q.rope.maxLength,'held',q.held,'player',JSON.stringify(q.player));}
+await g.key('KeyF');await R([[7.8,-7],[8,-1.4],[11.4,-1.4]]);{const q=await g.snap();console.log('drag end',JSON.stringify(q.player),'strain',q.rope.strain,'len',q.rope.length,'bends',q.rope.bends.length);await g.shot('progression-32b-meeting-stuck');}await g.key('KeyF');await lap('drag to strip');
+await R([[12.3,-1.2],[12.3,-3.2]],.4);await g.key('KeyE',.3);let s=await g.snap();console.log('tripped',s.strip?.tripped);
+await g.shot(`${K}-32-meeting-tripped`);
+await R([[12.3,-1.2],[14.3,-.9]],.4);await g.key('KeyE',.2);await R([[12.4,-1.15]],.4);await g.key('KeyE',.2);await lap('projector+trip fix');
+await g.advance(.5);s=await g.snap();console.log('won',s.won,'time',s.time.toFixed(1),'dmg',s.damage,'cost',s.cost,JSON.stringify(legs));
+await g.page.waitForSelector('body[data-complete="true"]',{timeout:15000}).catch(()=>console.log('no complete'));
+await g.page.waitForTimeout(2600);await g.shot(`${K}-33-meeting-result`);
+console.log('result',(await g.page.locator('.result-screen').innerText().catch(()=>'none')).replace(/\n/g,' | '));
+console.log('errors',JSON.stringify(await g.close()));

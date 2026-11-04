@@ -1,0 +1,21 @@
+import {launch} from '../cap.mjs';
+const log=(...a)=>console.log(...a);
+const g=await launch('meeting',{fullfx:true});
+const B=s=>JSON.stringify(s.rope.bends.map(b=>[+b.x.toFixed(2),+b.z.toFixed(2)]));
+const route=async pts=>{let r;for(const [x,z] of pts){r=await g.walk(x,z,.5,40);if(!r.arrived)log('STUCK',x,z,JSON.stringify(r.state.player));}return r?.state;};
+await g.advance(1);await g.shot('cable-60-mt-start');
+await g.zoom(-1500);await g.walk(-10.6,-6.6,.4);await g.shot('cable-61-mt-reel-close');await g.zoom(1500);await g.key('Home',0);
+// strip
+await g.walk(-8.6,-3.9,.4);await g.key('KeyE');await route([[-8,-1.4],[6,-1.2],[11.2,-1.4]]);await g.key('KeyE');await g.advance(.2);
+let s=await g.snap();log('strip',s.stripPlaced,s.time.toFixed(1));
+await route([[6,-1.2],[-8,-1.4],[-10,-6.2]]);await g.key('KeyF');s=await g.snap();log('plug',s.holdingPlug,s.time.toFixed(1));
+s=await route([[-8,-5],[-1,-1.5]]);log('mid',s.rope.strain.toFixed(3),B(s));await g.shot('cable-62-mt-drag-mid');
+s=await route([[6,-1.2]]);log('6,-1.2',s.rope.strain.toFixed(3),B(s));await g.shot('cable-63-mt-drag-6');
+s=await g.advance(2,['KeyD']);log('walk D',s.player.x.toFixed(2),s.player.z.toFixed(2),s.rope.strain.toFixed(3));await g.shot('cable-64-mt-walk-limit');
+const before=s.items.length;
+s=await g.advance(1.5,['KeyD','ShiftLeft']);log('sprint',s.player.x.toFixed(2),s.player.z.toFixed(2),s.rope.strain.toFixed(3),'alarmed',s.alarmed,'dmg',s.damage);await g.shot('cable-65-mt-sprint-overstretch');
+await g.key('KeyF',0);s=await g.advance(.2);log('plugged',s.holdingPlug,'strain',s.rope.strain.toFixed(3));
+await g.shot('cable-66-mt-plugged-overstretched');
+await g.zoom(-1500);await g.shot('cable-67-mt-plugged-close');await g.orbit(500,0);await g.shot('cable-68-mt-plugged-close-orbit');await g.zoom(1500);
+await g.survey();await g.shot('cable-69-mt-survey-cable');
+log(await g.close());

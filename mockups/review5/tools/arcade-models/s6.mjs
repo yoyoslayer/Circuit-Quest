@@ -1,0 +1,40 @@
+import {launch} from '../cap.mjs';
+const P='arcade-models';
+const g=await launch('arcade',{fullfx:true});
+const settle=async(n=20)=>{for(let i=0;i<n;i++)await g.advance(1/60);};
+const shot=async(name)=>{await settle();return g.shot(`${P}-${name}`);};
+const route=async pts=>{for(const [x,z,r] of pts){const w=await g.walk(x,z,r??.5);if(!w.arrived)console.log('stuck',x,z,JSON.stringify(w.state.player));}};
+await settle();
+// throw test: pick up nearest prop and throw it toward the cones
+await g.walk(-3.4,3.9,.4);await g.key('KeyE');const h=(await g.snap()).held;console.log('held',h);
+await g.advance(.3);await g.key('Space',.05);await g.advance(.4);const s=await g.snap();console.log('fastest',s.fastestProp,'alarmed',s.alarmed,'damage',s.damage);
+await g.advance(2);await g.key('KeyC',.2);await g.zoom(-2000,.3);await shot('70-after-throw-zoom9');
+// back of serviced cabinet
+await g.walk(-3.6,-3.6,.4);await g.key('KeyC',.2);await g.zoom(-2000,.3);await g.orbit(524,0,.2);await shot('71-serviced-cab-back');
+await g.orbit(-262,0,.2);await shot('72-serviced-cab-side');
+await g.key('KeyC',.2);
+// solve
+await route([[-5.5,6.6],[-7.2,5.8],[-8.3,4.4,.3]]);await g.key('KeyE');
+await route([[-7.2,5.8],[-5.5,6.4]]);await g.walk(1.2,-1.3,.5);await g.key('KeyE');await g.advance(.3);
+await g.walk(0,-1.55,.4);await g.key('KeyE');await g.advance(.3);
+const A=async l=>{for(const [n,a] of l){const r=await g.act(n,a);if(!r.ok)console.log('fail',n,a);}};
+const place=(...ps)=>ps.flatMap((p,k)=>p.flatMap(v=>[['pick',v],['slot',k]]));
+await A([['slot','across'],...place([220]),['power']]);await g.advance(3.4);await A([['signoff']]);
+await A([['flip'],...place([47]),['power']]);await g.advance(3.4);await A([['signoff']]);
+await A([['slot',0],...place([470],[470]),['power']]);await g.advance(3.4);await A([['signoff']]);
+await A([['slot',0],['slot',1],...place([470],[470]),['power']]);await g.advance(3.4);
+let st=(await g.snap()).station;console.log('job4',st.job,JSON.stringify(st.setup),st.soakDone);
+await A([['signoff']]);
+st=(await g.snap()).station;console.log('job5',st.job,JSON.stringify(st.setup));
+await A([['slot',0],['slot',1],...place([470],[470]),['power']]);await g.advance(3.4);
+st=(await g.snap()).station;console.log('job5b',st.job,JSON.stringify(st.setup),st.soakDone,st.verdict);
+await A([['signoff']]);
+await g.advance(.15);await g.shot(`${P}-73-win-0s`);
+await g.advance(1.4);await g.shot(`${P}-74-win-push`);
+await g.advance(2);await g.shot(`${P}-75-win-result`);
+console.log('won',(await g.snap()).won);
+console.log(await g.close());
+const n=await launch('arcade',{fullfx:true,query:'norim'});
+for(let i=0;i<20;i++)await n.advance(1/60);await n.shot(`${P}-76-norim-start`);
+await n.walk(3.9,3.6,.4);await n.key('KeyC',.2);await n.zoom(-2000,.3);for(let i=0;i<20;i++)await n.advance(1/60);await n.shot(`${P}-77-norim-lounge-zoom9`);
+console.log(await n.close());

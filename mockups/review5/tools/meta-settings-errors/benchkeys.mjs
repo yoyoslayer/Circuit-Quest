@@ -1,0 +1,16 @@
+import {launch} from '../cap.mjs';
+const P='meta-settings-errors-';
+const g=await launch('qfn');await g.advance(.3);
+const sit=async()=>{await g.walk(0,-.5,.4);await g.key('KeyE',1.2);return (await g.snap()).atBench;};
+await g.walk(-8.8,2.95,.5);await g.key('KeyE');await g.walk(1.3,-.6,.5);await g.key('KeyE',.2);
+console.log('sit',await sit());
+const p0=(await g.snap()).player;await g.page.keyboard.press('Space');await g.advance(.15);const p1=(await g.snap()).player;console.log('Space at bench: y',p0.y.toFixed(2),'->',p1.y.toFixed(2),'atBench',(await g.snap()).atBench);
+await g.shot(P+'66-qfn-bench-space-jump');
+await g.advance(1);
+await g.page.keyboard.down('KeyW');await g.advance(1,['KeyW']);await g.page.keyboard.up('KeyW');const p2=(await g.snap()).player;console.log('W at bench moved',Math.hypot(p2.x-p1.x,p2.z-p1.z).toFixed(2),'atBench',(await g.snap()).atBench);
+console.log('atBench now',(await g.snap()).atBench);if(!(await g.snap()).atBench)console.log('sit',await sit());
+await g.page.keyboard.press('KeyF');await g.advance(.3);console.log('F at qfn bench -> atBench',(await g.snap()).atBench);
+await g.shot(P+'67-qfn-bench-after-F');
+if(!(await g.snap()).atBench)console.log('sit',await sit());
+await g.page.keyboard.press('KeyQ');await g.advance(.3);console.log('Q at qfn bench -> atBench',(await g.snap()).atBench);
+console.log('errors',await g.close());

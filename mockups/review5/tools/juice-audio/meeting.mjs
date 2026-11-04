@@ -1,0 +1,16 @@
+import {launch,now} from './hook.mjs';
+const g=await launch('meeting');await g.advance(.3);await g.drain('start');
+const route=async pts=>{for(const [x,z] of pts){const r=await g.walk(x,z,.4);if(!r.arrived)console.log('STUCK',x,z);}};
+await g.walk(-8.6,-3.9,.4);await g.page.keyboard.press('KeyE');await g.drain('grab strip');
+await route([[-8,-1.4],[6,-1.2],[11.2,-1.4]]);await g.drain('walk');await g.page.keyboard.press('KeyE');await g.advance(.2);await g.drain('place strip (snap)');
+await route([[6,-1.2],[-8,-1.4],[-10,-6.2]]);await g.page.keyboard.press('KeyF');await g.drain('pick reel plug');
+await route([[-9,-6],[-9,5.3],[-3.3,5.5]]);await g.page.keyboard.press('KeyF');await g.drain('coupler F');await g.page.keyboard.press('KeyF');await g.drain('extension F');
+await route([[-1,3],[-1,-1.5],[6,-1.2],[11.4,-1.4]]);await g.drain('walk');await g.page.keyboard.press('KeyF');await now(g,'juice-audio-05-meeting-plugin-instant');await g.drain('plug in strip');
+await route([[12.3,-1.2],[12.3,-3.2]]);await g.drain('walk');await g.page.keyboard.press('KeyE');await g.advance(.3);await now(g,'juice-audio-06-meeting-trip-instant');await g.drain('projector E -> TRIP');
+let s=await g.snap();console.log('tripped',s.strip?.tripped,'shake?');
+await g.advance(.6);await g.drain('trip +0.6');await g.shot('juice-audio-07-meeting-trip-settled');
+await route([[12.3,-1.2],[14.3,-.9]]);await g.drain('walk');await g.page.keyboard.press('KeyE');await g.advance(.2);await g.page.waitForTimeout(900);await g.drain('unplug heater/kettle');
+await g.walk(12.4,-1.15,.4);await g.page.keyboard.press('KeyE');await g.advance(.3);await now(g,'juice-audio-08-meeting-win-instant');await g.drain('reset strip -> win');
+s=await g.snap();console.log('won',s.won);
+await g.advance(1.2);await g.page.waitForTimeout(3000);await g.drain('win aftermath + result');await g.shot('juice-audio-09-meeting-result');
+console.log('errors',await g.close());

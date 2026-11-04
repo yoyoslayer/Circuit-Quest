@@ -1,0 +1,11 @@
+import {launch} from '../cap.mjs';
+const P='observatory-play-';const log=(...a)=>console.log(...a);
+const g=await launch('observatory',{fullfx:true});
+await g.advance(.5);
+await g.walk(-3.7,-.1,.6);await g.advance(.3);await g.crop(P+'100-crop-cart-sparks-gamecam',{x:520,y:250,width:420,height:330});
+await g.key('KeyE',.3);await g.walk(-4.4,1.2,.3);
+await g.zoom(-1500);await g.shot(P+'101-carry-cart-zoom9');await g.orbit(500,0);await g.shot(P+'102-carry-cart-zoom9-side');await g.orbit(-500,0);await g.zoom(1500);
+await g.walk(-6,3.5,.6);await g.key('KeyE',.6);await g.advance(1);
+let s=await g.snap();log('cart after drop',JSON.stringify(s.items.find(i=>i.id==='motor')),s.station.cartMoved);
+await g.zoom(-1500);await g.shot(P+'103-cart-dropped-zoom9');await g.zoom(1500);
+log('errors',JSON.stringify(await g.close()));

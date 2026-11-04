@@ -1,0 +1,42 @@
+import {launch} from '../cap.mjs';
+const P='arcade-play-';
+const g=await launch('arcade',{fullfx:true});
+const log=(...a)=>console.log(...a);
+await g.advance(1);
+await g.shot(P+'01-start');
+const txt=async()=>g.page.evaluate(()=>({card:document.querySelector('.objective')?.innerText,prompt:document.querySelector('.prompt-pill:not([hidden])')?.innerText,panel:document.querySelector('.station-panel')?.innerText,toast:document.querySelector('.station-toast:not([hidden])')?.innerText}));
+log('start',JSON.stringify(await txt()));
+let s=await g.snap();log('snap',JSON.stringify({p:s.player,props:s.props,items:s.items,fps:s.fps,dc:s.drawCalls,rope:s.rope}));
+log('audit',JSON.stringify(await g.audit(.02)).slice(0,1500));
+await g.survey();await g.shot(P+'02-survey');s=await g.snap();log('survey dc',s.drawCalls);
+await g.survey();
+await g.orbit(300,0);await g.shot(P+'03-orbit-right');
+await g.orbit(-600,0);await g.shot(P+'04-orbit-left');
+await g.orbit(300,0);
+await g.zoom(-1500);await g.shot(P+'05-zoom9-spawn');
+await g.zoom(3000);await g.shot(P+'06-zoom38');
+await g.zoom(-1000);
+// walk toward storeroom, timing
+let t0=(await g.snap()).time;
+for(const [x,z] of [[-5.5,6.6],[-7.2,5.8]]){const r=await g.walk(x,z,.5);log('walk',x,z,r.arrived,r.state.time.toFixed(2));}
+const r=await g.walk(-8.3,4.4,.3);log('walk tray',r.arrived,r.state.time.toFixed(2),JSON.stringify(r.state.player));
+log('near tray',JSON.stringify(await txt()));
+await g.shot(P+'07-at-tray');
+await g.zoom(-1500);await g.shot(P+'08-tray-zoom9');
+await g.key('KeyE');s=await g.snap();log('held',s.held);
+log('holding',JSON.stringify(await txt()));
+await g.shot(P+'09-holding-tray-zoom9');
+await g.zoom(1000);
+for(const [x,z] of [[-7.2,5.8],[-5.5,6.4]]){const r=await g.walk(x,z,.5);log('walk',x,z,r.arrived,r.state.time.toFixed(2));}
+await g.shot(P+'10-carrying');
+const r2=await g.walk(1.2,-1.3,.5);log('walk bench',r2.arrived,r2.state.time.toFixed(2),JSON.stringify(r2.state.player));
+log('at bench w tray',JSON.stringify(await txt()));
+await g.shot(P+'11-tray-at-bench');
+await g.key('KeyE',.3);s=await g.snap();log('trayReady',s.station.trayReady,'time',s.time.toFixed(2));
+await g.shot(P+'12-tray-delivered');
+const r3=await g.walk(0,-1.55,.4);log('to stand',r3.arrived);
+log('at stand',JSON.stringify(await txt()));
+await g.key('KeyE',1);s=await g.snap();log('atBench',s.atBench,'t',s.time.toFixed(2));
+log('bench',JSON.stringify(await txt()));
+await g.shot(P+'13-bench-view');
+log('errors',JSON.stringify(await g.close()));

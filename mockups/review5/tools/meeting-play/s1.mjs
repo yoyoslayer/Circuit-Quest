@@ -1,0 +1,30 @@
+import {launch} from '../cap.mjs';
+const K='meeting-play';
+const g=await launch('meeting',{fullfx:true});
+const log=(...a)=>console.log(...a);
+const hud=async()=>g.page.evaluate(()=>({card:document.querySelector('.objective')?.innerText,prompt:document.querySelector('.prompt-pill:not([hidden])')?.innerText,all:document.querySelector('#hud')?.innerText}));
+await g.advance(.5);
+log('audit',JSON.stringify(await g.audit(.02)));
+let s=await g.snap();log('start',JSON.stringify({props:s.props,fps:s.fps,dc:s.drawCalls,player:s.player,rope:s.rope}));
+log('hud',JSON.stringify(await hud()));
+await g.shot(`${K}-01-start`);
+await g.survey();await g.shot(`${K}-02-survey`);s=await g.snap();log('survey dc',s.drawCalls);
+await g.survey();
+// walk to printer stand
+let w=await g.walk(-8.6,-3.9,.4);log('walk strip',w.arrived,w.state.time.toFixed(2));
+log('hud',JSON.stringify(await hud()));
+await g.shot(`${K}-03-at-strip`);
+await g.zoom(-1500);await g.shot(`${K}-04-strip-close`);
+await g.key('KeyE');s=await g.snap();log('held',s.held);log('hud',JSON.stringify(await hud()));
+await g.zoom(600);
+await g.shot(`${K}-05-carry-strip`);
+for(const [x,z] of [[-8,-1.4],[6,-1.2]]){w=await g.walk(x,z);log('leg',x,z,w.arrived,w.state.time.toFixed(2));}
+await g.shot(`${K}-06-carry-aisle`);
+w=await g.walk(11.2,-1.4);log('leg door',w.arrived,w.state.time.toFixed(2));
+log('hud',JSON.stringify(await hud()));
+await g.shot(`${K}-07-at-door-with-strip`);
+await g.key('KeyE',.3);s=await g.snap();log('placed',s.stripPlaced,JSON.stringify(s.strip));log('hud',JSON.stringify(await hud()));
+await g.shot(`${K}-08-strip-placed`);
+await g.zoom(-1500);await g.shot(`${K}-09-strip-gauge-close`);
+await g.orbit(-500,0);await g.shot(`${K}-10-door-orbit`);
+console.log('errors',JSON.stringify(await g.close()));

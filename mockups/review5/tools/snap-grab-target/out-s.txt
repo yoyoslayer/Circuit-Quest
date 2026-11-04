@@ -1,0 +1,18 @@
+SPECTRUM pad from door
+z9 y0: pad:HID(Mesh h2.1 occ op1) marker:ok
+z9 y45: pad:HID(Mesh h0.33) marker:ok
+z9 y90: pad:HID(Mesh h0.01) marker:ok
+z9 y135: pad:HID(Mesh h1.94) marker:HID(Mesh h0.04)
+z9 y180: pad:HID(Mesh h1.94) marker:HID(Mesh h1.94)
+z9 y225: pad:HID(Mesh h1.14) marker:ok
+z9 y270: pad:ok marker:ok
+z9 y315: pad:ok marker:ok
+z38 y0: pad:HID(Mesh h2.1 occ op1) marker:ok
+z38 y45: pad:ok marker:ok
+z38 y90: pad:HID(Mesh h0.6) marker:ok
+z38 y135: pad:ok marker:ok
+z38 y180: pad:ok marker:ok
+z38 y225: pad:ok marker:ok
+z38 y270: pad:ok marker:ok
+z38 y315: pad:HID(Mesh h2.22) marker:ok
+[]

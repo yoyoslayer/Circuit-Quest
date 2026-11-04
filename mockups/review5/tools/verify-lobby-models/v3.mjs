@@ -1,0 +1,11 @@
+import {launch} from '../cap.mjs';
+const P='verify-lobby-models-';
+const g=await launch('lobby',{fullfx:true});
+await g.advance(1);
+await g.walk(7.5,6.6,.2);await g.advance(.3);
+await g.walk(7.5,2.0,.2,8);await g.advance(.3);let s=await g.snap();console.log('through-centre',JSON.stringify(s.player));
+await g.zoom(-2000);await g.shot(P+'12-workshop-centre-walk');
+await g.walk(7.95,6.6,.2);await g.advance(.3);await g.walk(7.95,2.0,.2,8);await g.advance(.3);s=await g.snap();console.log('through-right',JSON.stringify(s.player));
+await g.walk(8.0,3.6,.1,6);await g.advance(.3);s=await g.snap();console.log('into-block',JSON.stringify(s.player));await g.shot(P+'13-workshop-pip-in-teal-block');
+await g.walk(6.0,6.0,.3);await g.walk(-2,-1.9,.3);await g.advance(.3);await g.orbit(-300,0);await g.shot(P+'14-reception-back-close');
+console.log('ERR',JSON.stringify(await g.close()));

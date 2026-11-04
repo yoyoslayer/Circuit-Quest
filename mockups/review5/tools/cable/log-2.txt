@@ -1,0 +1,27 @@
+##### mt3
+walk-only limit -2.27 -3.93 strain 0.500 dist to socket 14.67 Bring the server-room cable to the power strip and plug it in | Drop the plug
+after F: holding false len 11.60 strain 0.500 Bring the server-room cable to the power strip and plug it in
+[]
+##### pg8
+walk to limit E 9.50 2.33 strain 0.9632 Drop the plug
+stood .5s strain 0.9632 energy 0.00 Drop the plug
+Q: fastest 0.01 holding false
+after .5 fastest 0.00 damage 0
+re-held true strain 0.309
+[]
+##### ln2
+held {"id":"thin-2","end":1}
+at 10,2.5 0.771
+STUCK 13 -6 {"x":12.998537063598633,"y":0.7698494791984558,"z":-3.7549006938934326}
+at 13,-6 0.937 {"x":12.998537063598633,"y":0.7698494791984558,"z":-3.7549006938934326}
+sprint 13.26 -1.24 0.887
+sprint 13.62 1.34 0.891
+sprint 13.99 3.94 0.904
+sprint 14.30 6.47 0.923
+sprint 14.58 9.00 0.948
+sprint 14.94 9.50 0.963
+points [{"x":-13,"z":3},{"x":15.02,"z":10.09}]
+Q fastest 1.93
+after fastest 0.00 damage 1
+held {"id":"thick","end":1}
+[]

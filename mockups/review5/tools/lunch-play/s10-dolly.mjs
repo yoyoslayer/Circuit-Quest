@@ -1,0 +1,15 @@
+import {launch} from '../cap.mjs';
+const P='lunch-play-d';
+const g=await launch('lunch',{fullfx:true});
+const W=async(x,z,r=.5)=>{const r2=await g.walk(x,z,r);if(!r2.arrived)console.log('STUCK',x,z,JSON.stringify(r2.state.player));return r2;};
+const R=async(pts,r=.5)=>{for(const [x,z] of pts)await W(x,z,r);};
+const dolly=async()=>{const s=await g.snap();const d=s.items.find(i=>i.id==='thick-dolly').pos;return `dolly ${d.x.toFixed(2)},${d.z.toFixed(2)} pip ${s.player.x.toFixed(2)},${s.player.z.toFixed(2)}`;};
+await W(-3,7,.4);await g.key('KeyE');await W(0,1.4);await g.key('KeyE');await g.advance(.5);
+await W(2,8,.4);await g.key('KeyE');await W(.3,2,.45);await g.advance(4);await W(2,2);await g.key('KeyE');
+await W(-10,7.5,.3);await g.key('KeyF');
+await W(-4,6,.45);console.log(await dolly());await g.shot(P+'01-drag-default');
+await g.orbit(900,0);await g.shot(P+'02-drag-orbit-back');await g.orbit(-900,0);
+await W(1,3,.45);await W(.2,-1.2,.45);console.log(await dolly());await g.orbit(700,0);await g.shot(P+'03-door-orbit');await g.orbit(-700,0);
+await W(-3.5,-3,.45);await g.key('KeyF');await g.advance(.5);console.log('after plug',await dolly());
+const r=await W(.3,-1.3);console.log(await dolly());await g.zoom(-700);await g.shot(P+'04-stuck-doorway');await g.orbit(-500,0);await g.shot(P+'05-stuck-doorway-orbit');
+console.log('errors',await g.close());

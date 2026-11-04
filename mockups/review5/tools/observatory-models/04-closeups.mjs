@@ -1,0 +1,12 @@
+import {launch} from '../cap.mjs';
+const P='observatory-models-';const log=(...a)=>console.log(...a);
+const g=await launch('observatory',{fullfx:true});
+await g.advance(.5);await g.zoom(-2000);
+const at=async(x,z,name,views)=>{const r=await g.walk(x,z,.5,40);const s=await g.snap();log(name,'arrived',r?.arrived,JSON.stringify(s.player));
+  for(const [dx,dy,suffix] of views){if(dx||dy)await g.orbit(dx,dy);await g.shot(P+name+suffix);}};
+await at(8.2,1.0,'30-cabinets',[[0,0,''],[350,0,'-o90']]);await g.orbit(-350,0);
+await at(5.6,4.9,'31-desk-shelf-cart',[[0,0,''],[-350,0,'-o-90'],[-350,0,'-o180']]);await g.orbit(700,0);
+await at(-4.1,-3.4,'32-dome-blob-feet',[[0,0,''],[200,200,'-down'],[-450,-200,'-side']]);await g.orbit(250,0);
+await at(-3.0,-3.0,'33-rack-plaque-side',[[350,0,''],[0,-250,'-low']]);await g.orbit(-350,250);
+await at(1.0,-6.6,'34-light-rail',[[350,-250,'-side'],[350,0,'-back']]);await g.orbit(-700,250);
+log('errors',JSON.stringify(await g.close()));

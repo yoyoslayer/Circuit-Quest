@@ -1,0 +1,30 @@
+import {launch} from '../cap.mjs';import {hud,placeStrip,route} from './common.mjs';
+const K='verify-meeting-play';const log=(...a)=>console.log(...a);
+const g=await launch('meeting',{fullfx:true});await g.advance(.3);
+let s=await g.snap();log('start',JSON.stringify(await hud(g)),'dc',s.drawCalls,'pos',JSON.stringify(s.player));
+await g.shot(`${K}-01-start`);
+// gauge before strip placed: close look at the door area via survey
+await g.survey();s=await g.snap();log('survey dc',s.drawCalls);await g.shot(`${K}-02-survey`);await g.survey();
+s=await placeStrip(g);log('strip placed',s.stripPlaced,'t',s.time.toFixed(1),JSON.stringify(await hud(g)));
+await g.shot(`${K}-03-strip-placed-at-door`);
+await g.zoom(-1500);await g.shot(`${K}-04-strip-close`);await g.zoom(1500);
+await route(g,[[6,-1.2],[-8,-1.4],[-10,-6.2]]);
+await g.key('KeyF');s=await g.snap();log('holding',s.holdingPlug);
+await route(g,[[-8,-5],[-1,-1.5]]);await g.walk(6,-1.2);
+s=await g.advance(2,['KeyD']);log('walk stall strain',s.rope.strain.toFixed(2),'pos',s.player.x.toFixed(2),s.player.z.toFixed(2),JSON.stringify(await hud(g)));
+await g.shot(`${K}-05-walk-stall`);
+s=await g.advance(1.5,['KeyD','ShiftLeft']);log('sprint strain',s.rope.strain.toFixed(2),'pos',s.player.x.toFixed(2),JSON.stringify(await hud(g)));
+await g.key('KeyF',.3);s=await g.snap();log('plugged',s.holdingPlug,JSON.stringify(s.strip));
+await g.advance(1.5);await g.zoom(-800);await g.shot(`${K}-06-plugged-cable`);await g.zoom(800);
+await route(g,[[12.3,-1.2],[12.3,-3.2]],.4);log('at switch',JSON.stringify(await hud(g)));
+await g.key('KeyE',.4);s=await g.snap();log('trip',JSON.stringify(s.strip),JSON.stringify(await hud(g)));
+await g.shot(`${K}-07-tripped`);
+await g.key('KeyE',.3);s=await g.snap();log('E again',JSON.stringify(s.strip),JSON.stringify(await hud(g)));
+await g.key('KeyE',.3);s=await g.snap();log('E again',JSON.stringify(s.strip));
+await g.walk(12.4,-1.15,.4);log('door prompt',JSON.stringify(await hud(g)));await g.shot(`${K}-08-door-default`);
+await g.walk(15,-1.0,.3);s=await g.snap();log('at heater pos',JSON.stringify(s.player),JSON.stringify(await hud(g)));await g.shot(`${K}-09-at-heater`);
+await g.walk(14.2,-1.0,.3);await g.key('KeyE',.3);s=await g.snap();log('unplug',JSON.stringify(s.strip));
+await g.walk(12.4,-1.15,.4);await g.key('KeyE',.2);s=await g.snap();log('won',s.won,'t',s.time.toFixed(1),'player',JSON.stringify(s.player));
+for(const [i,ms] of [[10,300],[11,1500],[12,3000]]){await g.page.waitForTimeout(ms);await g.shot(`${K}-${i}-win-${ms}`);}
+log('card',await g.page.evaluate(()=>document.querySelector('.screen[data-screen="result"]')?.innerText?.slice(0,300)));
+console.log('errors',JSON.stringify(await g.close()));

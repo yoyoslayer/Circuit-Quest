@@ -1,0 +1,18 @@
+import {launch} from '../cap.mjs';
+let g=await launch('lobby',{fullfx:true,start:false});
+await g.ev('return drive.advance(1.5)').catch(()=>{});
+await g.shot('characters-80-title-hero');
+await g.close();
+g=await launch('arcade',{fullfx:true});
+await g.advance(.5);
+for(const [x,z] of [[-5.5,6.6],[-7.2,5.8]])await g.walk(x,z);await g.walk(-8.3,4.4,.3);await g.key('KeyE');
+console.log('held',(await g.snap()).held);
+await g.walk(-7.2,5.8);await g.walk(-5.5,6.4);
+await g.zoom(-1500);await g.advance(.3);await g.shot('characters-81-arcade-tray-carry');
+await g.orbit(300,0);await g.shot('characters-82-arcade-tray-carry-side');await g.orbit(-300,0);
+await g.walk(1.2,-1.3,.5);await g.key('KeyE');await g.advance(.2);
+await g.walk(0,-1.55,.4);await g.shot('characters-83-arcade-before-sit');
+await g.key('KeyE');await g.advance(1);console.log('bench',(await g.snap()).atBench);
+await g.shot('characters-84-arcade-bench-view');
+await g.key('KeyE');await g.advance(1.2);await g.shot('characters-85-arcade-after-stand');
+console.log(await g.close());

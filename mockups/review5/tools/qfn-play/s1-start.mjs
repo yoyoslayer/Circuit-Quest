@@ -1,0 +1,13 @@
+import {launch} from '../cap.mjs';import {txt,log} from './common.mjs';
+const g=await launch('qfn',{fullfx:true});
+log('audit',await g.audit(.02));
+await g.advance(.5);let s=await g.snap();log('start',{player:s.player,held:s.held,props:s.props,items:s.items,fps:s.fps,dc:s.drawCalls,rope:s.rope});
+log(await txt(g));
+await g.shot('qfn-play-01-start');
+await g.survey();log('survey',(await g.snap()).drawCalls);await g.shot('qfn-play-02-survey');await g.survey();
+await g.orbit(400,0);await g.shot('qfn-play-03-orbit-a');
+await g.orbit(400,0);await g.shot('qfn-play-04-orbit-b');
+await g.orbit(-800,0);
+await g.zoom(-1500);await g.shot('qfn-play-05-start-close');
+await g.zoom(1500);
+log('errors',await g.close());

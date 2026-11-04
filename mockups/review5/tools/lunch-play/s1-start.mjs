@@ -1,0 +1,20 @@
+import {launch} from '../cap.mjs';
+const P='lunch-play-';
+const g=await launch('lunch',{fullfx:true});
+await g.advance(.5);
+console.log('audit',JSON.stringify(await g.audit(.02)).slice(0,1500));
+let s=await g.snap();console.log('start',JSON.stringify({p:s.player,props:s.props,fps:s.fps,dc:s.drawCalls,time:s.time}));
+await g.shot(P+'01-start');
+console.log('hudtext',await g.page.evaluate(()=>document.querySelector('[data-layer="hud"]')?.innerText));
+await g.survey();await g.shot(P+'02-survey');s=await g.snap();console.log('survey dc',s.drawCalls);
+await g.survey();
+await g.orbit(500,0);await g.shot(P+'03-orbit-a');
+await g.orbit(500,0);await g.shot(P+'04-orbit-b');
+await g.orbit(-1000,0);
+await g.zoom(-1500);await g.shot(P+'05-zoom9-spawn');
+// first prompt near spawn
+console.log('prompt',await g.page.evaluate(()=>document.querySelector('.prompt-pill')?.innerText));
+await g.close().then(e=>console.log('errors',e));
+const h=await launch('lunch',{width:390,height:844});
+await h.advance(.5);await h.shot(P+'06-phone-start');await h.survey();await h.shot(P+'07-phone-survey');
+console.log('errors2',await h.close());

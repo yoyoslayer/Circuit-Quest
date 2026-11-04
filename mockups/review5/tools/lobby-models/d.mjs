@@ -1,0 +1,13 @@
+import {launch} from '../cap.mjs';
+const P='lobby-models-';
+const g=await launch('lobby',{fullfx:true,start:false});
+await g.page.evaluate(()=>{localStorage.setItem('circuit-crew:best:v1',JSON.stringify({playground:{grade:'A',time:30,damage:0,cost:0},qfn:{grade:'B',time:200,damage:3,cost:50}}));});
+await g.page.reload();await g.page.waitForSelector('body[data-ready="true"]');
+const b=g.page.getByRole('button',{name:'Start playing'});if(await b.count())await b.click();
+await g.advance(1);
+await g.crop(P+'43-crop-start-doors-top',{x:0,y:0,width:1440,height:260});
+await g.walk(-10.5,-2.5,.3);await g.advance(.8);await g.zoom(-900);await g.shot(P+'44-blade-default-yaw');
+await g.orbit(262,0);await g.advance(1);await g.shot(P+'45-blade-sidewall-cutaway');await g.orbit(-262,0);
+await g.walk(-11.6,-6.2,.3);await g.advance(.8);await g.zoom(-2000);await g.orbit(0,-120);await g.shot(P+'46-wing-lamp-lit-low');await g.orbit(0,120);
+await g.orbit(160,0);await g.shot(P+'47-medal-oblique');await g.orbit(-160,0);
+console.log('ERR',JSON.stringify(await g.close()));

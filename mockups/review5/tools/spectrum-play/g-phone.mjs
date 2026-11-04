@@ -1,0 +1,22 @@
+import {launch} from '../cap.mjs';
+const P='spectrum-play';
+const g=await launch('spectrum',{fullfx:true,width:390,height:844});
+const log=(...a)=>console.log(...a);
+const W=async(x,z,r=.5)=>{const res=await g.walk(x,z,r);if(!res.arrived)log('STUCK',x,z);return res;};
+await g.advance(1);await g.shot(`${P}-90-phone-start`);
+await g.survey();await g.shot(`${P}-91-phone-survey`);await g.key('Tab');await g.advance(1);
+await W(-6.3,3.6);await W(-3.5,3.55,.4);await g.key('KeyE',.2);await g.advance(1.2);
+await g.shot(`${P}-92-phone-bench`);
+await g.act('band','nir');await g.act('aim',{what:'tx',to:{x:4,z:-1}});await g.advance(.3);await g.shot(`${P}-93-phone-bench-nir`);
+let s=await g.snap();log('phone drawcalls',s.drawCalls,'fps',s.fps);
+log('ERR',JSON.stringify(await g.close()));
+// Restart timing at desktop
+const h=await launch('spectrum',{fullfx:true});
+await h.advance(1);const t0=Date.now();
+await h.page.keyboard.press('KeyR');
+await h.page.waitForSelector('body[data-ready="true"]',{timeout:120000}).catch(()=>{});
+await h.page.waitForTimeout(300);
+log('reload ms',Date.now()-t0, 'url',h.page.url());
+const startBtn=await h.page.getByRole('button',{name:'Start playing'}).count();log('start button after R',startBtn);
+await h.shot(`${P}-94-after-R`);
+log('ERR2',JSON.stringify(await h.close()));

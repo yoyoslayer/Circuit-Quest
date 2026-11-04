@@ -1,0 +1,11 @@
+import {launch} from '../cap.mjs';
+const P='meta-settings-errors-';
+const g=await launch('playground');await g.advance(.5);
+await g.page.evaluate(()=>{window.__pad={buttons:Array.from({length:17},()=>({pressed:false,value:0})),axes:[0,0,0,0],connected:true,id:'fake',mapping:'standard',index:0};navigator.getGamepads=()=>[window.__pad];dispatchEvent(new Event('gamepadconnected'));});
+await g.advance(.5);
+const press=async i=>{await g.page.evaluate(i=>{window.__pad.buttons[i].pressed=true;},i);await g.page.waitForTimeout(200);await g.advance(.1);await g.page.evaluate(i=>{window.__pad.buttons[i].pressed=false;},i);await g.page.waitForTimeout(200);await g.advance(1.2);};
+await g.orbit(400,120);await g.zoom(-900);await g.shot(P+'70-pad-orbited');
+await press(11);await g.shot(P+'71-pad-after-RS-button11');
+await press(10);await g.shot(P+'72-pad-after-LS-button10');
+await press(10);await press(8);await g.shot(P+'73-pad-after-select-button8');
+console.log('errors',await g.close());

@@ -1,0 +1,23 @@
+import {launch} from '../cap.mjs';
+const K='progression';
+const g=await launch('arcade',{fullfx:true});
+const t0=Date.now();
+await g.advance(.3);
+await g.shot(`${K}-23-arcade-start`);
+console.log('card',await g.page.locator('.objective').innerText(),'| prompt',await g.page.locator('.prompt-pill').innerText().catch(()=>''));
+const W=async(pts,r=.5)=>{for(const [x,z] of pts){const res=await g.walk(x,z,r);if(!res.arrived)console.log('stuck',x,z);}};
+await W([[-5.5,6.6],[-7.2,5.8]]);await W([[-8.3,4.4]],.3);await g.key('KeyE');
+console.log('held',(await g.snap()).held,'t',(await g.snap()).time.toFixed(1));
+await W([[-7.2,5.8],[-5.5,6.4]]);await W([[1.2,-1.3]]);await g.key('KeyE',.2);
+await W([[0,-1.55]],.4);await g.key('KeyE');
+let s=await g.snap();console.log('atBench',s.atBench,'t',s.time.toFixed(1));
+await g.shot(`${K}-24-arcade-bench`);
+// Press R at the bench: does the whole job reload?
+await g.page.evaluate(()=>{window.__marker=1;});
+await g.page.keyboard.press('KeyR');await g.page.waitForTimeout(2500);
+const alive=await g.page.evaluate(()=>window.__marker===1).catch(()=>false);
+console.log('page survived R at bench?',alive);
+await g.page.waitForSelector('body[data-ready="true"]',{timeout:60000});
+s=await g.snap();console.log('after R: atBench',s.atBench,'time',s.time,'running',s.running,'held',s.held);
+await g.shot(`${K}-25-arcade-after-R-at-bench`);
+console.log('errors',JSON.stringify(await g.close()),'secs',(Date.now()-t0)/1000);

@@ -73,7 +73,7 @@ const DOTS=18,FUSE_COOL=2.5,RUN_TIME=.8;
 const msText=(t:number|null)=>t===null?'never':`${(t*1e3).toFixed(2)} ms`;
 
 export class GarageBench implements Station {
-  readonly view={distance:6.8,pitch:.86,lookY:.4};
+  readonly view={distance:6.8,pitch:.86,lookY:.4,width:4.4};
   readonly limits={time:420,damage:1,cost:Math.ceil(JOBS.reduce((n,j)=>n+(cheapest(j)?.cost??0),0)*1.25*10)/10};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   slots:Partial<Record<SlotId,Fit>>={};star=false;held?:PartId;fuse=true;cooling=0;scopeMode:'stop'|'start'='stop';

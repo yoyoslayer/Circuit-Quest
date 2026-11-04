@@ -47,7 +47,7 @@ const shade=(c:string,k:number)=>'#'+new T.Color(c).lerp(new T.Color(INK),k).get
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 interface Stroke {layer:Layer;net:string;cells:XY[];warned:boolean}
 export class QfnBench implements Station {
-  readonly view={distance:5.6,pitch:1.02,lookY:-.1};
+  readonly view={distance:5.6,pitch:1.02,lookY:-.1,width:3.6};
   readonly limits={time:720,damage:1,cost:0};
   readonly stand={x:0,z:-.5};readonly table=new T.Vector3(0,.92,-2.2);readonly facing=Math.PI;
   readonly job:StationJob;

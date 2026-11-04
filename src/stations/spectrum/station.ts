@@ -56,7 +56,7 @@ const yawQuat=(yaw:number)=>new T.Quaternion().setFromAxisAngle(UP,yaw);
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 export class SpectrumDesk implements Station {
-  readonly view={distance:6.1,pitch:1.02,lookY:.42};
+  readonly view={distance:6.1,pitch:1.02,lookY:.42,width:4.6};
   readonly limits={time:540,damage:1,cost:0};
   readonly stand={x:-3.5,z:3.55};readonly table=new T.Vector3(-3.5,1,2.6);readonly facing=Math.PI;
   // Desk state. The first try is the obvious one: visible light.

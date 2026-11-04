@@ -86,7 +86,7 @@ export function promptFor(g:Game):Prompt|null{
 
 /** The job card (top left, under the timer) and the prompt pill (above the action bar). */
 export class ObjectivesHUD{
-  card:HTMLElement;prompt:HTMLElement;stand:HTMLElement;marker:T.Mesh;private shown='';private promptShown='';private job:Job;private flash=new Set<number>();
+  card:HTMLElement;prompt:HTMLElement;stand:HTMLElement;marker:T.Mesh;private shown='';private promptShown='';private current:{key:string;text:string}|null=null;private job:Job;private flash=new Set<number>();
   constructor(private g:Game,layer:HTMLElement){
     this.job=g.station||g.hub?stationJob(g):JOBS[g.level.id]??JOBS.playground;
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
@@ -94,6 +94,10 @@ export class ObjectivesHUD{
     // At a bench the walking controls hide; this chip says how to step back.
     this.stand=document.createElement('div');this.stand.className='bench-chip';this.stand.hidden=true;this.stand.innerHTML='<kbd>Esc</kbd><span>Stand up</span>';layer.append(this.stand);
     this.stand.addEventListener('pointerdown',e=>{e.stopPropagation();g.leaveBench();});
+    // At a bench a tap on the prompt presses its key, so touch screens can sign off, ship or send.
+    this.prompt.addEventListener('pointerdown',e=>{if(!g.atBench||!this.current)return;e.stopPropagation();const k=this.current.key;
+      if(k==='Esc'){g.leaveBench();return;}
+      const code=k==='Enter'||k==='Space'?k:/^[A-Z]$/.test(k)?`Key${k}`:/^\d$/.test(k)?`Digit${k}`:'';if(code)g.station?.key(code);});
     const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.color.multiplyScalar(1.5);m.userData.outlineParameters={visible:false};
     this.marker=new T.Mesh(new T.ConeGeometry(.22,.42,20).rotateX(Math.PI),m);this.marker.userData.noAO=true;this.marker.visible=false;g.root.add(this.marker);
   }
@@ -117,7 +121,7 @@ export class ObjectivesHUD{
     const at=current>=0&&g.running&&!g.won&&!g.atBench?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;
     if(at){this.marker.position.set(at.x,2.1+Math.sin(g.last*.006)*.18,at.z);this.marker.rotation.y=g.last*.002;}
     this.stand.hidden=!g.atBench;
-    const p=promptFor(g),pk=p?`${p.key}|${p.text}`:'';
+    const p=promptFor(g),pk=p?`${p.key}|${p.text}`:'';this.current=p;
     if(pk!==this.promptShown){this.promptShown=pk;this.prompt.hidden=!p;if(p)this.prompt.innerHTML=`<kbd>${p.key}</kbd><span>${p.text}</span>`;}
   }
   /** Bonus results for the grade card. */

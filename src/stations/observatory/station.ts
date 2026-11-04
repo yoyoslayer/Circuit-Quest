@@ -59,7 +59,7 @@ const routeLabels=new Map<boolean,T.Texture>();
 const routeLabel=(clear:boolean)=>{let t=routeLabels.get(clear);if(!t){t=label(clear?'ROUTE: CLEAR OF MOTOR':'ROUTE: PAST MOTOR',clear?'#8dffb0':'#ffd66b');routeLabels.set(clear,t);}return t;};
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 export class ObservatoryBench implements Station {
-  readonly view={distance:6.3,pitch:.88,lookY:.4};
+  readonly view={distance:6.3,pitch:.88,lookY:.4,width:4.6};
   readonly limits={time:360,damage:1,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   // Bench state.

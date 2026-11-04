@@ -77,7 +77,7 @@ interface Heat {led:number;blocks:number[][];across:number}
 const zeroHeat=(c:Chain):Heat=>({led:0,blocks:c.map(p=>p.map(()=>0)),across:0});
 
 export class ArcadeBench implements Station {
-  readonly view={distance:5.9,pitch:.98,lookY:.3};
+  readonly view={distance:5.9,pitch:.98,lookY:.3,width:4.4};
   readonly limits={time:480,damage:2,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   index=0;setup:Setup;held?:Block;powered=false;soak=0;soakDone=false;verdict?:Verdict;heat:Heat;

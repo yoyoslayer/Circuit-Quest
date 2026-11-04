@@ -16,5 +16,8 @@ export interface Level {id:LevelId;name:string;number:string;tagline:string;badg
   hub?:boolean;
   /** The lobby door stays locked until this job has a best result (e.g. rush after the story shift). */
   requires?:LevelId;
+  /** Closed-off spaces Pip can't enter (x/z boxes). A job item that ends up inside one is sent home,
+   *  like one stranded on tall furniture, so it can never be lost for good. */
+  sealed?:{minX:number;maxX:number;minZ:number;maxZ:number}[];
   /** Extra props laid out at load time around the room's fixtures (src/levels/clutter.ts). */
   clutter?:ClutterOptions;width:number;depth:number;spawn:Point;anchor:Point;target:Point;length:number;obstacles:Obstacle[];props:PropSpec[];npcs:NpcSpot[]}

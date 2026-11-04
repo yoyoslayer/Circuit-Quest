@@ -29,7 +29,10 @@ export interface Station {
    *  point it looks at. */
   readonly view:{distance:number;pitch:number;lookY:number;
     /** Optional sideways shift of the look point (m, toward screen right) so the table clears the right-hand panel. */
-    lookX?:number};
+    lookX?:number;
+    /** Full width (m) of everything the player taps at the bench. Narrow (portrait) screens pull the
+     *  camera back until all of it is on screen. */
+    width?:number};
   readonly limits:Limits;
   /** Where Pip stands to work (world), and the tabletop centre (world). */
   readonly stand:Point;readonly table:T.Vector3;readonly facing:number;

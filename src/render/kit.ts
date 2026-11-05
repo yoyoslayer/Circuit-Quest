@@ -6,8 +6,9 @@ import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js'
 import {INK,toon,type ToonOptions} from './toon';
 export {INK,toon};
 export const METAL='#9aa3b2',DMETAL='#6b7385',WOOD='#b98552',TRIM='#a8734a';
-export const CHAIRC=['#e5484d','#3f7fd6','#6cc58a','#ffc94d','#b392f0','#f08a4b'];
-export const BLOBC=['#b392f0','#6cc58a','#5b9cf0','#f08a4b','#f78fd0','#ffc94d','#8fd3c8'];
+export const CHAIRC=['#e5484d','#3f7fd6','#6cc58a','#f6a07a','#b392f0','#f08a4b'];
+// No blob or chair wears job yellow (#ffc94d): yellow means "job item" (DR-45, R5-101).
+export const BLOBC=['#b392f0','#6cc58a','#5b9cf0','#f08a4b','#f78fd0','#f6a07a','#8fd3c8'];
 
 const geometries=new Map<string,T.BufferGeometry>();
 export function cached<G extends T.BufferGeometry>(key:string,make:()=>G):G{let g=geometries.get(key) as G|undefined;if(!g){g=make();geometries.set(key,g);}return g;}

@@ -55,8 +55,9 @@ export class Lobby {
   dress(kit:RoomKit){
     const g=this.game,l=g.level,r=g.decorRoot,W=l.width/2,D=l.depth/2;
     kit.floor(-W,W,-D,D,TX.woodPlanks('#d9ab6e'),3.2);
-    // A terrazzo-style atrium ring with a rug and the reception island in the middle.
-    kit.floor(-6,6,-3.5,3.5,TX.kitchenTiles('#f2eadb','#e3d5bd',6),2.4,.004);rug(r,0,.6,7,4.2,'#5ED6CC','#d8f5ef');
+    // A terrazzo-style atrium ring with a rug and the reception island in the middle. Both sit in
+    // DR-54's floor luma band (140-185), not above it (R5-154).
+    kit.floor(-6,6,-3.5,3.5,TX.kitchenTiles('#d8ccb3','#c6b597',6),2.4,.004);rug(r,0,.6,7,4.2,'#4fbdb4','#bfe3db');
     kit.backWindows(()=>true);
     const desk=group(r,0,0,-.6);part(desk,rbox(4,1,1.1,.12),toon('#f4ead6'),0,.5,0);part(desk,rbox(4.1,.08,1.2,.04),toon('#c98a55'),0,1.02,0);
     part(desk,box(3.6,.5,.06),toon('#5ED6CC'),0,.55,.57);signPlate(desk,'CIRCUIT CREW HQ',0,.6,.61,2.2,{bg:'#ffc629'});solid(g,4,1.05,1.1,0,.52,-.6);
@@ -66,7 +67,8 @@ export class Lobby {
     const board=group(r,0,0,-1.3),rows=Math.ceil(levels.length/2),pitch=.27,h=.3+rows*pitch,y0=1.15;part(board,box(3.3,h,.08),toon(INK),0,y0+h/2,0);
     part(board,rbox(3.42,h+.12,.06,.03),toon('#c98a55'),0,y0+h/2,-.03);for(const x of [-1.5,1.5])part(board,box(.08,y0,.08),toon(DMETAL),x,y0/2,-.02);solid(g,3.4,y0+h,.12,0,(y0+h)/2,-1.3);
     levels.forEach((lv,i)=>{const col=i<rows?0:1,row=i%rows;signPlate(board,`${lv.number}  ${title(lv)}`,col?.775:-.775,y0+h-.28-row*pitch,.05+row*.0015+col*.0007,1.45,{bg:LOOK[lv.id]?.color??'#fffaf0',w:512,h:88});});
-    pendant(g.root,-3,.2,{y:2.8,color:'#ffc94d'});pendant(g.root,3,.2,{y:2.8,color:'#ffc94d',light:false});lampPool(g.root,0,.2,4,.16);
+    // Teal shades, the HQ colour: job yellow is for job items only (R5-154, DR-45).
+    pendant(g.root,-3,.2,{y:2.8,color:'#5ED6CC'});pendant(g.root,3,.2,{y:2.8,color:'#5ED6CC',light:false});lampPool(g.root,0,.2,4,.16);
     // Benches, plants and a water cooler around the ring.
     // The right bench stays clear of the Workshop arch.
     for(const [x,z,ry] of [[-4.6,3.6,0],[4.6,3.6,0]] as const){const b=group(r,x,0,z,ry);part(b,rbox(2,.12,.6,.05),toon('#c98a55'),0,.46,0);for(const s of [-.8,.8])part(b,box(.1,.44,.5),toon(INK),s,.22,0);solid(g,2,.5,.6,x,.25,z);}

@@ -99,7 +99,9 @@ describe('arcade circuit rules',()=>{
 describe('arcade rush cabinets',()=>{
   it('are always fixable elegantly from the bins, and start broken',()=>{
     const r=rng(11);for(let i=0;i<120;i++){const j=rushJob(r,i),fix=best(j);expect(fix,j.ask).toBeDefined();
-      expect(judge(j,s(fix!)).tier).toBe(3);expect(judge(j,j.start).tier,`${j.ask} ${JSON.stringify(j.start)}`).toBeLessThan(2);}
+      expect(judge(j,s(fix!)).tier).toBe(3);expect(judge(j,j.start).tier,`${j.ask} ${JSON.stringify(j.start)}`).toBe(0);
+      // A backwards cabinet needs a block changed too, not just the flip.
+      if(j.start.reversed)expect(judge(j,{...j.start,reversed:false}).tier).toBeLessThan(3);}
   },30000);
   it('tell a story that matches what powering them on shows',()=>{
     const r=rng(20261029);let glaring=0,dim=0;
@@ -108,7 +110,9 @@ describe('arcade rush cabinets',()=>{
       if(/Glaring/.test(j.story)){glaring++;expect(st.level).toBeGreaterThan(1);expect(st.level).toBeLessThan(HOUSE.ledPop);}
       if(/Dimmer/.test(j.story)){dim++;expect(st.iLoad).toBeLessThan(j.band[0]/2);}
       // Backwards only on low supplies: past 5 V an LED's reverse rating would be exceeded.
-      if(j.start.reversed)expect(j.supply).toBeLessThanOrEqual(5);}
+      if(j.start.reversed)expect(j.supply).toBeLessThanOrEqual(5);
+      // Stories describe symptoms, never the cause.
+      expect(j.story).not.toMatch(/across|backwards|socket is empty/i);}
     expect(glaring).toBeGreaterThan(20);expect(dim).toBeGreaterThan(5);
   },30000);
   it('signing off the elegant chain wastes nothing',()=>{

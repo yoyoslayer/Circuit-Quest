@@ -46,20 +46,20 @@ const RECIPES:Record<Recipe,(r:Rng,c:Palette)=>Item[]>={
     out.push({kind:'box',dx:out[0].dx+.05,dz:out[0].dz,y:.95,rot:(r()-.5)*.6,color:pick(r,c.box)});return out;},
   pod:(r,c)=>[{kind:'desk',dx:0,dz:0,variant:Math.floor(r()*5)},{kind:'monitor',dx:0,dz:-.17,y:1.2,variant:Math.floor(r()*7)},{kind:'chair',dx:.1,dz:.85,color:pick(r,c.fabric)},
     {kind:'mug',dx:.55,dz:0,y:1.08,color:pick(r,c.small)},{kind:'paper',dx:-.4,dz:.05,y:.99}],
-  // (The paper lies clear of both beanbags: at dz .65 it touched one at audit .02.)
-  lounge:(r,c)=>[{kind:'beanbag',dx:-.55,dz:0,color:pick(r,c.fabric)},{kind:'beanbag',dx:.55,dz:.15,color:pick(r,c.fabric)},{kind:'plant',dx:0,dz:-.75},{kind:'paper',dx:-.05,dz:.9}],
+  // (The paper lies clear of both beanbags: at dz .65 it touched one at audit .02; .95 leaves air, R5-292.)
+  lounge:(r,c)=>[{kind:'beanbag',dx:-.55,dz:0,color:pick(r,c.fabric)},{kind:'beanbag',dx:.55,dz:.15,color:pick(r,c.fabric)},{kind:'plant',dx:0,dz:-.75},{kind:'paper',dx:-.05,dz:.95}],
   bins:(r,c)=>[{kind:'bin',dx:0,dz:0},{kind:'paper',dx:.45,dz:.1},{kind:'paper',dx:-.35,dz:.35},{kind:'mug',dx:.3,dz:-.35,color:pick(r,c.small)}],
   cones:(r,c)=>[{kind:'cone',dx:-.4,dz:0},{kind:'cone',dx:.35,dz:.25},{kind:'box',dx:0,dz:-.65,color:pick(r,c.box)}],
   cart:(r,c)=>[{kind:'cart',dx:0,dz:0,color:pick(r,c.cart)},{kind:'box',dx:-.25,dz:0,y:1.0,color:pick(r,c.box)},{kind:'paper',dx:.3,dz:.05,y:.7}],
   shelf:(r,c)=>[{kind:'bookshelf',dx:0,dz:0,color:pick(r,c.shelf)},{kind:'box',dx:.55,dz:.65,color:pick(r,c.box)},{kind:'bin',dx:-.75,dz:.6}],
   cooler:(r,c)=>[{kind:'cooler',dx:0,dz:0},{kind:'mug',dx:.5,dz:.1,color:pick(r,c.small)},{kind:'plant',dx:-.7,dz:0}],
-  reading:(r,c)=>[{kind:'lamp',dx:-.6,dz:-.1},{kind:'beanbag',dx:.25,dz:0,color:pick(r,c.fabric)},{kind:'paper',dx:.3,dz:.6}],
+  reading:(r,c)=>[{kind:'lamp',dx:-.6,dz:-.1},{kind:'beanbag',dx:.25,dz:0,color:pick(r,c.fabric)},{kind:'paper',dx:.3,dz:.8}],
   // A spare-parts corner: cartons, a cone and a bin. No reels, splitters or plugs: those shapes mean
   // "job item", so only a level that uses them places them (R5-104).
   parts:(r,c)=>[{kind:'box',dx:-.35,dz:0,rot:.25,color:pick(r,c.box)},{kind:'cone',dx:.4,dz:-.2},{kind:'bin',dx:.4,dz:.45},{kind:'box',dx:-.3,dz:.92,rot:-.3,color:pick(r,c.box)}],
   plants:()=>[{kind:'plant',dx:-.38,dz:0},{kind:'plant',dx:.38,dz:.12}],
-  // The carton rests on the cabinet's top trim (1.6 m + .02), not .02 inside it.
-  cabinets:(r,c)=>[{kind:'cabinet',dx:-.38,dz:0,color:pick(r,c.cabinet)},{kind:'cabinet',dx:.38,dz:0,color:pick(r,c.cabinet)},{kind:'box',dx:-.38,dz:0,y:1.92,rot:.2,color:pick(r,c.box)}],
+  // The carton rests on the cabinet's top trim, not inside it (R5-149).
+  cabinets:(r,c)=>[{kind:'cabinet',dx:-.38,dz:0,color:pick(r,c.cabinet)},{kind:'cabinet',dx:.38,dz:0,color:pick(r,c.cabinet)},{kind:'box',dx:-.38,dz:0,y:1.95,rot:.2,color:pick(r,c.box)}],
   box:(r,c)=>[{kind:'box',dx:0,dz:0,rot:(r()-.5)*.8,color:pick(r,c.box)}],
   litter:(r,c)=>[{kind:'paper',dx:0,dz:0,rot:r()*3},{kind:'paper',dx:.3,dz:.2,rot:r()*3},{kind:'mug',dx:-.25,dz:.15,color:pick(r,c.small)}],
   cone:()=>[{kind:'cone',dx:0,dz:0}],

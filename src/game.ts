@@ -2,13 +2,16 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon,seeOff,seeThrough,seeProj,seeY,seeClip} from './render/toon';
-import {BLOBC,bangTexture,glyph,cachedTexture,part,cyl,sphere,box,group,INK} from './render/kit';
+import {BLOBC,bangTexture,glyph,cachedTexture,part,cyl,sphere,box,rbox,group,INK} from './render/kit';
 import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type Mood} from './render/actors';
-const GOLD=new T.Color('#ffd451'),DULL_GOLD=new T.Color('#b9ad86');
+// Plugged-in cable colours: teal (live) and grey-teal (dead), never a colour on the strain ramp (R5-284).
+const GOLD=new T.Color('#3fc9bd'),DULL_GOLD=new T.Color('#8fa8a5');
 /** How long R is held during play before the job restarts (ms). */
 const RESTART_HOLD=800;
 /** How long a startled coworker stays startled (s): looking at the crash, then glaring at Pip (R5-230). */
 const ALARM=1.6;
+// Collision groups (membership << 16 | filter): Pip is group 2; a held prop is group 1 and skips group 2.
+const ALL_GROUPS=0xffffffff,PIP_GROUPS=0x0002ffff,HELD_GROUPS=0x0001fffd;
 /** Props that break (and cost) when they hit hard; anything else only breaks in a very hard crash (R5-097). */
 const FRAGILE=new Set(['glass','monitor','mug','plant','printer','coffee','lamp']);
 /** Lunch fail spots (lunch-runtime.ts): the oven for a burned tray, the fridge for spoiled food. */
@@ -49,7 +52,9 @@ interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.
   /** Where the last fright came from (they look there first), a positive bounce timer and when they last noticed Pip passing. */
   from?:Point;cheerT:number;noticed:number;
   /** The chair a seated coworker sits on; when it is taken or knocked away they drop to the floor. */
-  chair?:Prop;collider?:RAPIER.Collider;bang:boolean}
+  chair?:Prop;collider?:RAPIER.Collider;bang:boolean;
+  /** When a taut cable last rubbed past them. */
+  cableAt?:number}
 // Each coworker gets a personality: accessories and a resting mood (look-dev meeting.js).
 const ACCESSORIES:Accessory[][]=[['tuft'],['headphones'],['glasses','tie'],['mug'],['bun'],['cap'],['sprout'],['glasses'],['headphones','tuft'],[],['tie'],['bun','glasses']];
 const MOODS:Mood[]=['calm','calm','happy','calm','sleepy','calm','happy','calm'];
@@ -62,7 +67,7 @@ export class Game {
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
   /** Playground lamp (R5-031/067): the decor's switch lever, pilots and lamp, and how long the lamp has been lit. */
   pg?:Decor['playground'];litFor=0;lampLit=false;
-  circuit:Circuit;strip?:MeetingStrip;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
+  circuit:Circuit;strip?:MeetingStrip;keys=new Set<string>();holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   /** The second reel was tried before the coupler: a badge now floats over the coupler. */
   couplerHint=false;
   private stepT=0;private stepSide=1;
@@ -98,7 +103,7 @@ export class Game {
     this.batchProps();
     for(const p of level.npcs)this.addNpc(p);
     this.player=this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(level.spawn.x,.91,level.spawn.z));
-    this.playerCollider=this.world.createCollider(RAPIER.ColliderDesc.capsule(.45,.32).setMass(65),this.player);
+    this.playerCollider=this.world.createCollider(RAPIER.ColliderDesc.capsule(.45,.32).setMass(65).setCollisionGroups(PIP_GROUPS),this.player);
     this.controller=this.world.createCharacterController(.025);this.controller.enableAutostep(.25,.2,true);this.controller.enableSnapToGround(.2);this.controller.setApplyImpulsesToDynamicBodies(true);this.controller.setCharacterMass(65);
     this.buildAvatar();
     this.plugPosition=new T.Vector3(level.anchor.x+.7,.3,level.anchor.z+.7);
@@ -108,8 +113,14 @@ export class Game {
     // The Meeting strip and Lunch carts are their own sockets, and the Playground builds one with a face plate (R5-030, R5-152).
     if(level.id==='meeting'||level.id==='lunch'||this.pg)socket.visible=false;
     // The anchor reel: its wound cable shrinks as cable pays out, so the length left reads at a glance.
-    const anchor=group(this.root,level.anchor.x,.35,level.anchor.z);for(const side of [-1,1])part(anchor,cyl(.336,.336,.056,24,'z'),toon('#ffc94d'),0,0,side*.192);
-    part(anchor,cyl(.064,.064,.45,12,'z'),toon('#c7ccd6'));part(anchor,box(.5,.06,.5),toon(INK),0,-.3,0);this.spool=part(anchor,cyl(1,1,.32,28,'z'),toon('#f4efe6'));this.spool.scale.set(.31,.31,1);
+    // It stands side-on to the default camera on an A-frame, so the winding's thickness reads directly (R5-360).
+    const anchor=group(this.root,level.anchor.x,.44,level.anchor.z);anchor.rotation.y=Math.PI/2;for(const side of [-1,1])part(anchor,cyl(.336,.336,.056,24,'z'),toon('#ffc94d'),0,0,side*.192);
+    part(anchor,cyl(.064,.064,.56,12,'z'),toon('#c7ccd6'));this.spool=part(anchor,cyl(1,1,.32,28,'z'),toon('#f4efe6'));this.spool.scale.set(.31,.31,1);
+    {const frame=toon(INK);for(const side of [-1,1])for(const lean of [-1,1])part(anchor,box(.05,.5,.05),frame,lean*.12,-.21,side*.26).rotation.z=lean*.3;
+      part(anchor,rbox(.7,.05,.5,.02),frame,0,-.415,0);
+      // A crank on one hub and a guide ring where the lead leaves the drum.
+      part(anchor,box(.04,.2,.04),toon('#c7ccd6'),0,-.08,.3);part(anchor,cyl(.03,.03,.1,8,'z'),toon('#e5484d'),0,-.17,.34);
+      part(anchor,new T.TorusGeometry(.06,.014,6,16),toon('#c7ccd6'),.36,-.28,0).rotation.y=Math.PI/2;}
     if(this.station||this.hub)for(const o of [this.plug,this.target,socket,anchor])o.visible=false;
     this.ropeMesh=new T.Mesh(new T.BufferGeometry(),hoseMaterial());this.ropeMesh.castShadow=true;this.root.add(this.ropeMesh);this.pulses=new Pulses(this.root);
     // Comic twang arcs drawn where a taut cable bites a corner.
@@ -258,7 +269,7 @@ export class Game {
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
     if(action==='jump'&&this.grounded&&(!this.held||!this.heavy(this.held))){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
     if(action==='grab'||action==='cable')this.interact(action==='cable');
-    if(action==='throw'){if(this.holdingPlug)this.releasePlug();else if(this.held){const p=this.held;this.held=undefined;this.thrownAt=this.time;p.body.applyImpulse({x:Math.sin(this.heading)*prefabs[p.spec.kind].mass*8,y:prefabs[p.spec.kind].mass*5,z:Math.cos(this.heading)*prefabs[p.spec.kind].mass*8},true);this.audio.tone(240,.1,.06,'triangle');}}
+    if(action==='throw'){if(this.holdingPlug)this.releasePlug();else if(this.held){const p=this.held;this.held=undefined;this.thrownAt=this.time;if(p.spec.id&&this.station)this.thrownItem={p,at:this.time,damaged:!!p.damaged};p.body.applyImpulse({x:Math.sin(this.heading)*prefabs[p.spec.kind].mass*8,y:prefabs[p.spec.kind].mass*5,z:Math.cos(this.heading)*prefabs[p.spec.kind].mass*8},true);this.audio.tone(240,.1,.06,'triangle');}}
   }
   begin(){if(this.running)return;const ui=gameUI(this);if(ui?.beforeBegin())return;this.running=true;this.survey=false;this.audio.start();ui?.started();}
   /** Gamepad buttons are read every frame so Start/A also work on the intro card and while paused. */
@@ -335,7 +346,24 @@ export class Game {
   /** Heavy furniture, and carts (the Garage robot, the Observatory motor), are pushed along the floor. */
   heavy(p:Prop){return prefabs[p.spec.kind].mass>=15||this.isCart(p);}
   isCart(p:Prop){return p.spec.kind==='cart'&&(p.spec.id==='robot'||p.spec.id==='motor');}
+  /** The carried prop. While held it doesn't collide with Pip's body, so turning round with a cart
+   *  or the robot swings it past him instead of leaving it stuck behind him. */
+  private heldProp?:Prop;
+  get held(){return this.heldProp;}
+  set held(p:Prop|undefined){if(this.heldProp===p)return;const set=(q:Prop,g:number)=>{for(let i=0;i<q.body.numColliders();i++)q.body.collider(i).setCollisionGroups(g);};
+    if(this.heldProp)set(this.heldProp,ALL_GROUPS);this.heldProp=p;if(p)set(p,HELD_GROUPS);}
   thrownAt=-9;releasedAt=-9;
+  /** A job item thrown in a station room: once it comes to rest it is offered to the bench like a
+   *  put-down, and a throw that lands counts as delivered (R5-085). */
+  private thrownItem?:{p:Prop;at:number;damaged:boolean};
+  private landThrow(){const t=this.thrownItem;if(!t||!this.station)return;const b=t.p.body,v=b.linvel();
+    if(t.p===this.held||this.time-t.at>6){this.thrownItem=undefined;return;}
+    if(this.time-t.at<.25||Math.hypot(v.x,v.y,v.z)>.6)return;
+    this.thrownItem=undefined;this.station.dropped?.(t.p);
+    if(b.isEnabled()&&!b.isFixed()&&t.p.mesh.visible)return;
+    // Delivered by a throw: the landing doesn't count as a breakage, and it gets its own cheer.
+    if(t.p.damaged&&!t.damaged){t.p.damaged=false;this.damage=Math.max(0,this.damage-1);this.cost=Math.max(0,this.cost-prefabs[t.p.spec.kind].cost);}
+    const at=b.translation();this.burst({x:at.x,y:at.y+.4,z:at.z},'#ffcf52',24,'confetti');this.beat('confetti');this.cheerNear(at,6);this.audio.milestone();}
   /** Nothing in reach: a little puff and a questioning chirp instead of silence. */
   shrug(){const p=this.player.translation();this.burst({x:p.x+Math.sin(this.heading)*.6,y:.2,z:p.z+Math.cos(this.heading)*.6},'#efe8d8',4,'dust');this.audio.voice('hm',1.5);this.squash=.25;}
   /** The second reel joins at the plug through the coupler: the cable gains 14 m, and the joint
@@ -457,11 +485,14 @@ export class Game {
     // This bounds the visibility graph in a dense room while retaining local wraps.
     const route=this.ropePoints.length>1?this.ropePoints:[this.rope.anchor,this.plugPosition];
     // Props the rope is wrapped on always stay in; the rest are the nearest twenty.
-    const near=this.props.filter(p=>p.mesh.visible&&p!==this.held&&prefabs[p.spec.kind].mass>=3&&p.body.translation().y<1.8).map(p=>({p,d:Math.min(...route.slice(1).map((b,i)=>segmentDistance(p.body.translation(),route[i],b)))})).filter(v=>v.d<1.2||this.wrapped.has(v.p));
+    // Heavy furniture wraps the cable. Cartons and other light clutter are swept aside instead, so the
+    // cable can still lie across a box row and slingshot it.
+    const wraps=(p:Prop)=>prefabs[p.spec.kind].mass>=3;
+    const near=this.props.filter(p=>p.mesh.visible&&p!==this.held&&wraps(p)&&p.body.translation().y<1.8).map(p=>({p,d:Math.min(...route.slice(1).map((b,i)=>segmentDistance(p.body.translation(),route[i],b)))})).filter(v=>v.d<1.2||this.wrapped.has(v.p));
     near.sort((a,b)=>Number(this.wrapped.has(b.p))-Number(this.wrapped.has(a.p))||a.d-b.d);const chosen=near.slice(0,30).map(v=>v.p);
     // Light clutter (bins, cones, small crates, plants) doesn't stop the cable; a dragged cable
     // sweeps it aside instead of passing through it.
-    if(this.holdingPlug&&this.rope.strain>.4&&this.ropePoints.length>1)for(const p of this.props){if(!p.mesh.visible||p===this.held||prefabs[p.spec.kind].mass>=3)continue;const q=p.body.translation();if(q.y>.8)continue;
+    if(this.holdingPlug&&this.rope.strain>.4&&this.ropePoints.length>1)for(const p of this.props){if(!p.mesh.visible||p===this.held||wraps(p))continue;const q=p.body.translation();if(q.y>.8)continue;
       for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];if(segmentDistance(q,a,b)>.28)continue;
         const sx=b.x-a.x,sz=b.z-a.z,len=Math.hypot(sx,sz)||1,side=Math.sign((q.x-a.x)*-sz/len+(q.z-a.z)*sx/len)||1,m=prefabs[p.spec.kind].mass;
         p.body.applyImpulse({x:-sz/len*side*m*.06,y:0,z:sx/len*side*m*.06},true);break;}}
@@ -470,7 +501,14 @@ export class Game {
       const hx=Math.abs(rotation[0])*w/2+Math.abs(rotation[8])*d/2+.05,hz=Math.abs(rotation[2])*w/2+Math.abs(rotation[10])*d/2+.05;
       return {id:`prop-${p.body.handle}`,minX:pos.x-hx,maxX:pos.x+hx,minZ:pos.z-hz,maxZ:pos.z+hz,prop:p};
     }).filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ)&&!(this.rope.anchor.x>o.minX&&this.rope.anchor.x<o.maxX&&this.rope.anchor.z>o.minZ&&this.rope.anchor.z<o.maxZ));
-    const obstacles=[...this.obstacles,...furniture];this.ropePoints=this.rope.update(this.plugPosition,obstacles);
+    // Standing coworkers are in the way too: the cable bends round them as a 0.9 m box, and a taut
+    // cable rubbing past makes them jump (throttled). Seated ones are left out, or desk pods become mazes.
+    const people=this.npcs.filter(n=>!n.seated&&Math.min(...route.slice(1).map((b,i)=>segmentDistance(n.group.position,route[i],b)))<1.2).map(n=>{const g=n.group.position;return {id:`npc-${n.seed}`,minX:g.x-.45,maxX:g.x+.45,minZ:g.z-.45,maxZ:g.z+.45,npc:n};})
+      .filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ));
+    const obstacles=[...this.obstacles,...furniture,...people];this.ropePoints=this.rope.update(this.plugPosition,obstacles);
+    if(this.rope.strain>.3)for(const o of people){const n=o.npc;if(this.time-(n.cableAt??-9)<.7||n.alarm>0)continue;
+      const g=n.group.position;if(Math.min(...this.ropePoints.slice(1).map((b,i)=>segmentDistance(g,this.ropePoints[i],b)))<.6){n.cableAt=this.time;n.alarm=ALARM;n.from={x:this.plugPosition.x,z:this.plugPosition.z};n.bang=true;this.beat('alarm');
+        if(this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',1+Math.random()*.3);}}}
     const isCorner=(o:Obstacle,b:Point)=>(Math.abs(b.x-o.minX+CORNER)<.05||Math.abs(b.x-o.maxX-CORNER)<.05)&&(Math.abs(b.z-o.minZ+CORNER)<.05||Math.abs(b.z-o.maxZ-CORNER)<.05);
     this.wrapped=new Set(furniture.filter(o=>this.rope.bends.some(b=>isCorner(o,b))).map(o=>o.prop));
     const swungClear=beforeBends.filter(b=>!this.rope.bends.some(a=>distance(a,b)<.01)).some(b=>obstacles.some(o=>isCorner(o,b)));
@@ -503,7 +541,7 @@ export class Game {
     // Meeting that is the urn and heater before the projector is on). A plugged-in cable carrying
     // nothing because the strip tripped goes a dull gold.
     const live=(this.circuit.draw.get('supply')??0)>0&&!this.circuit.sources[0].tripped;
-    if(points.length>1){const hose=hoseGeometry(points,{radius:.1,strain:u=>strain*(.6+.4*u),tint:this.connected?(this.strip&&!live?DULL_GOLD:GOLD):undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
+    if(points.length>1){const hose=hoseGeometry(points,{radius:.075,strain:u=>strain*(.6+.4*u),tint:this.connected?(this.strip&&!live?DULL_GOLD:GOLD):undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
       this.pulses.update(hose.curve,hose.length,this.last/1000,live);
       // The joint: the coupler sits on the cable where the second reel was joined.
       if(this.extension){if(!this.joint){this.joint=makeProp('coupler');this.root.add(this.joint);}
@@ -542,7 +580,7 @@ export class Game {
       b.setLinvel({x:(target.x-pos.x)*12,y:(target.y-pos.y)*12,z:(target.z-pos.z)*12},true);b.setAngvel({x:0,y:0,z:0},true);
       const r=b.rotation(),cur=new T.Quaternion(r.x,r.y,r.z,r.w),e=new T.Euler().setFromQuaternion(cur,'YXZ');
       const want=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),cart?this.heading-Math.PI/2:board?this.heading+Math.PI/2:heavy?e.y:this.heading);b.setRotation(cur.slerp(want,Math.min(1,dt*(heavy?6:14))),true);}
-    this.world.timestep=dt;this.world.step();
+    this.world.timestep=dt;this.world.step();this.landThrow();
     if(this.holdingPlug&&this.rope.strain>.88)for(const prop of this.props){const pos=prop.body.translation();if(prefabs[prop.spec.kind].mass<=15&&this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<.65)){const v=new T.Vector3(p.x-pos.x,0,p.z-pos.z).normalize().multiplyScalar(dt*12*(this.rope.strain-.8));prop.body.applyImpulse({x:v.x,y:.015,z:v.z},true);}}
     for(const prop of this.props){if(!prop.body.isEnabled())continue;const pos=prop.body.translation(),v=prop.body.linvel(),speed=Math.hypot(v.x,v.y,v.z);
       // Two tiers (R5-097): a hard knock startles nearby coworkers and costs nothing; only a fragile
@@ -771,7 +809,7 @@ export class Game {
     const mark=attach?.mesh.position??(plugFirst?this.plugPosition:!this.holdingPlug&&!this.held?nearest?.mesh.position:undefined);
     // The brackets lie flat on the floor and hug the marked prop's footprint (R5-122).
     const markKind=attach?.spec.kind??(plugFirst?undefined:nearest?.spec.kind),foot=markKind?prefabs[markKind].size:undefined;
-    this.reticle.visible=this.running&&!this.won&&!this.atBench&&!!mark;if(mark){const hx=foot?Math.max(.3,(foot[0]+.2)/2):.53,hz=foot?Math.max(.3,(foot[2]+.2)/2):.53;this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);
+    this.reticle.visible=this.running&&!this.won&&!this.atBench&&!!mark&&!this.hub?.prompt();if(mark){const hx=foot?Math.max(.3,(foot[0]+.2)/2):.53,hz=foot?Math.max(.3,(foot[2]+.2)/2):.53;this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);
       // Each corner moves out (or in) to the footprint's corner; the bracket arms keep their size.
       for(const c of this.reticle.children){const s=Math.sin(c.rotation.y),co=Math.cos(c.rotation.y),cx=-.53*co-.53*s,cz=.53*s-.53*co;c.position.set(Math.sign(cx)*(hx-.53),0,Math.sign(cz)*(hz-.53));}}
     this.pipRing.position.set(p.x,.03,p.z);

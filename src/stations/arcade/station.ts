@@ -122,7 +122,7 @@ export class ArcadeBench implements Station {
   constructor(private game:Game){
     this.rush=game.level.id==='arcade-rush';this.jobs=this.rush?[]:[...JOBS];this.setup=clone(this.current()!.start);this.heat=zeroHeat(this.setup.chain);
     this.limits.cost=this.rush?24:Math.ceil(JOBS.reduce((n,j)=>n+partsCost({chain:best(j)??[],reversed:false}),0)*1.5);
-    if(this.rush){this.limits.time=RUSH_TIME+10;this.limits.damage=3;}
+    if(this.rush){this.limits.time=RUSH_TIME+30;this.limits.damage=3;}
     const carry={text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.game.held===this.tray?this.stand:this.tray?.body.translation()??this.stand};
     const step={text:'Step up to the service bench (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand};
     // The bench's mains lead (R5-079): the bench can't power a cabinet until it is plugged in.
@@ -146,9 +146,13 @@ export class ArcadeBench implements Station {
   dress(kit:RoomKit){const r=dressArcade(this.game,kit);this.room=r;return {lightUp:r.lightUp};}
   current():Job|undefined{
     // Rush: the clock ends the shift, but a cabinet already in its play test gets to finish it.
-    if(this.rush){if(this.game.time>=RUSH_TIME&&!this.overtime())return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length,this.jobs[this.jobs.length-1]));}
+    if(this.rush){if(this.shift()>=RUSH_TIME&&!this.overtime())return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length,this.jobs[this.jobs.length-1]));}
     return this.jobs[this.index];}
-  private overtime(){return this.powered&&this.soak>0&&this.game.time<RUSH_TIME+RUSH_SOAK+.5;}
+  private overtime(){return this.powered&&this.soak>0&&this.shift()<RUSH_TIME+RUSH_SOAK+.5;}
+  /** Rush shift clock (R5-220): it starts when the tray reaches the bench, so the fetch doesn't eat the
+   *  shift; a player who never fetches it still gets a clock after 20 s. Story mode uses game time. */
+  private rushFrom?:number;
+  shift(){if(!this.rush)return this.game.time;if(this.rushFrom===undefined&&(this.trayReady||this.game.time>=20))this.rushFrom=this.game.time;return this.rushFrom===undefined?0:this.game.time-this.rushFrom;}
   reading():Reading|undefined{const j=this.current();return j&&read(j,this.setup);}
   /** Current only flows while the bench is on and the fuse is cool. */
   private get live(){return this.powered&&!this.tripped&&this.ledDead<=0;}
@@ -479,7 +483,7 @@ export class ArcadeBench implements Station {
             if(this.soak>=this.soakTime){this.soakDone=true;this.passed=true;this.verdict=v;this.say(`${TIER_WORD[v.tier]}${v.tier===3?' ★':''}${v.notes[0]?`: ${v.notes[0]}`:''}`,'ok');this.game.audio.bell(988,.4,.05);this.redraw();}}
           else if(this.soakDone)playing=true;
           // Rush overtime: the last cabinet signs itself off as soon as its play test passes.
-          if(this.rush&&this.soakDone&&time>=RUSH_TIME){this.act('signoff');return;}
+          if(this.rush&&this.soakDone&&this.shift()>=RUSH_TIME){this.act('signoff');return;}
         }
       }else{this.heat.led-=this.heat.led*k;for(const p of this.heat.blocks)for(let i=0;i<p.length;i++)p[i]-=p[i]*k;this.heat.across-=this.heat.across*k;}
       this.animate(dt,j,r,playing,time);
@@ -599,9 +603,9 @@ export class ArcadeBench implements Station {
   }
   /** The win shot frames Pip with the lit back wall of fixed cabinets (R5-077). */
   winFocus(){return new T.Vector3(0,1.6,-6.4);}
-  complete(){return this.rush?this.game.time>=RUSH_TIME&&!this.overtime():this.served.length>=JOBS.length;}
+  complete(){return this.rush?this.shift()>=RUSH_TIME&&!this.overtime():this.served.length>=JOBS.length;}
   /** Rush: cabinets fixed and seconds left, for the HUD clock and the result card. */
-  rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}
+  rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.shift())}:undefined;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const j=this.current();return {index:this.index,prizesDown:this.prizesDown,job:j?.id??null,fix:j?best(j)??null:null,rush:this.rush,setup:clone(this.setup),held:this.held??null,powered:this.powered,live:this.live,
     tripped:this.tripped,cooling:+this.cooling.toFixed(2),soak:+this.soak.toFixed(2),soakDone:this.soakDone,verdict:this.verdict?{tier:this.verdict.tier,notes:this.verdict.notes}:null,

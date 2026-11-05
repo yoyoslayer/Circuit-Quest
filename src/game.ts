@@ -830,7 +830,7 @@ export class Game {
     // Title: the reel's plug spits a spark every couple of seconds.
     if(!this.station&&!this.hub&&!this.running&&document.body.dataset.screen==='title'&&Math.floor(this.last/1900)!==Math.floor((this.last-dt*1000)/1900)){this.burst(this.plugPosition,'#fff3a3',10,'spark');this.burst(this.plugPosition,'#ffe36e',2,'star');this.audio.noise(.04,.03,3200,'highpass');}
     // Steam from the coffee machine until its extension is borrowed.
-    const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'smoke');}
+    const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/700)!==Math.floor((this.last-dt*1000)/700)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'smoke');}
     // After a while a dotted ghost line traces the clean way round walls and pillars to the socket.
     // It shows for 12 s at a time after 45 s without a connection, from the plug (or, before the
     // Meeting strip is placed, from Pip to the strip), and steps in one chevron at a time.

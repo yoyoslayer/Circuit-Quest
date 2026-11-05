@@ -14,7 +14,8 @@ import {JOBS} from './logic';
 
 const PLUM='#3b2346',CREAM='#fbf3e2',PINK='#ff7eb6',MINT='#6fe0c0',LEMON='#ffd84d',GRAPE='#9b7bf0',SKY='#7cc8ff';
 const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;
-export interface ArcadeRoom {light(k:number):void;lightUp():void}
+/** light(k): the k-th back-wall cabinet lights, once (rush passes the cabinet just fixed as its title). */
+export interface ArcadeRoom {light(k:number,title?:string):void;lightUp():void}
 
 // A dusty-mauve carpet with a light scatter of pastel confetti: arcade, but quiet enough to sit
 // behind the props and the bench (the house brief is pale wood, cream and pastels).
@@ -78,7 +79,7 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   kit.backWindows(x=>Math.abs(x)<9.8,.1);
   rug(r,0,-1.2,5.6,2.2,PINK,'#ffd1e3');rug(r,5.4,2.6,3.2,2.4,GRAPE,'#e3d9ff');
   // ---- The five broken cabinets along the back wall (dark until signed off).
-  const lit:{face:T.Mesh;screen:T.Mesh;at:T.Vector3;title:string}[]=[];
+  const lit:{face:T.Mesh;screen:T.Mesh;at:T.Vector3;title:string;done?:boolean}[]=[];
   const spots:[number,number][]=[[-7.8,-6.9],[-5.2,-6.9],[4.6,-6.9],[7.2,-6.9],[9.7,-3.2]];
   JOBS.forEach((j,k)=>{const [x,z]=spots[k],ry=k===4?-Math.PI/2:0,cab=cabinet(game.root,x,z,ry,['#ff9fc8','#9ff0d2','#ffe08a','#c7b6ff','#ffb38a'][k],j.cabinet,false,k);
     cab.group.updateMatrixWorld(true);solid(game,1,2.2,.9,x,1.1,z,ry);lit.push({face:cab.face,screen:cab.screen,at:cab.group.localToWorld(new T.Vector3(0,2.1,.4)),title:j.cabinet});
@@ -87,7 +88,9 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
     if(j.id==='bumper'){const t=group(g,0,0,.95);part(t,rbox(.8,.14,1.1,.05),toon('#ff9fc8'),0,.85,0);part(t,box(.7,.02,1),toon('#2a1c33'),0,.93,0);for(const [bx,bz] of [[-.18,-.2],[.18,-.2],[0,.05]] as const)part(t,cyl(.07,.07,.08,14),toon(PINK),bx,.97,bz);for(const [lx,lz] of [[-.33,-.48],[.33,-.48],[-.33,.48],[.33,.48]] as const)part(t,box(.06,.8,.06),toon(PLUM),lx,.4,lz);solid(game,.8,1,1.1,x,.5,z+.95);}
     if(j.id==='rhythm'){const p=group(g,0,0,1);part(p,rbox(1.1,.08,.9,.04),toon(PLUM),0,.04,0);[[0,-.24,'#ff7eb6'],[-.28,0,'#6fe0c0'],[.28,0,'#ffd84d'],[0,.24,'#7cc8ff']].forEach(([ax,az,col])=>part(p,rbox(.24,.03,.22,.04),toon(col as string),ax as number,.09,az as number));}
     if(j.id==='claw'){const b=group(g,0,0,.8);part(b,rbox(.9,.9,.8,.05),toon('#ffe08a'),0,.45,0);const glass=toon('#dff4ff',{opacity:.35});part(b,box(.84,.8,.74),glass,0,1.3,0,false);for(let n=0;n<7;n++)part(b,sphere(.1,12,8),toon([PINK,MINT,GRAPE,SKY,LEMON][n%5]),-.28+(n%4)*.18,1.0+Math.floor(n/4)*.12,-.18+(n%3)*.16);part(b,cyl(.012,.012,.3,6),toon(DMETAL),.1,1.55,0);solid(game,.9,1.8,.8,x,.9,z+.8);}
-    if(j.id==='handheld'){const h=group(g,0,1.3,.6);h.rotation.x=-.2;part(h,rbox(.6,.95,.12,.08),toon('#c7b6ff'),0,0,0);part(h,box(.44,.36,.02),toon('#2a1c33'),0,.18,.065);part(h,cyl(.05,.05,.03,14,'z'),toon(PINK),.15,-.25,.065);part(h,box(.14,.04,.03),toon(INK),-.15,-.25,.065);part(h,box(.04,.14,.03),toon(INK),-.15,-.25,.065);}
+    // The handheld stands on a display stand on the deck: a plum foot and a strut up its back.
+    if(j.id==='handheld'){part(g,rbox(.34,.05,.22,.02),toon(PLUM),0,1.265,.38);part(g,box(.06,.32,.04),toon(PLUM),0,1.43,.29);
+      const h=group(g,0,1.76,.38);h.rotation.x=-.2;part(h,rbox(.6,.95,.12,.08),toon('#c7b6ff'),0,0,0);part(h,box(.44,.36,.02),toon('#2a1c33'),0,.18,.065);part(h,cyl(.05,.05,.03,14,'z'),toon(PINK),.15,-.25,.065);part(h,box(.14,.04,.03),toon(INK),-.15,-.25,.065);part(h,box(.04,.14,.03),toon(INK),-.15,-.25,.065);}
     if(j.id==='hopper'){const s=group(g,0,0,.9);part(s,rbox(1.2,.9,.5,.05),toon('#ffb38a'),0,.45,0);for(let n=0;n<5;n++)part(s,sphere(.11,12,8),toon([PINK,MINT,LEMON,GRAPE,SKY][n]),-.44+n*.22,1.0,0);for(let n=0;n<6;n++)part(s,cyl(.05,.05,.015,14),toon('#d9a441'),-.3+n*.12,.92,.2);solid(game,.5,1,1.2,x-.9,.5,z);}
   });
   // ---- Working cabinets along the right wall and the left of the hall (the "too many lamps").
@@ -98,7 +101,8 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   const neon=new T.Mesh(new T.PlaneGeometry(4.6,.9),flat(canvasTex(1024,200,c=>{c.clearRect(0,0,1024,200);c.textAlign='center';c.textBaseline='middle';let fs=96;c.font=FONT(fs);while(c.measureText('OVERHEATING ARCADE').width>940){fs--;c.font=FONT(fs);}
     c.shadowColor=PINK;c.shadowBlur=26;c.lineWidth=8;c.strokeStyle=PINK;c.strokeText('OVERHEATING ARCADE',512,104);c.shadowBlur=0;c.fillStyle='#fff0f7';c.fillText('OVERHEATING ARCADE',512,104);}),{toneMapped:false}));
   neon.position.set(0,2.45,.2);bw.add(neon);part(bw,rbox(4.9,1.05,.08,.1),toon(PLUM),0,2.45,.15);glow(game.root,'rgba(255,126,182,1)',5,.18).position.set(0,2.4,-D+.8);
-  const poster=group(bw,1.9,1.35,.16);part(poster,box(.84,1.12,.04),toon(INK));const pf=new T.Mesh(new T.PlaneGeometry(.78,1.06),toon('#ffffff',{map:basicsPoster()}));pf.position.z=.025;poster.add(pf);
+  // The poster hangs clear of the prize shelf, so the formula strip reads from the room.
+  const poster=group(bw,3.05,1.45,.16);part(poster,box(.84,1.12,.04),toon(INK));const pf=new T.Mesh(new T.PlaneGeometry(.78,1.06),toon('#ffffff',{map:basicsPoster()}));pf.position.z=.025;poster.add(pf);
   wallArt(bw,'bolt',-1.9,1.5,.16,0,.9);
   // Change machine and a prize shelf behind the bench (low, so the bench view stays clear).
   const cm=group(r,-1.2,0,-7.4);part(cm,rbox(.8,1.5,.6,.06),toon(SKY),0,.75,0);part(cm,box(.5,.3,.02),toon('#2a1c33'),0,1.1,.31);part(cm,box(.3,.06,.02),toon(LEMON),0,.7,.31);solid(game,.8,1.5,.6,-1.2,.75,-7.4);
@@ -114,13 +118,15 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   const counter=group(r,-9.2,0,4.3);part(counter,rbox(1.6,.84,.8,.05),toon('#e9c38e'),0,.42,0);part(counter,box(1.64,.04,.84),toon(PLUM),0,.85,0);solid(game,1.6,.86,.8,-9.2,.43,4.3);
   const store=part(r,new T.PlaneGeometry(1.5,.36),flat(plaque('STOREROOM',512,124,GRAPE,'#fffaf0',60)),-7.6,2.1,2.8,false);store.rotation.y=0;
   // ---- Lights: warm over the bench, candy colours around the hall. No hanging lamps over the bench.
+  // Three room lights (the bench LED is the fourth, and the only one that changes); the lilac
+  // corner and the storeroom get painted light pools instead of lamps.
   pointLamp(game.root,0,2.7,-1.8,{color:'#fff1e0',intensity:5,distance:5.5});lampPool(game.root,0,-2.3,2.8,.2);
-  pointLamp(game.root,-6.4,2.4,-5.4,{color:'#ff9fd0',intensity:4,distance:6});pointLamp(game.root,6.2,2.4,-5.4,{color:'#9ff0ff',intensity:4,distance:6});
-  pointLamp(game.root,8.4,2.2,1.2,{color:'#c7b6ff',intensity:3.5,distance:6});pointLamp(game.root,-8.6,2.4,5.4,{color:'#ffe0b0',intensity:3,distance:5});
+  const pink=pointLamp(game.root,-4,2.4,-5.4,{color:'#ff9fd0',intensity:4,distance:8});pointLamp(game.root,5,2.4,-3,{color:'#9ff0ff',intensity:4,distance:8});
+  lampPool(game.root,8.4,1.2,2.2,.16,'#c7b6ff');lampPool(game.root,-8.6,5.4,2,.18,'#ffe0b0');
   for(const [x,z,c] of [[-8.6,-2,'rgba(255,224,138,1)'],[8.6,1.2,'rgba(159,240,210,1)']] as const)glow(game.root,c,3,.1).position.set(x,1.6,z);
   return {
-    light(k:number){const m=lit[k];if(!m)return;(m.face.material as T.MeshBasicMaterial).map=marqueeTex(m.title,true,k);(m.face.material as T.MeshBasicMaterial).needsUpdate=true;
+    light(k:number,title?:string){const m=lit[k];if(!m||m.done)return;m.done=true;(m.face.material as T.MeshBasicMaterial).map=marqueeTex(title??m.title,true,k);(m.face.material as T.MeshBasicMaterial).needsUpdate=true;
       m.screen.material=hot(['#4a3a78','#2f5a6e','#5a2f58'][k%3],1.3);glow(game.root,'rgba(255,216,77,1)',1.8,.35).position.copy(m.at);game.burst(m.at,'#ffd84d',16,'confetti');},
-    lightUp(){glow(game.root,'rgba(255,126,182,1)',8,.3).position.set(0,2.6,-D+1);pointLamp(game.root,0,2.4,-5.6,{color:'#ffb3d9',intensity:8,distance:9});},
+    lightUp(){glow(game.root,'rgba(255,126,182,1)',6.5,.22).position.set(0,2.6,-D+1);pink.intensity=8;},
   };
 }

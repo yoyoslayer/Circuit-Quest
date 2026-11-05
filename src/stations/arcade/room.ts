@@ -123,7 +123,8 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   wallArt(side,'sun',-2.4,1.9,.16);wallArt(side,'cat',5.6,1.9,.16);
   // ---- Storeroom: shelves of resistor stock and a counter where the tray waits.
   const shelf=group(r,-9.6,0,7.2);for(const y of [.5,1.2,1.9])part(shelf,box(2.4,.06,.6),toon('#a8734a'),0,y,0);for(const sx of [-1.15,1.15])part(shelf,box(.07,2,.6),toon(DMETAL),sx,1,0);
-  for(let n=0;n<9;n++){const y=[.5,1.2,1.9][n%3],bx=-.8+Math.floor(n/3)*.8;part(shelf,rbox(.5,.22,.4,.04),toon(['#ffa6c9','#9ff0d2','#c7b6ff'][n%3]),bx,y+.14,0);}
+  // The stock is kraft cartons with a white label, like every other carton (DR-51/52).
+  for(let n=0;n<9;n++){const y=[.5,1.2,1.9][n%3],bx=-.8+Math.floor(n/3)*.8;part(shelf,rbox(.5,.22,.4,.04),toon(['#c98f5a','#d7a56d','#b9875a'][(n+Math.floor(n/3))%3]),bx,y+.14,0);part(shelf,box(.2,.08,.01),toon('#fffaf0'),bx,y+.14,.205,false);}
   solid(game,2.4,2,.6,-9.6,1,7.2);
   const counter=group(r,-9.2,0,4.3);part(counter,rbox(1.6,.84,.8,.05),toon('#e9c38e'),0,.42,0);part(counter,box(1.64,.04,.84),toon(PLUM),0,.85,0);solid(game,1.6,.86,.8,-9.2,.43,4.3);
   // The STOREROOM plaque hangs under a header beam carried on two posts that rise from the ends of

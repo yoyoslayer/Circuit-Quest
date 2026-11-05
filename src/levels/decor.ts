@@ -55,7 +55,11 @@ function pillar(game:Game,o:Obstacle,i:number,hazard=false){
   const material=(hazard?toon('#ffffff',{map:TX.hazardStripe()}):toon('#e6dac4')).clone();material.transparent=true;const m=part(game.root,box(w,3,d),material,x,1.5,z);game.occluders.push(m);
   part(r,box(w+.1,.16,d+.1),toon(BASE),x,.08,z);part(r,box(w+.12,.12,d+.12),toon(CAP),x,3.02,z);part(r,box(w+.03,.06,d+.03),toon(RAIL),x,1.06,z);
   const face=z+d/2+.01;
-  if(!hazard){if(i%2===0)wallArt(r,(['sun','cat','mountain'] as const)[i%3],x,1.9,face+.02,0,.7);else{part(r,cyl(.1,.1,.45,12),toon('#e5484d'),x+.25,.45,face+.1);part(r,cyl(.04,.04,.08,8),toon(INK),x+.25,.72,face+.1);}}
+  if(!hazard){if(i%2===0)wallArt(r,(['sun','cat','mountain'] as const)[i%3],x,1.9,face+.02,0,.7);else{
+    // Extinguisher in a wall bracket (R5-329): bracket, strap, valve, hose and label, nothing floating.
+    const e=group(r,x+.25,0,face);part(e,rbox(.16,.1,.08,.02),toon(DMETAL),0,.62,.04);part(e,cyl(.1,.1,.45,12),toon('#e5484d'),0,.45,.1);part(e,cyl(.04,.04,.08,8),toon(INK),0,.72,.1);
+    part(e,box(.21,.03,.02),toon(INK),0,.5,.2,false);part(e,box(.12,.02,.03),toon(INK),.04,.77,.1,false);part(e,box(.1,.14,.005),toon('#fffaf0'),0,.38,.2025,false);
+    part(e,new T.TubeGeometry(new T.CatmullRomCurve3([[.03,.72,.13],[.1,.66,.18],[.12,.45,.21],[.08,.3,.21]].map(p=>new T.Vector3(...p))),12,.014,5),toon(INK),0,0,0,false);}}
   part(r,rbox(.18,.22,.03,.03),toon('#f0ece2'),x-.22,.35,face+.01,false);
   solid(game,w,3,d,x,1.5,z);
 }
@@ -107,7 +111,7 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
   // The payoff: a big dead street lamp by the socket. It stands clear of the socket's ring.
   const L={x:t.x+.95,z:t.z-.7},lamp=group(r,L.x,0,L.z);part(lamp,cyl(.34,.42,.16,20),toon(INK),0,.08,0);part(lamp,cyl(.07,.09,2.6,12),toon(DMETAL),0,1.4,0);part(lamp,box(.9,.08,.08),toon(DMETAL),-.35,2.68,0);
   const shade=part(lamp,new T.CylinderGeometry(.18,.42,.34,20,1,true),glossyToon('#ffc629',{spec:.7,size:.97}),-.75,2.55,0);(shade.material as T.Material).side=T.DoubleSide;
-  const bulbOff=toon('#6b6f84'),bulbOn=hot('#fff0c0',3),bulb=part(game.root,sphere(.16,14,10),bulbOff,L.x-.75,2.42,L.z,false);solid(game,.5,2.8,.5,L.x,1.4,L.z);
+  const bulbOff=toon('#6b6f84'),bulbOn=hot('#fff0c0',1.4),bulb=part(game.root,sphere(.16,14,10),bulbOff,L.x-.75,2.42,L.z,false);solid(game,.5,2.8,.5,L.x,1.4,L.z);
   // The lamp's switch: a wall-box toggle on the post facing the room, lever up = on (I), down = off (O).
   // Its pilot dot glows green only while current flows round the whole loop.
   const S={x:L.x,y:1.05,z:L.z+.15};part(r,rbox(.28,.4,.11,.035),toon('#f0ece2'),S.x,S.y,S.z);part(r,box(.13,.2,.012),toon('#d9d2c3'),S.x,S.y,S.z+.057,false);
@@ -121,12 +125,13 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
   part(r,rbox(.48,.38,.3,.06),toon('#384454'),t.x,.19,t.z);part(r,rbox(.02,.26,.24,.01),toon('#f0ece2'),t.x-.245,.2,t.z);
   for(const dz of [-.05,.05])part(r,box(.012,.08,.025),toon(INK),t.x-.256,.2,t.z+dz,false);
   const socketPilot=part(game.root,sphere(.022,10,8),pilotOff,t.x-.25,.33,t.z+.09,false);
-  const halo=glow(game.root,'rgba(255,214,140,1)',2,.5);halo.position.set(L.x-.75,2.42,L.z);halo.visible=false;
+  // Kept small and soft so the win push-in doesn't wash Pip out (R5-156).
+  const halo=glow(game.root,'rgba(255,214,140,1)',1.2,.4);halo.position.set(L.x-.75,2.42,L.z);halo.visible=false;
   const light=pointLamp(game.root,L.x-.75,2.12,L.z,{intensity:0,distance:9}),pool=lampPool(game.root,L.x-.75,L.z,3,.3);pool.visible=false;
   let angle=Math.PI-.5,shown=false;
   const update=(dt:number,switchOn:boolean,lit:boolean,connected:boolean)=>{const want=switchOn?.5:Math.PI-.5;angle+=(want-angle)*Math.min(1,dt*35);lever.rotation.x=angle;
     pilot.material=lit?pilotOn:pilotOff;socketPilot.material=connected?pilotOn:pilotOff;
-    if(lit!==shown){shown=lit;bulb.material=lit?bulbOn:bulbOff;halo.visible=lit;pool.visible=lit;light.intensity=lit?10:0;}};
+    if(lit!==shown){shown=lit;bulb.material=lit?bulbOn:bulbOff;halo.visible=lit;pool.visible=lit;light.intensity=lit?6:0;}};
   // Pallets side by side: three stringers and five slatted top boards each.
   for(const [x,z] of [[8.55,7.75],[8.55,8.7],[-8.5,-8.5]]){const p=group(r,x,0,z);for(const dz of [-.4,0,.4])part(p,box(1.1,.09,.1),toon('#a9784a'),0,.045,dz);for(let k=0;k<5;k++)part(p,box(.18,.03,.9),toon('#c9925e'),-.46+k*.23,.105,0);solid(game,1.1,.12,.9,x,.06,z);}
   // A practice wall of sockets and a wordless how-to poster: wall outlet, reel, plug, socket, lamp.
@@ -143,7 +148,8 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
     c.fillStyle='#ffe36e';c.beginPath();c.arc(210,60,24,0,7);c.fill();c.stroke();for(let k=0;k<8;k++){c.beginPath();c.moveTo(210+Math.cos(k*.8)*32,60+Math.sin(k*.8)*32);c.lineTo(210+Math.cos(k*.8)*42,60+Math.sin(k*.8)*42);c.stroke();}
     c.beginPath();c.moveTo(200,110);c.lineTo(210,86);c.stroke();}));
   const board=group(side,0,1.85,.16);part(board,box(1.9,1.3,.05),toon(INK));const face=new T.Mesh(new T.PlaneGeometry(1.8,1.2),toon('#ffffff',{map:howto}));face.position.z=.03;board.add(face);
-  wallArt(side,'bolt',-4,1.9,.16);wallArt(back,'graph',8.4,1.9,.18,0,.8);
+  // The graph poster hangs on the pier between the windows at x 5.0 and 8.2, not on the glass (R5-317).
+  wallArt(side,'bolt',-4,1.9,.16);wallArt(back,'graph',6.6,1.75,.18,0,.8);
   // START: a taped square with a chevron where Pip begins, by the reel.
   const tape=toon('#ffc629');for(const [w,d,dx,dz] of [[1.8,.1,0,-.85],[1.8,.1,0,.85],[.1,1.8,-.85,0],[.1,1.8,.85,0]] as const)part(r,box(w,.012,d),tape,l.spawn.x+dx,.008,l.spawn.z+dz,false);
   for(const s of [-1,1]){const c=part(r,box(.55,.012,.12),tape,l.spawn.x+.25+s*0,.009,l.spawn.z+s*.18,false);c.rotation.y=s*.6;}
@@ -179,7 +185,7 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   // Server closet: racks with hot LEDs, cable spaghetti, a green glow, the one live outlet.
   for(let i=0;i<4;i++){const x=-15.9+i*1.0;part(r,rbox(.8,2.3,.9,.05),toon('#3a3d55'),x,1.15,-9.4);part(r,box(.66,2,.02),toon('#2a2c40'),x,1.2,-8.945,false);
     for(let k=0;k<9;k++)part(r,box(.07,.04,.02),hot(['#57e38f','#ffc94d','#5b9cf0'][(i+k)%3],2.2),x-.22+(k%3)*.2,.45+k*.2,-8.93,false);}
-  for(let k=0;k<4;k++){const c=new T.CatmullRomCurve3([[-16+k,1.9,-8.95],[-15.7+k,.6,-8.6],[-15.2+k*.9,.04,-7.9+k*.2],[-14.6,.04,-6.9]].map(p=>new T.Vector3(...p)));part(r,new T.TubeGeometry(c,30,.03,5),toon(['#3f7fd6','#e5484d','#ffc94d',INK][k]),0,0,0,false);}
+  for(let k=0;k<4;k++){const c=new T.CatmullRomCurve3([[-16+k,1.9,-8.95],[-15.7+k,.6,-8.6],[-15.2+k*.9,.04,-7.9+k*.2],[-14.6,.04,-6.9]].map(p=>new T.Vector3(...p)));part(r,new T.TubeGeometry(c,30,.03,5),toon(['#3f7fd6','#e5484d','#6cc58a',INK][k]),0,0,0,false);}
   glow(game.root,'rgba(90,255,150,1)',3.2,.12).position.set(-14.4,1.4,-8.4);pointLamp(game.root,-14.3,1.8,-7.6,{color:'#7dffb5',intensity:3.5,distance:5});
   solid(game,4,2.3,.9,-14.4,1.15,-9.4);
   part(r,rbox(.8,.5,.6,.06),toon(DMETAL),-14.6,.25,-6.6);solid(game,.8,.5,.6,-14.6,.25,-6.6);
@@ -210,9 +216,10 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   pendant(game.root,12,-7.6,{y:2.35,color:'#3f7fd6'});pendant(game.root,12,-5.2,{y:2.35,color:'#3f7fd6',light:false});lampPool(game.root,12,-6.4,2.4,.14);
   // Lounge and coffee corner.
   part(r,rbox(.8,.95,3.4,.06),toon(WOOD),-15.9,.47,4.6);part(r,box(.85,.06,3.5),toon('#f1ebe0'),-15.9,.97,4.6);solid(game,.8,.97,3.4,-15.9,.48,4.6);
-  for(let k=0;k<5;k++)part(r,cyl(.07,.06,.15,10),toon(['#fffaf0','#e5484d','#3f7fd6','#ffc94d','#6cc58a'][k]),-15.8,1.08,3.3+k*.2);
-  part(r,cyl(.2,.14,.1,16),toon('#f4efe6'),-15.8,1.05,6);for(let k=0;k<4;k++)part(r,sphere(.08,10,8),toon(['#e5484d','#ffc94d','#6cc58a','#f08a4b'][k]),-15.8+(k%2)*.08-.04,1.12+(k>1?.06:0),6+(k%3-1)*.07);
-  pendant(game.root,12.4,5.4,{y:2.3,color:'#ffc94d'});lampPool(game.root,12.4,5.4,2.2,.18);
+  for(let k=0;k<5;k++)part(r,cyl(.07,.06,.15,10),toon(['#fffaf0','#e5484d','#3f7fd6','#c4553b','#6cc58a'][k]),-15.8,1.08,3.3+k*.2);
+  part(r,cyl(.2,.14,.1,16),toon('#f4efe6'),-15.8,1.05,6);for(let k=0;k<4;k++)part(r,sphere(.08,10,8),toon(['#e5484d','#9bd35a','#6cc58a','#f08a4b'][k]),-15.8+(k%2)*.08-.04,1.12+(k>1?.06:0),6+(k%3-1)*.07);
+  // A teal shade over the lounge: job yellow is for job items only (DR-45).
+  pendant(game.root,12.4,5.4,{y:2.3,color:'#4fbdb4'});lampPool(game.root,12.4,5.4,2.2,.18);
   const fl=group(r,15.4,0,7.6);part(fl,cyl(.22,.26,.05,16),toon(INK),0,.03,0);part(fl,cyl(.025,.025,1.7,6),toon(TRIM),0,.9,0);const fs=part(fl,new T.CylinderGeometry(.22,.34,.38,18,1,true),glossyToon('#f7ecd0'),0,1.8,0);(fs.material as T.Material).side=T.DoubleSide;
   glow(game.root,'rgba(255,210,140,1)',1.3,.35).position.set(15.4,1.72,7.6);lampPool(game.root,15.2,7.4,1.6,.22);
   // Floor clutter: paper drift, stacked boxes.
@@ -230,11 +237,14 @@ function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   floor(game,8,l.width/2,-l.depth/2,0,TX.concreteFloor('#9aa3b2'),3);
   floor(game,-7.8,l.width/2,0,l.depth/2,TX.woodPlanks('#c0925a'),3.2);
   floor(game,10.4,13.6,-5.9,-5.45,TX.hazardStripe(),.6,.006);
-  backWindows(game,back,x=>x< -7.6,.14);for(const x of windowXs(l.width))if(x< -7.6)windowUnit(back,x,1.95,.16);wallArt(side,'sun',-3,1.9,.16);wallArt(back,'plant',-8.5,1.95,.18,0,.8);
+  backWindows(game,back,x=>x< -7.6,.14);for(const x of windowXs(l.width))if(x< -7.6)windowUnit(back,x,1.95,.16);
+  // Posters hang on clear wall (R5-317): 'plant' on the pier between the windows at -11.1 and -7.9,
+  // 'graph' past the last window, and the side-wall pair apart and clear of the rack (z 3.3-6.7).
+  wallArt(side,'sun',-1.4,1.9,.16);wallArt(back,'plant',-9.5,1.95,.18,0,.7);
   const colors:Record<string,[string,string]>={store:['#b9b3c9','#6a6488'],kitchen:[WALL_UP,'#6cc3b4'],lift:['#c9d1db','#5a6378']};
   for(const o of l.obstacles){const [u,d]=colors[o.id.split('-')[0]]??[WALL_UP,WALL_LOW];interiorWall(game,o,u,d);}
   const r=game.decorRoot;
-  wallArt(back,'graph',15.2,1.95,.18,0,.8);wallArt(side,'bolt',-3.6,1.95,.16);wallArt(side,'cork',-7.8,1.8,.16,0,1.1);
+  wallArt(back,'graph',16.1,1.95,.18,0,.6);wallArt(side,'bolt',-2.5,1.95,.16);wallArt(side,'cork',-7.8,1.8,.16,0,1.1);
   // Kitchen: pots on the prep table, trays waiting on the belt, pendant lamps over the line.
   for(let k=0;k<4;k++)part(r,cyl(.16,.14,.22,14),toon(k%2?'#c7ccd6':'#e5484d'),-6.7+k*.5,1.12,-8.5);
   for(const x of [-5.5,-1,3.5])pendant(game.root,x,-5.2,{y:2.3,color:'#e9f0f2',light:x===-1});

@@ -11,7 +11,8 @@ import * as TX from '../../render/textures';
 import {wallArt,pendant,lampPool,pointLamp,rug} from '../../levels/dressing';
 import {solid} from '../../levels/decor';
 
-const LAV='#d9d4f2',PERI='#8f96d8',MASK='#4c9f76',YEL='#ffc629',CREAM='#f4efe6';
+// CRANE: safety orange for the gantries, so job yellow stays on the job (DR-45, R5-101).
+const LAV='#d9d4f2',PERI='#8f96d8',MASK='#4c9f76',YEL='#ffc629',CREAM='#f4efe6',CRANE='#e5733a';
 /** A small green board with a chip on it (racks, desks, the crane's frame). */
 function miniBoard(parent:T.Object3D,x:number,y:number,z:number,w=.5,d=.34,ry=0){const g=group(parent,x,y,z,ry);part(g,box(w,.025,d),toon(MASK));part(g,box(.1,.03,.1),toon('#34364d'),-w*.15,.02,0);
   for(const k of [0,1])part(g,box(.05,.028,.025),toon('#d8b88c'),w*.2,.02,-.06+k*.12);return g;}
@@ -51,10 +52,10 @@ export function dressFabBay(game:Game,kit:RoomKit,table:T.Vector3){
   for(const [wall,len] of [[kit.back,l.width],[kit.side,l.depth]] as const){
     part(wall,box(len,1.88,.02),toon('#ffffff',{map:TX.wallpaper(LAV)}),0,2.01,.15,false);part(wall,box(len,.9,.02),toon(PERI),0,.56,.16,false);part(wall,box(len,.06,.05),toon('#6f76c4'),0,1.04,.17,false);}
   kit.backWindows(x=>x<-3.2,.14);
-  // Pick-and-place under a gantry-yellow crane, with its feeder bank of tape reels.
+  // Pick-and-place under a safety-orange gantry, with its feeder bank of tape reels.
   const pnp=group(r,-6.4,0,-6.7);part(pnp,rbox(2.8,.9,1.7,.08),toon(CREAM),0,.45,0);part(pnp,box(2.82,.08,1.72),toon(PERI),0,.92,0);
   part(pnp,box(2.5,.04,1.2),toon(MASK),0,.98,0);for(let k=0;k<3;k++)miniBoard(pnp,-.8+k*.8,1.0,0,.6,.45);
-  for(const x of [-1.3,1.3])part(pnp,rbox(.16,.9,1.5,.04),toon(YEL),x,1.4,0);part(pnp,rbox(2.76,.14,.2,.04),toon(YEL),0,1.9,0);part(pnp,rbox(.3,.36,.3,.05),toon('#fffaf0'),.3,1.72,.02);part(pnp,cyl(.03,.02,.2,10),toon(DMETAL),.3,1.44,.02);
+  for(const x of [-1.3,1.3])part(pnp,rbox(.16,.9,1.5,.04),toon(CRANE),x,1.4,0);part(pnp,rbox(2.76,.14,.2,.04),toon(CRANE),0,1.9,0);part(pnp,rbox(.3,.36,.3,.05),toon('#fffaf0'),.3,1.72,.02);part(pnp,cyl(.03,.02,.2,10),toon(DMETAL),.3,1.44,.02);
   // Feeder bank along the front, with the tape reels seated in its slots.
   part(pnp,rbox(2.6,.35,.25,.03),toon(DMETAL),0,.55,.95);for(let k=0;k<8;k++)part(pnp,box(.02,.3,.25),toon(INK),-1.2+k*.343,.6,.96,false);
   for(let k=0;k<7;k++){const f=reel(pnp,-1.03+k*.343,.66,1.02,k%2?'#fffaf0':'#e9e6f5',k%3?PERI:YEL,.3);f.rotation.y=Math.PI/2;}
@@ -62,10 +63,10 @@ export function dressFabBay(game:Game,kit:RoomKit,table:T.Vector3){
   const hood=part(game.root,rbox(2.9,1.0,1.6,.08),toon('#cfe8f5',{opacity:.2}),-6.4,1.505,-6.7,false);hood.userData.noAO=true;
   for(const [dx,dz] of [[-1.42,-.77],[1.42,-.77],[-1.42,.77],[1.42,.77]])part(r,rbox(.05,1.0,.05,.02),toon(INK),-6.4+dx,1.505,-6.7+dz);
   solid(game,2.8,2,1.8,-6.4,1,-6.7);
-  // Overhead crane: two yellow legs and a beam across the machine bay (well behind the bench).
-  for(const x of [-9.4,-3.4]){part(r,rbox(.24,2.9,.24,.05),toon(YEL),x,1.45,-4.9);part(r,box(.4,.08,.4),toon(INK),x,.04,-4.9);solid(game,.3,2.9,.3,x,1.45,-4.9);}
+  // Overhead crane: two orange legs and a beam across the machine bay (well behind the bench).
+  for(const x of [-9.4,-3.4]){part(r,rbox(.24,2.9,.24,.05),toon(CRANE),x,1.45,-4.9);part(r,box(.4,.08,.4),toon(INK),x,.04,-4.9);solid(game,.3,2.9,.3,x,1.45,-4.9);}
   // The beam wears its hazard stripes all the way round (one sleeve), with caps over the legs and a rail under it.
-  part(r,box(6.3,.26,.26),toon('#ffffff',{map:repeat(stripes(YEL,INK),24,1)}),-6.4,2.95,-4.9);for(const x of [-9.4,-3.4])part(r,rbox(.3,.3,.3,.05),toon(YEL),x,2.95,-4.9);
+  part(r,box(6.3,.26,.26),toon('#ffffff',{map:repeat(stripes(CRANE,INK),24,1)}),-6.4,2.95,-4.9);for(const x of [-9.4,-3.4])part(r,rbox(.3,.3,.3,.05),toon(CRANE),x,2.95,-4.9);
   part(r,box(5.9,.04,.08),toon(DMETAL),-6.4,2.8,-4.9);
   const trolley=group(r,-5.2,2.72,-4.9);part(trolley,rbox(.4,.22,.4,.05),toon('#3a3d55'));part(trolley,cyl(.012,.012,.7,6),toon(INK),0,-.45,0);part(trolley,box(.26,.05,.05),toon(DMETAL),0,-.82,0);
   // Reflow oven: a long periwinkle tunnel with glowing windows and a conveyor out each end.
@@ -81,7 +82,7 @@ export function dressFabBay(game:Game,kit:RoomKit,table:T.Vector3){
   solid(game,1.5,1.9,1.1,7.6,.95,-6.8);
   // Stock shelf by the side wall: bins, reels, and the taped spot the parts crate waits on.
   const shelf=group(r,-10.25,0,2.2);for(const y of [.35,1.05,1.75])part(shelf,box(.9,.06,3.6),toon('#ecd3a6'),0,y,0);for(const z of [-1.75,1.75])for(const x of [-.4,.4])part(shelf,box(.06,1.9,.06),toon(PERI),x,.95,z);
-  for(let k=0;k<6;k++){const z=-1.4+k*.56;part(shelf,rbox(.6,.34,.44,.05),toon([PERI,YEL,'#b9bfeb',MASK,'#f5c4c4','#c8f0dc'][k]),0,1.25,z);part(shelf,box(.3,.12,.02),toon('#fffaf0'),.31,1.27,z,false);}
+  for(let k=0;k<6;k++){const z=-1.4+k*.56;part(shelf,rbox(.6,.34,.44,.05),toon([PERI,'#e9e6f5','#b9bfeb',MASK,'#f5c4c4','#c8f0dc'][k]),0,1.25,z);part(shelf,box(.3,.12,.02),toon('#fffaf0'),.31,1.27,z,false);}
   for(let k=0;k<4;k++){const f=reel(shelf,0,.59,-1.2+k*.8,'#fffaf0',k%2?PERI:YEL,.5);f.rotation.y=Math.PI/2;}
   for(let k=0;k<5;k++)miniBoard(shelf,0,1.8,-1.2+k*.6,.45,.3,Math.PI/2);solid(game,.9,1.9,3.6,-10.25,.95,2.2);
   const tape=toon(YEL);for(const [w,d,dx,dz] of [[1.1,.07,0,-.55],[1.1,.07,0,.55],[.07,1.1,-.55,0],[.07,1.1,.55,0]] as const)part(r,box(w,.01,d),tape,-8.8+dx,.008,2.2+dz,false);

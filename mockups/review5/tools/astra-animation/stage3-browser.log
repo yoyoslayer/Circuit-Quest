@@ -1,0 +1,134 @@
+[WebServer] (node:7040) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 16 tests using 1 worker
+
+(node:22792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/16] tests\astra-animation.spec.ts:2:1 › coworker faces track Pip in the full toon renderer without extra child meshes
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[WebServer] 
+
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+[2/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in the lobby
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[3/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in playground
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[4/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in meeting
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+  1) tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in meeting ──────────────────────
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('body')
+    Expected: "true"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('body') with timeout 5000ms
+      - waiting for locator('body')
+        2 × locator resolved to <body>…</body>
+          - unexpected value "null"
+
+
+       at navigation.ts:7
+
+       5 | export async function open(page:Page,level?:string){
+       6 |   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+    >  7 |   await page.goto(level?`/?level=${level}&manual`:'/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+         |                                                                                                  ^
+       8 |   await page.getByRole('button',{name:'Start playing'}).click();return errors;
+       9 | }
+      10 | export const wait=(page:Page,seconds:number,keys:string[]=[])=>page.evaluate(([s,k])=>(window as any).__circuitCrew.drive.advance(s,k),[seconds,keys] as const);
+        at open (C:\Users\yousi\Circuit-Quest-astra\tests\navigation.ts:7:98)
+        at C:\Users\yousi\Circuit-Quest-astra\tests\layout.spec.ts:10:18
+
+    Error Context: test-results\layout-layout-nothing-starts-overlapping-in-meeting\error-context.md
+
+
+(node:35796) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[5/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in lunch
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[6/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[7/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade-rush
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[8/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in garage
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[9/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in qfn
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[10/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in observatory
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[11/16] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in spectrum
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[12/16] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[13/16] tests\smoke.spec.ts:9:1 › player can pick up the plug, move, jump, and release it
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[14/16] tests\smoke.spec.ts:21:1 › office contains over 300 physics props and renders without errors
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[15/16] tests\smoke.spec.ts:29:1 › Lunch Rush boots with two supplies, four cables and a warming fridge
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[16/16] tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143)
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+  2) tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143) 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('body')
+    Expected: "true"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('body') with timeout 5000ms
+      - waiting for locator('body')
+        5 × locator resolved to <body>…</body>
+          - unexpected value "null"
+
+
+      35 |   expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().quality)).toBe(2);
+      36 |   await page.evaluate(()=>localStorage.setItem('circuit-crew-quality','2'));
+    > 37 |   await page.goto('/?level=garage&lowfx');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+         |                                                                              ^
+      38 |   expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().quality)).toBe(0);
+      39 | });
+      40 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\smoke.spec.ts:37:78
+
+    Error Context: test-results\smoke-a-fresh-player-start-65f2b--with-a-saved-level-R5-143-\error-context.md
+
+
+  2 failed
+    tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in meeting ───────────────────────
+    tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143) 
+  14 passed (10.5m)

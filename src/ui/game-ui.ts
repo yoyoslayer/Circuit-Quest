@@ -3,12 +3,12 @@
 // (src/ui/objectives.ts).
 import type {Game} from '../game';
 import {FOVS,LENS_NAMES,type Lens} from '../render/lens';
-import type {Grade} from '../sim/grade';
+import {crewGold,gradeRush,type Grade} from '../sim/grade';
 import type {LunchJob} from '../sim/lunch';
 import {installIcons} from '../render/icons';
 import {levels} from '../levels';
 import {prefabs} from '../props/prefabs';
-import {bestFor,record,flagAutostart,takeAutostart,isLocked} from './store';
+import {bestFor,record,flagAutostart,takeAutostart,isLocked,nextUnfinished,isOptional} from './store';
 import {ObjectivesHUD} from './objectives';
 import {hudMarkup,titleMarkup,jobsMarkup,pauseMarkup,resultMarkup,failMarkup,clock} from './screens';
 
@@ -24,6 +24,7 @@ export class GameUI {
   private lastLength=0;private connectedUntil=0;private heldCable?:{ports:(string|null)[];lead:{dead:boolean}};private actState='';private padFrame=0;private padPrev:boolean[]=[];private padAxis=0;private stickId?:number;
   /** Focus follows the keyboard only; mouse and touch players never see a focus ring they didn't ask for. */
   private keyboard=false;
+  private rushSecond=-1;
   objectives!:ObjectivesHUD;
   constructor(public game:Game){
     installIcons();if(game.hub)document.body.dataset.hub='true';if(game.practice)document.body.dataset.practice='true';
@@ -32,7 +33,7 @@ export class GameUI {
     hud.innerHTML=hudMarkup(game.level)+titleMarkup(game.level)+jobsMarkup(levels,bests)+pauseMarkup(game.level);
     // Locked jobs (Rush) show a padlock state on the Jobs board and can't be started from it.
     for(const l of levels)if(isLocked(l))hud.querySelector(`.job[data-job="${l.id}"]`)?.classList.add('locked');
-    this.layer=hud.querySelector('[data-layer="hud"]')!;this.ring=hud.querySelector('.ring .left')!;this.badge=hud.querySelector('.badge')!;
+    this.layer=hud.querySelector('[data-layer="hud"]')!;this.layer.classList.toggle('nocable',!!game.station||!!game.hub);this.ring=hud.querySelector('.ring .left')!;this.badge=hud.querySelector('.badge')!;
     this.strainCard=hud.querySelector('.strain')!;this.strainFill=hud.querySelector('#strain')!;this.reel=hud.querySelector('.reel')!;this.cablebar=hud.querySelector('.cablebar')!;
     const tally=(k:'time'|'damage'|'cost')=>({box:hud.querySelector<HTMLElement>(`[data-tally="${k}"]`)!,value:hud.querySelector<HTMLElement>(`[data-tally="${k}"] b`)!,shown:''});
     this.tallies={time:tally('time'),damage:tally('damage'),cost:tally('cost')};
@@ -114,7 +115,7 @@ export class GameUI {
       case 'resume':g.togglePause();break;
       case 'restart':this.restart();break;
       case 'jobs-reload':this.toJobs();break;
-      case 'nextjob':{const next=g.level.next;if(next){flagAutostart(next);location.href=`?level=${next}`;}break;}
+      case 'nextjob':{const next=nextUnfinished(levels.filter(l=>l.id!==g.level.id&&!isOptional(l)&&!isLocked(l)));if(next){flagAutostart(next.id);location.href=`?level=${next.id}`;}break;}
     }
   }
   key(e:KeyboardEvent){
@@ -170,7 +171,9 @@ export class GameUI {
     // Station mistakes and parts cost join the tallies live (the win adds them for the grade), so the HUD matches the result card.
     const extra=g.station&&!g.won?g.station.score():{mistakes:0,cost:0},dmg=g.damage+extra.mistakes,cost=Math.round((g.cost+extra.cost)*10)/10;
     const rush=g.station?.rushStatus?.();this.setTally('time',clock(rush?rush.left:g.time));this.setTally('damage',String(dmg),dmg>0);this.setTally('cost',String(cost),cost>0);
-    const deadline=g.level.deadline??240,left=Math.max(0,1-g.time/deadline);
+    const deadline=g.level.deadline??240,left=rush?Math.max(0,Math.min(1,rush.left/180)):Math.max(0,1-g.time/deadline);
+    this.badge.classList.toggle('urgent',!!rush&&rush.left<=30&&rush.left>0);
+    if(rush){const second=Math.ceil(rush.left);if(second!==this.rushSecond&&second>0&&second<=30)this.game.audio.tone(880,.035,second<=10?.02:.009,'triangle');this.rushSecond=second;}
     this.ring.style.strokeDasharray=`${(left*RING).toFixed(1)} ${RING.toFixed(1)}`;this.badge.classList.toggle('late',g.time>deadline);
     this.layer.classList.toggle('won',g.won);
     this.updateStrain();this.updateActions();this.objectives.update();
@@ -213,8 +216,11 @@ export class GameUI {
   // ---------- end of job ----------
   won(result:{parts:Grade[];overall:Grade}){
     const g=this.game,stars=this.objectives.results().reduce((m,b,i)=>b.ok?m|1<<i:m,0);
-    const {improved,old}=g.practice?{improved:false,old:undefined}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost,stars});
-    const next=levels.find(l=>l.id===g.level.next),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next,previous:old};
+    const rushScore=g.station?.rushStatus?.();
+    if(rushScore)result=gradeRush(rushScore.served,g.damage,g.cost);
+    const gold=crewGold(result.parts,stars);
+    const {improved,old}=g.practice?{improved:false,old:undefined}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost,stars,crewGold:gold,served:rushScore?.served});
+    const next=nextUnfinished(levels.filter(l=>l.id!==g.level.id&&!isOptional(l)&&!isLocked(l)&&!bestFor(l.id))),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next,previous:old,crewGold:gold,served:rushScore?.served,practice:g.practice};
     // Let the camera push in on the machine coming to life before the card lands.
     setTimeout(()=>{
       g.hud.insertAdjacentHTML('beforeend',resultMarkup(view));this.show('result');document.body.dataset.complete='true';
@@ -222,7 +228,7 @@ export class GameUI {
       if(g.practice)screen.querySelector('.result .head')?.insertAdjacentHTML('beforeend','<span class="practice-tag">Practice · not recorded</span>');
       // Bonus goals under the grade rows: a star for each one achieved.
       const rows=screen.querySelector('.result .rows');const bonus=this.objectives.results();const rush=g.station?.rushStatus?.();
-      if(rush&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Orders served: <b>${rush.served}</b></p>`);
+      if(rush&&rows){const first=rows.querySelector('.row');first?.classList.add('result-served');first?.insertAdjacentHTML('afterbegin','<span class="served-label">Cabinets fixed:</span>');}
       if(g.strip&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Strip trips: <b>${g.strip.trips}</b></p>`);if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
       if(this.keyboard)requestAnimationFrame(()=>screen.querySelector<HTMLElement>('.btn.primary')?.focus({preventScroll:true}));
       if(!reduced())setTimeout(()=>{g.audio.thud(9);g.audio.tone(90,.18,.08,'triangle');screen.querySelector('.result')?.classList.add('thud');},1800);

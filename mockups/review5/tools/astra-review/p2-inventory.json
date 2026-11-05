@@ -1,0 +1,1180 @@
+[
+  {
+    "id": "R5-161",
+    "title": "**R5-161 | P2 | global, arcade, garage, qfn, observatory | playability | Bench key leaks: Space jumps seated Pip, Tab toggles a hidden survey, F stands Pip up, C resets the orbit at QFN while also running CHECK**",
+    "paths": [
+      "src/game.ts",
+      "src/stations/qfn/station.ts",
+      "src/ui/game-ui.ts",
+      "tests/station-qfn.spec.ts",
+      "src/stations/arcade/station.ts",
+      "src/stations/garage/station.ts",
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [
+      "src/game.ts",
+      "src/ui/game-ui.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-162",
+    "title": "**R5-162 | P2 | lobby | playability | Lobby: locked-door feedback is invisible — the LOCKED plate is hidden at chest height and the E jiggle is overwritten next frame**",
+    "paths": [
+      "src/hub/lobby.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-164",
+    "title": "**R5-164 | P2 | meeting | playability | Meeting: the single reel's walking reach sits on the edge of the snap radius, so 'Plug in' flickers and the spec is flaky**",
+    "paths": [
+      "tests/routes.spec.ts",
+      "src/game.ts",
+      "src/levels/meeting.ts",
+      "src/sim/cable.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-166",
+    "title": "**R5-166 | P2 | global | playability | There is no soft-lock or respawn spec at all: DR-15 and DR-25 are untested in every room**",
+    "paths": [
+      "tests/*.spec.ts",
+      "src/game.ts",
+      "tests/navigation.ts",
+      "tests/softlock.spec.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-169",
+    "title": "**R5-169 | P2 | global | playability | The DR-03 'fastestProp' signal counts the prop in Pip's hands, so the funny-moment check passes on a plain pick-up**",
+    "paths": [
+      "src/game.ts",
+      "tests/routes.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-171",
+    "title": "**R5-171 | P2 | lunch | playability | Lunch picks the port nearest Pip's body, not the plug in his hand: holding the thick plug against the kitchen post plugs it into the fridge**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "tests/lunch.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-172",
+    "title": "**R5-172 | P2 | global | playability | Grab cue and prompt name different objects when junk is nearer than the floor plug: prompt says 'F Pick up the plug', the reticle brackets the mug, and E takes the mug**",
+    "paths": [
+      "src/game.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-173",
+    "title": "**R5-173 | P2 | lunch | playability | The Lunch fail card holds for 1.2 s with no input, then needs Enter or a click; retrying itself takes about 0.6 s**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "src/ui/game-ui.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-174",
+    "title": "**R5-174 | P2 | global | playability | Pause menu lacks the controls a player needs mid-job (Tab survey, Shift sprint, Esc stand up) and offers no assists (DR-23)**",
+    "paths": [
+      "src/ui/screens.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-175",
+    "title": "**R5-175 | P2 | lobby | playability | The Workshop radius steals E from nearby props, and the grab reticle points at a chair while the prompt says Workshop**",
+    "paths": [
+      "src/game.ts",
+      "src/hub/lobby.ts",
+      "src/levels/lobby.ts"
+    ],
+    "editPaths": [
+      "src/levels/lobby.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-181",
+    "title": "**R5-181 | P2 | meeting | playability | Meeting: walking past the mail cart knocks the second reel off, and the prompt then says 'Grab the cart'**",
+    "paths": [
+      "tests/routes.spec.ts",
+      "src/game.ts",
+      "src/ui/objectives.ts",
+      "src/levels/meeting.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-183",
+    "title": "**R5-183 | P2 | garage, observatory, qfn, spectrum | teaching | The \"simplified model / not to scale / teaching grid\" disclosures are hidden during play (only visible while paused) or 5 px tall**",
+    "paths": [
+      "src/ui/ui.css",
+      "src/stations/garage/station.ts",
+      "src/stations/observatory/station.ts",
+      "src/stations/qfn/station.ts",
+      "src/stations/spectrum/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-184",
+    "title": "**R5-184 | P2 | arcade, arcade-rush, garage | teaching | Arcade and Garage: the \"PTC fuse\" re-arms every 2.5 s while powered into the fault, like a bimetal breaker; real polymer PTCs latch until power is removed**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/stations/arcade/logic.ts",
+      "src/stations/garage/station.ts",
+      "tests/station-arcade.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-185",
+    "title": "**R5-185 | P2 | meeting, playground | teaching | The playground plug is the Meeting coupler model and the player pushes a live male plug into the load: power flows the wrong way through the connectors**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/game.ts",
+      "src/levels/meeting.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-190",
+    "title": "**R5-190 | P2 | arcade | teaching | Rhythm pad (blue LED on 3.3 V) teaches false precision: with 0.3 V of headroom, real Vf and supply spread swing the current from 0 to 27 mA**",
+    "paths": [
+      "src/stations/arcade/logic.ts",
+      "tests/station-arcade.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-192",
+    "title": "**R5-192 | P2 | arcade | teaching | Rhythm pad introduces three new ideas at once (polarity, parallel, low headroom); the ladder has no reuse step**",
+    "paths": [
+      "src/stations/arcade/logic.ts",
+      "tests/station-arcade.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-193",
+    "title": "**R5-193 | P2 | arcade | teaching | A ¼ W block 'pops' within 1.7 s at 1.77× its rating; real resistors are qualified to survive about 6× for 5 s**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/stations/arcade/logic.ts",
+      "src/stations/arcade/logic.test.ts",
+      "tests/station-arcade.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-196",
+    "title": "**R5-196 | P2 | lunch | teaching | Lunch: 'F Plug into the capacitor cart' seats the plug and a cleaner bot rips it out the same frame, with no readable cause**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "tests/lunch.spec.ts"
+    ],
+    "editPaths": [
+      "src/lunch-runtime.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-198",
+    "title": "**R5-198 | P2 | lunch | teaching | Lunch fail card: clipped on phone, and the cause isn't named in a line (DR-28)**",
+    "paths": [
+      "src/ui/screens.ts",
+      "src/ui/screens.css"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-200",
+    "title": "**R5-200 | P2 | lunch | teaching | 'Splitters add up' is a listed insight, but splitters are never needed; the summing happens only inside the hard-wired post**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "src/levels/lunch.ts",
+      "tests/lunch.spec.ts",
+      "tests/*.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-201",
+    "title": "**R5-201 | P2 | meeting | teaching | Borrowing the coffee reel after the server cable is plugged in leaves the strip live with nothing connected**",
+    "paths": [
+      "src/game.ts",
+      "tests/routes.spec.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-203",
+    "title": "**R5-203 | P2 | meeting | teaching | The tidy route is a daisy chain (wall, reel, coupler, reel, strip), which real safety guidance forbids, and the room never frames it**",
+    "paths": [
+      "tests/routes.spec.ts",
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-204",
+    "title": "**R5-204 | P2 | meeting | teaching | The fix can be found by following prompts (Reset, retrip, wander, 'Unplug the kettle'), and predicting the overload earns nothing**",
+    "paths": [
+      "src/ui/objectives.ts",
+      "src/meeting-strip.ts",
+      "tests/routes.spec.ts",
+      "src/ui/game-ui.ts"
+    ],
+    "editPaths": [
+      "src/ui/game-ui.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-208",
+    "title": "**R5-208 | P2 | playground | teaching | No moment where the player must apply the idea: three prompts in a row solve the room, and nothing electrical can go wrong**",
+    "paths": [
+      "src/ui/objectives.ts",
+      "src/game.ts",
+      "tests/objectives.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-221",
+    "title": "**R5-221 | P2 | global, qfn | fun | Room lengths are very uneven: Playground solves in 5 s, the QFN bench takes ~40 inputs with a 720 s limit**",
+    "paths": [
+      "src/sim/grade.ts",
+      "tests/routes.spec.ts",
+      "tests/station-qfn.spec.ts",
+      "src/stations/qfn/station.ts",
+      "src/stations/observatory/station.ts",
+      "src/sim/lunch.ts",
+      "src/stations/qfn/logic.ts",
+      "src/stations/arcade/station.ts",
+      "src/stations/garage/station.ts",
+      "src/stations/spectrum/station.ts",
+      "src/levels/playground.ts"
+    ],
+    "editPaths": [
+      "src/levels/playground.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-223",
+    "title": "**R5-223 | P2 | arcade-rush | fun | The clock gives no grace: an order mid play-test at 0:00 is simply lost**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/ui/game-ui.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-225",
+    "title": "**R5-225 | P2 | global | fun | Throw and slingshot release have no body animation**",
+    "paths": [
+      "src/game.ts",
+      "src/render/pipRig.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-227",
+    "title": "**R5-227 | P2 | global | fun | Pip can't emote: one fixed smile, mostly hidden under the hard-hat brim at the game camera**",
+    "paths": [
+      "src/render/pipRig.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-233",
+    "title": "**R5-233 | P2 | garage | fun | The final 'Watch the robot drive' step is 9 s of passive waiting with a junk-prop prompt, and the robot bulldozes Pip with no reaction**",
+    "paths": [
+      "src/ui/objectives.ts",
+      "src/stations/garage/station.ts"
+    ],
+    "editPaths": [
+      "src/ui/objectives.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-235",
+    "title": "**R5-235 | P2 | lobby | fun | Entering a door is an instant page reload, and coming back is a reset to spawn: no transition, no return payoff**",
+    "paths": [
+      "src/hub/lobby.ts",
+      "src/ui/game-ui.ts",
+      "src/game.ts",
+      "src/ui/store.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-237",
+    "title": "**R5-237 | P2 | meeting | fun | Backtracking: the strip-first order sends Pip across the same aisle five times on the clean route; most of the run is walking**",
+    "paths": [
+      "src/levels/meeting.ts",
+      "tests/routes.spec.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-238",
+    "title": "**R5-238 | P2 | global | fun | Workshop practice offers no reason to use it: it's identical to normal play, only covers stations, and the picker leaks input**",
+    "paths": [
+      "src/hub/lobby.ts",
+      "src/ui/game-ui.ts",
+      "src/ui/store.ts",
+      "src/game.ts",
+      "src/ui/ui.css"
+    ],
+    "editPaths": [
+      "src/game.ts",
+      "src/ui/ui.css"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-239",
+    "title": "**R5-239 | P2 | spectrum | fun | Dead walking: almost all of a clean run is carrying the pod through an empty hall, and Delivery 3 is about 30 m of walking for one key press**",
+    "paths": [
+      "src/levels/spectrum.ts",
+      "src/stations/spectrum/logic.ts",
+      "tests/station-spectrum.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-241",
+    "title": "**R5-241 | P2 | global, lobby | clarity | Lobby first frame and title hero: left-wall doors cut or under the job card, not all 9 doors visible, Pip and his waving arm cropped**",
+    "paths": [
+      "src/game.ts",
+      "src/ui/ui.css",
+      "src/render/pipRig.ts",
+      "src/hub/lobby.ts"
+    ],
+    "editPaths": [
+      "src/game.ts",
+      "src/hub/lobby.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-243",
+    "title": "**R5-243 | P2 | global, arcade-rush, meeting, lunch | clarity | Docs and code comments drift from the build (cut rooms, old lock rule, \"absorbs the kick\", 26 m reel, 4-second soak)**",
+    "paths": [
+      "src/levels/index.ts",
+      "src/meeting-strip.ts",
+      "src/sim/electrical.ts",
+      "tests/lunch.spec.ts",
+      "src/ui/game-ui.ts",
+      "src/levels/arcade.ts",
+      "src/stations/arcade/station.ts",
+      "src/levels/meeting.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-244",
+    "title": "**R5-244 | P2 | garage | clarity | Garage: the job robot is called \"the cart\" and is an identical copy of the decor robots beside it**",
+    "paths": [
+      "src/levels/garage.ts",
+      "src/ui/objectives.ts",
+      "src/stations/garage/station.ts",
+      "src/stations/garage/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-245",
+    "title": "**R5-245 | P2 | global, lobby | clarity | Text polish: \"Circuit Crew Hq\", mixed practise/practice, a sentence on a sign, key letters inside step text**",
+    "paths": [
+      "src/ui/screens.ts",
+      "src/hub/lobby.ts",
+      "src/ui/game-ui.ts",
+      "src/ui/ui.css",
+      "src/stations/arcade/station.ts",
+      "tests/lobby.spec.ts",
+      "src/stations/spectrum/station.ts",
+      "src/stations/garage/station.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-247",
+    "title": "**R5-247 | P2 | arcade-rush, qfn | clarity | Station toasts persist after standing up and describe arrangements that no longer exist**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/stations/qfn/station.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [
+      "src/ui/objectives.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-249",
+    "title": "**R5-249 | P2 | global | clarity | Mute and sound tile: the label never changes, the muted state is a faint glyph swap, and reduced-motion drops the result-card sound**",
+    "paths": [
+      "src/render/audio.ts",
+      "src/ui/game-ui.ts",
+      "src/ui/screens.ts",
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-250",
+    "title": "**R5-250 | P2 | global, lobby | clarity | Title and Jobs board: unclear \"HQ\" badge, duplicate jobs icons, a dim gamepad chip that looks broken, incomplete controls string**",
+    "paths": [
+      "src/ui/screens.ts",
+      "src/ui/screens.css",
+      "src/levels/lobby.ts"
+    ],
+    "editPaths": [
+      "src/ui/screens.css"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-251",
+    "title": "**R5-251 | P2 | lobby | clarity | Lobby bonus stars are never explained, two are the same check and the third is automatic**",
+    "paths": [
+      "src/ui/game-ui.ts",
+      "src/hub/lobby.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-252",
+    "title": "**R5-252 | P2 | lobby | clarity | Lobby door names, numbers, medals and LOCKED tags are too small at the game camera; long names auto-shrink to half height**",
+    "paths": [
+      "src/render/labels.ts",
+      "src/hub/lobby.ts"
+    ],
+    "editPaths": [
+      "src/hub/lobby.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-254",
+    "title": "**R5-254 | P2 | arcade-rush | clarity | Two clocks that disagree: the HUD ring measures 240 s while the clock counts down 180 s, and the panel repeats the seconds**",
+    "paths": [
+      "src/ui/game-ui.ts",
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-255",
+    "title": "**R5-255 | P2 | arcade-rush | clarity | The result card's time row is always 3:00 A, and Orders served is a small caption**",
+    "paths": [
+      "src/ui/game-ui.ts",
+      "src/ui/screens.ts"
+    ],
+    "editPaths": [
+      "src/ui/screens.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-257",
+    "title": "**R5-257 | P2 | global | clarity | The strain thresholds are defined three times and disagree; the HUD meter, hose colour and prompt don't line up**",
+    "paths": [
+      "src/sim/cable.ts",
+      "src/render/actors.ts",
+      "src/sim/cable.test.ts",
+      "src/game.ts",
+      "src/ui/game-ui.ts",
+      "src/ui/objectives.ts",
+      "src/render/audio.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [
+      "src/sim/cable.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-262",
+    "title": "**R5-262 | P2 | playground | clarity | A plug dropped near the lamp switch is hidden behind the switch prompt: the card and marker say 'pick up the plug', the pill says 'E Switch on (needs power first)'**",
+    "paths": [
+      "src/ui/objectives.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [
+      "src/ui/objectives.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-264",
+    "title": "**R5-264 | P2 | global | clarity | The lens setting barely changes anything: Close, Standard and Wide differ by about 8–10% of view, and the bench ignores it**",
+    "paths": [
+      "src/ui/screens.ts",
+      "src/game.ts",
+      "src/render/lens.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-265",
+    "title": "**R5-265 | P2 | global | clarity | The camera-reset button and the lens tile share one 'photo camera' icon, so the reset reads as photo mode**",
+    "paths": [
+      "src/ui/screens.ts",
+      "src/render/icons.ts"
+    ],
+    "editPaths": [
+      "src/render/icons.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-266",
+    "title": "**R5-266 | P2 | global | clarity | Practice runs: the picker promises 'nothing is graded', but the card stamps a full grade, and the PRACTICE tag is hidden under the job card**",
+    "paths": [
+      "src/hub/lobby.ts",
+      "src/ui/game-ui.ts",
+      "src/ui/ui.css"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-269",
+    "title": "**R5-269 | P2 | garage | clarity | Failing readings in the bench panel aren't red: class 'no' is styled neutral grey, and only passes are coloured**",
+    "paths": [
+      "src/ui/ui.css",
+      "src/stations/garage/station.ts",
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-271",
+    "title": "**R5-271 | P2 | garage | clarity | The fix's proof isn't shown where the failure was: job 3's START trace switches back to the STOP view once the sag is fixed**",
+    "paths": [
+      "src/stations/garage/station.ts",
+      "src/stations/garage/logic.ts",
+      "src/ui/ui.css"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-272",
+    "title": "**R5-272 | P2 | global | clarity | Station rooms keep the cable (F) and throw (Q) buttons on the action bar although no cable exists there**",
+    "paths": [
+      "src/game.ts",
+      "src/ui/game-ui.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-273",
+    "title": "**R5-273 | P2 | lobby | clarity | The pause card in the hub shows a meaningless time/damage/cost tally, title-cases the name to 'Circuit Crew Hq', and has a 'Jobs' button that just reloads the lobby**",
+    "paths": [
+      "src/game.ts",
+      "src/ui/screens.ts",
+      "src/ui/game-ui.ts"
+    ],
+    "editPaths": [
+      "src/ui/game-ui.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-274",
+    "title": "**R5-274 | P2 | lobby | clarity | The lobby never states its one rule: the tagline is unused, the card has no verb, and the spawn prompt is empty**",
+    "paths": [
+      "src/levels/lobby.ts",
+      "src/ui/screens.ts",
+      "src/hub/lobby.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-276",
+    "title": "**R5-276 | P2 | lunch | clarity | The winch says 'E Switch the lift on' while nothing feeds it**",
+    "paths": [
+      "src/ui/objectives.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-278",
+    "title": "**R5-278 | P2 | lunch | clarity | The capacitor hint badge is hidden if the lift is tried before the storeroom is lit, and its schematic glyph means nothing to a novice**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-279",
+    "title": "**R5-279 | P2 | lunch | clarity | Unit and naming gaps: the fridge bonus is '80%' of a unitless thermometer, 'bars' is never defined, and carts 'A' and 'B' carry no letters**",
+    "paths": [
+      "src/ui/objectives.ts",
+      "src/lunch-runtime.ts",
+      "src/levels/lunch.ts",
+      "src/ui/lunch-hud.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-280",
+    "title": "**R5-280 | P2 | meeting | clarity | Grab prompts fall back to 'Grab the thing' for the vending machine and the boardroom glass panes**",
+    "paths": [
+      "src/ui/objectives.ts",
+      "src/levels/meeting.ts",
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-281",
+    "title": "**R5-281 | P2 | meeting | clarity | The projector's switch state is invisible; switched on early, the trip lands on the cable plug-in**",
+    "paths": [
+      "src/game.ts",
+      "src/ui/objectives.ts",
+      "src/levels/decor.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-283",
+    "title": "**R5-283 | P2 | playground | clarity | The job item (the plug) starts hidden under Pip's feet, so the first frame shows no goal**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/playground.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-284",
+    "title": "**R5-284 | P2 | playground | clarity | The 'plugged in / live' cable tint is the same hex as the 70–85% strain warning**",
+    "paths": [
+      "src/game.ts",
+      "src/sim/cable.ts",
+      "src/render/actors.ts",
+      "src/sim/cable.test.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-285",
+    "title": "**R5-285 | P2 | global | clarity | The 'next job' chain stops after 03: station results switch from 'Next' to 'Jobs', so the flow changes mid-campaign**",
+    "paths": [
+      "src/levels/playground.ts",
+      "src/ui/screens.ts",
+      "src/levels/meeting.ts",
+      "src/levels/lunch.ts",
+      "src/levels/arcade.ts",
+      "src/ui/game-ui.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-292",
+    "title": "**R5-292 | P2 | global, meeting, arcade, observatory, playground | overlap | Start-of-level interpenetrations: g.audit finds overlaps in 6 of 9 levels (51 in the Meeting; beanbags in paper, cabinets in boxes, monitors in paper)**",
+    "paths": [
+      "src/levels/clutter.ts",
+      "src/levels/meeting.ts",
+      "src/props/prefabs.ts",
+      "src/game.ts",
+      "src/levels/decor.ts",
+      "src/levels/arcade.ts",
+      "tests/layout.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-294",
+    "title": "**R5-294 | P2 | lobby | overlap | Lobby: the Workshop arch corner is crowded — decor passes through the bench leg, toy cubes under the bench, a dead end Pip gets stuck in**",
+    "paths": [
+      "src/hub/lobby.ts",
+      "src/levels/lobby.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-300",
+    "title": "**R5-300 | P2 | lobby | overlap | Directory board: rows overlap by 11.5 cm and z-fight, it floats with no stand, reads in zig-zag order, and shrinks the text unevenly**",
+    "paths": [
+      "src/hub/lobby.ts",
+      "src/render/labels.ts"
+    ],
+    "editPaths": [
+      "src/hub/lobby.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-307",
+    "title": "**R5-307 | P2 | playground | overlap | Every dynamic prop rests about 2.7 cm below the visible floor (the floor collider top is at y −0.025)**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/decor.ts",
+      "tests/layout.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-315",
+    "title": "**R5-315 | P2 | lobby, observatory | visual-bug | Decor parented to game.root floats in mid-air when its wall cuts away (lobby blade signs and wing glows, observatory light rail)**",
+    "paths": [
+      "src/game.ts",
+      "src/hub/lobby.ts",
+      "src/levels/decor.ts",
+      "src/stations/observatory/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-316",
+    "title": "**R5-316 | P2 | lobby, meeting | visual-bug | Pendant lamp cords run up into the void above the cut-away walls; the lounge pendant covers Pip's head**",
+    "paths": [
+      "src/levels/dressing.ts",
+      "src/hub/lobby.ts",
+      "src/levels/decor.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-324",
+    "title": "**R5-324 | P2 | global | visual-bug | Overstretch pull pose swings the plug over the shoulder into the helmet**",
+    "paths": [
+      "src/render/pipRig.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-325",
+    "title": "**R5-325 | P2 | global | visual-bug | Alarm pose squashes blobs flat while the sweat drop and \"!\" float detached above them**",
+    "paths": [
+      "src/game.ts",
+      "src/render/actors.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-328",
+    "title": "**R5-328 | P2 | lobby | visual-bug | Seen at a grazing angle, the open portal reads as a shallow orange closet, and the destination view vanishes**",
+    "paths": [
+      "src/render/portal.ts",
+      "src/hub/lobby.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-336",
+    "title": "**R5-336 | P2 | global, arcade, garage, observatory, spectrum, meeting, lobby, qfn, lunch | model-detail | Fixtures have big flat single-colour faces and bare, unfinished backs (cabinets, benches, racks, desks, scope, reception desk)**",
+    "paths": [
+      "src/stations/arcade/room.ts",
+      "src/stations/spectrum/station.ts",
+      "src/hub/lobby.ts",
+      "src/props/prefabs.ts",
+      "src/levels/meeting.ts",
+      "src/levels/clutter.ts",
+      "src/stations/arcade/station.ts",
+      "src/stations/garage/station.ts",
+      "src/stations/garage/room.ts",
+      "src/stations/observatory/room.ts",
+      "src/stations/observatory/station.ts",
+      "src/stations/spectrum/room.ts",
+      "src/levels/decor.ts",
+      "src/render/kit.ts",
+      "src/stations/qfn/station.ts",
+      "src/lunch-runtime.ts",
+      "src/levels/lobby.ts"
+    ],
+    "editPaths": [
+      "src/props/prefabs.ts",
+      "src/levels/lobby.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-337",
+    "title": "**R5-337 | P2 | global, lunch, playground, qfn | model-detail | Pip's hard-hat ridge reads as a fin or cat ears, with grey plinth soles (DR-64 / F9 still open)**",
+    "paths": [
+      "src/render/pipRig.ts"
+    ],
+    "editPaths": [
+      "src/render/pipRig.ts"
+    ],
+    "ownedOnly": true,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-338",
+    "title": "**R5-338 | P2 | meeting, global, lunch, lobby | model-detail | Vending machine, water cooler, printer and ping-pong table miss their identifying cues (slab with sticker grid, pedestal with a can; the \"printer stand\" does not exist)**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/ui/objectives.ts",
+      "src/levels/decor.ts",
+      "src/render/kit.ts",
+      "src/levels/meeting.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-342",
+    "title": "**R5-342 | P2 | global, meeting | model-detail | Gameplay parts are 2–4× real size (plug 0.42 m, strip 0.9 m, mugs as tall as a monitor stand)**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/render/kit.ts",
+      "tests/routes.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-349",
+    "title": "**R5-349 | P2 | global | model-detail | Sprint makes the feet skate about 50% and the steps get slower than walking; slow hauling also slides**",
+    "paths": [
+      "src/render/pipRig.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-352",
+    "title": "**R5-352 | P2 | global | model-detail | Round parts built outside the kit skip the ≥24-segment rule (lamp shades 14–20, tori 6, accessories 6–16)**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/levels/dressing.ts",
+      "src/lunch-runtime.ts",
+      "src/props/prefabs.ts",
+      "src/stations/garage/room.ts",
+      "src/render/actors.ts",
+      "src/ui/objectives.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-361",
+    "title": "**R5-361 | P2 | playground | model-detail | The cable is a 20 cm fire hose as thick as the plug, and pale when slack**",
+    "paths": [
+      "src/game.ts",
+      "src/props/prefabs.ts",
+      "src/render/actors.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-366",
+    "title": "**R5-366 | P2 | qfn | model-detail | The parts crate is the generic shipping carton recoloured, is named 'crate' like every other box, and the grab cue lands on a junk box**",
+    "paths": [
+      "src/levels/qfn.ts",
+      "src/props/prefabs.ts",
+      "src/ui/objectives.ts",
+      "src/stations/qfn/station.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [
+      "src/props/prefabs.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-371",
+    "title": "**R5-371 | P2 | arcade, global | art-style | The Arcade play-tester is still a realistic peg-person human kid in a world of Pip plus blobs (DR-60)**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "tests/station-arcade.spec.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-372",
+    "title": "**R5-372 | P2 | global | art-style | The new rim light has no measurable effect and misses Pip, the cable and every coworker (glossyToon overwrites it; toon().clone() drops it)**",
+    "paths": [
+      "src/render/toon.ts",
+      "src/render/actors.ts",
+      "src/render/kit.ts",
+      "src/levels/decor.ts",
+      "src/stations/qfn/station.ts",
+      "src/render/particles.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-374",
+    "title": "**R5-374 | P2 | global | art-style | A cable at rest is cream on a cream floor, less saturated than the floor; yellow strain is lost on Lunch's wood**",
+    "paths": [
+      "src/render/actors.ts",
+      "src/game.ts",
+      "src/levels/decor.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-377",
+    "title": "**R5-377 | P2 | global | art-style | Gloss is used on painted wood (the nine 3.7 m² lobby door leaves) and on metals the rule doesn't list**",
+    "paths": [
+      "src/hub/lobby.ts",
+      "src/stations/garage/room.ts",
+      "src/stations/spectrum/room.ts",
+      "src/stations/observatory/room.ts",
+      "src/stations/observatory/station.ts",
+      "src/render/actors.ts",
+      "src/stations/garage/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  },
+  {
+    "id": "R5-378",
+    "title": "**R5-378 | P2 | spectrum | art-style | Brick texture squashed on narrow wall faces; wall caps and the STOREROOM sign stay opaque when the brick wall fades**",
+    "paths": [
+      "src/stations/spectrum/room.ts",
+      "src/game.ts",
+      "src/render/kit.ts",
+      "tests/*.spec.ts",
+      "tests/navigation.ts",
+      "src/ui/ui.css",
+      "src/stations/*/station.ts",
+      "src/levels/meeting.ts",
+      "src/levels/decor.ts",
+      "src/lunch-runtime.ts",
+      "tests/phone-bench.spec.ts",
+      "tests/respawn.spec.ts",
+      "src/ui/game-ui.ts",
+      "src/ui/screens.ts",
+      "src/stations/garage/station.ts",
+      "src/stations/arcade/station.ts",
+      "src/hub/lobby.ts",
+      "src/render/audio.ts",
+      "src/stations/*/room.ts",
+      "src/levels/clutter.ts",
+      "src/stations/shared.ts",
+      "src/render/particles.ts",
+      "src/meeting-strip.ts",
+      "src/sim/grade.ts",
+      "src/levels/*.ts",
+      "src/ui/store.ts",
+      "src/ui/objectives.ts",
+      "src/ui/lunch-hud.ts",
+      "src/sim/cable.ts",
+      "src/render/actors.ts",
+      "src/render/pipRig.ts",
+      "src/props/prefabs.ts",
+      "tests/cable*.spec.ts",
+      "src/render/toon.ts",
+      "src/render/post.ts",
+      "src/levels/dressing.ts",
+      "src/levels/lobby.ts",
+      "src/render/portal.ts",
+      "tests/lobby*.spec.ts",
+      "src/levels/playground.ts",
+      "tests/playground*.spec.ts",
+      "tests/meeting*.spec.ts",
+      "src/sim/lunch.ts",
+      "src/sim/electrical.ts",
+      "src/levels/lunch.ts",
+      "tests/lunch*.spec.ts",
+      "src/stations/arcade/logic.ts",
+      "src/stations/arcade/room.ts",
+      "src/levels/arcade.ts",
+      "tests/station-arcade*.spec.ts",
+      "src/stations/garage/logic.ts",
+      "src/stations/garage/room.ts",
+      "src/levels/garage.ts",
+      "tests/station-garage.spec.ts",
+      "src/stations/qfn/station.ts",
+      "src/stations/qfn/logic.ts",
+      "src/stations/qfn/room.ts",
+      "src/levels/qfn.ts",
+      "tests/station-qfn*.spec.ts",
+      "src/stations/observatory/station.ts",
+      "src/stations/observatory/logic.ts",
+      "src/stations/observatory/room.ts",
+      "src/levels/observatory.ts",
+      "tests/station-observatory*.spec.ts",
+      "src/stations/spectrum/station.ts",
+      "src/stations/spectrum/logic.ts",
+      "src/levels/spectrum.ts",
+      "tests/station-spectrum*.spec.ts",
+      "src/sim/electrical.test.ts"
+    ],
+    "editPaths": [
+      "src/render/kit.ts",
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": true
+  }
+]

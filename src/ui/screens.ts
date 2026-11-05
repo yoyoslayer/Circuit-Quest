@@ -19,11 +19,11 @@ export const LOOK:Record<LevelId,{color:string;thumb:string;size:string;pos:stri
 };
 export const thumbUrl=(id:LevelId)=>`${import.meta.env.BASE_URL}ui/${LOOK[id].thumb}`;
 /** Level data keeps names upper-case for the old intro card; menus use title case. */
-export const title=(l:Level)=>l.name.toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase());
+export const title=(l:Level)=>l.name.split(/\s+/).map(word=>['HQ','LED','QFN','IR','RF','PCB','ESD','PTC','DC','AC'].includes(word)?word:word.toLowerCase().replace(/^./,c=>c.toUpperCase())).join(' ');
 export const clock=(t:number)=>`${Math.floor(t/60)}:${Math.floor(t%60).toString().padStart(2,'0')}`;
 export const medalClass=(g:Grade)=>({A:'',B:'b',C:'c',D:'d'} as const)[g];
 export const medal=(g:Grade|undefined,extra='')=>g?`<span class="medal ${medalClass(g)} ${extra}"><span>${g}</span></span>`:`<span class="medal none ${extra}"></span>`;
-const disc=(l:Level,cls='disc')=>`<span class="${cls}" style="--lvl:${LOOK[l.id].color}">${icon(l.badge)}</span>`;
+const disc=(l:Level,cls='disc')=>`<span class="${cls}" style="--lvl:${LOOK[l.id].color}">${icon(l.id==='lobby'?'home':l.badge)}</span>`;
 const kb=(k:string,cls='')=>`<span class="key kb ${cls}">${k}</span>`;
 /** Face buttons match the colours printed on common pads. */
 const pad=(b:'A'|'B'|'X'|'Y')=>`<span class="key gp btnpad p${b.toLowerCase()}">${b}</span>`;
@@ -53,7 +53,7 @@ export const hudMarkup=(l:Level)=>`
     <button class="act jump" data-action="jump" aria-label="Jump">${icon('jump')}${space()}${pad('A')}</button>
     <i class="sep"></i>
     <button class="act small survey" data-action="survey" aria-label="Overview">${icon('survey')}${kb('Tab')}${pill('View')}</button>
-    <button class="act small cam" data-action="camera" aria-label="Reset camera">${icon('camera')}${kb('C')}${pill('RS')}</button>
+    <button class="act small cam" data-action="camera" aria-label="Reset camera">${icon('retry')}${kb('C')}${pill('RS')}</button>
   </div>
   <div class="stick" aria-hidden="true"><i class="knob"></i></div>
 </div>`;
@@ -97,7 +97,7 @@ export const titleMarkup=(l:Level)=>`
     <div><span class="key">Q</span>${icon('throw')}</div>
     <div><span class="key sp"></span>${icon('jump')}</div>
     <div><span class="key">&#8679;</span>${icon('dash')}</div>
-    <div>${icon('mouse')}${icon('camera')}</div>
+    <div>${icon('mouse')}${icon('camera')}</div><div><span class="key">Tab</span>${icon('survey')}</div><div><span class="key">Esc</span>${icon('pause')}</div>
   </div>
   <div class="corner">
     <span class="padind" aria-hidden="true">${icon('gamepad')}<i></i></span>
@@ -124,7 +124,7 @@ export const jobsMarkup=(levels:Level[],bests:(Best|undefined)[])=>`
   <header>
     <button class="btn" data-ui="home" aria-label="Back to title">${icon('home')}</button>
     <h1>Jobs</h1>
-    <div class="shelf" aria-label="Best grades">${bests.map(b=>medal(b?.grade)).join('')}</div>
+    <div class="shelf" aria-label="Best grades">${bests.map(b=>`<span class="${b?.crewGold?'gold-record':''}" title="${b?.crewGold?'Crew Gold':'Best grade'}">${medal(b?.grade)}</span>`).join('')}</div>
   </header>
   <svg class="wire" viewBox="0 0 1440 260" preserveAspectRatio="none" aria-hidden="true">
     <defs>${stripe('cc-stripe-jobs',22,9)}</defs>
@@ -176,32 +176,31 @@ export const pauseMarkup=(l:Level)=>`
 
 export interface ResultView {level:Level;time:number;damage:number;cost:number;parts:Grade[];overall:Grade;improved:boolean;next?:Level;
   /** The best before this run, shown under each row so there's something to beat. */
-  previous?:Best}
+  previous?:Best;crewGold?:boolean;served?:number;practice?:boolean}
 export function resultMarkup(r:ResultView){
-  const best=r.parts.indexOf(r.overall),rows:[string,string,number][]=[['clock','time',r.time],['mug','damage',r.damage],['coins','cost',r.cost]];
+  const best=Math.max(0,r.parts.indexOf(r.overall)),rows:[string,string,number][]=[[r.served===undefined?'clock':'check',r.served===undefined?'time':'served',r.served??r.time],['mug','damage',r.damage],['coins','cost',r.cost]];
   // The winning stat's cable runs from the end of its row up into the stamp.
   const dy=best*80,feed=`<svg class="feed" viewBox="0 0 120 ${290+dy}" style="height:${290+dy}px" aria-hidden="true">
       <path d="M20 ${265+dy} C 92 ${262+dy}, 104 ${200+dy*.7}, 92 160 S 30 96, -84 108" fill="none" stroke="#262A40" stroke-width="14" stroke-linecap="round"/>
       <path d="M20 ${265+dy} C 92 ${262+dy}, 104 ${200+dy*.7}, 92 160 S 30 96, -84 108" fill="none" stroke="#FFC53D" stroke-width="6" stroke-linecap="round" stroke-dasharray="1 12"/></svg>`;
-  const next=r.next?`<button class="btn primary next" data-ui="nextjob" aria-label="Next job">${icon('next')}<span class="nx">${disc(r.next,'d')}${r.next.number}</span><span class="key">&#9166;</span></button>`
-    :`<button class="btn primary next jobs" data-ui="jobs-reload" aria-label="Jobs">${icon('jobs')}<span class="lbl">Jobs</span></button>`;
+  const next=`<button class="btn primary next jobs" data-ui="jobs-reload" aria-label="Return to HQ">${icon('home')}<span class="lbl">HQ</span><span class="key">&#9166;</span></button>`;
   const confetti=['#FFC53D','#5ED6CC','#E5484D','#FFC53D','#E5484D','#FFC53D','#5ED6CC','#3BB273','#3BB273','#6E9BEA'].map((c,i)=>`<i style="left:${[21,27,17,29,76,72,82,70,87,12][i]}%;top:${[20,47,71,84,23,52,71,88,40,36][i]}%;background:${c};--rot:${[20,-35,60,-12,-25,40,10,-55,75,-70][i]}deg;animation-delay:${(i*.07).toFixed(2)}s"></i>`).join('');
-  return `<section class="screen result-screen" data-screen="result" aria-label="Job done, grade ${r.overall}">
+  return `<section class="screen result-screen" data-screen="result" aria-label="${r.practice?'Practice complete':`Job done, grade ${r.overall}`}">
   <div class="scrim"></div>
   <div class="confetti" aria-hidden="true">${confetti}</div>
   <i class="string"></i>
   <div class="result tag">
     <i class="eyelet"></i><i class="hole"></i>
     <div class="head">${disc(r.level)}<div><small>${r.level.number}</small><h2>${title(r.level)}</h2></div><span class="done">${icon('check')}</span></div>
-    <div class="stampzone"><i class="rays"></i>${medal(r.overall,'stamp')}${r.improved?`<span class="newbest" title="New best">${icon('star')}</span>`:''}</div>
+    <div class="stampzone"><i class="rays"></i>${r.crewGold&&!r.practice?'<strong class="crew-gold">Crew Gold</strong>':''}${r.practice?'<strong class="practice-complete">Practice complete</strong>':medal(r.overall,'stamp')}${r.improved?`<span class="newbest" title="New best">${icon('star')}</span>`:''}</div>
     <div class="rows">
-      ${rows.map(([ic,key,v],i)=>{const was=r.previous?.[key as 'time'|'damage'|'cost'];const prev=was===undefined?'':`<small class="prev ${v<was?'better':v>was?'worse':''}">best ${key==='time'?clock(was):was}</small>`;
-        return `<div class="row ${i===best?'best':''}">${icon(ic)}<span class="val"><b data-count="${v}" data-kind="${key}">${key==='time'?clock(0):0}</b>${prev}</span>${medal(r.parts[i])}</div>`;}).join('')}
-      ${feed}
+      ${rows.map(([ic,key,v],i)=>{const was=r.previous?.[key as 'time'|'damage'|'cost'|'served'];const prev=was===undefined?'':`<small class="prev ${(key==='served'?v>was:v<was)?'better':v!==was?'worse':''}">best ${key==='time'?clock(was):was}</small>`;
+        return `<div class="row ${i===best?'best':''}">${icon(ic)}<span class="val"><b data-count="${v}" data-kind="${key}">${key==='time'?clock(0):0}</b>${prev}</span>${r.practice?'':medal(r.parts[i])}</div>`;}).join('')}
+      ${r.practice?'':feed}
     </div>
     <div class="actions2">
       <button class="btn sq" data-ui="restart" aria-label="Play again">${icon('retry')}<span class="key">R</span></button>
-      ${r.next?`<button class="btn sq" data-ui="jobs-reload" aria-label="Jobs">${icon('jobs')}</button>`:''}
+      ${r.next?`<button class="btn sq" data-ui="nextjob" aria-label="Next unfinished job: ${title(r.next)}">${icon('next')}<span>${r.next.number}</span></button>`:''}
       ${next}
     </div>
   </div>
@@ -223,6 +222,7 @@ export function failMarkup(f:FailView){
     <div class="hero">${hero}
       <div class="vthermo" aria-hidden="true"><svg class="pop" viewBox="0 0 50 34"><path d="M8 30l-6-12M25 26V4M42 30l6-12" stroke="#E5484D" stroke-width="5" stroke-linecap="round"/></svg><i class="tube"></i><i class="bulb"></i></div>
     </div>
+    <p class="fail-cause">${f.burned?'The tray stayed in the hot oven.':'Food spoiled while the fridge was unpowered.'}</p>
     <div class="progress" aria-label="How far the tray got">
       ${step(f.oven,'oven')}<i class="link ${f.oven?'live':'cold'}"></i>${step(f.belt,'conveyor')}<i class="link ${f.belt?'live':'cold'}"></i>${step(f.lift,'lift')}
     </div>

@@ -9,7 +9,7 @@ import type {Point} from '../sim/cable';
 import {levels} from '../levels';
 import {LOOK,title,thumbUrl} from '../ui/screens';
 import {portal} from '../render/portal';
-import {bestFor,flagAutostart,isLocked,isOptional} from '../ui/store';
+import {bestFor,flagAutostart,isLocked,isOptional,campaignProgress} from '../ui/store';
 import {toon,box,rbox,cyl,sphere,part,group,glow,DMETAL,INK} from '../render/kit';
 import {hot,glossyToon} from '../render/actors';
 import {signPlate} from '../render/labels';
@@ -40,7 +40,7 @@ function spillTex(){return spillT??=(()=>{const c=document.createElement('canvas
   x.beginPath();x.moveTo(30,0);x.lineTo(98,0);x.lineTo(128,128);x.lineTo(0,128);x.closePath();x.fill();const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;})();}
 export class Lobby {
   doors:Door[]=[];readonly job:StationJob;
-  /** The Workshop arch: practise any station without recording a grade. */
+  /** The Workshop arch: practice any station without recording a grade. */
   workshopAt:Point={x:7.5,z:5.5};private picker?:HTMLElement;
   constructor(private game:Game){
     // Bonus jobs (Rush) get a door but aren't required steps or part of "finish every job".
@@ -48,9 +48,9 @@ export class Lobby {
     this.job={goal:'Circuit Crew HQ: pick a door, fix what\'s behind it',
       steps:jobs.map(l=>({text:`${l.number} · ${title(l)}`,done:()=>!!bestFor(l.id),at:()=>this.doors.find(d=>d.level===l)?.at})),
       bonuses:[
-        {text:'Finish every job',ok:()=>jobs.every(l=>!!bestFor(l.id))},
-        {text:'Earn an A on three jobs',ok:()=>jobs.filter(l=>bestFor(l.id)?.grade==='A').length>=3},
-        {text:'Light every wing',ok:()=>this.doors.every(d=>d.done)}]};
+        {text:'Finish every job',ok:()=>campaignProgress(levels).allJobs},
+        {text:'Crew Gold on three jobs',ok:()=>campaignProgress(levels).goldJobs>=3},
+        {text:'Collect 15 bonus stars',ok:()=>campaignProgress(levels).stars>=15}]};
   }
   dress(kit:RoomKit){
     const g=this.game,l=g.level,r=g.decorRoot,W=l.width/2,D=l.depth/2;
@@ -117,7 +117,7 @@ export class Lobby {
       const tape=part(leaf,box(1.8,.09,.012),toon('#ffffff',{map:TX.hazardStripe()}),.83,1.25,.095,false);tape.rotation.z=.5;
       padlock=part(leaf,rbox(.22,.2,.08,.04),toon(DMETAL),1.2,1.05,.13);part(leaf,new T.TorusGeometry(.07,.018,8,16,Math.PI),toon('#c7ccd6'),1.2,1.15,.13);part(leaf,box(.03,.06,.01),toon(INK),1.2,1.04,.175,false);}
     // Medal on the wall beside the door, big enough to read from the atrium.
-    if(best){part(f,rbox(.5,.5,.025,.06),toon(INK),1.42,1.6,.012);signPlate(f,best.grade,1.42,1.6,.03,.44,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});}
+    if(best){part(f,rbox(.5,.5,.025,.06),toon(best.crewGold?'#e4ad32':INK),1.42,1.6,.012);signPlate(f,best.grade,1.42,1.6,.03,.44,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});}
     // The wing lamp: a sconce beside the lintel, below the wall cap, plus light strips down the post
     // fronts. Dark until the job is done.
     part(f,rbox(.2,.28,.04,.02),toon(DMETAL),-1.3,2.75,.02);part(f,box(.04,.04,.16),toon(DMETAL),-1.3,2.8,.1);part(f,new T.CylinderGeometry(.07,.15,.14,16),toon(color),-1.3,2.8,.2);
@@ -130,7 +130,7 @@ export class Lobby {
     const g=this.game,w=this.workshopAt,a=group(g.root,w.x,0,w.z-1.2);
     for(const x of [-1,1]){part(a,rbox(.3,2.6,.4,.06),toon('#5ED6CC'),x,1.3,0);part(a,rbox(.34,.12,.44,.03),toon('#3aa79f'),x,.06,0);for(const y of [.7,1.9])part(a,cyl(.025,.025,.02,8,'z'),toon(DMETAL),x,y,.205,false);}
     part(a,rbox(2.4,.36,.44,.08),toon('#5ED6CC'),0,2.7,0);
-    signPlate(a,'WORKSHOP',0,2.7,.23,1.8,{bg:'#ffc629'});signPlate(a,'practise any station',0,2.24,.235,1.5,{bg:'#fffaf0',h:56});
+    signPlate(a,'WORKSHOP',0,2.7,.23,1.8,{bg:'#ffc629'});signPlate(a,'practice any station',0,2.24,.235,1.5,{bg:'#fffaf0',h:56});
     part(a,box(1.7,.02,1.2),toon('#e3d5bd'),0,.01,.4,false);
     // A practice bench beside the arch (not in its walk-through): a vice, a mini reel and parts to try.
     const b=group(g.root,w.x+2.4,0,w.z-1.2);part(b,rbox(1.3,.07,.62,.03),toon('#c98a55'),0,.86,0);for(const x of [-.55,.55])part(b,box(.08,.84,.5),toon(INK),x,.42,0);
@@ -158,7 +158,7 @@ export class Lobby {
     if(this.picker){this.picker.hidden=false;this.pickerButtons()[0]?.focus();return;}
     const el=document.createElement('section');el.className='workshop-picker panel';el.setAttribute('aria-label','Workshop');
     const jobs=levels.filter(l=>l.station&&!l.id.endsWith('-rush'));
-    el.innerHTML=`<h3>Workshop</h3><p>Practise any station. The whole job plays, nothing is graded or recorded.</p><div class="grid">${jobs.map(l=>`<button class="btn" data-practice="${l.id}" style="--lvl:${LOOK[l.id]?.color??'#5ED6CC'}"><small>${l.number}</small>${title(l)}</button>`).join('')}</div><button class="btn close" data-close>Close <span class="key">Esc</span></button>`;
+    el.innerHTML=`<h3>Workshop</h3><p>Practice any station. The whole job plays, nothing is graded or recorded.</p><div class="grid">${jobs.map(l=>`<button class="btn" data-practice="${l.id}" style="--lvl:${LOOK[l.id]?.color??'#5ED6CC'}"><small>${l.number}</small>${title(l)}</button>`).join('')}</div><button class="btn close" data-close>Close <span class="key">Esc</span></button>`;
     el.addEventListener('click',e=>{const t=(e.target as Element).closest<HTMLElement>('[data-practice],[data-close]');if(!t)return;if(t.dataset.close!==undefined){this.closePicker();return;}flagAutostart(t.dataset.practice as Level['id']);location.href=`?level=${t.dataset.practice}&practice`;});
     // While open, the picker owns the keyboard: Esc or E closes, arrows move, Enter or Space presses
     // the focused button (the browser default). Nothing reaches the game behind it.
@@ -199,6 +199,6 @@ export class Lobby {
       if(before<.5&&ig.t>=.5){const w=ig.door.lamp.getWorldPosition(new T.Vector3());this.game.burst(w,'#fff3a3',14,'spark');this.game.burst({x:ig.door.at.x,y:2.4,z:ig.door.at.z},'#ffcf52',50,'confetti');this.game.audio.jingle();for(const s of ig.door.strips)s.material=STRIP_ON;}
       if(u>=.4)this.ignite=undefined;}
   }
-  prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practise any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: get a B on ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
+  prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practice any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: get a B on ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
   snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}
 }

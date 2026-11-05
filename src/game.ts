@@ -134,6 +134,8 @@ export class Game {
     {const m=toon('#ffc629'),arm=new T.BoxGeometry(.26,.012,.07);for(let k=0;k<32;k++){const c=new T.Group();for(const s of [-1,1]){const b=new T.Mesh(arm,m);b.rotation.y=s*2.5;b.translateX(.12);b.userData.noAO=true;c.add(b);}this.hint.add(c);}this.hint.visible=false;this.root.add(this.hint);}
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
     if(level.id==='meeting')this.strip=new MeetingStrip(this);
+    // The Meeting's second reel sits fixed in the mail cart until first grabbed, so a bump can't spill it (R5-181).
+    for(const q of this.props)if(q.spec.id==='extension')q.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
     this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else if(!this.station&&!this.hub){this.simulateCable();this.drawCable();}
     freezeDecor(this);this.updateCamera(1);this.view.render();
     document.body.dataset.ready='true';
@@ -339,7 +341,7 @@ export class Game {
         // The coffee bar goes dark: nearby coworkers groan.
         this.alarm({x:-13,z:4.5},4.5);for(let i=0;i<3;i++)setTimeout(()=>this.audio.voice('groan',.8+i*.15),150+i*280);return;}
       // A jammed doorstop only comes loose when deliberately picked up.
-      if(nearest.spec.id==='wedge'||nearest.spec.id==='strip')nearest.body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
+      if(nearest.spec.id==='wedge'||nearest.spec.id==='strip'||nearest.spec.id==='extension')nearest.body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
       this.held=nearest;this.audio.pop();
     }else this.shrug();
   }
@@ -352,6 +354,12 @@ export class Game {
   get held(){return this.heldProp;}
   set held(p:Prop|undefined){if(this.heldProp===p)return;const set=(q:Prop,g:number)=>{for(let i=0;i<q.body.numColliders();i++)q.body.collider(i).setCollisionGroups(g);};
     if(this.heldProp)set(this.heldProp,ALL_GROUPS);this.heldProp=p;if(p)set(p,HELD_GROUPS);}
+  /** Sends a stuck or fallen prop home with a puff where it was (clamped inside the room) and at home;
+   *  a job item also gets a pop and a rising tone, so the player sees where it went (R5-326). */
+  respawn(prop:Prop){const q=prop.body.translation(),w=this.level.width/2-.3,d=this.level.depth/2-.3;
+    this.burst({x:T.MathUtils.clamp(q.x,-w,w),y:Math.max(.1,Math.min(q.y,2.4)),z:T.MathUtils.clamp(q.z,-d,d)},'#fffaf0',6,'dust');
+    prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);prop.body.setAngvel({x:0,y:0,z:0},true);this.burst(prop.home,'#fffaf0',6,'dust');
+    if(prop.spec.id){this.audio.pop();this.audio.tone(520,.12,.04,'triangle');setTimeout(()=>this.audio.tone(780,.1,.035,'triangle'),90);}}
   thrownAt=-9;releasedAt=-9;
   /** A job item thrown in a station room: once it comes to rest it is offered to the bench like a
    *  put-down, and a throw that lands counts as delivered (R5-085). */
@@ -426,7 +434,8 @@ export class Game {
     this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.audio.noise(.2,.08,1400);this.alarm(this.plugPosition,6);this.beat('slingshot');
     // Coworkers along the whipping cable, and next to whatever it flings, jump too (R5-231).
     for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];this.alarm({x:(a.x+b.x)/2,z:(a.z+b.z)/2},3);}
-    for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){this.flung=true;this.alarm(pos,2);const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();const impulse=Math.min(energy*.22,45)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
+    for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){this.flung=true;this.alarm(pos,2);const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();// Capped so light litter leaves at no more than ~14 m/s (R5-224).
+      const impulse=Math.min(Math.min(energy*.22,45)*Math.min(1,prefabs[p.spec.kind].mass/4+.25),prefabs[p.spec.kind].mass*14);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
   }
   /** Forgiving plug-in (AGENTS 7): close enough to the socket and not overstretched seats the plug. */
   canSeat(){const pos=this.player.translation();return Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12;}
@@ -474,7 +483,7 @@ export class Game {
     this.plugPosition.set(at.x,.22,at.z);
     const dir=new T.Vector3(this.plugPosition.x-prev.x,0,this.plugPosition.z-prev.z);if(dir.lengthSq()>1e-6)dir.normalize();
     for(const p of this.props){if(r.hit.has(p)||!p.mesh.visible||p===this.held)continue;const q=p.body.translation();
-      if(segmentDistance(q,prev,this.plugPosition)<.6&&q.y<1.4){r.hit.add(p);const k=T.MathUtils.clamp(r.energy*.22,4,30)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:dir.x*k,y:k*.5,z:dir.z*k},true);this.flung=true;}}
+      if(segmentDistance(q,prev,this.plugPosition)<.6&&q.y<1.4){r.hit.add(p);const k=Math.min(T.MathUtils.clamp(r.energy*.22,4,30)*Math.min(1,prefabs[p.spec.kind].mass/4+.25),prefabs[p.spec.kind].mass*14);p.body.applyImpulse({x:dir.x*k,y:k*.5,z:dir.z*k},true);this.flung=true;}}
     if(Math.floor(r.t*6)!==Math.floor((r.t-dt/.35)*6))this.burst({x:at.x,y:.1,z:at.z},'#e9e4d6',2,'dust');
     if(r.t>=1)this.recoil=undefined;
   }
@@ -591,13 +600,13 @@ export class Game {
       prop.lastSpeed=speed;
       // Paper sheets flutter: heavy air drag plus a wobble while airborne.
       if(prop.spec.kind==='paper'&&pos.y>.15&&speed>.3){prop.body.applyImpulse({x:-v.x*.004,y:-v.y*.0045+.0002,z:-v.z*.004},true);const w=this.time*23+prop.body.handle;prop.body.applyTorqueImpulse({x:Math.sin(w)*.00002,y:Math.sin(w*1.7)*.00002,z:Math.cos(w*1.3)*.00002},true);}
-      if(pos.y< -3||Math.abs(pos.x)>this.level.width/2+1||Math.abs(pos.z)>this.level.depth/2+1){prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);}
+      if(pos.y< -3||Math.abs(pos.x)>this.level.width/2+.3||Math.abs(pos.z)>this.level.depth/2+.3)this.respawn(prop);
     }
     this.checkGlass(p,pace);
     // Required items stranded out of reach (on top of tall furniture, or inside a sealed space) go back home.
     if(Math.floor(this.time)!==Math.floor(this.time-dt))for(const prop of this.props){if(!prop.spec.id||prop===this.held||!prop.body.isEnabled()||!prop.body.isDynamic())continue;const q=prop.body.translation();const sealed=this.level.sealed?.some(s=>q.x>s.minX&&q.x<s.maxX&&q.z>s.minZ&&q.z<s.maxZ)||
         // Lunch: an item thrown into the dark storeroom can't be grabbed there, so it comes back (items that live in the store stay).
-        (!!this.lunch&&!this.lunch.canGrab(q)&&this.lunch.canGrab(prop.home));const n=q.y>2.1||sealed?(this.stuck.get(prop)??0)+1:0;this.stuck.set(prop,n);if(n>=4){prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);this.burst(prop.home,'#fffaf0',6,'dust');this.stuck.set(prop,0);}}
+        (!!this.lunch&&!this.lunch.canGrab(q)&&this.lunch.canGrab(prop.home));const n=q.y>2.1||sealed?(this.stuck.get(prop)??0)+1:0;this.stuck.set(prop,n);if(n>=4){this.respawn(prop);this.stuck.set(prop,0);}}
     if(p.y< -3){this.player.setTranslation({x:this.level.spawn.x,y:1,z:this.level.spawn.z},true);this.vertical=0;}
     // Past the deadline the meeting waits impatiently; running late only costs time grade.
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);

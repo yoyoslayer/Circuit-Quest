@@ -9,7 +9,8 @@ const props:PropSpec[]=[
 ];
 // Door approach points (src/hub/lobby.ts doorSlots: six on the back wall, three on the side wall).
 const DOORS:[number,number][]=[...[0,1,2,3,4,5].map(k=>[-11.6+k*4.64,-8.9] as [number,number]),...[0,1,2].map(k=>[-13.9,-5.5+k*4.6] as [number,number])];
-const npcs:NpcSpot[]=[{x:-1.4,z:.6,standing:true,acc:['headphones'],yaw:0,mood:'happy'},{x:-7,z:2.2,standing:true,acc:['mug']},{x:6.8,z:1.6,standing:true,acc:['glasses','tie']}];
+// The greeter stands just behind the spawn, out of the lane to every door (coworkers are solid now).
+const npcs:NpcSpot[]=[{x:1.4,z:6.8,standing:true,acc:['headphones'],yaw:0,mood:'happy'},{x:-7,z:2.2,standing:true,acc:['mug']},{x:6.8,z:1.6,standing:true,acc:['glasses','tie']}];
 export const lobby:Level={id:'lobby',name:'CIRCUIT CREW HQ',number:'HQ',tagline:'Every door is a job. Pick one.',badge:'jobs',hub:true,
   width:30,depth:20,spawn:{x:0,z:5.5},anchor:{x:-13,z:8},target:{x:0,z:0},length:10,obstacles:[],props,npcs,
   // HQ clutter (R5-159): lounge corners, plants, parcels and a reading nook round the atrium, so the hub is a

@@ -227,9 +227,9 @@ const RUSH_FAULTS=['across','backwards','hot','dim','empty'] as const;
 /** What the player says about a cabinet, read from what its start setup really does when powered. */
 export function storyFor(job:Job,s:Setup):string{
   const r=read(job,s);
-  if(r.tripped)return s.across&&blockCount(s.chain)===0?'Someone fitted a block across the LED. The fuse keeps cutting out.'
-    :blockCount(s.chain)===0?'The chain socket is empty, and the fuse keeps cutting out.':'The fuse keeps cutting out.';
-  if(job.load.kind==='led'&&s.reversed&&!r.lit)return 'Right blocks, but the LED went in backwards. It stays dark.';
+  // Symptoms only (R5-035): what the player sees and hears, never the cause. Reading the board is the job.
+  if(r.tripped)return !s.across&&blockCount(s.chain)===0?'The fuse clicks the moment it\'s switched on.':'The fuse keeps cutting out.';
+  if(job.load.kind==='led'&&s.reversed&&!r.lit)return 'Stays dark, even with fresh blocks.';
   if(r.level>HOUSE.ledPop)return 'Its light flashed and died; a spare is in.';
   if(r.iLoad>job.load.imax)return r.rHeat>HOUSE.margin?'Glaring, and the block smells warm.':'Glaring: far brighter than the others.';
   if(r.iLoad<job.band[0])return 'Dimmer than the other cabinets.';
@@ -249,17 +249,24 @@ export function rushJob(rng:()=>number,n:number):Job{
     switch(fault){
       case 'across':start={chain:empty(),across:pick(BLOCKS),reversed:false};break;
       // Backwards on more than 5 V would be past a typical LED's reverse rating, so only low supplies.
-      case 'backwards':if(supply<=5)start={chain:fix.map(p=>[...p]),reversed:true};break;
+      // It starts with a near miss, not the answer: one block is its neighbour value, so flipping the LED
+      // alone doesn't finish the job (R5-035).
+      case 'backwards':if(supply<=5){const opts:Chain[]=[];
+        fix.forEach((pos,i)=>pos.forEach((v,k)=>{const at=BLOCKS.indexOf(v as Block);for(const d of [-1,1]){const nb=BLOCKS[at+d];if(nb===undefined)continue;
+          const c=fix.map(p=>[...p]) as Chain;c[i][k]=nb;if(judge(job,{chain:c,reversed:false}).tier<3)opts.push(c);}}));
+        if(opts.length)start={chain:pick(opts),reversed:true};}break;
       // Too bright but not destructive: the LED over its rating (short of popping) and a warm block.
       case 'hot':{let pickR=-1;
         for(const c of HOT_CHAINS){const st={chain:c,reversed:false},r=read(job,st);
           if(!r.tripped&&r.level>1&&r.level<HOUSE.ledPop*.9&&r.rHeat>=.6&&r.rHeat<=1&&r.rChain>pickR){pickR=r.rChain;start={chain:c.map(p=>[...p]),reversed:false};}}
         break;}
       // Visibly dimmer: under half the band's bottom.
-      case 'dim':for(const c of DIM_CHAINS){const st={chain:c,reversed:false};if(read(job,st).iLoad<job.band[0]*.5){start={chain:c.map(p=>[...p]),reversed:false};break;}}break;
+      // Too dim to see, not just dimmer: a lit-but-dim LED would pass as 'Works' as found.
+      case 'dim':for(const c of DIM_CHAINS){const st={chain:c,reversed:false};if(read(job,st).iLoad<job.band[0]*.5&&judge(job,st).tier===0){start={chain:c.map(p=>[...p]),reversed:false};break;}}break;
       case 'empty':start={chain:empty(),reversed:false};break;
     }
-    if(!start||judge(job,start).tier>=2)continue;
+    // Every rush cabinet starts properly broken: none passes as found (R5-035).
+    if(!start||judge(job,start).tier>=1)continue;
     job.start=start;job.story=storyFor(job,start);
     return job;
   }

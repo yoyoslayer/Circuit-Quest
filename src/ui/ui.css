@@ -198,7 +198,7 @@
 .objective .dots b.done{background:var(--live);border-color:var(--live);opacity:1}
 .objective .dots b.now{background:var(--hat);border-color:var(--ink);opacity:1;animation:nowpulse 1.2s ease-in-out infinite alternate}
 .objective .cur{grid-column:1/2;margin:0;font-size:16px;font-weight:700;line-height:1.25}
-.objective .stars{grid-column:2/3;grid-row:2;justify-self:end;display:flex;gap:2px;font-size:14px}
+.objective .stars{grid-column:2/3;grid-row:2;justify-self:end;display:flex;gap:2px;font-size:17px}
 .objective .stars i{font-style:normal;color:var(--paper-3)}.objective .stars i.ok{color:var(--gold,#ffc53d);text-shadow:0 1px 0 var(--ink)}
 .objective.flash .cur{animation:stepdone .9s ease-out;color:var(--live)}
 .result-bonus li i{border:0;width:auto;height:auto;margin:0;font-style:normal;color:var(--paper-3);background:none;animation:none}
@@ -268,3 +268,6 @@ body[data-bench] .objective{width:min(300px,calc(100vw - 32px));padding:10px 14p
 body[data-bench] .station-panel{width:min(290px,calc(100vw - 32px));font-size:13px}
 .workshop-picker{max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 0 0 100vmax rgba(20,22,40,.45),var(--drop-lg)}
 .workshop-picker .grid .btn{text-align:left}
+/* Off-screen pointer for the objective marker (R5-103): a yellow chevron at the screen edge. */
+.marker-edge{position:absolute;width:0;height:0;border-top:14px solid transparent;border-bottom:14px solid transparent;border-left:24px solid #ffd84a;filter:drop-shadow(0 0 0 #262a40) drop-shadow(2px 0 0 #262a40) drop-shadow(-1px 0 0 #262a40) drop-shadow(0 2px 0 #262a40) drop-shadow(0 -2px 0 #262a40);pointer-events:none;z-index:3}
+body[data-bench] .marker-edge,body[data-menu] .marker-edge{display:none}

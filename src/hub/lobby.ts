@@ -9,7 +9,7 @@ import type {Point} from '../sim/cable';
 import {levels} from '../levels';
 import {LOOK,title,thumbUrl} from '../ui/screens';
 import {portal} from '../render/portal';
-import {bestFor,flagAutostart} from '../ui/store';
+import {bestFor,flagAutostart,isLocked,isOptional} from '../ui/store';
 import {toon,box,rbox,cyl,sphere,part,group,glow,DMETAL,INK} from '../render/kit';
 import {hot,glossyToon} from '../render/actors';
 import {signPlate} from '../render/labels';
@@ -38,7 +38,8 @@ export class Lobby {
   /** The Workshop arch: practise any station without recording a grade. */
   workshopAt:Point={x:7.5,z:5.5};private picker?:HTMLElement;
   constructor(private game:Game){
-    const jobs=levels;
+    // Bonus jobs (Rush) get a door but aren't required steps or part of "finish every job".
+    const jobs=levels.filter(l=>!isOptional(l));
     this.job={goal:'Circuit Crew HQ: pick a door, fix what\'s behind it',
       steps:jobs.map(l=>({text:`${l.number} · ${title(l)}`,done:()=>!!bestFor(l.id),at:()=>this.doors.find(d=>d.level===l)?.at})),
       bonuses:[
@@ -70,7 +71,7 @@ export class Lobby {
     return {};
   }
   private door(kit:RoomKit,level:Level,s:{wall:'back'|'side'|'free';x:number;z:number}):Door{
-    const g=this.game,color=LOOK[level.id]?.color??'#5ED6CC',done=!!bestFor(level.id),best=bestFor(level.id),locked=!!level.requires&&!bestFor(level.requires);
+    const g=this.game,color=LOOK[level.id]?.color??'#5ED6CC',done=!!bestFor(level.id),best=bestFor(level.id),locked=isLocked(level);
     // Wall-local frames: the back wall's local x is world x; the side wall's local x is -world z.
     let parent:T.Object3D,lx=0,at:Point;
     if(s.wall==='back'){parent=kit.back;lx=s.x;at={x:s.x,z:s.z+1.1};}
@@ -143,6 +144,6 @@ export class Lobby {
       const k=want?60:34,c=want?9:10;d.vel+=((want-d.open)*k-d.vel*c)*dt;d.open+=d.vel*dt;
       d.leaf.rotation.y=-d.open*1.25;d.portal.set(T.MathUtils.clamp(d.open,0,1),t);(d.spill.material as T.MeshBasicMaterial).opacity=.45*T.MathUtils.clamp(d.open,0,1);}
   }
-  prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practise any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: finish ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
+  prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practise any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: get a B on ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
   snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}
 }

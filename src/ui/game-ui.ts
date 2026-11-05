@@ -8,7 +8,7 @@ import type {LunchJob} from '../sim/lunch';
 import {installIcons} from '../render/icons';
 import {levels} from '../levels';
 import {prefabs} from '../props/prefabs';
-import {bestFor,record,flagAutostart,takeAutostart} from './store';
+import {bestFor,record,flagAutostart,takeAutostart,isLocked} from './store';
 import {ObjectivesHUD} from './objectives';
 import {hudMarkup,titleMarkup,jobsMarkup,pauseMarkup,resultMarkup,failMarkup,clock} from './screens';
 
@@ -30,6 +30,8 @@ export class GameUI {
     const hud=game.hud,params=new URLSearchParams(location.search),bests=levels.map(l=>bestFor(l.id));
     this.sel=Math.max(0,levels.findIndex(l=>l.id===game.level.id));
     hud.innerHTML=hudMarkup(game.level)+titleMarkup(game.level)+jobsMarkup(levels,bests)+pauseMarkup(game.level);
+    // Locked jobs (Rush) show a padlock state on the Jobs board and can't be started from it.
+    for(const l of levels)if(isLocked(l))hud.querySelector(`.job[data-job="${l.id}"]`)?.classList.add('locked');
     this.layer=hud.querySelector('[data-layer="hud"]')!;this.ring=hud.querySelector('.ring .left')!;this.badge=hud.querySelector('.badge')!;
     this.strainCard=hud.querySelector('.strain')!;this.strainFill=hud.querySelector('#strain')!;this.reel=hud.querySelector('.reel')!;this.cablebar=hud.querySelector('.cablebar')!;
     const tally=(k:'time'|'damage'|'cost')=>({box:hud.querySelector<HTMLElement>(`[data-tally="${k}"]`)!,value:hud.querySelector<HTMLElement>(`[data-tally="${k}"] b`)!,shown:''});
@@ -68,13 +70,15 @@ export class GameUI {
   beforeBegin(){if(this.screen==='jobs'&&levels[this.sel].id!==this.game.level.id){this.playSelected();return true;}return false;}
   started(){this.show('play');(document.activeElement as HTMLElement|null)?.blur?.();}
   paused(on:boolean){
-    if(on){const g=this.game,set=(k:string,v:string)=>{const el=g.hud.querySelector(`.pause-screen [data-p="${k}"]`);if(el)el.textContent=v;};set('time',clock(g.time));set('damage',String(g.damage));set('cost',String(g.cost));}
+    if(on){const g=this.game,set=(k:string,v:string)=>{const el=g.hud.querySelector(`.pause-screen [data-p="${k}"]`);if(el)el.textContent=v;};set('time',clock(g.time));set('damage',String(g.damage));set('cost',String(g.cost));
+      // The three bonus goals behind the job card's stars, with what's done so far.
+      const list=g.hud.querySelector('.pause-screen .pause-bonus');if(list)list.innerHTML=this.objectives.results().map(b=>`<li class="${b.ok?'ok':''}"><i>★</i>${b.text}</li>`).join('');}
     this.show(on?'pause':'play');if(!on)(document.activeElement as HTMLElement|null)?.blur?.();
   }
   restart(){flagAutostart(this.game.level.id);location.reload();}
   /** "Jobs" from pause or the result card walks back into the HQ lobby. */
   toJobs(){flagAutostart('lobby');location.href='?level=lobby';}
-  playSelected(){const l=levels[this.sel];if(l.id===this.game.level.id){this.game.begin();return;}flagAutostart(l.id);location.href=`?level=${l.id}`;}
+  playSelected(){const l=levels[this.sel];if(isLocked(l)){this.game.audio.tone(140,.2,.06,'square');return;}if(l.id===this.game.level.id){this.game.begin();return;}flagAutostart(l.id);location.href=`?level=${l.id}`;}
 
   selectJob(i:number){
     this.sel=(i+levels.length)%levels.length;const hud=this.game.hud,l=levels[this.sel];
@@ -206,8 +210,9 @@ export class GameUI {
 
   // ---------- end of job ----------
   won(result:{parts:Grade[];overall:Grade}){
-    const g=this.game,{improved}=g.practice?{improved:false}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost});
-    const next=levels.find(l=>l.id===g.level.next),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next};
+    const g=this.game,stars=this.objectives.results().reduce((m,b,i)=>b.ok?m|1<<i:m,0);
+    const {improved,old}=g.practice?{improved:false,old:undefined}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost,stars});
+    const next=levels.find(l=>l.id===g.level.next),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next,previous:old};
     // Let the camera push in on the machine coming to life before the card lands.
     setTimeout(()=>{
       g.hud.insertAdjacentHTML('beforeend',resultMarkup(view));this.show('result');document.body.dataset.complete='true';

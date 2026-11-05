@@ -169,11 +169,14 @@ export const pauseMarkup=(l:Level)=>`
         <hr>
         <span class="k">${icon('mouse','sm')}<span class="key">C</span></span>${icon('camera')}<span class="pill">RS</span>
       </div>
+      <ul class="pause-bonus" aria-label="Bonus goals"></ul>
     </div>
   </div>
 </section>`;
 
-export interface ResultView {level:Level;time:number;damage:number;cost:number;parts:Grade[];overall:Grade;improved:boolean;next?:Level}
+export interface ResultView {level:Level;time:number;damage:number;cost:number;parts:Grade[];overall:Grade;improved:boolean;next?:Level;
+  /** The best before this run, shown under each row so there's something to beat. */
+  previous?:Best}
 export function resultMarkup(r:ResultView){
   const best=r.parts.indexOf(r.overall),rows:[string,string,number][]=[['clock','time',r.time],['mug','damage',r.damage],['coins','cost',r.cost]];
   // The winning stat's cable runs from the end of its row up into the stamp.
@@ -192,7 +195,8 @@ export function resultMarkup(r:ResultView){
     <div class="head">${disc(r.level)}<div><small>${r.level.number}</small><h2>${title(r.level)}</h2></div><span class="done">${icon('check')}</span></div>
     <div class="stampzone"><i class="rays"></i>${medal(r.overall,'stamp')}${r.improved?`<span class="newbest" title="New best">${icon('star')}</span>`:''}</div>
     <div class="rows">
-      ${rows.map(([ic,key,v],i)=>`<div class="row ${i===best?'best':''}">${icon(ic)}<b data-count="${v}" data-kind="${key}">${key==='time'?clock(0):0}</b>${medal(r.parts[i])}</div>`).join('')}
+      ${rows.map(([ic,key,v],i)=>{const was=r.previous?.[key as 'time'|'damage'|'cost'];const prev=was===undefined?'':`<small class="prev ${v<was?'better':v>was?'worse':''}">best ${key==='time'?clock(was):was}</small>`;
+        return `<div class="row ${i===best?'best':''}">${icon(ic)}<span class="val"><b data-count="${v}" data-kind="${key}">${key==='time'?clock(0):0}</b>${prev}</span>${medal(r.parts[i])}</div>`;}).join('')}
       ${feed}
     </div>
     <div class="actions2">

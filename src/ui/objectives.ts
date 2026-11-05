@@ -79,7 +79,8 @@ export function promptFor(g:Game):Prompt|null{
     // Only offer the slingshot when letting go would actually fling something (the rope has stored energy).
     return g.rope.peak>1?{key:'Q',text:'Let go to slingshot the cable'}:{key:'F',text:'Drop the plug'};}
   if(!g.lunch&&g.nearSwitch(pos))return {key:'E',text:g.switchedOn?'Switch it off':g.connected?'Switch it on':'Switch on (needs power first)'};
-  if(!g.lunch&&!g.station&&!g.hub&&!g.connected&&dist(pos,g.plugPosition)<1.75)return {key:'F',text:'Pick up the plug'};
+  // In the Meeting the strip comes first: only offer the plug when Pip is right on it until the strip is placed.
+  if(!g.lunch&&!g.station&&!g.hub&&!g.connected&&dist(pos,g.plugPosition)<(g.strip&&!g.stripPlaced()?.9:1.75))return {key:'F',text:'Pick up the plug'};
   const near=g.nearest();if(near){if(near.spec.id==='coffee-reel'&&!g.coffeeReused)return {key:'E',text:'Borrow the coffee machine\'s cable'};
     return {key:'E',text:`Grab the ${NAMES[near.spec.kind]??'thing'}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
   return null;
@@ -87,7 +88,7 @@ export function promptFor(g:Game):Prompt|null{
 
 /** The job card (top left, under the timer) and the prompt pill (above the action bar). */
 export class ObjectivesHUD{
-  card:HTMLElement;prompt:HTMLElement;stand:HTMLElement;marker:T.Mesh;private shown='';private promptShown='';private current:{key:string;text:string}|null=null;private job:Job;private flash=new Set<number>();
+  card:HTMLElement;prompt:HTMLElement;stand:HTMLElement;marker:T.Mesh;edge:HTMLElement;private shown='';private promptShown='';private current:{key:string;text:string}|null=null;private job:Job;private flash=new Set<number>();
   constructor(private g:Game,layer:HTMLElement){
     this.job=g.station||g.hub?stationJob(g):JOBS[g.level.id]??JOBS.playground;
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
@@ -99,13 +100,21 @@ export class ObjectivesHUD{
     this.prompt.addEventListener('pointerdown',e=>{if(!g.atBench||!this.current)return;e.stopPropagation();const k=this.current.key;
       if(k==='Esc'){g.leaveBench();return;}
       const code=k==='Enter'||k==='Space'?k:/^[A-Z]$/.test(k)?`Key${k}`:/^\d$/.test(k)?`Digit${k}`:'';if(code)g.station?.key(code);});
-    const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.color.multiplyScalar(1.5);m.userData.outlineParameters={visible:false};
-    this.marker=new T.Mesh(new T.ConeGeometry(.22,.42,20).rotateX(Math.PI),m);this.marker.userData.noAO=true;this.marker.visible=false;g.root.add(this.marker);
+    // The marker draws over walls and clutter (depthTest off), with an ink rim so it reads on pale lamps
+    // and floors; it keeps a minimum on-screen size, and an arrow at the screen edge points to it when off screen.
+    const m=new T.MeshBasicMaterial({color:'#ffd84a',depthTest:false,depthWrite:false});m.userData.outlineParameters={visible:false};
+    const rim=new T.MeshBasicMaterial({color:'#262a40',side:T.BackSide,depthTest:false,depthWrite:false});rim.userData.outlineParameters={visible:false};
+    const cone=new T.ConeGeometry(.22,.42,20).rotateX(Math.PI);this.marker=new T.Mesh(cone,m);this.marker.renderOrder=13;
+    const shell=new T.Mesh(cone,rim);shell.scale.setScalar(1.16);shell.renderOrder=12;this.marker.add(shell);
+    this.marker.userData.noAO=true;this.marker.visible=false;g.root.add(this.marker);
+    this.edge=document.createElement('div');this.edge.className='marker-edge';this.edge.hidden=true;layer.append(this.edge);
   }
   /** Steps latch once done so the list only ever moves forward. */
   private done=new Set<number>();
   update(){
-    const g=this.g;this.job.steps.forEach((s,i)=>{if(!this.done.has(i)&&s.done(g)){this.done.add(i);this.flash.add(i);g.audio.bell(1175,.35,.035);setTimeout(()=>{this.flash.delete(i);this.shown='';},900);}});
+    // Steps latch in order: a later step that happens to be true early (sitting at the bench before
+    // fetching the item) waits until the ones before it are done, so the card never skips ahead.
+    const g=this.g;this.job.steps.forEach((s,i)=>{if(!this.done.has(i)&&this.job.steps.slice(0,i).every((_,k)=>this.done.has(k))&&s.done(g)){this.done.add(i);this.flash.add(i);g.audio.bell(1175,.35,.035);setTimeout(()=>{this.flash.delete(i);this.shown='';},900);}});
     const current=this.job.steps.findIndex((_,i)=>!this.done.has(i));
     const bonus=this.job.bonuses.map(b=>b.ok(g));
     const key=`${[...this.done].join()}|${current}|${bonus.join()}|${[...this.flash].join()}`;
@@ -120,7 +129,13 @@ export class ObjectivesHUD{
         `<div class="stars" aria-label="Bonus goals">${bonus.map(ok=>`<i class="${ok?'ok':''}">★</i>`).join('')}</div>`;}
     // A bouncing arrow over whatever the current step needs.
     const at=current>=0&&g.running&&!g.won&&!g.atBench?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;
-    if(at){this.marker.position.set(at.x,2.1+Math.sin(g.last*.006)*.18,at.z);this.marker.rotation.y=g.last*.002;}
+    if(at){const cam=g.view.camera,y=(g.hub?3.7:2.1)+Math.sin(g.last*.006)*.18;this.marker.position.set(at.x,y,at.z);this.marker.rotation.y=g.last*.002;
+      // At least ~28 px tall however far the camera is.
+      this.marker.scale.setScalar(Math.max(1,cam.position.distanceTo(this.marker.position)/18));
+      const n=this.marker.position.clone().project(cam),off=n.z>1||Math.abs(n.x)>.95||Math.abs(n.y)>.92;this.edge.hidden=!off;
+      if(off){let x=n.x,yy=n.y;if(n.z>1){x=-x;yy=-yy;}const k=Math.max(Math.abs(x)/.9,Math.abs(yy)/.82,1);x/=k;yy/=k;
+        this.edge.style.left=`${(x*.5+.5)*100}%`;this.edge.style.top=`${(.5-yy*.5)*100}%`;this.edge.style.transform=`translate(-50%,-50%) rotate(${Math.atan2(-yy,x)}rad)`;}}
+    else this.edge.hidden=true;
     this.stand.hidden=!g.atBench;
     const p=promptFor(g),pk=p?`${p.key}|${p.text}`:'';this.current=p;
     if(pk!==this.promptShown){this.promptShown=pk;this.prompt.hidden=!p;if(p)this.prompt.innerHTML=`${p.key?`<kbd>${p.key}</kbd>`:''}<span>${p.text}</span>`;this.prompt.classList.toggle('status',!!p&&!p.key);}

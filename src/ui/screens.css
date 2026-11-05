@@ -301,3 +301,11 @@ body[data-screen="fail"] canvas#game{filter:saturate(.35) brightness(.5) blur(3p
 }
 /* Mid-size desktops: three tags plus the side arrows must fit without clipping. */
 @media (min-width:701px) and (max-width:1560px){.row{gap:32px}.job{width:292px}.job .thumb{height:164px}}
+/* Review 5: previous best under each result row (R5-099), bonus goals on the pause card (R5-112),
+   locked jobs on the board (R5-126). */
+.result .row .val{display:flex;flex-direction:column;gap:2px;min-width:0}
+.result .row .prev{font-size:14px;font-weight:600;color:var(--ink-2)}.result .row .prev.better{color:#2f9e5b}.result .row .prev.worse{color:#c2413b}
+.pause-bonus{grid-column:1/-1;list-style:none;margin:0;padding:12px 16px;border-radius:16px;background:var(--paper-2);display:flex;flex-wrap:wrap;gap:8px 20px;font-weight:600}
+.pause-bonus li{display:flex;align-items:center;gap:6px;color:var(--ink-2)}.pause-bonus li i{font-style:normal;font-size:18px;color:var(--paper-3)}
+.pause-bonus li.ok{color:var(--ink)}.pause-bonus li.ok i{color:var(--gold,#ffc53d);text-shadow:0 1px 0 var(--ink)}
+.job.locked{filter:grayscale(.85);opacity:.6}.job.locked .thumb{position:relative}.job.locked .thumb::after{content:'LOCKED';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:3px 8px;border-radius:8px;background:#262A40;color:#fffaf0;font-size:12px;font-weight:700;letter-spacing:.04em}

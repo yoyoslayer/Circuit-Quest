@@ -83,10 +83,10 @@ export const JOBS:Job[]=[
     start:{chain:[[220],[],[]],reversed:false},
     story:'The claw light glares far too bright and its block smells hot.',
     ask:'Green LED on 12 V: 10–20 mA'},
-  {id:'handheld',title:'Handheld',cabinet:'HANDHELD',supply:9,battery:true,load:led('red'),band:[.005,.015],
+  {id:'handheld',title:'Handheld',cabinet:'HANDHELD',supply:9,battery:true,load:led('red'),band:[.003,.009],
     start:{chain:[[220],[],[]],reversed:false},
     story:'A 9 V battery handheld. Its power light is blinding, and the battery is flat by lunch.',
-    ask:'Red LED on a 9 V battery: 5–15 mA, long battery life'},
+    ask:'Red LED on a 9 V battery: 3–9 mA, long battery life'},
   {id:'hopper',title:'Coin hopper',cabinet:'PRIZES',supply:5,load:{kind:'base',vf:.7,imax:.02,imin:.002,beta:100,betaMin:40,motor:.2},band:[.005,.015],
     start:{chain:empty(),reversed:false},
     story:'A 5 V logic pin (rated 20 mA) switches the 12 V hopper motor through a transistor. A typical transistor needs 2 mA of base current to pass the motor’s 200 mA, but a weak one needs 5.',
@@ -237,14 +237,16 @@ export function storyFor(job:Job,s:Setup):string{
 }
 /** An endless supply of LED cabinets for rush: random supply, colour, brightness window and fault,
  *  only ever one the bins can fix elegantly. The story always matches what powering it on shows. */
-export function rushJob(rng:()=>number,n:number):Job{
+/** `after` is the previous cabinet: a new one never has the same best chain, so answers don't repeat back to back (R5-033). */
+export function rushJob(rng:()=>number,n:number,after?:Job):Job{
+  const avoid=after?JSON.stringify(best(after)):undefined;
   const pick=<V>(a:readonly V[])=>a[Math.floor(rng()*a.length)];
   for(;;){
     const color=pick(['red','green','blue','white'] as const),supply=pick(LED_VF[color]>2.5?[5,9,12]:[3.3,5,9,12]),
       band:[number,number]=pick([[.01,.02],[.008,.016],[.012,.02]]),cabinet=pick(RUSH_CABINETS),fault=pick(RUSH_FAULTS);
     const job:Job={id:`rush-${n}`,title:cabinet[0]+cabinet.slice(1).toLowerCase(),cabinet,supply,load:led(color),band,start:{chain:empty(),reversed:false},story:'',
       ask:`${color[0].toUpperCase()+color.slice(1)} LED on ${supply} V: ${Math.round(band[0]*1000)}–${Math.round(band[1]*1000)} mA`};
-    const fix=best(job);if(!fix)continue;
+    const fix=best(job);if(!fix||JSON.stringify(fix)===avoid)continue;
     let start:Setup|undefined;
     switch(fault){
       case 'across':start={chain:empty(),across:pick(BLOCKS),reversed:false};break;

@@ -51,9 +51,10 @@ test('arcade: five cabinets fixed in the ★ zone; powering them on as found to 
   await steps(page,[...place([470],[470]),['power']]);await wait(page,3.4);
   s=await station(page);expect(s.verdict.tier).toBe(3);expect(s.reading.blocks).toHaveLength(2);expect(s.reading.rHeat).toBeLessThan(.6);
   await steps(page,[['signoff']]);
-  // 4 · Handheld: the same chain keeps it in the ★ zone, and the battery lasts about 67 h.
-  await steps(page,[['slot',0],...place([470],[470]),['power']]);await wait(page,3.4);
-  s=await station(page);expect(Math.round(s.reading.lifeH)).toBe(67);expect(s.verdict.tier).toBe(3);
+  // 4 · Handheld: the claw's two 470s are too bright for its band now; a third 470 lands in the ★ zone
+  // and the battery lasts about 101 h (R5-033).
+  await steps(page,[['slot',0],...place([470],[470],[470]),['power']]);await wait(page,3.4);
+  s=await station(page);expect(Math.round(s.reading.lifeH)).toBe(101);expect(s.verdict.tier).toBe(3);
   await expect(page.locator('.station-panel')).toContainText('Battery life');await steps(page,[['signoff']]);
   // 5 · Coin hopper: 470 Ω gives the base 9.1 mA: enough for even a weak transistor (5 mA), well
   // under the pin's 20 mA.
@@ -61,7 +62,7 @@ test('arcade: five cabinets fixed in the ★ zone; powering them on as found to 
   s=await station(page);expect(s.reading.iLoad*1000).toBeCloseTo(9.13,2);expect(s.verdict.tier).toBe(3);await steps(page,[['signoff']]);
   await wait(page,.5);s=await snapshot(page);
   expect(s.station.served.map((v:{tier:number})=>v.tier)).toEqual([3,3,3,3,3]);
-  expect(s.won).toBe(true);expect(s.station.trips).toBe(0);expect(s.station.mistakes).toBe(0);expect(s.station.spent).toBe(8);
+  expect(s.won).toBe(true);expect(s.station.trips).toBe(0);expect(s.station.mistakes).toBe(0);expect(s.station.spent).toBe(9);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
   await expect(page.locator('.result-bonus li.ok')).toHaveCount(3);
   expect(errors).toEqual([]);

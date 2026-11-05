@@ -142,7 +142,7 @@ export class ArcadeBench implements Station {
   dress(kit:RoomKit){const r=dressArcade(this.game,kit);this.room=r;return {lightUp:r.lightUp};}
   current():Job|undefined{
     // Rush: the clock ends the shift, but a cabinet already in its play test gets to finish it.
-    if(this.rush){if(this.game.time>=RUSH_TIME&&!this.overtime())return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length));}
+    if(this.rush){if(this.game.time>=RUSH_TIME&&!this.overtime())return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length,this.jobs[this.jobs.length-1]));}
     return this.jobs[this.index];}
   private overtime(){return this.powered&&this.soak>0&&this.game.time<RUSH_TIME+RUSH_SOAK+.5;}
   reading():Reading|undefined{const j=this.current();return j&&read(j,this.setup);}

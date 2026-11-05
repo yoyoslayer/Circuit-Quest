@@ -56,6 +56,8 @@ function headMesh(d:Detector,s=1){
 const yawQuat=(yaw:number)=>new T.Quaternion().setFromAxisAngle(UP,yaw);
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
+/** The toaster smoke's radius as the room starts (the station zeroes it once the toaster is knocked off). */
+const SMOKE_R0=SMOKE.r;
 export class SpectrumDesk implements Station {
   readonly view={distance:6.1,pitch:1.02,lookY:.42,width:4.6};
   readonly limits={time:540,damage:1,cost:0};
@@ -86,12 +88,17 @@ export class SpectrumDesk implements Station {
   /** Each door's swing (0 shut … 1 open) and which side it opened toward. */
   private doorOpen:Record<DoorId,number>={store:0,lab:0,quiet:0};private doorSide:Record<DoorId,number>={store:1,lab:1,quiet:1};
   readonly job:StationJob;
+  /** The toaster is off the counter (R5-079): it stops smoking, so smoke no longer scatters any beam. */
+  toasterDown=false;private smokeLeft=1;
   constructor(private game:Game){
+    SMOKE.r=SMOKE_R0;
     this.limits.cost=Math.ceil(JOBS.reduce((n,j)=>n+(leanest(j)?.cost??0),0)*1.25);
     const d=()=>this.delivered.length;
     this.job={goal:'Deliver three messages across the research hall',
       steps:[
         {text:'Carry the receiver pod into the brick storeroom',done:()=>d()>0||this.podPad==='store',at:()=>this.pod&&this.game.held===this.pod?PADS.store:this.podAt()},
+        // The desk's mains lead (R5-079): no SEND until it is plugged in at the wall.
+        ...game.leadStep(),
         {text:'Sit at the dispatch desk (E)',done:()=>this.active||d()>0,at:()=>this.stand},
         {text:`Delivery 1: ${JOBS[0].title}`,done:()=>d()>0,at:()=>this.stand},
         {text:'Get the pod into the glass lab',done:()=>d()>1||(d()>0&&this.podPad==='lab'),
@@ -100,7 +107,8 @@ export class SpectrumDesk implements Station {
         {text:'Move the pod into the quiet room',done:()=>d()>2||(d()>1&&this.podPad==='quiet'),at:()=>this.pod&&this.game.held===this.pod?PADS.quiet:this.podAt()},
         {text:`Delivery 3: ${JOBS[2].title}`,done:()=>d()>2,at:()=>this.stand}],
       bonuses:[
-        {text:'Every delivery reliable (margin ≥ 10 dB)',ok:()=>this.delivered.every(x=>x.verdict.tier>=2)},
+        // A chaos bonus in the room (R5-079): knock the smoking toaster off the tea counter (the smoke stops).
+        {text:'Knock the smoking toaster down',ok:()=>this.toasterDown},
         {text:'Elegant: least power, fewest mirrors',ok:()=>this.delivered.every(x=>x.verdict.tier===3)},
         {text:'No failed send',ok:()=>this.mistakes===0}]};
     game.root.add(this.root);game.root.add(this.beam);
@@ -259,6 +267,8 @@ export class SpectrumDesk implements Station {
         this.say(this.hatchOpen?'Hatch open: a 60 cm hole in the lab\'s metal shutter.':'Hatch shut: the shutter is solid metal again.');break;}
       case 'send':{const s=this.state(),v=judge(j,s),r=this.reading();
         if(!r.podOk){this.say(`The receiver pod isn't on the ${PAD_NAMES[j.pad]} pad yet. Step back (E) and carry it there.`);a.voice('hm',1.4);return false;}
+        // No mains, no transmitter (R5-079): nothing is sent and nothing is counted.
+        if(this.game.benchDead()){this.say("No power: the desk's lead isn't plugged in.",'bad');return false;}
         // A failed send only counts as a mistake when the failure was already on show: the path drawn
         // stopping or missing, or this exact setup measured before. A link too weak to work, sent
         // before its numbers were ever shown, is the measurement itself: it costs energy, not a mistake.
@@ -328,7 +338,7 @@ export class SpectrumDesk implements Station {
   /** The hall map on the desk: walls by material, the smoke, marks, pads, pod and the beam. */
   private drawMap(r:Reading){
     const pod=this.podAt(),doors=this.doorsOpen(),hold=this.hold,hu=hold?Math.min(1,(this.game.time-hold.start)/(hold.until-hold.start)):-1;
-    const key=JSON.stringify([this.band,this.hatchOpen,[...this.mirrorAt.values()],this.podPad,Math.round(pod.x*4),Math.round(pod.z*4),this.jobIndex,this.drawnPath(r),r.route.via??'',doors,this.aim,this.drag??'',this.mapHover,hold?Math.round(hu*40):-1]);
+    const key=JSON.stringify([SMOKE.r,this.band,this.hatchOpen,[...this.mirrorAt.values()],this.podPad,Math.round(pod.x*4),Math.round(pod.z*4),this.jobIndex,this.drawnPath(r),r.route.via??'',doors,this.aim,this.drag??'',this.mapHover,hold?Math.round(hu*40):-1]);
     this.map.draw(key,(c,w,h)=>{
       const L=this.game.level,sx=(w-60)/L.width,X=(x:number)=>30+(x+L.width/2)*sx,Z=(z:number)=>28+(z+L.depth/2)*sx;
       c.fillStyle=INK;c.beginPath();c.roundRect(0,0,w,h,26);c.fill();c.fillStyle='#fbf6ec';c.beginPath();c.roundRect(12,12,w-24,h-24,18);c.fill();
@@ -336,7 +346,7 @@ export class SpectrumDesk implements Station {
       const zone=(o:{x0:number;x1:number;z0:number;z1:number},col:string,name:string)=>{c.fillStyle=col;c.fillRect(X(o.x0),Z(o.z0),(o.x1-o.x0)*sx,(o.z1-o.z0)*sx);c.fillStyle='rgba(43,45,66,.6)';c.font=FONT(44);c.textAlign='center';c.fillText(name,X((o.x0+o.x1)/2),Z(o.z0)+54);};
       zone(STORE,'#f2dcc0','STOREROOM');zone(LAB,'#dcecf8','GLASS LAB');zone({x0:QUIET.x0,x1:QUIET.x1,z0:QUIET.z0,z1:QUIET.z1},'#e6defa','');c.fillStyle='rgba(43,45,66,.6)';c.fillText('QUIET',X(8.25),Z(QUIET.z1)-22);
       // Smoke and the tea counter.
-      const sg=c.createRadialGradient(X(SMOKE.x),Z(SMOKE.z),4,X(SMOKE.x),Z(SMOKE.z),SMOKE.r*sx);sg.addColorStop(0,'rgba(120,125,140,.55)');sg.addColorStop(1,'rgba(120,125,140,.08)');c.fillStyle=sg;c.beginPath();c.arc(X(SMOKE.x),Z(SMOKE.z),SMOKE.r*sx,0,7);c.fill();
+      if(SMOKE.r>0){const sg=c.createRadialGradient(X(SMOKE.x),Z(SMOKE.z),4,X(SMOKE.x),Z(SMOKE.z),SMOKE.r*sx);sg.addColorStop(0,'rgba(120,125,140,.55)');sg.addColorStop(1,'rgba(120,125,140,.08)');c.fillStyle=sg;c.beginPath();c.arc(X(SMOKE.x),Z(SMOKE.z),SMOKE.r*sx,0,7);c.fill();}
       c.fillStyle='#f4c9c3';c.fillRect(X(1.3),Z(4.54),2.2*sx,.62*sx);c.fillStyle='rgba(43,45,66,.7)';c.font=FONT(36);c.fillText('SMOKE',X(SMOKE.x),Z(SMOKE.z)+12);
       // Walls, coloured by what they are made of.
       const style:{[k:string]:[string,number,number[]]}={brick:['#c8674a',22,[]],wood:['#9c6d42',18,[]],glass:['#7fc3ea',12,[]],metal:['#5f6c84',20,[]],hatch:['#ffc629',14,[]],mesh:[COPPER,11,[14,9]]};
@@ -508,10 +518,10 @@ export class SpectrumDesk implements Station {
     this.hatchT+=((this.hatchOpen?1:0)-this.hatchT)*Math.min(1,dt*5);if(this.room)this.room.hatchDoor.position.y=1.25+this.hatchT*.62;
     // Puffs rise from the toaster slots, spread over the cloud (at beam height) and fade, then start
     // again. Near Pip they thin out, so the smoke never veils him.
-    const me=g.player.translation();
-    this.room?.smoke.forEach(m=>{const k=m.userData.seed as number,u=(t*.12+k/12)%1,a=k*2.4;m.position.set(SMOKE.x-.3+Math.cos(a)*u*SMOKE.r*.9,1.05+u*.85,SMOKE.z+1.45-u*1.3+Math.sin(a)*u*SMOKE.r*.6);
+    const me=g.player.translation();this.updateToaster(dt);
+    this.room?.smoke.forEach(m=>{const k=m.userData.seed as number,u=(t*.12+k/12)%1,a=k*2.4;m.position.set(SMOKE.x-.3+Math.cos(a)*u*SMOKE_R0*.9,1.05+u*.85,SMOKE.z+1.45-u*1.3+Math.sin(a)*u*SMOKE_R0*.6);m.visible=this.smokeLeft>0;
       const s=.45+u*1.1,near=Math.min(1,Math.max(.35,(Math.hypot(m.position.x-me.x,m.position.z-me.z)-.5)/1.2));m.scale.set(s,s,1);
-      (m.material as T.SpriteMaterial).opacity=.5*near*Math.min(1,u/.15)*(u>.6?Math.max(0,(1-u)/.4):1);});
+      (m.material as T.SpriteMaterial).opacity=.5*near*this.smokeLeft*Math.min(1,u/.15)*(u>.6?Math.max(0,(1-u)/.4):1);});
     this.shapeRibbon(dt);this.drawWave();this.drawLink(r);this.drawMap(r);
     this.updatePanel(r);
   }
@@ -544,6 +554,7 @@ export class SpectrumDesk implements Station {
         `<p class="profile">Simplified link model: ≥ ${SPEC.works} dB works, ≥ ${SPEC.reliable} dB is reliable. Game values, not a real link budget. Light links use wide LED beams, not lasers.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
+    {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}
     const j=this.current();if(!j)return null;const g=this.game;
     if(!atBench){const p=g.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
       if(g.held&&g.held===this.pod){const pad=(Object.keys(PADS) as Pad[]).find(k=>dist(p,PADS[k])<2.2);return pad?{key:'E',text:'Set the pod on the pad'}:{key:'E',text:'Carry the pod'};}
@@ -572,7 +583,13 @@ export class SpectrumDesk implements Station {
   /** The win shot frames Pip with the receiver pod on the last delivery pad (R5-077). */
   winFocus(){const p=PADS[JOBS[JOBS.length-1].pad];return new T.Vector3(p.x,1,p.z);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
-  snapshot(){const r=this.reading();return {job:this.jobIndex,delivered:this.delivered.map(d=>({job:d.job,tier:d.verdict.tier,margin:d.verdict.margin})),band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,
+  /** The toaster rides its body; once it is off the counter the smoke clears over a second or two and
+   *  stops counting as a loss on every later send (truthful: no toaster, no smoke). */
+  private updateToaster(dt:number){const t=this.room?.toaster;if(!t)return;const p=t.body.translation(),q=t.body.rotation();t.mesh.position.set(p.x,p.y,p.z);t.mesh.quaternion.set(q.x,q.y,q.z,q.w);
+    if(!this.toasterDown&&(p.y<.8||Math.hypot(p.x-t.home.x,p.z-t.home.z)>1.4)){this.toasterDown=true;SMOKE.r=0;this.beamKey='';const g=this.game;
+      g.audio.clatter();g.burst({x:p.x,y:.4,z:p.z},'#ffcf52',22,'confetti');g.cheerNear(p,6);this.say('The toaster is off the counter: the smoke clears.','ok');this.redraw();}
+    if(this.toasterDown)this.smokeLeft=Math.max(0,this.smokeLeft-dt*.6);}
+  snapshot(){const r=this.reading();return {toasterDown:this.toasterDown,smoke:SMOKE.r,job:this.jobIndex,delivered:this.delivered.map(d=>({job:d.job,tier:d.verdict.tier,margin:d.verdict.margin})),band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,
     podPad:this.podPad,mirrors:[...this.mirrorAt.values()],mistakes:this.mistakes,spent:this.spent,
     aim:{tx:+this.aim.tx.toFixed(4),mirrors:{...this.aim.mirrors}},doors:this.doorsOpen(),revealed:this.revealed(),holding:!!this.hold,
     map:this.active?Object.fromEntries([...SPOT_IDS.map(s=>[s,this.mapScreen(SPOTS[s])]),...(Object.keys(PADS) as Pad[]).map(p=>[p,this.mapScreen(PADS[p])])]):undefined,

@@ -52,6 +52,8 @@ const shade=(c:string,k:number)=>'#'+new T.Color(c).lerp(new T.Color(INK),k).get
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 interface Stroke {layer:Layer;net:string;cells:XY[];warned:boolean}
+/** SHIP powers the board for its bring-up test, so it needs the bench lead plugged in (R5-079). */
+const SHIP_DEAD="No power for the bring-up test: the bench lead isn't plugged in.";
 export class QfnBench implements Station {
   readonly view={distance:5.6,pitch:1.02,lookY:-.1,width:3.6};
   readonly limits={time:720,damage:1,cost:0};
@@ -84,10 +86,13 @@ export class QfnBench implements Station {
     this.job={goal:'Lay out three boards at the QFN bench',
       steps:[
         {text:'Bring the parts crate from the stock shelf to the bench',done:()=>this.partsReady,at:()=>this.crate?.body.translation()??this.stand},
+        // The bench's mains lead (R5-079): SHIP's bring-up test needs it plugged in at the wall.
+        ...game.leadStep(),
         {text:'Sit at the layout bench (E)',done:()=>this.active||this.shipped.length>0,at:()=>this.stand},
         ...BOARDS.map((b,i)=>({text:`Board ${i+1} · ${b.title}: ${['one layer, no crossings','keep the MCU from resetting','cross VIN and GND, keep it cool'][i]}`,done:()=>this.shipped.length>i,at:()=>this.stand}))],
       bonuses:[
-        {text:'Every board works reliably',ok:()=>this.shipped.length>0&&this.shipped.every(s=>s.tier>=2)},
+        // A physical bonus (R5-079): lob the parts crate onto the bench from at least 3 m out.
+        {text:'Toss the parts crate onto the bench',ok:()=>this.tossed},
         {text:'Elegant: every route at or under par',ok:()=>this.shipped.length>0&&this.shipped.every(s=>s.tier===3)},
         {text:'No board sent back',ok:()=>this.mistakes===0}]};
     game.root.add(this.root);this.buildBench();this.loadBoard();
@@ -338,7 +343,7 @@ export class QfnBench implements Station {
       case 'check':{const r=check(b,d);this.checks++;this.showMarks(r);this.burstT=3;if(b.spare&&!pinOrderOk(b,d))this.stuck=true;
         this.say(r.tier===0?`Check: ${r.problems.slice(0,2).join(' ')}`:`${TIERS[r.tier]}. ${r.tier===3?'Reliable, and at or under par.':r.notes[0]??''}`,r.tier===0?'bad':'ok');
         if(r.tier>0)a.bell(1175,.4,.04);else a.verdictFail('layout');this.redraw();return true;}
-      case 'ship':{const r=check(b,d);this.spent+=r.cost;
+      case 'ship':{if(this.game.benchDead()){this.say(SHIP_DEAD,'bad');return false;}const r=check(b,d);this.spent+=r.cost;
         if(r.tier===0){this.mistakes++;this.showMarks(r);this.say(`Sent back from test: ${r.problems[0]}`,'bad');a.reject();a.voice('groan',1);benchFault(this.game,.06);this.dropIn();this.game.alarm({x:this.table.x,z:this.table.z},5);this.redraw();return true;}
         // It works: the bring-up test powers it on the bench first, and the flaw (if any) shows there.
         this.shipped.push({board:b.id,tier:r.tier,cost:r.cost});this.stroke=undefined;this.drag=undefined;this.hold=undefined;this.viaArmed=false;this.selected=undefined;
@@ -457,14 +462,19 @@ export class QfnBench implements Station {
     if(c&&show){const p=this.at(c,.03);this.hover.position.copy(p);(this.hover.material as T.MeshBasicMaterial).color.set(this.viaArmed?'#ffe36e':'#ffffff');}}
   key(code:string){const m=KEYS[code];if(!m)return false;this.act(m[0],m[1]);return true;}
   setActive(active:boolean){this.active=active;if(!active){if(this.toast)this.toast.hidden=true;document.body.style.cursor='';this.stroke=undefined;this.drag=undefined;this.hold=undefined;this.viaArmed=false;this.hover.visible=false;this.syncParts();this.redraw();}this.shown='';}
+  /** The crate landed on the bench from a throw made at least 3 m from where it came to rest (R5-079). */
+  tossed=false;private carriedAt?:{x:number;z:number};
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='parts'||this.partsReady)return;const q=p.body.translation(),sx=this.table.x+2.55,sz=this.table.z;
     if(Math.hypot(q.x-sx,q.z-sz)<2.2||Math.hypot(q.x-this.stand.x,q.z-this.stand.z)<2.2){
+      // A throw lands here once it has come to rest: the crate is no longer in Pip's hands.
+      if(this.game.held!==p&&this.carriedAt&&Math.hypot(q.x-this.carriedAt.x,q.z-this.carriedAt.z)>=3){this.tossed=true;this.game.burst({x:q.x,y:q.y+.5,z:q.z},'#ffcf52',20,'confetti');this.game.cheerNear(q,6);}
       this.partsReady=true;p.body.setTranslation({x:sx,y:this.table.y+.32,z:sz-.3},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
       this.game.audio.plug();this.game.burst({x:sx,y:this.table.y+.4,z:sz},'#c7b8ff',1,'ring');this.syncParts();this.dropIn();this.redraw();}
   }
   update(dt:number){
     if(!this.ready){this.ready=true;this.crate=this.game.props.find(p=>p.spec.id==='parts');}
+    if(this.crate&&this.game.held===this.crate){const t=this.crate.body.translation();this.carriedAt={x:t.x,z:t.z};}
     this.holdToDrag();
     for(const d of this.drops){d.t+=dt;const k=Math.min(1,d.t/.45);d.g.position.y=Math.max(0,(1-k*k)*.22)+(k>=1?0:Math.abs(Math.sin(k*9))*.03*(1-k));}
     if(this.drops.length&&this.drops.every(d=>d.t>=.45)){this.drops=[];this.game.audio.clatter();}
@@ -516,6 +526,7 @@ export class QfnBench implements Station {
         `<p class="profile">Teaching grid: cell sizes and loop limits are this bench's rules. A real layout still needs the fab's DRC and an electrical review.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
+    {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}
     if(this.complete())return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z);
       if(this.game.held?.spec.id==='parts'&&near<2.6)return {key:'E',text:'Set the crate on the bench'};
@@ -540,7 +551,7 @@ export class QfnBench implements Station {
   }
   complete(){return this.shipped.length>=BOARDS.length;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent)};}
-  snapshot(){const r=this.live;return {board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,viaArmed:this.viaArmed,layer:this.layer,selected:this.selected,design:this.design,
+  snapshot(){const r=this.live;return {tossed:this.tossed,board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,viaArmed:this.viaArmed,layer:this.layer,selected:this.selected,design:this.design,
     report:{tier:r.tier,problems:r.problems,notes:r.notes,cost:r.cost,par:r.par,nets:r.nets,loops:r.loops,thermal:r.thermal},shipped:this.shipped,mistakes:this.mistakes,spent:this.spent,checks:this.checks,testing:!!this.bringUp,
     hover:this.hoverCell,hoverBody:this.hoverBody??null,drag:this.drag?{id:this.drag.id,grab:this.drag.grab}:null,rings:this.marks.children.length,cells:this.active?this.cellScreens():undefined,bodies:this.active?this.bodyScreens():undefined};}
   /** Page coordinates of each part's body (where a drag picks the part up). */

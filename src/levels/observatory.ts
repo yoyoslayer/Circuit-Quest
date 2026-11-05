@@ -9,22 +9,25 @@ const props:PropSpec[]=[
   // Star-chart crates, stools and clutter (all of it can be knocked about).
   ...[[-9.4,6.6],[-8.6,6.7],[-9.5,5.8],[8.6,6.3],[9.5,6.2]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#c98f5a':'#8b7be8'})),
   {kind:'chair',x:-1.8,z:1.4,color:'#8b7be8'},{kind:'chair',x:1.6,z:1.6,color:'#3f7fd6'},{kind:'chair',x:5.2,z:2.2,color:'#6cc58a'},{kind:'chair',x:-5.6,z:3.9,color:'#3f7fd6'},
-  {kind:'plant',x:-9.6,z:-1.2},{kind:'plant',x:9.5,z:-2.4},{kind:'plant',x:9.4,z:7.1},{kind:'bin',x:3.2,z:-1.2},{kind:'bin',x:-8.8,z:2.2},
+  {kind:'plant',x:-9.6,z:-1.2},{kind:'plant',x:9.5,z:-2.4},{kind:'plant',x:9.4,z:7.1},{kind:'bin',x:4.1,z:-1.3},{kind:'bin',x:-8.8,z:2.2},
   {kind:'cabinet',x:9.4,z:.6},{kind:'cabinet',x:9.4,z:1.5},{kind:'bookshelf',x:6.2,z:7.3},{kind:'beanbag',x:-6.8,z:3.2,color:'#6f6ab8'},{kind:'beanbag',x:-5.8,z:2.6,color:'#7a6ae0'},
   {kind:'cone',x:-3,z:4.6},{kind:'cone',x:3.4,z:4.8},{kind:'mug',x:4.4,z:6.2,y:1.1},{kind:'paper',x:-4.2,z:1.8},{kind:'paper',x:2.2,z:3.1},{kind:'paper',x:.6,z:5.4},
   {kind:'desk',x:4.6,z:6.4,variant:2},{kind:'monitor',x:4.6,z:6.6,y:1.2,variant:2},{kind:'chair',x:4.6,z:5.4,color:'#b392f0'},
   {kind:'cart',x:6.8,z:4.4,color:'#8b7be8'},{kind:'lamp',x:-9.2,z:4.4},
 ];
+// The bench's mains lead (R5-079): its reel stands at the bench's right end; the wall socket is on the
+// back wall left of the gallery, so the lead goes round the bench's back corner behind it.
+const lead={anchor:{x:2.75,z:-1.2},plug:{x:3.3,z:-.45},target:{x:-1.4,z:-7.6},length:10.5,route:[[3.3,-.45],[2.95,-1.8],[2.95,-3.8],[-1.4,-6.85]] as [number,number][]};
 // Three astronomers: one at the telescope, one in the gallery, one reading by the star chart.
 const npcs:NpcSpot[]=[
   // (The telescope astronomer stands just off the dome platform, so its base isn't sunk in the step: R5-021.)
   {x:-3.4,z:-3.7,standing:true,acc:['glasses'],yaw:-2.2},{x:6.2,z:-5.2,standing:true,acc:['bun'],yaw:Math.PI,mood:'happy'},{x:-7.6,z:1.4,standing:true,acc:['headphones'],yaw:-1.2,mood:'sleepy'},
 ];
 export const observatory:Level={id:'observatory',name:'SIGNAL OBSERVATORY',number:'06',tagline:'A garbled message from the roof. Filter it, keep the latch, tune the whip.',badge:'signal',station:'observatory',
-  width:22,depth:16,spawn:{x:-6.4,z:6.2},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs,
+  width:22,depth:16,spawn:{x:-6.4,z:6.2},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,stationCable:lead,obstacles:[],props,npcs,
   // Observatory clutter: reading corners, desks, shelves of star atlases; the cart's run from the
   // receiver and the walk to the bench stay clear.
   clutter:{seed:6,fill:['box','box','litter'],max:220,step:2.1,recipes:['pod','shelf','reading','lounge','pod','plants','crates','cabinets'],colors:['#4a4380','#9b7bf0','#c9a46a','#6f6ab8','#e9dcc0'],jitter:.6,fillSkip:.2,
-    lanes:[{points:[[-6.1,-5.3],[-6.1,-5.3]],r:2.9},{points:[[-6.4,6.2],[-3.7,-.1],[-6,3.5],[0,-1.55]],r:1.2},{points:[[-6.4,6.2],[0,-1.55]],r:1},
+    lanes:[{points:lead.route,r:.8},{points:[[-6.1,-5.3],[-6.1,-5.3]],r:2.9},{points:[[-6.4,6.2],[-3.7,-.1],[-6,3.5],[0,-1.55]],r:1.2},{points:[[-6.4,6.2],[0,-1.55]],r:1},
       // Keep-outs: the exhibit gallery along the back wall stays a gallery, and the bench camera's view past the table stays clear (R5-312).
       {points:[[-.2,-7.2],[9.6,-7.2]],r:1.3},{points:[[-3.5,-3.4],[3.5,-3.4]],r:1.3}]}};

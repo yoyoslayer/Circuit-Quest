@@ -14,6 +14,8 @@ const props:PropSpec[]=[
   // wall's at x 8.7, the left wall's at x -8.9.
   // Then beanbags and players' stuff.
   ...[[-7.8,-5],[-5.2,-5.9],[4.6,-5.3],[7.2,-5.9],[8.7,-.6],[8.7,1.2],[8.7,3],[-8.9,-3.4],[-8.9,-1.5],[-8.9,.4]].map(([x,z],i)=>({kind:'stool' as const,x,z,color:['#ff7eb6','#6fe0c0','#ffb38a','#e5484d','#7cc8ff'][i%5]})),
+  // A beanbag left behind the bench, in lobbing range of the prize pyramid (R5-079 chaos bonus).
+  {kind:'beanbag',x:3.2,z:-5.5,color:'#9b7bf0'},
   {kind:'beanbag',x:3.6,z:4.8,color:'#e0457f'},{kind:'beanbag',x:5,z:5.6,color:'#7cc8ff'},{kind:'beanbag',x:-2.4,z:7,color:'#6fe0c0'},
   {kind:'plant',x:-10.2,z:-6.6},{kind:'plant',x:10.2,z:-6.8},{kind:'plant',x:10.2,z:7},{kind:'plant',x:-5.8,z:7.2},
   {kind:'bin',x:3.2,z:-.8},{kind:'bin',x:-4.6,z:-.4},{kind:'cone',x:-2.6,z:3.4},{kind:'cone',x:2.4,z:3.8},
@@ -21,16 +23,20 @@ const props:PropSpec[]=[
   {kind:'desk',x:6.4,z:6.6,variant:3},{kind:'monitor',x:6.4,z:6.8,y:1.2,variant:6},{kind:'chair',x:6.4,z:5.6,color:'#7cc8ff'},
   {kind:'cart',x:4.2,z:-3.6,color:'#9aa3b2'},{kind:'lamp',x:-4.25,z:-6.6},{kind:'cooler',x:10.1,z:5.2},
 ];
+// The bench's mains lead (R5-079): its reel stands at the bench's right end and the wall socket is under
+// the bolt sign on the back wall, so the lead goes round the bench's back corner and behind it, past the
+// prize shelf. Clutter keeps off the walk (r .8, so things still lie near enough to slingshot).
+const lead={anchor:{x:2.6,z:-1.5},plug:{x:2.55,z:-.65},target:{x:-2.2,z:-7.6},length:10.5,route:[[2.55,-.65],[2.9,-1.6],[2.9,-4.0],[-2.2,-6.85]] as [number,number][]};
 // Players at the working cabinets, and two technicians by the broken row.
 const npcs:NpcSpot[]=[
   {x:7.9,z:.3,standing:true,acc:['headphones'],mood:'happy',yaw:Math.PI/2},{x:-8,z:-2.45,standing:true,acc:['cap'],yaw:-Math.PI/2},
   {x:-6.5,z:-5.2,standing:true,acc:['glasses'],mood:'sleepy',yaw:Math.PI},{x:5.9,z:-5.3,standing:true,acc:['bun'],yaw:Math.PI},
 ];
 export const arcade:Level={id:'arcade',name:'OVERHEATING ARCADE',number:'03',tagline:'Too bright, too hot, too dark. Pick the resistor.',badge:'led',station:'arcade',
-  width:22,depth:16,spawn:{x:-3.5,z:5},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs,
+  width:22,depth:16,spawn:{x:-3.5,z:5},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,stationCable:lead,obstacles:[],props,npcs,
   // Arcade clutter: beanbag corners, snack bins, ticket crates; the storeroom run and the walk to
   // the bench stay clear.
   // Cartons stay kraft; the pastels dress the fabric only (R5-158).
   clutter:{seed:3,fill:['box','box','bin','litter'],max:220,step:2.1,jitter:.6,fillSkip:.2,recipes:['lounge','crates','plants','reading','lounge','bins','crates','lounge'],colors:['#ff7eb6','#6fe0c0','#ffb38a','#7cc8ff','#e5484d'],
-    lanes:[{points:[[-3.5,5],[-5.5,6.6],[-7.2,5.8],[-8.3,4.4]],r:1},{points:[[-8.3,4.4],[-7.2,5.8],[-5.5,6.4],[1.2,-1.3],[0,-1.55]],r:1.05}]}};
+    lanes:[{points:lead.route,r:.8},{points:[[1.4,-6.75],[1.4,-6.75]],r:1.1},{points:[[-3.5,5],[-5.5,6.6],[-7.2,5.8],[-8.3,4.4]],r:1},{points:[[-8.3,4.4],[-7.2,5.8],[-5.5,6.4],[1.2,-1.3],[0,-1.55]],r:1.05}]}};
 export const arcadeRush:Level={...arcade,id:'arcade-rush',name:'ARCADE RUSH',number:'03R',tagline:'Three minutes. Every cabinet is broken a new way.',requires:'arcade',next:undefined};

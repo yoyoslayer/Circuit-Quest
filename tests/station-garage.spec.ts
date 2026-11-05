@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,route,wait,snapshot} from './navigation';
+import {plugBench} from './station-lead';
 
 test.describe.configure({timeout:300000});
 // Presses the same buttons a player clicks at the garage bench (drive.act).
@@ -20,7 +21,10 @@ async function setUp(page:Page){
   await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('robot');
   await route(page,[[3.4,-4],[2.5,-4.4]]);await page.keyboard.press('KeyE');await wait(page,.3);
   expect((await station(page)).onStand).toBe(true);
-  await route(page,[[2.9,-4],[2.9,-1.1]]);await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
+  await route(page,[[2.9,-4],[2.9,-1.1]]);
+  // No PULSE on a dead bench: plug its mains lead in at the left wall (R5-079).
+  await plugBench(page,[],[[-8.9,5.6],[-8.5,4],[-4.5,1.9]]);
+  await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
 }
 
 test('robot garage: catch the kick, clamp it, brake fast, star-ground the controller, then the delivery run',async({page})=>{
@@ -61,7 +65,8 @@ test('robot garage: catch the kick, clamp it, brake fast, star-ground the contro
   expect(s.station.delivered).toBe(true);expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);
   const bot=s.items.find((i:{id:string})=>i.id==='robot');expect(bot.pos.x).toBeLessThan(-7);expect(bot.pos.z).toBeLessThan(-5);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
-  await expect(page.locator('.result-bonus li.ok')).toHaveCount(3);
+  // Two of three: the tidy run skips the room's chaos bonus (earned in station-cable.spec).
+  await expect(page.locator('.result-bonus li.ok')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 

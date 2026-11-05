@@ -63,7 +63,7 @@ function plaque(text:string,w:number,h:number,bg:string,fg=INK,size=40){
 export function dressObservatory(game:Game,kit:RoomKit){
   const l=game.level,r=game.decorRoot,W=l.width/2,D=l.depth/2;
   // Warm planks where Pip works; a night-blue tiled floor under the dome and the gallery.
-  kit.floor(-W,W,-3.2,D,TX.woodPlanks('#dcb07a'),3.2);kit.floor(-W,W,-D,-3.2,TX.carpetTiles('#4b4f86'),2.4);
+  kit.floor(-W,W,-3.2,D,TX.woodPlanks('#c99a63'),3.2);kit.floor(-W,W,-D,-3.2,TX.carpetTiles('#4b4f86'),2.4);
   rug(r,0,1.2,5.2,2.6,VIOLET,'#d9d0ff');rug(r,-6.4,3.6,3,2.2,'#d6a24e','#fbe7b8');
   // ---- The dome: a half-shell open to the room, painted inside with the night sky.
   const dx=-6.1,dz=-5.3,R=2.55;

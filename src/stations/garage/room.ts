@@ -64,8 +64,8 @@ export function robotMesh(body=TEAL,accent=TEAL2,port=false):RobotParts{
 
 export function dressGarage(game:Game,kit:RoomKit){
   const l=game.level,r=game.decorRoot,W=l.width/2,D=l.depth/2;
-  // Pale concrete everywhere; warm planks under the bench where Pip works.
-  kit.floor(-W,W,-D,D,TX.concreteFloor('#dcd8ce'),4);kit.floor(-3,3,-2.2,-.6,TX.woodPlanks('#d8ad72'),2.2,.006);
+  // Mid-grey concrete everywhere (floor luma inside DR-54's 140-185 so pale props and job yellow read on it, R5-154); warm planks under the bench.
+  kit.floor(-W,W,-D,D,TX.concreteFloor('#a49e92'),4);kit.floor(-3,3,-2.2,-.6,TX.woodPlanks('#d8ad72'),2.2,.006);
   kit.backWindows(x=>x<-2||x>6,.14);
   // The delivery lane: dashed safety-yellow markings along the robot's route, a stop line at the dock.
   const dash=toon(YELLOW);

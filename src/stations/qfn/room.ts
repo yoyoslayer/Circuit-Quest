@@ -45,8 +45,8 @@ function panelTex(title:string,draw:(c:CanvasRenderingContext2D)=>void){return c
 export function dressFabBay(game:Game,kit:RoomKit,table:T.Vector3){
   const l=game.level,r=game.decorRoot,W=l.width/2,D=l.depth/2;
   // Pale planks where people work; a soft lavender tile floor in the machine bay at the back.
-  kit.floor(-W,W,-4.3,D,TX.woodPlanks('#e2c28f'),3.2);kit.floor(-W,W,-D,-4.3,TX.kitchenTiles('#ecebf7','#c9c6ee',8),4);
-  kit.floor(table.x-2.9,table.x+3.6,table.z-1.5,table.z+2.5,TX.rugTex('#8f96d8','#e3e1fa'),2.2,.006);
+  kit.floor(-W,W,-4.3,D,TX.woodPlanks('#c8a06a'),3.2);kit.floor(-W,W,-D,-4.3,TX.kitchenTiles('#d9d6ee','#b3afe0',8),4);
+  kit.floor(table.x-2.9,table.x+3.6,table.z-1.5,table.z+2.5,TX.rugTex('#7a82cc','#cfcdf2'),2.2,.006);
   // Lavender walls with a periwinkle wainscot (drawn over the shell's own finish).
   for(const [wall,len] of [[kit.back,l.width],[kit.side,l.depth]] as const){
     part(wall,box(len,1.88,.02),toon('#ffffff',{map:TX.wallpaper(LAV)}),0,2.01,.15,false);part(wall,box(len,.9,.02),toon(PERI),0,.56,.16,false);part(wall,box(len,.06,.05),toon('#6f76c4'),0,1.04,.17,false);}

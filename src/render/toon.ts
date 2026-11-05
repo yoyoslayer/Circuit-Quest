@@ -111,6 +111,8 @@ export class ToonMaterial extends T.MeshToonMaterial{
     if(!noRim){this.onBeforeCompile=rimCompile;this.customProgramCacheKey=rimKey;}
   }
 }
+/** Every cached toon() material: shared by colour, so nothing may recolour one in place. */
+export const sharedToons=new WeakSet<T.Material>();
 // Materials are shared by colour/options so props batch into instanced meshes.
 export function toon(color:string,opts:ToonOptions={}):T.MeshToonMaterial {
   const key = `${color}|${opts.emissive??''}|${opts.ei??''}|${opts.map?.uuid??''}|${opts.opacity??1}`;
@@ -119,7 +121,7 @@ export function toon(color:string,opts:ToonOptions={}):T.MeshToonMaterial {
     material = new ToonMaterial({color,gradientMap:ramp,map:opts.map??null});
     if (opts.emissive) { material.emissive = new T.Color(opts.emissive); material.emissiveIntensity = opts.ei??1; }
     if (opts.opacity!==undefined&&opts.opacity<1) { material.transparent = true; material.opacity = opts.opacity; material.depthWrite = false; }
-    materials.set(key,material);
+    materials.set(key,material);sharedToons.add(material);
   }
   return material;
 }
@@ -154,7 +156,8 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   renderer.shadowMap.type = T.PCFShadowMap;
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  const effect = new OutlineEffect(renderer,{defaultThickness:.0036,defaultColor:[.13,.135,.2]});
+  // Ink outline (R5-375, DR-56): linear [.035,.037,.072] shows as about #34364c (luma ≤ 70), 2–3 px.
+  const effect = new OutlineEffect(renderer,{defaultThickness:.0055,defaultColor:[.035,.037,.072]});
   const scene = new T.Scene();
   const hemi = new T.HemisphereLight('#dbe6ff','#b08a6a',.7);const ambient=new T.AmbientLight('#fff4e6',.12);scene.add(hemi,ambient);
   const sun = new T.DirectionalLight('#ffe2b8',1.75); sun.position.set(-11,21,13); sun.castShadow=true;

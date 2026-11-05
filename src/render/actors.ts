@@ -2,20 +2,22 @@
 // personality, glossy toon plastic, and the cable as a thick hose with a strain gradient.
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {toon,toonRamp,INK} from './toon';
+import {toon,toonRamp,INK,rimShader} from './toon';
+const noRim=new URLSearchParams(location.search).has('norim');
 
 /** Toon plus a hard, stepped view-space highlight: glossy plastic that still reads as toon. */
 const glossy=new Map<string,T.MeshToonMaterial>();
 export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965}={}){
   const key=`${color}|${vertexColors}|${spec}|${size}`;let m=glossy.get(key);if(m)return m;
   m=new T.MeshToonMaterial({color,gradientMap:toonRamp,vertexColors});
-  m.onBeforeCompile=s=>{s.uniforms.specK={value:spec};s.uniforms.specEdge={value:size};
+  // The rim goes in first (R5-372): the spec mix chains on the same opaque_fragment anchor after it.
+  m.onBeforeCompile=s=>{if(!noRim)rimShader(s);s.uniforms.specK={value:spec};s.uniforms.specEdge={value:size};
     s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform float specK; uniform float specEdge;').replace('#include <opaque_fragment>',`
       { vec3 L = normalize(vec3(-.35,.75,.55)); vec3 V = normalize(vViewPosition); vec3 H = normalize(L + V);
         float s = smoothstep(specEdge, specEdge + .012, dot(normalize(normal), H));
         outgoingLight = mix(outgoingLight, vec3(1.,.98,.93) * max(1., length(outgoingLight)), s * specK); }
       #include <opaque_fragment>`);};
-  m.customProgramCacheKey=()=>'glossyToon'+spec+size;glossy.set(key,m);return m;
+  m.customProgramCacheKey=()=>(noRim?'glossyToon':'glossyToonRim')+spec+size;glossy.set(key,m);return m;
 }
 /** HDR unlit colour for bloom (colour * k survives the 1.3 bloom threshold). */
 export function hot(color:string,k=3){const m=new T.MeshBasicMaterial({color});m.color.multiplyScalar(k);m.userData.outlineParameters={visible:false};return m;}

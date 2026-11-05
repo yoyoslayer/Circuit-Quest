@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {toCreasedNormals} from 'three/addons/utils/BufferGeometryUtils.js';
-import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,group,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached,stripes} from '../render/kit';
+import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,group,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached,stripes,freeze} from '../render/kit';
 import {hot} from '../render/actors';
 import {screen,keyboardTex,SCREENS,type ScreenKind} from '../render/textures';
 export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong'|'bridge'|'mop'|'tray'|'lamp'|'dolly'|'supply'|'capcart'|'coolbox'|'splitter'|'plug'|'wedge'|'beanbag'|'cone'|'strip'|'pin'|'stool';
@@ -50,10 +50,17 @@ const C:Partial<Record<PropKind,ColliderPart[]>>={
 };
 for(const [k,c] of Object.entries(C))prefabs[k as PropKind].collider=c;
 const templates=new Map<string,T.Group>();
-/** Returns a copy of the prop's model; copies share geometry and materials so they batch. */
+/** Returns a copy of the prop's model; copies share geometry and materials so they batch. Each
+ *  template's plain toon parts are merged into one vertex-coloured mesh (kit.ts freeze), so a prop
+ *  instances as one batch plus its textured, see-through and glowing parts
+ *  (which stay separate and still batch across templates) instead of one batch per part (R5-026). */
 export function makeProp(kind:PropKind,color?:string,variant=0):T.Group{
   const key=`${kind}|${color??''}|${variant}`;let template=templates.get(key);
-  if(!template){template=build(kind,color??prefabs[kind].color,variant);templates.set(key,template);}
+  if(!template){template=build(kind,color??prefabs[kind].color,variant);
+    // The batches cast shadows whatever a part's flag says (Game.batchProps), so the flag only split
+    // the merge in two; one bucket per template, with no change on screen.
+    template.traverse(o=>{if(o instanceof T.Mesh&&!o.castShadow&&!(o.material as T.Material).transparent)o.castShadow=true;});
+    freeze(template);templates.set(key,template);}
   return template.clone();
 }
 const scribble=()=>cachedTexture('scribble',()=>glyph(c=>{c.strokeStyle='#3f7fd6';c.lineWidth=10;c.beginPath();c.moveTo(20,200);c.lineTo(80,120);c.lineTo(140,160);c.lineTo(230,40);c.stroke();c.strokeStyle='#e5484d';c.beginPath();c.arc(70,60,30,0,7);c.stroke();}));

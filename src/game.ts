@@ -2,7 +2,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon,seeOff,seeThrough,seeProj,seeY,seeClip} from './render/toon';
-import {BLOBC,bangTexture,freeze,glyph,cachedTexture,part,cyl,sphere,box,group,INK} from './render/kit';
+import {BLOBC,bangTexture,glyph,cachedTexture,part,cyl,sphere,box,group,INK} from './render/kit';
 import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type Mood} from './render/actors';
 const GOLD=new T.Color('#ffd451'),DULL_GOLD=new T.Color('#b9ad86');
 /** How long R is held during play before the job restarts (ms). */
@@ -38,7 +38,7 @@ import {clutter} from './levels/clutter';
 import {LunchRuntime} from './lunch-runtime';
 import {PipRig} from './render/pipRig';
 import {Particles,type Fx} from './render/particles';
-import {decorate,solid,type Decor} from './levels/decor';
+import {decorate,freezeDecor,solid,type Decor} from './levels/decor';
 import {levels} from './levels';
 import {makeStation} from './stations';
 import type {Station} from './stations/types';
@@ -83,7 +83,8 @@ export class Game {
   /** Workshop practice (?practice): the whole job plays, but no grade is recorded. */
   practice=new URLSearchParams(location.search).has('practice');
   constructor(public level:Level){
-    try{const saved=Number(localStorage.getItem('circuit-crew-quality'));if(saved===0||saved===1)this.view.setQuality(saved);}catch{/* storage unavailable */}
+    // A missing key means the default (2), not Number(null)=0; ?lowfx / plain ?manual always stay low (R5-143).
+    try{const raw=localStorage.getItem('circuit-crew-quality'),saved=Number(raw);if(raw!==null&&!this.view.low&&(saved===0||saved===1||saved===2))this.view.setQuality(saved);}catch{/* storage unavailable */}
     try{const f=Number(localStorage.getItem('circuit-crew-fov'));if((FOVS as readonly number[]).includes(f))this.fov=f;}catch{/* storage unavailable */}
     const {scene}=this.view;scene.add(this.root);this.view.mood(level.id);this.audio.setLevel(level.id);this.root.add(this.decorRoot);this.fx=new Particles(this.root);this.zoom=this.homeZoom();this.yaw=this.homeYaw();
     this.rope=new Rope({...level.anchor},level.length);this.obstacles=[...level.obstacles];
@@ -121,7 +122,7 @@ export class Game {
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
     if(level.id==='meeting')this.strip=new MeetingStrip(this);
     this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else if(!this.station&&!this.hub){this.simulateCable();this.drawCable();}
-    freeze(this.decorRoot);this.updateCamera(1);this.view.render();
+    freezeDecor(this);this.updateCamera(1);this.view.render();
     document.body.dataset.ready='true';
     Object.assign(window,{__circuitCrew:{snapshot:()=>this.snapshot(),drive:this.manual?this.driver():undefined}});
     // Test mode exposes the live game for camera and render checks (mockups/review5/tools).
@@ -629,12 +630,18 @@ export class Game {
     const t=Math.tan(T.MathUtils.degToRad(cam.fov/2));Object.assign(seeProj,{x:t*cam.aspect,y:t,z:size.x,w:size.y});
     const e=cam.matrixWorld.elements;Object.assign(seeY,{x:e[1],y:e[5],z:e[9],w:e[13]});seeClip.x=cam.near;seeClip.y=cam.far;
   }
-  /** Steps rendering quality down when frames stay slow (AO first, then bloom and resolution),
-   *  and remembers the result for next time. */
+  /** Steps rendering quality down when frames stay slow (AO first, then bloom and resolution), and
+   *  back up one level after 20 s at a steady ~60 fps (a slow start, e.g. shader compiles, must not pin
+   *  a player low forever). A level that was too slow after stepping up isn't retried this session.
+   *  The result is remembered for next time. */
+  qualityCap=2;qualityRaised=false;
   adaptQuality(dt:number){
-    if(this.manual||!this.running||this.paused)return;this.slowAvg+=(dt-this.slowAvg)*.05;this.qualityTimer+=dt;
-    const q=this.view.getQuality();if(this.qualityTimer<3||q===0||this.slowAvg<1/45)return;
-    this.qualityTimer=0;this.slowAvg=1/60;const next=(q-1) as 0|1;this.view.setQuality(next);try{localStorage.setItem('circuit-crew-quality',String(next));}catch{/* storage unavailable */}
+    if(this.manual||this.view.low||!this.running||this.paused)return;this.slowAvg+=(dt-this.slowAvg)*.05;this.qualityTimer+=dt;
+    const q=this.view.getQuality();let next:0|1|2=q;
+    if(this.qualityTimer>=3&&q>0&&this.slowAvg>1/45){next=(q-1) as 0|1;if(this.qualityRaised)this.qualityCap=next;}
+    else if(this.qualityTimer>=20&&q<this.qualityCap&&this.slowAvg<1/58){next=(q+1) as 1|2;this.qualityRaised=true;}
+    else{if(this.slowAvg>1/58)this.qualityTimer=Math.min(this.qualityTimer,3);return;}
+    this.qualityTimer=0;this.slowAvg=1/60;this.view.setQuality(next);try{localStorage.setItem('circuit-crew-quality',String(next));}catch{/* storage unavailable */}
   }
   homeZoom(){return this.level.id==='playground'?17:this.station?18.5:this.hub?23:22;}
   /** Start and reset orbit. The lobby turns a little toward its left wall so those doors clear the job card. */
@@ -799,5 +806,5 @@ export class Game {
     for(const p of this.props)test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),propName(p),p.collider);
     return found;
   }
-  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.filter(q=>q!==this.held&&q.body.isEnabled()).map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);})),lampLit:this.lampLit,hitstops:this.hitstops,beats:this.beats.slice(-40),failAt:this.failAt??null};}
+  snapshot(){return {quality:this.view.getQuality(),level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.filter(q=>q!==this.held&&q.body.isEnabled()).map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);})),lampLit:this.lampLit,hitstops:this.hitstops,beats:this.beats.slice(-40),failAt:this.failAt??null};}
 }

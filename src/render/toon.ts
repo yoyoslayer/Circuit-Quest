@@ -21,7 +21,8 @@ const materials = new Map<string,T.MeshToonMaterial>();
 // pale floors and walls without adding light. ?norim turns it off for comparison.
 const noRim=new URLSearchParams(location.search).has('norim');
 export const rimUniforms={rimColor:{value:new T.Color('#b9cdff')},rimStrength:{value:.22}};
-function rimShader(s:T.WebGLProgramParametersWithUniforms){
+/** Injects the rim into a toon shader (chain it before other edits on '#include <opaque_fragment>'). */
+export function rimShader(s:T.WebGLProgramParametersWithUniforms){
   Object.assign(s.uniforms,rimUniforms);
   s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 rimColor; uniform float rimStrength;').replace('#include <opaque_fragment>',`
     { vec3 N=normalize(normal), V=normalize(vViewPosition);
@@ -71,15 +72,51 @@ export const seeClip={x:.1,y:200};
   Object.assign(T.UniformsLib.fog,shared);
   for(const [name,lib] of Object.entries(T.ShaderLib))if(!['depth','distanceRGBA','shadow'].includes(name))Object.assign(lib.uniforms,shared);
 }
+// Dark room (R5-141): every lit/unlit scene material darkens fragments whose world x,z lie inside
+// `darkBox` by `darkAmount` (0 = off, 1 = full dark), with a 0.4 m soft edge at the box sides. It
+// replaces a flat lid plane that props poked through. World position comes from the depth, like the
+// see-through above; createRenderer().render fills the camera matrices each frame.
+/** x,y: min/max world x; z,w: min/max world z. */
+export const darkBox={x:0,y:0,z:0,w:0};
+/** amount: 0 (off) to 1 (dark); tint: what light is left at full dark (linear, a dim blue-violet). */
+export const darkness={amount:0,tint:new T.Color(.34,.36,.58)};
+// Plain objects and typed arrays, not Vector/Matrix: UniformsUtils.clone copies those per material,
+// these stay shared by reference (see the see-through note above).
+const darkCam=new Float32Array(16),darkProjInv=new Float32Array(16),darkRes={x:1,y:1},darkAmount={x:0,y:0,z:0,w:0};
+{
+  const decl='uniform vec4 darkBox; uniform vec4 darkAmount; uniform mat4 darkCam; uniform mat4 darkProjInv; uniform vec2 darkRes;\n';
+  const apply=`
+  if(darkAmount.x>0.){
+    vec4 darkP=darkProjInv*vec4(gl_FragCoord.xy/darkRes*2.-1.,gl_FragCoord.z*2.-1.,1.);darkP/=darkP.w;vec3 darkW=(darkCam*darkP).xyz;
+    float darkIn=smoothstep(darkBox.x-.2,darkBox.x+.2,darkW.x)*(1.-smoothstep(darkBox.y-.2,darkBox.y+.2,darkW.x))*smoothstep(darkBox.z-.2,darkBox.z+.2,darkW.z)*(1.-smoothstep(darkBox.w-.2,darkBox.w+.2,darkW.z));
+    gl_FragColor.rgb*=mix(vec3(1.),darkAmount.yzw,darkIn*darkAmount.x);
+  }
+`;
+  T.ShaderChunk.clipping_planes_pars_fragment=decl+T.ShaderChunk.clipping_planes_pars_fragment;
+  T.ShaderChunk.dithering_fragment=apply+T.ShaderChunk.dithering_fragment;
+  const shared={darkBox:{value:darkBox},darkAmount:{value:darkAmount},darkCam:{value:darkCam},darkProjInv:{value:darkProjInv},darkRes:{value:darkRes}};
+  Object.assign(T.UniformsLib.fog,shared);
+  for(const [name,lib] of Object.entries(T.ShaderLib))if(!['depth','distanceRGBA','shadow'].includes(name))Object.assign(lib.uniforms,shared);
+}
 /** Gives every mesh under `root` its own material copy that the see-through never cuts (Pip, the plug in hand). */
 export function seeOff(root:T.Object3D){root.traverse(o=>{if(!(o instanceof T.Mesh)||Array.isArray(o.material)||o.material.defines?.SEE_OFF!==undefined)return;const m=o.material.clone();m.defines={...(m.defines??{}),SEE_OFF:''};o.material=m;});}
+/** Toon material with the rim. A subclass so that clone() (fading occluders, seeOff, vertex-coloured
+ *  blobs) keeps the rim: Material.copy() drops onBeforeCompile, the constructor puts it back (R5-372).
+ *  userData.noRim keeps a material (big flat wall faces, DR-56) rimless, and survives clone(). */
+function rimCompile(this:T.Material,s:T.WebGLProgramParametersWithUniforms){if(!this.userData.noRim)rimShader(s);}
+function rimKey(this:T.Material){return this.userData.noRim?'toon':'toonRim';}
+export class ToonMaterial extends T.MeshToonMaterial{
+  constructor(params?:T.MeshToonMaterialParameters){
+    super(params);
+    if(!noRim){this.onBeforeCompile=rimCompile;this.customProgramCacheKey=rimKey;}
+  }
+}
 // Materials are shared by colour/options so props batch into instanced meshes.
 export function toon(color:string,opts:ToonOptions={}):T.MeshToonMaterial {
   const key = `${color}|${opts.emissive??''}|${opts.ei??''}|${opts.map?.uuid??''}|${opts.opacity??1}`;
   let material = materials.get(key);
   if (!material) {
-    material = new T.MeshToonMaterial({color,gradientMap:ramp,map:opts.map??null});
-    if(!noRim){material.onBeforeCompile=rimShader;material.customProgramCacheKey=()=>'toonRim';}
+    material = new ToonMaterial({color,gradientMap:ramp,map:opts.map??null});
     if (opts.emissive) { material.emissive = new T.Color(opts.emissive); material.emissiveIntensity = opts.ei??1; }
     if (opts.opacity!==undefined&&opts.opacity<1) { material.transparent = true; material.opacity = opts.opacity; material.depthWrite = false; }
     materials.set(key,material);
@@ -145,8 +182,12 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   const resize = () => { renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); grade.uniforms.resolution.value.set(innerWidth*pixelRatio,innerHeight*pixelRatio); };
   addEventListener('resize',resize); resize();
   if(low)setQuality(0);
-  const render=()=>composer.render();
+  const render=()=>{
+    darkAmount.x=Math.max(0,Math.min(1,darkness.amount));darkAmount.y=darkness.tint.r;darkAmount.z=darkness.tint.g;darkAmount.w=darkness.tint.b;
+    if(darkAmount.x>0){camera.updateMatrixWorld();darkCam.set(camera.matrixWorld.elements);darkProjInv.set(camera.projectionMatrixInverse.elements);const b=renderer.getDrawingBufferSize(new T.Vector2());darkRes.x=b.x;darkRes.y=b.y;}
+    composer.render();
+  };
   const mood=(id:string)=>{const m=MOODS[id]??MOODS.meeting;sun.color.set(m.key[0]);sun.intensity=m.key[1];fill.intensity=m.fill;rim.intensity=m.rim;hemi.intensity=m.hemi;renderer.toneMappingExposure=m.exposure;scene.background=backdrop(...m.backdrop);};
   mood('meeting');
-  return {renderer,effect,scene,camera,sun,hemi,fill,mood,render,composer,setQuality,getQuality};
+  return {renderer,effect,scene,camera,sun,hemi,fill,mood,render,composer,setQuality,getQuality,low};
 }

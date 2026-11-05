@@ -14,14 +14,20 @@ export class OutlineRenderPass extends Pass {
     renderer.setRenderTarget(this.renderToScreen?null:read);this.effect.render(this.scene,this.camera);renderer.autoClear=autoClear;
   }
 }
+/** Parts smaller than this (world bounding radius, m) skip the AO re-render: their contact shading is
+ *  too small to see, but each costs a draw call (R5-167). Instanced prop parts are judged per part. */
+export const AO_MIN_RADIUS=.2;
+const tiny=(o:T.Object3D)=>{const g=(o as T.Mesh).geometry as T.BufferGeometry|undefined;if(!g)return false;if(!g.boundingSphere)g.computeBoundingSphere();return g.boundingSphere!.radius*o.matrixWorld.getMaxScaleOnAxis()<AO_MIN_RADIUS;};
 /** GTAO that ignores sprites, glow cards, light shafts and see-through glass; they would
- *  otherwise write depth into the AO buffer and cast dark halos. (Wraps the runtime's private
- *  _overrideVisibility, which the bundled type definitions don't declare.) */
+ *  otherwise write depth into the AO buffer and cast dark halos. Pip (and the plug in his hand: the
+ *  seeOff materials) is skipped too, so the hero stays clean toon instead of greyed (R5-167), and so
+ *  are tiny parts (AO_MIN_RADIUS). (Wraps the runtime's private _overrideVisibility, which the
+ *  bundled type definitions don't declare.) */
 export function toonGTAO(scene:T.Scene,camera:T.Camera,width:number,height:number){
   const pass=new GTAOPass(scene,camera,width,height),inner=pass as unknown as {_overrideVisibility:()=>void;_visibilityCache:T.Object3D[]};
   const base=inner._overrideVisibility.bind(pass);
   inner._overrideVisibility=()=>{base();scene.traverse(o=>{if(!o.visible)return;const m=(o as T.Mesh).material as T.Material|undefined;
-    if((o as T.Sprite).isSprite||o.userData.noAO||(m&&!Array.isArray(m)&&((m.transparent&&m.opacity<.99)||m.blending===T.AdditiveBlending))){o.visible=false;inner._visibilityCache.push(o);}});};
+    if((o as T.Sprite).isSprite||o.userData.noAO||(m&&!Array.isArray(m)&&((m.transparent&&m.opacity<.99)||m.blending===T.AdditiveBlending||m.defines?.SEE_OFF!==undefined))||((o as T.Mesh).isMesh&&tiny(o))){o.visible=false;inner._visibilityCache.push(o);}});};
   return pass;
 }
 /** Display-space grade: warm/cool split tone, saturation, contrast, vignette, fine grain. */

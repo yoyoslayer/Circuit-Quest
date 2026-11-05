@@ -146,7 +146,7 @@ export class GameUI {
   /** The pause menu's View tile names the current lens. */
   syncLens(){const name=LENS_NAMES[FOVS.indexOf(this.game.fov as Lens)]??'Standard';for(const el of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-p="lens"]')))el.textContent=`View: ${name}`;}
   syncSound(){const muted=this.game.audio.muted;
-    for(const b of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-ui="sound"]'))){b.setAttribute('aria-pressed',String(muted));b.classList.toggle('on',!muted);const use=b.querySelector('use');use?.setAttribute('href',muted?'#i-mute':'#i-sound');}}
+    for(const b of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-ui="sound"]'))){b.setAttribute('aria-pressed',String(muted));b.classList.remove('on');const label=b.querySelector('[data-p="sound"]');if(label)label.textContent=muted?'Muted':'Sound on';const use=b.querySelector('use');use?.setAttribute('href',muted?'#i-mute':'#i-sound');}}
   syncPad(){const on=[...(navigator.getGamepads?.()??[])].some(p=>!!p);this.layer.classList.toggle('gp',on);this.game.hud.querySelector('.padind')?.classList.toggle('on',on);}
   /** Menu navigation on a pad: d-pad / stick to pick a job, B to go back, A on pause resumes.
    *  (A and Start on the title/jobs reach Game.begin through Game.pollPad.) */
@@ -231,7 +231,7 @@ export class GameUI {
       if(rush&&rows){const first=rows.querySelector('.row');first?.classList.add('result-served');first?.insertAdjacentHTML('afterbegin','<span class="served-label">Cabinets fixed:</span>');}
       if(g.strip&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Strip trips: <b>${g.strip.trips}</b></p>`);if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
       if(this.keyboard)requestAnimationFrame(()=>screen.querySelector<HTMLElement>('.btn.primary')?.focus({preventScroll:true}));
-      if(!reduced())setTimeout(()=>{g.audio.thud(9);g.audio.tone(90,.18,.08,'triangle');screen.querySelector('.result')?.classList.add('thud');},1800);
+      setTimeout(()=>{g.audio.thud(9);g.audio.tone(90,.18,.08,'triangle');if(!reduced())screen.querySelector('.result')?.classList.add('thud');},reduced()?0:1800);
       setTimeout(()=>{if(improved)g.audio.bell(1319,.6,.05);},reduced()?0:1950);
     },1400);
   }

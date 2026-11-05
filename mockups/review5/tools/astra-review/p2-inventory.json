@@ -25,8 +25,19 @@
       "src/hub/lobby.ts"
     ],
     "editPaths": [],
+    "ownedOnly": true,
+    "mentionsOwned": true,
+    "disposition": "Already fixed in merged lobby: rattle, padlock, tape and flash retained"
+  },
+  {
+    "id": "R5-163",
+    "title": "**R5-163 | P2 | arcade | playability | Stale hover prompt: 'F  Flip the LED' shows during the coin-hopper job, which has no LED**",
+    "paths": [
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-164",
@@ -39,7 +50,17 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-165",
+    "title": "**R5-165 | P2 | global | playability | Orbit pitch has a dead zone at close zoom: the stored pitch clamps to −0.3…0.45, but the effective pitch clamps again to 0.3…1.25**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-166",
@@ -54,7 +75,34 @@
       "src/game.ts"
     ],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-167",
+    "title": "**R5-167 | P2 | global | playability | GTAO at quality 2 re-renders the whole scene: +730–765 draw calls (+63–65%) for a few local contact shadows, and it greys Pip's overalls**",
+    "paths": [
+      "src/render/toon.ts",
+      "src/render/post.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-168",
+    "title": "**R5-168 | P2 | lunch | playability | In Lunch, E picks up cable ends before props, so Pip can't grab the boxes beside his spawn**",
+    "paths": [
+      "src/game.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [
+      "src/lunch-runtime.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-169",
@@ -65,7 +113,19 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-170",
+    "title": "**R5-170 | P2 | global | playability | The job-item reach bias favours every id'd prop, not the current step's item: pins, bridges, splitters and the second reel all outrank the next thing the card asks for**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/playground.ts",
+      "src/levels/meeting.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-171",
@@ -76,7 +136,7 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-172",
@@ -107,8 +167,9 @@
       "src/ui/screens.ts"
     ],
     "editPaths": [],
-    "ownedOnly": false,
-    "mentionsOwned": true
+    "ownedOnly": true,
+    "mentionsOwned": true,
+    "disposition": "Controls completed; gameplay assists require Game/station hooks (see Astra log)"
   },
   {
     "id": "R5-175",
@@ -125,6 +186,57 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-176",
+    "title": "**R5-176 | P2 | lunch | playability | An unplugged spare cable is tethered to a fixed point in empty floor**",
+    "paths": [
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-177",
+    "title": "**R5-177 | P2 | lunch | playability | Pressing E at a supply cart that isn't tripped silently unplugs a cable, so a double tap on reset kills the fridge feed**",
+    "paths": [
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-178",
+    "title": "**R5-178 | P2 | lunch | playability | Every experiment at the lift costs a 25 m round trip to reset cart A, which discourages the try-and-observe loop the room relies on**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "src/sim/electrical.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-179",
+    "title": "**R5-179 | P2 | meeting | playability | Appliance prompts pick the first match in array order, so the heater is hard to target**",
+    "paths": [
+      "src/meeting-strip.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-180",
+    "title": "**R5-180 | P2 | observatory | playability | Bench hit targets are tiny and several controls have no hover prompt**",
+    "paths": [
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-181",
     "title": "**R5-181 | P2 | meeting | playability | Meeting: walking past the mail cart knocks the second reel off, and the prompt then says 'Grab the cart'**",
     "paths": [
@@ -138,6 +250,16 @@
     ],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-182",
+    "title": "**R5-182 | P2 | qfn | playability | The level's own chair at (−3.4, 1.6) sits inside the clean-route lane and gets knocked over on every spec route**",
+    "paths": [
+      "src/levels/qfn.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-183",
@@ -164,7 +286,7 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-185",
@@ -180,6 +302,47 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-186",
+    "title": "**R5-186 | P2 | qfn | teaching | QFN: board 3's chip glows red-hot at 135 °C the moment the board loads, before anything is wired or powered**",
+    "paths": [
+      "src/stations/qfn/logic.ts",
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-187",
+    "title": "**R5-187 | P2 | arcade-rush | teaching | P = I²R never decides a rush cabinet: block heat and parallel heat-sharing are untested**",
+    "paths": [
+      "src/stations/arcade/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-188",
+    "title": "**R5-188 | P2 | arcade-rush | teaching | 'Barely glowing… looks broken' at 7 mA, while the game's own lit threshold is 2 mA and the LED renders clearly lit**",
+    "paths": [
+      "src/stations/arcade/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-189",
+    "title": "**R5-189 | P2 | arcade-rush | teaching | 'Backwards' cabinets on 9 V and 12 V put the LED beyond a typical 5 V reverse rating, but the game says it simply 'stays dark'**",
+    "paths": [
+      "src/stations/arcade/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-190",
     "title": "**R5-190 | P2 | arcade | teaching | Rhythm pad (blue LED on 3.3 V) teaches false precision: with 0.3 V of headroom, real Vf and supply spread swing the current from 0 to 27 mA**",
     "paths": [
@@ -188,7 +351,18 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-191",
+    "title": "**R5-191 | P2 | arcade | teaching | No visible consequence when the logic pin is overloaded: motor FULL, lamp lit, only a sentence and a formula**",
+    "paths": [
+      "src/stations/arcade/logic.ts",
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-192",
@@ -199,7 +373,7 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-193",
@@ -212,7 +386,29 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-194",
+    "title": "**R5-194 | P2 | arcade | teaching | An LED at 21 mA is a FAIL: the 20 mA test current is treated as an absolute maximum**",
+    "paths": [
+      "src/stations/arcade/logic.ts",
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-195",
+    "title": "**R5-195 | P2 | arcade | teaching | LED HEAT shows °C values that teach a wrong number: the 'limit' line sits at 45 °C and LEDs pop at about 43 °C**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/stations/arcade/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-196",
@@ -225,7 +421,18 @@
       "src/lunch-runtime.ts"
     ],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-197",
+    "title": "**R5-197 | P2 | garage | teaching | Motor spin-up of 4 ms and 'the surge lasts milliseconds' understate a real motor start by 1–2 orders of magnitude**",
+    "paths": [
+      "src/stations/garage/logic.ts",
+      "src/stations/garage/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-198",
@@ -235,8 +442,21 @@
       "src/ui/screens.css"
     ],
     "editPaths": [],
+    "ownedOnly": true,
+    "mentionsOwned": true,
+    "disposition": "Stage 2 desktop fail cause; mobile deferred by scope"
+  },
+  {
+    "id": "R5-199",
+    "title": "**R5-199 | P2 | lunch | teaching | Heat on a cable uses the same white→orange→red ramp as strain, and it cooks 33% over in 6 s on a linear (not I²) rule**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "src/sim/electrical.ts",
+      "src/sim/cable.ts"
+    ],
+    "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-200",
@@ -249,7 +469,7 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-201",
@@ -262,7 +482,17 @@
       "src/game.ts"
     ],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-202",
+    "title": "**R5-202 | P2 | meeting | teaching | A kettle 'left on' draws power forever, and its 'on' state is a big white fog ball**",
+    "paths": [
+      "src/meeting-strip.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-203",
@@ -273,7 +503,7 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-204",
@@ -287,8 +517,38 @@
     "editPaths": [
       "src/ui/game-ui.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-205",
+    "title": "**R5-205 | P2 | observatory | teaching | Spectrum gallery: invisible bands painted in rainbow false colour without a label, 'f ≈ 30000 GHz', and wall sentences; the exhibits are passive and never tied to the bench**",
+    "paths": [
+      "src/stations/observatory/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-206",
+    "title": "**R5-206 | P2 | observatory | teaching | Free, live trial and error plus an oracle prompt: 'Enter · Log the decode' appears exactly when the setup is reliable, so knobs and rods can be swept without reasoning**",
+    "paths": [
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-207",
+    "title": "**R5-207 | P2 | observatory | teaching | The filter name in the panel is wrong for series C + shunt C: it is called 'high-pass', but it is a band-pass**",
+    "paths": [
+      "src/stations/observatory/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-208",
@@ -301,6 +561,137 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-209",
+    "title": "**R5-209 | P2 | qfn | teaching | Thermal vias cool the chip to 70 °C even when nothing is on layer 2 for them to carry heat into; in the reference route 3 of the 4 thermal vias end in bare laminate**",
+    "paths": [
+      "src/stations/qfn/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-210",
+    "title": "**R5-210 | P2 | qfn | teaching | The exposed pad is 'not connected' on boards 1–2 and refuses copper; real QFN EPs are soldered down and usually tied to GND**",
+    "paths": [
+      "src/stations/qfn/logic.ts",
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-211",
+    "title": "**R5-211 | P2 | qfn | teaching | 'L2 · bottom, thin tracks' suggests the bottom layer has thinner copper by nature**",
+    "paths": [
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-212",
+    "title": "**R5-212 | P2 | qfn | teaching | Board 3 is an 'LED driver' with no LED, and every passive's purpose (ISET resistor, RST pull-up, series R) is invisible: the parts are just two-pad blocks**",
+    "paths": [
+      "src/stations/qfn/logic.ts",
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-213",
+    "title": "**R5-213 | P2 | qfn | teaching | The chip limit of 70 °C teaches a wrong rule of thumb: a chip at 77 °C is marked unreliable, though 70 °C is a commercial *ambient* range and silicon junctions run to 125–150 °C**",
+    "paths": [
+      "src/stations/qfn/logic.ts",
+      "src/stations/qfn/logic.test.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-214",
+    "title": "**R5-214 | P2 | qfn | teaching | 'Elegant to manufacture' and 'Shorter routes … are cheaper to make' name the wrong cost driver**",
+    "paths": [
+      "src/stations/qfn/station.ts",
+      "src/stations/qfn/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-215",
+    "title": "**R5-215 | P2 | spectrum | teaching | The 'Elegant' notes compare against a different band and so misattribute the waste ('more power than needed', 'more mirrors than it needs')**",
+    "paths": [
+      "src/stations/spectrum/logic.ts",
+      "tools/verify-spectrum-teach/logic-check.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-216",
+    "title": "**R5-216 | P2 | spectrum | teaching | Matching the detector to the band can never come up in play: the pod fits the matching head by itself**",
+    "paths": [
+      "src/stations/spectrum/station.ts",
+      "src/stations/spectrum/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-217",
+    "title": "**R5-217 | P2 | spectrum | teaching | The cage mesh drawn on screen has about 6 cm holes, half of Wi‑Fi's 12.5 cm wave, so it would barely shield; the text says the holes are 'far smaller than the wavelength'**",
+    "paths": [
+      "src/stations/spectrum/room.ts",
+      "src/stations/spectrum/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-218",
+    "title": "**R5-218 | P2 | spectrum | teaching | The hole-versus-wavelength lesson (radio can't pass the hatch) can never happen, and the toast says 30 cm for a hatch that is 60 cm in the model and on screen**",
+    "paths": [
+      "src/stations/spectrum/logic.ts",
+      "src/stations/spectrum/station.ts",
+      "src/stations/spectrum/room.ts",
+      "src/stations/spectrum/logic.test.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-219",
+    "title": "**R5-219 | P2 | qfn | fun | QFN send-back is nearly silent, nothing happens to the board, and its rings mark every pad instead of the cause (J1 gets no mark)**",
+    "paths": [
+      "src/stations/qfn/station.ts",
+      "src/levels/qfn.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-220",
+    "title": "**R5-220 | P2 | arcade-rush | fun | Arcade Rush: the tray fetch and step-up eat ~6.5 s of the rush clock every run, before the player knows it started**",
+    "paths": [
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-221",
@@ -325,6 +716,17 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-222",
+    "title": "**R5-222 | P2 | arcade-rush | fun | The cost axis punishes success: every elegant sign-off adds credits, so 32 cabinets grade C on cost**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/stations/arcade/logic.test.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-223",
     "title": "**R5-223 | P2 | arcade-rush | fun | The clock gives no grace: an order mid play-test at 0:00 is simply lost**",
     "paths": [
@@ -334,6 +736,17 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-224",
+    "title": "**R5-224 | P2 | global | fun | The slingshot direction is opposite between floors, and light litter is launched at more than 50 m/s**",
+    "paths": [
+      "src/game.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-225",
@@ -347,14 +760,82 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-226",
+    "title": "**R5-226 | P2 | global | fun | Pip disappears entirely at the bench; nothing of him is in the bench view**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-227",
     "title": "**R5-227 | P2 | global | fun | Pip can't emote: one fixed smile, mostly hidden under the hard-hat brim at the game camera**",
     "paths": [
-      "src/render/pipRig.ts"
+      "tools/create_assets.py",
+      "src/render/pipRig.ts",
+      "public/models/pip.glb"
     ],
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-228",
+    "title": "**R5-228 | P2 | global | fun | Music never reacts to win, fail or pause, and seven of ten rooms reuse the Playground loop**",
+    "paths": [
+      "src/render/audio.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-229",
+    "title": "**R5-229 | P2 | global | fun | Coworkers never move, so the world never causes chaos by itself, and chaos can never help or block the job**",
+    "paths": [
+      "src/game.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-230",
+    "title": "**R5-230 | P2 | global | fun | The startle is a 1-second blip with one pose: it faces Pip rather than the crash, leaves no aftermath, and never escalates**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-231",
+    "title": "**R5-231 | P2 | global | fun | The slingshot startles people around Pip's hand, not where the cable whips and the props fly**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-232",
+    "title": "**R5-232 | P2 | global | fun | Throwing paper, the commonest prop next to Pip, does nothing at all**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-233",
@@ -366,8 +847,18 @@
     "editPaths": [
       "src/ui/objectives.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-234",
+    "title": "**R5-234 | P2 | garage | fun | Polarity experiments at PULSE count as mistakes and cost the 'no tripped fuse' bonus; the time limit is about 19× the clean solve**",
+    "paths": [
+      "src/stations/garage/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-235",
@@ -383,6 +874,16 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-236",
+    "title": "**R5-236 | P2 | lunch | fun | The close of the job is mostly waiting: a long cart push, then 9 s of belt and 6 s of lift with nothing to do**",
+    "paths": [
+      "src/sim/lunch.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-237",
     "title": "**R5-237 | P2 | meeting | fun | Backtracking: the strip-first order sends Pip across the same aisle five times on the clean route; most of the run is walking**",
     "paths": [
@@ -392,7 +893,7 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-238",
@@ -421,7 +922,21 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-240",
+    "title": "**R5-240 | P2 | arcade, arcade-rush | clarity | Arcade: LED halo/bloom and a 400 px smoke ball cover the LED and the monitor exactly when the player must read why it failed**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/render/particles.ts",
+      "src/render/kit.ts"
+    ],
+    "editPaths": [
+      "src/stations/arcade/station.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-241",
@@ -438,6 +953,19 @@
     ],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-242",
+    "title": "**R5-242 | P2 | garage, observatory, qfn, spectrum | clarity | Bench labels and readout captions are 4–10 px cap height at 1440×900 (rule: 14 px)**",
+    "paths": [
+      "src/stations/garage/station.ts",
+      "src/stations/observatory/station.ts",
+      "src/stations/qfn/station.ts",
+      "src/stations/spectrum/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-243",
@@ -489,6 +1017,17 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-246",
+    "title": "**R5-246 | P2 | arcade, arcade-rush | clarity | Arcade bench controls break cross-room key meanings and key letters are missing on bins, lever and stamp**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-247",
     "title": "**R5-247 | P2 | arcade-rush, qfn | clarity | Station toasts persist after standing up and describe arrangements that no longer exist**",
     "paths": [
@@ -499,8 +1038,19 @@
     "editPaths": [
       "src/ui/objectives.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-248",
+    "title": "**R5-248 | P2 | meeting, global | clarity | \"!\" alarm bubbles draw through everything, pile up and stack over adjacent coworkers**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/meeting.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-249",
@@ -526,7 +1076,7 @@
     "editPaths": [
       "src/ui/screens.css"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
   },
   {
@@ -537,8 +1087,9 @@
       "src/hub/lobby.ts"
     ],
     "editPaths": [],
-    "ownedOnly": false,
-    "mentionsOwned": true
+    "ownedOnly": true,
+    "mentionsOwned": true,
+    "disposition": "Stage 1 distinct campaign rewards and stored stars/mastery"
   },
   {
     "id": "R5-252",
@@ -550,8 +1101,19 @@
     "editPaths": [
       "src/hub/lobby.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-253",
+    "title": "**R5-253 | P2 | observatory | clarity | Observatory: absurd readouts \"S/N −180.0 dB\" and \"Tone level 0%\" with TONE ● lit when the gust lays the whip flat**",
+    "paths": [
+      "src/stations/observatory/logic.ts",
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-254",
@@ -575,7 +1137,18 @@
       "src/ui/screens.ts"
     ],
     "ownedOnly": true,
-    "mentionsOwned": true
+    "mentionsOwned": true,
+    "disposition": "Stage 1 work-based Rush row and served best"
+  },
+  {
+    "id": "R5-256",
+    "title": "**R5-256 | P2 | arcade | clarity | 'PLAY TEST PASSED ✓' and sign-off for out-of-band setups contradicts the card's ask and the 'too dim' note**",
+    "paths": [
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-257",
@@ -597,6 +1170,56 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-258",
+    "title": "**R5-258 | P2 | meeting | clarity | Pip blends into the blue coworkers and the blue meeting carpet at the game camera**",
+    "paths": [
+      "src/render/kit.ts",
+      "src/levels/lunch.ts",
+      "src/levels/meeting.ts",
+      "tools/create_assets.py"
+    ],
+    "editPaths": [
+      "src/render/kit.ts",
+      "src/levels/lunch.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-259",
+    "title": "**R5-259 | P2 | lunch | clarity | Inline capacitor docking works but its lead to the winch is unreadable at the game camera**",
+    "paths": [
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-260",
+    "title": "**R5-260 | P2 | global | clarity | Cable-wrap knock spams 6–10 times a second while dragging or after a slingshot**",
+    "paths": [
+      "src/game.ts",
+      "src/render/audio.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-261",
+    "title": "**R5-261 | P2 | global | clarity | Placing any part on a bench plays the full 'plug seated' success chime, even a wrong part that will trip the fuse**",
+    "paths": [
+      "src/render/audio.ts",
+      "src/stations/arcade/station.ts",
+      "src/stations/garage/station.ts",
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-262",
     "title": "**R5-262 | P2 | playground | clarity | A plug dropped near the lamp switch is hidden behind the switch prompt: the card and marker say 'pick up the plug', the pill says 'E Switch on (needs power first)'**",
     "paths": [
@@ -606,8 +1229,18 @@
     "editPaths": [
       "src/ui/objectives.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-263",
+    "title": "**R5-263 | P2 | lunch | clarity | Capacitor-cart dock prompt lags the real dock zone: 'Push the capacitor cart' shows while the cart is already inside the 2 m dock, and nothing in the world marks the dock**",
+    "paths": [
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-264",
@@ -643,8 +1276,29 @@
       "src/ui/ui.css"
     ],
     "editPaths": [],
+    "ownedOnly": true,
+    "mentionsOwned": true,
+    "disposition": "Stages 1–2 ungraded practice and readable badge"
+  },
+  {
+    "id": "R5-267",
+    "title": "**R5-267 | P2 | garage | clarity | Prompt says 'E Work at the bench' before the robot is on the stand, contradicting the card**",
+    "paths": [
+      "src/stations/garage/station.ts"
+    ],
+    "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-268",
+    "title": "**R5-268 | P2 | garage | clarity | TEST's five cycle lamps are hidden behind the PULSE/TEST buttons at the bench camera**",
+    "paths": [
+      "src/stations/garage/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-269",
@@ -657,6 +1311,16 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-270",
+    "title": "**R5-270 | P2 | garage | clarity | Job 3 prompt says '1–5 Change the parts' when the fix is the ground lever (G), not a part**",
+    "paths": [
+      "src/stations/garage/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-271",
@@ -692,7 +1356,7 @@
     "editPaths": [
       "src/ui/game-ui.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
   },
   {
@@ -709,6 +1373,17 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-275",
+    "title": "**R5-275 | P2 | lunch | clarity | A clean, careful run already shows '2 broken': placing the tray and pushing the capacitor cart count as damage**",
+    "paths": [
+      "src/lunch-runtime.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-276",
     "title": "**R5-276 | P2 | lunch | clarity | The winch says 'E Switch the lift on' while nothing feeds it**",
     "paths": [
@@ -718,6 +1393,16 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-277",
+    "title": "**R5-277 | P2 | lunch | clarity | The kitchen lamp's cord looks exactly like a thin job cable, is permanently plugged into the feed post, and stretches infinitely**",
+    "paths": [
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-278",
@@ -768,6 +1453,17 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-282",
+    "title": "**R5-282 | P2 | observatory | clarity | The gust that knocks the whip flat happens indoors on the bench, and its dust reads as snowballs; the polarisation cause is not readable**",
+    "paths": [
+      "src/stations/observatory/station.ts",
+      "src/stations/observatory/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-283",
     "title": "**R5-283 | P2 | playground | clarity | The job item (the plug) starts hidden under Pip's feet, so the first frame shows no goal**",
     "paths": [
@@ -808,6 +1504,73 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-286",
+    "title": "**R5-286 | P2 | global | clarity | Prop gallery tool hides the coupler behind the vending machine and floats labels away from their props**",
+    "paths": [
+      "tools/gallery/gallery.ts",
+      "tools/props-gallery/gal.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-287",
+    "title": "**R5-287 | P2 | qfn | clarity | Decoupling 'current bursts' read as five static white blobs, and the loop glow is barely visible**",
+    "paths": [
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-288",
+    "title": "**R5-288 | P2 | qfn | clarity | While dropping thermal vias, the chip turns into a pink see-through wash under a pulsing glow; once dropped, the vias are hidden under the opaque body**",
+    "paths": [
+      "src/stations/qfn/station.ts",
+      "src/render/kit.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-289",
+    "title": "**R5-289 | P2 | qfn | clarity | Asks, the job card and a wall poster print the method ('two caps hug their pins', 'Use layer 2 and vias', 'cap beside the pins'), so the decoupling and layer-2 ideas are read, not discovered**",
+    "paths": [
+      "src/stations/qfn/logic.ts",
+      "src/stations/qfn/station.ts",
+      "src/stations/qfn/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-290",
+    "title": "**R5-290 | P2 | qfn | clarity | Notes refer to 'U1 pin 1/U1 pin 2' and 'U1 pin 8/U1 pin 7', but the chip shows only net names, never pin numbers**",
+    "paths": [
+      "src/stations/qfn/logic.ts",
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-291",
+    "title": "**R5-291 | P2 | spectrum | clarity | White clutter crates beside the storeroom pad look like the white RX pod**",
+    "paths": [
+      "src/levels/spectrum.ts",
+      "src/props/prefabs.ts",
+      "src/stations/spectrum/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-292",
     "title": "**R5-292 | P2 | global, meeting, arcade, observatory, playground | overlap | Start-of-level interpenetrations: g.audit finds overlaps in 6 of 9 levels (51 in the Meeting; beanbags in paper, cabinets in boxes, monitors in paper)**",
     "paths": [
@@ -821,7 +1584,20 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-293",
+    "title": "**R5-293 | P2 | global, arcade | overlap | Every prop gets a cuboid collider and models overhang it by up to 19 cm: round props rest on corners, reels and bins cannot roll**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/clutter.ts",
+      "src/props/prefabs.ts",
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-294",
@@ -835,6 +1611,57 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-295",
+    "title": "**R5-295 | P2 | arcade | overlap | Claw machine tell overlaps its own cabinet: the glass case swallows the deck and hides the screen, so two machines are merged into one muddy silhouette**",
+    "paths": [
+      "src/stations/arcade/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-296",
+    "title": "**R5-296 | P2 | arcade | overlap | LED BASICS teaching poster is half hidden behind the prize shelf; the R = (V − Vf) / I strip is covered by the prize balls**",
+    "paths": [
+      "src/stations/arcade/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-297",
+    "title": "**R5-297 | P2 | meeting | overlap | Interior walls stop thrown props in mid-air 1.25 m above their visible top**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/levels/lunch.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-298",
+    "title": "**R5-298 | P2 | garage | overlap | Rolling road is four short stubs that read as tombstones; the bench harness ends inside the robot's wheel**",
+    "paths": [
+      "src/stations/garage/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-299",
+    "title": "**R5-299 | P2 | garage | overlap | Parcel shelves have posts only at the front: boards and boxes cantilever with nothing at the back**",
+    "paths": [
+      "src/stations/garage/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-300",
     "title": "**R5-300 | P2 | lobby | overlap | Directory board: rows overlap by 11.5 cm and z-fight, it floats with no stand, reads in zig-zag order, and shrinks the text unevenly**",
     "paths": [
@@ -844,8 +1671,74 @@
     "editPaths": [
       "src/hub/lobby.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-301",
+    "title": "**R5-301 | P2 | lunch | overlap | Power-room wall rack: an upright runs through two stock crates, the crates overhang the plank front, the rack has no collider, and it is built twice**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/lunch-runtime.ts"
+    ],
+    "editPaths": [
+      "src/lunch-runtime.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-302",
+    "title": "**R5-302 | P2 | lunch | overlap | Corridor and dining furniture have no colliders: Pip walks into the benches and plants, the bench blobs stand inside the benches, and the pink blob is inside a dining chair**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/levels/lunch.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-303",
+    "title": "**R5-303 | P2 | meeting | overlap | A potted plant sits inside the decor box stack at (7.8, 9.2), and decor box stacks have no colliders, so the audit can't see them (M2 class, new spot)**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/levels/meeting.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-304",
+    "title": "**R5-304 | P2 | meeting | overlap | Desk dressing collides with itself: the desk cable tail runs through the drawer pedestal, and the mug sits inside the desk-lamp base**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/levels/meeting.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-305",
+    "title": "**R5-305 | P2 | observatory | overlap | Laid-flat 1.5 m whip pushes into the scope cabinet; the route lever covers the '1.5 m' rack label**",
+    "paths": [
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-306",
+    "title": "**R5-306 | P2 | observatory | overlap | Telescope tube pokes through the dome shell; no slit; fork arms don't touch the tube**",
+    "paths": [
+      "src/stations/observatory/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-307",
@@ -857,7 +1750,98 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-308",
+    "title": "**R5-308 | P2 | meeting | overlap | Sofa floats 12.5 cm off the floor with no feet, and its seat is one slab**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/levels/meeting.ts"
+    ],
+    "editPaths": [
+      "src/props/prefabs.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-309",
+    "title": "**R5-309 | P2 | qfn | overlap | AOI monitor is sunk 12.5 cm into the machine's top box with no stand; the pick-and-place gantry pokes through its glass hood; feeder reels are buried in the PnP body**",
+    "paths": [
+      "src/stations/qfn/room.ts",
+      "src/render/kit.ts",
+      "src/levels/dressing.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-310",
+    "title": "**R5-310 | P2 | spectrum | overlap | Rainbow floor stripes run under the pod-dock rug and the win glow strips double up on them**",
+    "paths": [
+      "src/stations/spectrum/room.ts",
+      "src/levels/dressing.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-311",
+    "title": "**R5-311 | P2 | arcade, garage, observatory, spectrum, qfn | visual-bug | Floating single-sided sign planes vanish from behind or hover off walls (Arcade STOREROOM, Garage TEST STAND, ROOF RECEIVER, Spectrum signs, QFN STOCK)**",
+    "paths": [
+      "src/stations/spectrum/room.ts",
+      "src/stations/arcade/room.ts",
+      "src/render/kit.ts",
+      "src/stations/garage/room.ts",
+      "src/stations/observatory/room.ts",
+      "src/stations/qfn/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-312",
+    "title": "**R5-312 | P2 | global, qfn, observatory, spectrum, garage | visual-bug | Clutter is parked against showpieces and intrudes into bench views (QFN machines, Observatory gallery, Spectrum ladder, Garage test stand)**",
+    "paths": [
+      "src/stations/spectrum/room.ts",
+      "src/levels/clutter.ts",
+      "src/levels/observatory.ts",
+      "src/levels/garage.ts",
+      "src/levels/qfn.ts",
+      "src/stations/observatory/room.ts"
+    ],
+    "editPaths": [
+      "src/levels/qfn.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-313",
+    "title": "**R5-313 | P2 | global, playground, lobby | visual-bug | Sprint and footstep dust are opaque outlined toon spheres up to 1.2 m: a sprint leaves a trail of snowballs / hollow ink rings**",
+    "paths": [
+      "src/render/particles.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-314",
+    "title": "**R5-314 | P2 | meeting | visual-bug | Coffee and kettle steam are stacked hard-edged grey balls / 1.5 m ghost discs (M7 regression)**",
+    "paths": [
+      "src/render/particles.ts",
+      "src/game.ts",
+      "src/meeting-strip.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-315",
@@ -885,14 +1869,95 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-317",
+    "title": "**R5-317 | P2 | lunch, playground | visual-bug | Posters collide with windows and each other (graph poster over a window mullion, plant poster on the store window)**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/levels/dressing.ts"
+    ],
+    "editPaths": [
+      "src/levels/decor.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-318",
+    "title": "**R5-318 | P2 | qfn | visual-bug | QFN: REGRESSION (R3A N7) — the reference J1 placement covers the board title plate**",
+    "paths": [
+      "src/stations/qfn/station.ts",
+      "src/stations/qfn/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-319",
+    "title": "**R5-319 | P2 | arcade | visual-bug | Handheld tell is a giant Game Boy hovering 12 cm in front of the cabinet with no bracket, covering the cabinet screen**",
+    "paths": [
+      "src/stations/arcade/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-320",
+    "title": "**R5-320 | P2 | arcade-rush | visual-bug | Back-wall cabinets light by index % 5 from the story jobs, and every rush sign-off stacks another glow and confetti burst on them**",
+    "paths": [
+      "src/stations/arcade/station.ts",
+      "src/stations/arcade/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-321",
+    "title": "**R5-321 | P2 | global | visual-bug | The cable passes straight through the box or shelf Pip presses the plug against**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/clutter.ts",
+      "src/props/prefabs.ts",
+      "src/levels/playground.ts",
+      "src/sim/cable.test.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-322",
+    "title": "**R5-322 | P2 | global | visual-bug | Orbiting toward the open front, or spawning near it, frames large areas of void (up to 48% of the start frame)**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-323",
+    "title": "**R5-323 | P2 | global | visual-bug | Occluder fade speed depends on frame rate: 0.22 s at 60 fps and 0.44 s at 30 fps, and depthWrite pops at 0.8**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-324",
     "title": "**R5-324 | P2 | global | visual-bug | Overstretch pull pose swings the plug over the shoulder into the helmet**",
     "paths": [
       "src/render/pipRig.ts"
     ],
     "editPaths": [],
-    "ownedOnly": false,
-    "mentionsOwned": true
+    "ownedOnly": true,
+    "mentionsOwned": true,
+    "disposition": "Models merge and Stage 3 retain low two-handed haul"
   },
   {
     "id": "R5-325",
@@ -908,6 +1973,29 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-326",
+    "title": "**R5-326 | P2 | global | visual-bug | Respawn feedback is one-sided: items vanish silently from where they were stuck, and falls out of the room respawn with no puff at all**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/decor.ts"
+    ],
+    "editPaths": [
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-327",
+    "title": "**R5-327 | P2 | global | visual-bug | The impact's own dust cloud covers the startled coworker**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-328",
     "title": "**R5-328 | P2 | lobby | visual-bug | Seen at a grazing angle, the open portal reads as a shallow orange closet, and the destination view vanishes**",
     "paths": [
@@ -917,6 +2005,81 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-329",
+    "title": "**R5-329 | P2 | meeting | visual-bug | Fire extinguishers float: the pillar ones hang 22 cm off the floor with no bracket, and the spawn one stands 5 cm in the air**",
+    "paths": [
+      "src/levels/decor.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-330",
+    "title": "**R5-330 | P2 | observatory | visual-bug | Shared toon material mutated to DoubleSide by the dish exhibit**",
+    "paths": [
+      "src/stations/observatory/room.ts",
+      "src/render/toon.ts",
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-331",
+    "title": "**R5-331 | P2 | qfn | visual-bug | Crane hazard bars stick out 5 mm above and below the beam and sit only on its front face, so they read as black teeth from above and the back is plain**",
+    "paths": [
+      "src/stations/qfn/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-332",
+    "title": "**R5-332 | P2 | qfn | visual-bug | The ratsnest draws dashed lines to invisible parts before the crate arrives, and doesn't follow a part being dragged**",
+    "paths": [
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-333",
+    "title": "**R5-333 | P2 | qfn | visual-bug | New-board parts drop from 0.6–0.9 m and look like they're floating over the room; the ship toast describes the board that just left**",
+    "paths": [
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-334",
+    "title": "**R5-334 | P2 | spectrum | visual-bug | Toaster smoke is a flat white veil that washes out Pip and the tea coworker, hides its own toaster, and reads as a glow from low angles**",
+    "paths": [
+      "src/stations/spectrum/room.ts",
+      "src/stations/spectrum/station.ts",
+      "src/stations/spectrum/logic.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-335",
+    "title": "**R5-335 | P2 | spectrum | visual-bug | REGRESSION / still open (R3B N4): the transmitter tower's black base and turret arm cut into the right end of the bench view, crowding SEND**",
+    "paths": [
+      "src/stations/spectrum/logic.ts",
+      "src/stations/spectrum/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-336",
@@ -951,12 +2114,14 @@
     "id": "R5-337",
     "title": "**R5-337 | P2 | global, lunch, playground, qfn | model-detail | Pip's hard-hat ridge reads as a fin or cat ears, with grey plinth soles (DR-64 / F9 still open)**",
     "paths": [
+      "public/models/pip.glb",
+      "tools/create_assets.py",
       "src/render/pipRig.ts"
     ],
     "editPaths": [
       "src/render/pipRig.ts"
     ],
-    "ownedOnly": true,
+    "ownedOnly": false,
     "mentionsOwned": true
   },
   {
@@ -974,6 +2139,38 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-339",
+    "title": "**R5-339 | P2 | global, observatory, qfn | model-detail | Bookshelves are tinted accent colours and filled with uniform saturated candy-block books that poke above the frame**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/levels/clutter.ts",
+      "src/levels/observatory.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-340",
+    "title": "**R5-340 | P2 | arcade | model-detail | Arcade: the serviced cabinet's ribbon cable stops in mid-air on the bench as a loose purple stub, short of the board**",
+    "paths": [
+      "src/stations/arcade/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-341",
+    "title": "**R5-341 | P2 | lunch | model-detail | Wedge and cable bridge are unbevelled knife-edge extrusions with no ink outline and no functional cues**",
+    "paths": [
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-342",
     "title": "**R5-342 | P2 | global, meeting | model-detail | Gameplay parts are 2–4× real size (plug 0.42 m, strip 0.9 m, mugs as tall as a monitor stand)**",
     "paths": [
@@ -983,7 +2180,84 @@
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-343",
+    "title": "**R5-343 | P2 | lunch, global | model-detail | Capacitor cart, power strip and reel lack the electrical cues that make them read as what they teach (cart reads as paint cans, no inlet)**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/lunch-runtime.ts",
+      "src/render/kit.ts",
+      "src/meeting-strip.ts",
+      "src/levels/lunch.ts"
+    ],
+    "editPaths": [
+      "src/meeting-strip.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-344",
+    "title": "**R5-344 | P2 | global, garage | model-detail | Floor lamps read as unlit mushrooms or yellow pennant flags (open zero-thickness shade, no bulb, no cord)**",
+    "paths": [
+      "src/props/prefabs.ts",
+      "src/levels/observatory.ts",
+      "src/stations/garage/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-345",
+    "title": "**R5-345 | P2 | arcade | model-detail | Pinball tell reads as a side table with three knobs, not a pinball machine; an office chair is parked in front of it**",
+    "paths": [
+      "src/stations/arcade/room.ts",
+      "src/levels/arcade.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-346",
+    "title": "**R5-346 | P2 | arcade | model-detail | Change machine and prize shelf are minimum-detail slabs (one 1.2 m² flat face with two decals; a cream box with balls)**",
+    "paths": [
+      "src/stations/arcade/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-347",
+    "title": "**R5-347 | P2 | arcade | model-detail | Players' 'stools' are office task chairs with five-star caster bases, parked in front of every cabinet**",
+    "paths": [
+      "src/levels/arcade.ts",
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-348",
+    "title": "**R5-348 | P2 | lunch | model-detail | Coworkers only sit in the Meeting; the Lunch crowd stands beside empty benches, and the chef faces away**",
+    "paths": [
+      "src/game.ts",
+      "src/levels/lunch.ts",
+      "src/levels/decor.ts",
+      "src/levels/types.ts"
+    ],
+    "editPaths": [
+      "src/levels/decor.ts",
+      "src/levels/types.ts",
+      "src/game.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-349",
@@ -995,6 +2269,26 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-350",
+    "title": "**R5-350 | P2 | global | model-detail | Pip's back is a blank blue egg, and the default camera shows his back most of the time**",
+    "paths": [
+      "tools/create_assets.py"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-351",
+    "title": "**R5-351 | P2 | global | model-detail | Big rounded boxes are bevelled at 2.5–4.4% of their size (2 cm cap), so cabinets, vending, printers and crates read as sharp slabs**",
+    "paths": [
+      "src/render/kit.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-352",
@@ -1013,6 +2307,91 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-353",
+    "title": "**R5-353 | P2 | garage | model-detail | Wall chargers are blank cream plaques with no cable or plug: they read as paper notices**",
+    "paths": [
+      "src/stations/garage/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-354",
+    "title": "**R5-354 | P2 | lunch | model-detail | Dining chairs float on a single stalk with no foot, and the corridor plants use a different model from the prop plants**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-355",
+    "title": "**R5-355 | P2 | meeting | model-detail | Boardroom appliances: the kettle reads as a toilet roll, the cords are short black stubs, and the 'on' glow parts are likely frozen out of the scene**",
+    "paths": [
+      "src/meeting-strip.ts",
+      "src/render/kit.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-356",
+    "title": "**R5-356 | P2 | meeting | model-detail | The payoff hardware is the plainest in the room: the projector is a box with a lens, and the socket box has sharp corners**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-357",
+    "title": "**R5-357 | P2 | meeting | model-detail | Lounge furniture is placeholder-grade: an office desk with keyboard as the coffee table, a flat green ping-pong slab, a plain sofa and over-tall book blocks**",
+    "paths": [
+      "src/levels/meeting.ts",
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-358",
+    "title": "**R5-358 | P2 | observatory | model-detail | Exhibit models read wrong: the dish is a salad bowl, the prism a grey can with a floating rainbow flag**",
+    "paths": [
+      "src/stations/observatory/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-359",
+    "title": "**R5-359 | P2 | observatory | model-detail | Motor reads as a red cable reel, not a noisy motor**",
+    "paths": [
+      "src/stations/observatory/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-360",
+    "title": "**R5-360 | P2 | playground | model-detail | The spool's remaining length can't be read at the game camera; the reel has no stand and sinks into its base**",
+    "paths": [
+      "src/game.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-361",
     "title": "**R5-361 | P2 | playground | model-detail | The cable is a 20 cm fire hose as thick as the plug, and pale when slack**",
     "paths": [
@@ -1023,6 +2402,49 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-362",
+    "title": "**R5-362 | P2 | playground | model-detail | Pallets overlap each other and are flat slabs; cage reels float; cooler and plant pots have too few cues**",
+    "paths": [
+      "src/levels/decor.ts",
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-363",
+    "title": "**R5-363 | P2 | qfn | model-detail | The three signature fab machines don't read as fab machines: the pick-and-place looks like a yellow gate over a table, the reflow oven like a lavender sideboard, the AOI like a photocopier**",
+    "paths": [
+      "src/stations/qfn/room.ts"
+    ],
+    "editPaths": [
+      "src/stations/qfn/room.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-364",
+    "title": "**R5-364 | P2 | qfn | model-detail | Stock-shelf bins are closed rounded blocks that read as soap bars; the shelf has no frame or back, so the 'STOCK' corner lacks identity**",
+    "paths": [
+      "src/stations/qfn/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-365",
+    "title": "**R5-365 | P2 | qfn | model-detail | Bench part models: locked connector end caps are plain job yellow (the code comment says striped), and in the layer-2 x-ray the pin tags float at full opacity over a 28% chip**",
+    "paths": [
+      "src/stations/qfn/station.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-366",
@@ -1041,15 +2463,58 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-367",
+    "title": "**R5-367 | P2 | qfn | model-detail | The board rack at (9.9, 0.2) is a solid cream block: its seven board shelves are modelled inside the box, so it reads as a fridge**",
+    "paths": [
+      "src/stations/qfn/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-368",
+    "title": "**R5-368 | P2 | spectrum | model-detail | Transmitter tower: the colour band rings are buried inside the mast; the silhouette reads as a glove on a stick**",
+    "paths": [
+      "src/stations/spectrum/station.ts",
+      "src/render/kit.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-369",
+    "title": "**R5-369 | P2 | spectrum | model-detail | Pod reads as an arcade joystick, and its lid handle runs into the mast plate**",
+    "paths": [
+      "src/stations/spectrum/station.ts",
+      "src/props/prefabs.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-370",
+    "title": "**R5-370 | P2 | spectrum | model-detail | Storeroom shelf stock reads as bread loaves: identical rounded blocks with no box cues**",
+    "paths": [
+      "src/stations/spectrum/room.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-371",
     "title": "**R5-371 | P2 | arcade, global | art-style | The Arcade play-tester is still a realistic peg-person human kid in a world of Pip plus blobs (DR-60)**",
     "paths": [
       "src/stations/arcade/station.ts",
-      "tests/station-arcade.spec.ts"
+      "tests/station-arcade.spec.ts",
+      "tools/create_assets.py"
     ],
     "editPaths": [],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   },
   {
     "id": "R5-372",
@@ -1068,6 +2533,18 @@
     "mentionsOwned": true
   },
   {
+    "id": "R5-373",
+    "title": "**R5-373 | P2 | arcade | art-style | Lighting is over budget: 6 point lights at start (+1 on lightUp) and a neon glow sprite that grows to 8 m**",
+    "paths": [
+      "src/stations/arcade/room.ts",
+      "src/stations/arcade/station.ts",
+      "src/levels/dressing.ts"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
     "id": "R5-374",
     "title": "**R5-374 | P2 | global | art-style | A cable at rest is cream on a cream floor, less saturated than the floor; yellow strain is lost on Lunch's wood**",
     "paths": [
@@ -1079,6 +2556,29 @@
     "editPaths": [],
     "ownedOnly": false,
     "mentionsOwned": true
+  },
+  {
+    "id": "R5-375",
+    "title": "**R5-375 | P2 | global | art-style | Pip's outline is thin and light: luma about 106, 1–2 px, even at zoom 9**",
+    "paths": [
+      "src/render/toon.ts"
+    ],
+    "editPaths": [
+      "src/render/toon.ts"
+    ],
+    "ownedOnly": false,
+    "mentionsOwned": false
+  },
+  {
+    "id": "R5-376",
+    "title": "**R5-376 | P2 | global | art-style | Neither toon ramp shows 3 bands: a white sphere spans only 13–25 luma, and from the game camera the lit side uses only the top of the ramp**",
+    "paths": [
+      "src/render/toon.ts",
+      "tools/toon-pipeline/plateaus.py"
+    ],
+    "editPaths": [],
+    "ownedOnly": false,
+    "mentionsOwned": false
   },
   {
     "id": "R5-377",
@@ -1102,79 +2602,13 @@
     "paths": [
       "src/stations/spectrum/room.ts",
       "src/game.ts",
-      "src/render/kit.ts",
-      "tests/*.spec.ts",
-      "tests/navigation.ts",
-      "src/ui/ui.css",
-      "src/stations/*/station.ts",
-      "src/levels/meeting.ts",
-      "src/levels/decor.ts",
-      "src/lunch-runtime.ts",
-      "tests/phone-bench.spec.ts",
-      "tests/respawn.spec.ts",
-      "src/ui/game-ui.ts",
-      "src/ui/screens.ts",
-      "src/stations/garage/station.ts",
-      "src/stations/arcade/station.ts",
-      "src/hub/lobby.ts",
-      "src/render/audio.ts",
-      "src/stations/*/room.ts",
-      "src/levels/clutter.ts",
-      "src/stations/shared.ts",
-      "src/render/particles.ts",
-      "src/meeting-strip.ts",
-      "src/sim/grade.ts",
-      "src/levels/*.ts",
-      "src/ui/store.ts",
-      "src/ui/objectives.ts",
-      "src/ui/lunch-hud.ts",
-      "src/sim/cable.ts",
-      "src/render/actors.ts",
-      "src/render/pipRig.ts",
-      "src/props/prefabs.ts",
-      "tests/cable*.spec.ts",
-      "src/render/toon.ts",
-      "src/render/post.ts",
-      "src/levels/dressing.ts",
-      "src/levels/lobby.ts",
-      "src/render/portal.ts",
-      "tests/lobby*.spec.ts",
-      "src/levels/playground.ts",
-      "tests/playground*.spec.ts",
-      "tests/meeting*.spec.ts",
-      "src/sim/lunch.ts",
-      "src/sim/electrical.ts",
-      "src/levels/lunch.ts",
-      "tests/lunch*.spec.ts",
-      "src/stations/arcade/logic.ts",
-      "src/stations/arcade/room.ts",
-      "src/levels/arcade.ts",
-      "tests/station-arcade*.spec.ts",
-      "src/stations/garage/logic.ts",
-      "src/stations/garage/room.ts",
-      "src/levels/garage.ts",
-      "tests/station-garage.spec.ts",
-      "src/stations/qfn/station.ts",
-      "src/stations/qfn/logic.ts",
-      "src/stations/qfn/room.ts",
-      "src/levels/qfn.ts",
-      "tests/station-qfn*.spec.ts",
-      "src/stations/observatory/station.ts",
-      "src/stations/observatory/logic.ts",
-      "src/stations/observatory/room.ts",
-      "src/levels/observatory.ts",
-      "tests/station-observatory*.spec.ts",
-      "src/stations/spectrum/station.ts",
-      "src/stations/spectrum/logic.ts",
-      "src/levels/spectrum.ts",
-      "tests/station-spectrum*.spec.ts",
-      "src/sim/electrical.test.ts"
+      "src/render/kit.ts"
     ],
     "editPaths": [
       "src/render/kit.ts",
       "src/game.ts"
     ],
     "ownedOnly": false,
-    "mentionsOwned": true
+    "mentionsOwned": false
   }
 ]

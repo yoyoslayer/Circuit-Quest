@@ -1,0 +1,272 @@
+
+[WebServer] (node:19072) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 30 tests using 1 worker
+
+
+(node:38348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/30] tests\astra-animation.spec.ts:2:1 › coworker faces track Pip in the full toon renderer without extra child meshes
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[WebServer] 
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+
+[2/30] tests\astra-bench-budget.spec.ts:23:71 › arcade: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  1) tests\astra-bench-budget.spec.ts:23:71 › arcade: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    32
+
+      31 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      32 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 33 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      34 | });
+      35 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:33:106
+
+    Error Context: test-results\astra\astra-bench-budget-arcade--04684-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:19704) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[3/30] tests\astra-bench-budget.spec.ts:23:71 › garage: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  2) tests\astra-bench-budget.spec.ts:23:71 › garage: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    34
+
+      31 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      32 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 33 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      34 | });
+      35 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:33:106
+
+    Error Context: test-results\astra\astra-bench-budget-garage--b28b4-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:20024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[4/30] tests\astra-bench-budget.spec.ts:23:71 › qfn: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  3) tests\astra-bench-budget.spec.ts:23:71 › qfn: clean-route task names and shared bench word budget 
+
+    Error: Walk stuck toward -8.8,2.95 at {"x":2.3450608253479004,"y":0.7698392271995544,"z":-3.2450995445251465}: {"quality":0,"level":"qfn","running":true,"paused":false,"won":false,"player":{"x":2.3450608253479004,"y":0.7698392271995544,"z":-3.2450995445251465},"props":109,"items":[{"id":"parts","pos":{"x":-8.797571182250977,"y":0.2748580574989319,"z":2.2014033794403076},"visible":true}],"holdingPlug":false,"connected":true,"benchLive":true,"rope":{"length":10.476381153038176,"maxLength":12,"bends":[{"x":8.019999809265137,"z":-3.4300000953674314}],"strain":0.8730317627531813},"time":9.333333333333377,"damage":0,"cost":0,"fps":60,"drawCalls":591,"electrical":"on","station":{"tossed":false,"board":0,"boardId":"sensor","partsReady":false,"viaArmed":false,"layer":1,"design":{"place":{"U1":{"at":[6,4],"rot":0},"J1":{"at":[10,1],"rot":1,"flip":true},"R1":{"at":[1,1],"rot":1},"C1":{"at":[10,7],"rot":0}},"traces":[],"vias":[]},"report":{"tier":0,"problems":["J1 must sit on a board edge with its mouth facing out, or the cable can't plug in.","VDD is not connected: 3 separate pieces (1 of 3 pads joined).","GND is not connected: 3 separate pieces (1 of 3 pads joined).","OUT is not connected: 2 separate pieces (1 of 2 pads joined).","SIG is not connected: 2 separate pieces (1 of 2 pads joined)."],"notes":[],"cost":0,"par":22,"nets":[{"net":"VDD","pads":3,"joined":1,"done":false},{"net":"GND","pads":3,"joined":1,"done":false},{"net":"OUT","pads":2,"joined":1,"done":false},{"net":"SIG","pads":2,"joined":1,"done":false}],"loops":[]},"shipped":[],"mistakes":0,"spent":0,"checks":0,"testing":false,"hoverBody":null,"drag":null,"rings":0},"atBench":false,"alarmed":0,"npcs":[{"seated":false,"y":0,"x":-4.6,"z":-5.6},{"seated":false,"y":0,"x":4.6,"z":-5.6},{"seated":false,"y":0,"x":6.6,"z":5.6},{"seated":false,"y":0,"x":-6.8,"z":0.6}],"stripPlaced":true,"switchedOn":false,"pose":{"arms":[0.03,-0.07],"legs":[0.02,-0.02],"torso":0.02,"grounded":true,"airborne":0},"profile":{"step":0.002316456703084951,"render":-1.66639354224051,"draw":67.64461348389047},"fastestProp":0.07397658705761458,"lampLit":false,"hitstops":1,"beats":[{"t":4.72,"kind":"spark"}],"failAt":null}
+
+       at navigation.ts:13
+
+      11 | export async function walk(page:Page,x:number,z:number,radius=.5,limit=40){
+      12 |   const result=await page.evaluate(([x,z,r,l])=>(window as any).__circuitCrew.drive.walkTo(x,z,r,l),[x,z,radius,limit] as const);
+    > 13 |   if(!result.arrived)throw new Error(`Walk stuck toward ${x},${z} at ${JSON.stringify(result.state.player)}: ${JSON.stringify(result.state)}`);
+         |                            ^
+      14 |   return result.state;
+      15 | }
+      16 | export async function route(page:Page,points:[number,number][],radius=.5){for(const [x,z] of points)await walk(page,x,z,radius);}
+        at walk (C:\Users\yousi\Circuit-Quest-astra\tests\navigation.ts:13:28)
+        at prepare (C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:15:3)
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:24:2
+
+    Error Context: test-results\astra\astra-bench-budget-qfn-cle-93b7d-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:8432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[5/30] tests\astra-bench-budget.spec.ts:23:71 › observatory: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  4) tests\astra-bench-budget.spec.ts:23:71 › observatory: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    69
+
+      31 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      32 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 33 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      34 | });
+      35 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:33:106
+
+    Error Context: test-results\astra\astra-bench-budget-observa-e5d96-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:27208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[6/30] tests\astra-bench-budget.spec.ts:23:71 › spectrum: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  5) tests\astra-bench-budget.spec.ts:23:71 › spectrum: clean-route task names and shared bench word budget 
+
+    Error: Walk stuck toward -3.3,1.15 at {"x":-3.303863525390625,"y":0.7699732184410095,"z":3.5950798988342285}: {"quality":0,"level":"spectrum","running":true,"paused":false,"won":false,"player":{"x":-3.303863525390625,"y":0.7699732184410095,"z":3.5950798988342285},"props":76,"items":[{"id":"pod","pos":{"x":-5.948212623596191,"y":0.2748471796512604,"z":5.171719551086426},"visible":true},{"id":"mirror1","pos":{"x":-3.398209571838379,"y":0.8249220848083496,"z":-5.498040676116943},"visible":true},{"id":"mirror2","pos":{"x":-0.8982091546058655,"y":0.8249220252037048,"z":-5.498039245605469},"visible":true}],"holdingPlug":false,"connected":false,"benchLive":false,"rope":{"length":0.7280109889280517,"maxLength":11,"bends":[],"strain":0.06618281717527742},"time":4.316666666666657,"damage":0,"cost":0,"fps":60,"drawCalls":770,"electrical":"off","station":{"toasterDown":false,"smoke":1.3,"job":0,"delivered":[],"band":"vis","detector":"visdiode","power":1,"hatchOpen":false,"podPad":null,"mirrors":[],"mistakes":0,"spent":0,"aim":{"tx":-2.3751,"mirrors":{}},"doors":{},"revealed":false,"holding":false,"reading":{"margin":null,"blocked":"brick","missed":false,"spots":[],"detectorOk":true,"podOk":false}},"atBench":false,"alarmed":0,"npcs":[{"seated":false,"y":0,"x":-9.8,"z":-6.6},{"seated":false,"y":0,"x":3.4,"z":-4.7},{"seated":false,"y":0,"x":6.3,"z":5.5},{"seated":false,"y":0,"x":3.8,"z":5.7}],"stripPlaced":true,"switchedOn":false,"pose":{"arms":[0.15,-0.15],"legs":[-0.22,0.22],"torso":0.04,"grounded":true,"airborne":0},"profile":{"step":0.003868905609918759,"render":3.0596276332662944,"draw":6.538641083613019},"fastestProp":0.09361218291768239,"lampLit":false,"hitstops":0,"beats":[],"failAt":null}
+
+       at navigation.ts:13
+
+      11 | export async function walk(page:Page,x:number,z:number,radius=.5,limit=40){
+      12 |   const result=await page.evaluate(([x,z,r,l])=>(window as any).__circuitCrew.drive.walkTo(x,z,r,l),[x,z,radius,limit] as const);
+    > 13 |   if(!result.arrived)throw new Error(`Walk stuck toward ${x},${z} at ${JSON.stringify(result.state.player)}: ${JSON.stringify(result.state)}`);
+         |                            ^
+      14 |   return result.state;
+      15 | }
+      16 | export async function route(page:Page,points:[number,number][],radius=.5){for(const [x,z] of points)await walk(page,x,z,radius);}
+        at walk (C:\Users\yousi\Circuit-Quest-astra\tests\navigation.ts:13:28)
+        at plugBench (C:\Users\yousi\Circuit-Quest-astra\tests\station-lead.ts:12:3)
+        at prepare (C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:8:2)
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:24:2
+
+    Error Context: test-results\astra\astra-bench-budget-spectru-f9ffb-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:29796) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[7/30] tests\astra-cable-prompts.spec.ts:8:1 › Meeting clean route keeps the strip and cable targets clear through the overload recovery
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[8/30] tests\astra-cable-prompts.spec.ts:22:1 › Lunch clean route names the fridge, kitchen feed, tray and conveyor at their interactions
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[9/30] tests\astra-chaos.spec.ts:10:1 › single-reel chaos shortcut still finishes after stretching through the office
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[10/30] tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  6) tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A ───────────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.result-screen')
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('.result-screen') with timeout 15000ms
+      - waiting for locator('.result-screen')
+
+
+      3 | test('R5-078: an idle Rush shift records D, never A',async({page})=>{
+      4 |  test.setTimeout(120000);await open(page,'arcade-rush');await wait(page,181);
+    > 5 |  await expect(page.locator('.result-screen')).toBeVisible({timeout:15000});
+        |                                               ^
+      6 |  await expect(page.locator('.result-screen')).toHaveAttribute('aria-label','Job done, grade D');
+      7 |  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('circuit-crew:best:v1')??'{}'));
+      8 |  expect(stored['arcade-rush'].grade).toBe('D');
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-grading.spec.ts:5:47
+
+    Error Context: test-results\astra\astra-grading-R5-078-an-idle-Rush-shift-records-D-never-A\error-context.md
+
+
+
+(node:39640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[11/30] tests\astra-settings.spec.ts:3:1 › pause explains dash, survey, stand-up and camera; mute remains clear after reload
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[12/30] tests\astra-settings.spec.ts:9:1 › reduced motion keeps completion audio without the card shake
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[13/30] tests\astra-settings.spec.ts:14:1 › HQ gives a verb and Jobs arrows stay outside the visible tag lane
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[14/30] tests\astra-ui.spec.ts:6:1 › task card advances immediately, safety stars remain provisional, and clean play earns three As
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[15/30] tests\astra-ui.spec.ts:15:1 › practice completion is ungraded and never writes a job record
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[16/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in the lobby
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[17/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in playground
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[18/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in meeting
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[19/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in lunch
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[20/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[21/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade-rush
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[22/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in garage
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[23/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in qfn
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[24/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in observatory
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[25/30] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in spectrum
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[26/30] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[27/30] tests\smoke.spec.ts:9:1 › player can pick up the plug, move, jump, and release it
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[28/30] tests\smoke.spec.ts:21:1 › office contains over 300 physics props and renders without errors
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[29/30] tests\smoke.spec.ts:29:1 › Lunch Rush boots with two supplies, four cables and a warming fridge
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[30/30] tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143)
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  6 failed
+    tests\astra-bench-budget.spec.ts:23:71 › arcade: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:23:71 › garage: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:23:71 › qfn: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:23:71 › observatory: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:23:71 › spectrum: clean-route task names and shared bench word budget 
+    tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A ────────────────
+  24 passed (8.9m)

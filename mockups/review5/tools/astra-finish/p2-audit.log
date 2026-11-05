@@ -1,0 +1,218 @@
+R5-161 SHARED **R5-161 | P2 | global, arcade, garage, qfn, observatory | playability | Bench key leaks: Space jumps seated Pip, Tab toggles a hidden survey, F stands Pip up, C resets the orbit at QFN while also running CHECK**
+R5-162 OWNED **R5-162 | P2 | lobby | playability | Lobby: locked-door feedback is invisible — the LOCKED plate is hidden at chest height and the E jiggle is overwritten next frame**
+R5-163 SHARED **R5-163 | P2 | arcade | playability | Stale hover prompt: 'F  Flip the LED' shows during the coin-hopper job, which has no LED**
+R5-164 SHARED **R5-164 | P2 | meeting | playability | Meeting: the single reel's walking reach sits on the edge of the snap radius, so 'Plug in' flickers and the spec is flaky**
+R5-165 SHARED **R5-165 | P2 | global | playability | Orbit pitch has a dead zone at close zoom: the stored pitch clamps to −0.3…0.45, but the effective pitch clamps again to 0.3…1.25**
+R5-166 SHARED **R5-166 | P2 | global | playability | There is no soft-lock or respawn spec at all: DR-15 and DR-25 are untested in every room**
+R5-167 SHARED **R5-167 | P2 | global | playability | GTAO at quality 2 re-renders the whole scene: +730–765 draw calls (+63–65%) for a few local contact shadows, and it greys Pip's overalls**
+R5-168 SHARED **R5-168 | P2 | lunch | playability | In Lunch, E picks up cable ends before props, so Pip can't grab the boxes beside his spawn**
+R5-169 SHARED **R5-169 | P2 | global | playability | The DR-03 'fastestProp' signal counts the prop in Pip's hands, so the funny-moment check passes on a plain pick-up**
+R5-170 SHARED **R5-170 | P2 | global | playability | The job-item reach bias favours every id'd prop, not the current step's item: pins, bridges, splitters and the second reel all outrank the next thing the card asks for**
+R5-171 SHARED **R5-171 | P2 | lunch | playability | Lunch picks the port nearest Pip's body, not the plug in his hand: holding the thick plug against the kitchen post plugs it into the fridge**
+R5-172 SHARED **R5-172 | P2 | global | playability | Grab cue and prompt name different objects when junk is nearer than the floor plug: prompt says 'F Pick up the plug', the reticle brackets the mug, and E takes the mug**
+R5-173 SHARED **R5-173 | P2 | lunch | playability | The Lunch fail card holds for 1.2 s with no input, then needs Enter or a click; retrying itself takes about 0.6 s**
+R5-174 OWNED **R5-174 | P2 | global | playability | Pause menu lacks the controls a player needs mid-job (Tab survey, Shift sprint, Esc stand up) and offers no assists (DR-23)**
+R5-175 SHARED **R5-175 | P2 | lobby | playability | The Workshop radius steals E from nearby props, and the grab reticle points at a chair while the prompt says Workshop**
+R5-176 SHARED **R5-176 | P2 | lunch | playability | An unplugged spare cable is tethered to a fixed point in empty floor**
+R5-177 SHARED **R5-177 | P2 | lunch | playability | Pressing E at a supply cart that isn't tripped silently unplugs a cable, so a double tap on reset kills the fridge feed**
+R5-178 SHARED **R5-178 | P2 | lunch | playability | Every experiment at the lift costs a 25 m round trip to reset cart A, which discourages the try-and-observe loop the room relies on**
+R5-179 SHARED **R5-179 | P2 | meeting | playability | Appliance prompts pick the first match in array order, so the heater is hard to target**
+R5-180 SHARED **R5-180 | P2 | observatory | playability | Bench hit targets are tiny and several controls have no hover prompt**
+R5-181 SHARED **R5-181 | P2 | meeting | playability | Meeting: walking past the mail cart knocks the second reel off, and the prompt then says 'Grab the cart'**
+R5-182 SHARED **R5-182 | P2 | qfn | playability | The level's own chair at (−3.4, 1.6) sits inside the clean-route lane and gets knocked over on every spec route**
+R5-183 SHARED **R5-183 | P2 | garage, observatory, qfn, spectrum | teaching | The "simplified model / not to scale / teaching grid" disclosures are hidden during play (only visible while paused) or 5 px tall**
+R5-184 SHARED **R5-184 | P2 | arcade, arcade-rush, garage | teaching | Arcade and Garage: the "PTC fuse" re-arms every 2.5 s while powered into the fault, like a bimetal breaker; real polymer PTCs latch until power is removed**
+R5-185 SHARED **R5-185 | P2 | meeting, playground | teaching | The playground plug is the Meeting coupler model and the player pushes a live male plug into the load: power flows the wrong way through the connectors**
+R5-186 SHARED **R5-186 | P2 | qfn | teaching | QFN: board 3's chip glows red-hot at 135 °C the moment the board loads, before anything is wired or powered**
+R5-187 SHARED **R5-187 | P2 | arcade-rush | teaching | P = I²R never decides a rush cabinet: block heat and parallel heat-sharing are untested**
+R5-188 SHARED **R5-188 | P2 | arcade-rush | teaching | 'Barely glowing… looks broken' at 7 mA, while the game's own lit threshold is 2 mA and the LED renders clearly lit**
+R5-189 SHARED **R5-189 | P2 | arcade-rush | teaching | 'Backwards' cabinets on 9 V and 12 V put the LED beyond a typical 5 V reverse rating, but the game says it simply 'stays dark'**
+R5-190 SHARED **R5-190 | P2 | arcade | teaching | Rhythm pad (blue LED on 3.3 V) teaches false precision: with 0.3 V of headroom, real Vf and supply spread swing the current from 0 to 27 mA**
+R5-191 SHARED **R5-191 | P2 | arcade | teaching | No visible consequence when the logic pin is overloaded: motor FULL, lamp lit, only a sentence and a formula**
+R5-192 SHARED **R5-192 | P2 | arcade | teaching | Rhythm pad introduces three new ideas at once (polarity, parallel, low headroom); the ladder has no reuse step**
+R5-193 SHARED **R5-193 | P2 | arcade | teaching | A ¼ W block 'pops' within 1.7 s at 1.77× its rating; real resistors are qualified to survive about 6× for 5 s**
+R5-194 SHARED **R5-194 | P2 | arcade | teaching | An LED at 21 mA is a FAIL: the 20 mA test current is treated as an absolute maximum**
+R5-195 SHARED **R5-195 | P2 | arcade | teaching | LED HEAT shows °C values that teach a wrong number: the 'limit' line sits at 45 °C and LEDs pop at about 43 °C**
+R5-196 SHARED **R5-196 | P2 | lunch | teaching | Lunch: 'F Plug into the capacitor cart' seats the plug and a cleaner bot rips it out the same frame, with no readable cause**
+R5-197 SHARED **R5-197 | P2 | garage | teaching | Motor spin-up of 4 ms and 'the surge lasts milliseconds' understate a real motor start by 1–2 orders of magnitude**
+R5-198 OWNED **R5-198 | P2 | lunch | teaching | Lunch fail card: clipped on phone, and the cause isn't named in a line (DR-28)**
+R5-199 SHARED **R5-199 | P2 | lunch | teaching | Heat on a cable uses the same white→orange→red ramp as strain, and it cooks 33% over in 6 s on a linear (not I²) rule**
+R5-200 SHARED **R5-200 | P2 | lunch | teaching | 'Splitters add up' is a listed insight, but splitters are never needed; the summing happens only inside the hard-wired post**
+R5-201 SHARED **R5-201 | P2 | meeting | teaching | Borrowing the coffee reel after the server cable is plugged in leaves the strip live with nothing connected**
+R5-202 SHARED **R5-202 | P2 | meeting | teaching | A kettle 'left on' draws power forever, and its 'on' state is a big white fog ball**
+R5-203 SHARED **R5-203 | P2 | meeting | teaching | The tidy route is a daisy chain (wall, reel, coupler, reel, strip), which real safety guidance forbids, and the room never frames it**
+R5-204 SHARED **R5-204 | P2 | meeting | teaching | The fix can be found by following prompts (Reset, retrip, wander, 'Unplug the kettle'), and predicting the overload earns nothing**
+R5-205 SHARED **R5-205 | P2 | observatory | teaching | Spectrum gallery: invisible bands painted in rainbow false colour without a label, 'f ≈ 30000 GHz', and wall sentences; the exhibits are passive and never tied to the bench**
+R5-206 SHARED **R5-206 | P2 | observatory | teaching | Free, live trial and error plus an oracle prompt: 'Enter · Log the decode' appears exactly when the setup is reliable, so knobs and rods can be swept without reasoning**
+R5-207 SHARED **R5-207 | P2 | observatory | teaching | The filter name in the panel is wrong for series C + shunt C: it is called 'high-pass', but it is a band-pass**
+R5-208 SHARED **R5-208 | P2 | playground | teaching | No moment where the player must apply the idea: three prompts in a row solve the room, and nothing electrical can go wrong**
+R5-209 SHARED **R5-209 | P2 | qfn | teaching | Thermal vias cool the chip to 70 °C even when nothing is on layer 2 for them to carry heat into; in the reference route 3 of the 4 thermal vias end in bare laminate**
+R5-210 SHARED **R5-210 | P2 | qfn | teaching | The exposed pad is 'not connected' on boards 1–2 and refuses copper; real QFN EPs are soldered down and usually tied to GND**
+R5-211 SHARED **R5-211 | P2 | qfn | teaching | 'L2 · bottom, thin tracks' suggests the bottom layer has thinner copper by nature**
+R5-212 SHARED **R5-212 | P2 | qfn | teaching | Board 3 is an 'LED driver' with no LED, and every passive's purpose (ISET resistor, RST pull-up, series R) is invisible: the parts are just two-pad blocks**
+R5-213 SHARED **R5-213 | P2 | qfn | teaching | The chip limit of 70 °C teaches a wrong rule of thumb: a chip at 77 °C is marked unreliable, though 70 °C is a commercial *ambient* range and silicon junctions run to 125–150 °C**
+R5-214 SHARED **R5-214 | P2 | qfn | teaching | 'Elegant to manufacture' and 'Shorter routes … are cheaper to make' name the wrong cost driver**
+R5-215 SHARED **R5-215 | P2 | spectrum | teaching | The 'Elegant' notes compare against a different band and so misattribute the waste ('more power than needed', 'more mirrors than it needs')**
+R5-216 SHARED **R5-216 | P2 | spectrum | teaching | Matching the detector to the band can never come up in play: the pod fits the matching head by itself**
+R5-217 SHARED **R5-217 | P2 | spectrum | teaching | The cage mesh drawn on screen has about 6 cm holes, half of Wi‑Fi's 12.5 cm wave, so it would barely shield; the text says the holes are 'far smaller than the wavelength'**
+R5-218 SHARED **R5-218 | P2 | spectrum | teaching | The hole-versus-wavelength lesson (radio can't pass the hatch) can never happen, and the toast says 30 cm for a hatch that is 60 cm in the model and on screen**
+R5-219 SHARED **R5-219 | P2 | qfn | fun | QFN send-back is nearly silent, nothing happens to the board, and its rings mark every pad instead of the cause (J1 gets no mark)**
+R5-220 SHARED **R5-220 | P2 | arcade-rush | fun | Arcade Rush: the tray fetch and step-up eat ~6.5 s of the rush clock every run, before the player knows it started**
+R5-221 SHARED **R5-221 | P2 | global, qfn | fun | Room lengths are very uneven: Playground solves in 5 s, the QFN bench takes ~40 inputs with a 720 s limit**
+R5-222 SHARED **R5-222 | P2 | arcade-rush | fun | The cost axis punishes success: every elegant sign-off adds credits, so 32 cabinets grade C on cost**
+R5-223 SHARED **R5-223 | P2 | arcade-rush | fun | The clock gives no grace: an order mid play-test at 0:00 is simply lost**
+R5-224 SHARED **R5-224 | P2 | global | fun | The slingshot direction is opposite between floors, and light litter is launched at more than 50 m/s**
+R5-225 SHARED **R5-225 | P2 | global | fun | Throw and slingshot release have no body animation**
+R5-226 SHARED **R5-226 | P2 | global | fun | Pip disappears entirely at the bench; nothing of him is in the bench view**
+R5-227 SHARED **R5-227 | P2 | global | fun | Pip can't emote: one fixed smile, mostly hidden under the hard-hat brim at the game camera**
+R5-228 SHARED **R5-228 | P2 | global | fun | Music never reacts to win, fail or pause, and seven of ten rooms reuse the Playground loop**
+R5-229 SHARED **R5-229 | P2 | global | fun | Coworkers never move, so the world never causes chaos by itself, and chaos can never help or block the job**
+R5-230 SHARED **R5-230 | P2 | global | fun | The startle is a 1-second blip with one pose: it faces Pip rather than the crash, leaves no aftermath, and never escalates**
+R5-231 SHARED **R5-231 | P2 | global | fun | The slingshot startles people around Pip's hand, not where the cable whips and the props fly**
+R5-232 SHARED **R5-232 | P2 | global | fun | Throwing paper, the commonest prop next to Pip, does nothing at all**
+R5-233 SHARED **R5-233 | P2 | garage | fun | The final 'Watch the robot drive' step is 9 s of passive waiting with a junk-prop prompt, and the robot bulldozes Pip with no reaction**
+R5-234 SHARED **R5-234 | P2 | garage | fun | Polarity experiments at PULSE count as mistakes and cost the 'no tripped fuse' bonus; the time limit is about 19× the clean solve**
+R5-235 SHARED **R5-235 | P2 | lobby | fun | Entering a door is an instant page reload, and coming back is a reset to spawn: no transition, no return payoff**
+R5-236 SHARED **R5-236 | P2 | lunch | fun | The close of the job is mostly waiting: a long cart push, then 9 s of belt and 6 s of lift with nothing to do**
+R5-237 SHARED **R5-237 | P2 | meeting | fun | Backtracking: the strip-first order sends Pip across the same aisle five times on the clean route; most of the run is walking**
+R5-238 SHARED **R5-238 | P2 | global | fun | Workshop practice offers no reason to use it: it's identical to normal play, only covers stations, and the picker leaks input**
+R5-239 SHARED **R5-239 | P2 | spectrum | fun | Dead walking: almost all of a clean run is carrying the pod through an empty hall, and Delivery 3 is about 30 m of walking for one key press**
+R5-240 SHARED **R5-240 | P2 | arcade, arcade-rush | clarity | Arcade: LED halo/bloom and a 400 px smoke ball cover the LED and the monitor exactly when the player must read why it failed**
+R5-241 SHARED **R5-241 | P2 | global, lobby | clarity | Lobby first frame and title hero: left-wall doors cut or under the job card, not all 9 doors visible, Pip and his waving arm cropped**
+R5-242 SHARED **R5-242 | P2 | garage, observatory, qfn, spectrum | clarity | Bench labels and readout captions are 4–10 px cap height at 1440×900 (rule: 14 px)**
+R5-243 SHARED **R5-243 | P2 | global, arcade-rush, meeting, lunch | clarity | Docs and code comments drift from the build (cut rooms, old lock rule, "absorbs the kick", 26 m reel, 4-second soak)**
+R5-244 SHARED **R5-244 | P2 | garage | clarity | Garage: the job robot is called "the cart" and is an identical copy of the decor robots beside it**
+R5-245 SHARED **R5-245 | P2 | global, lobby | clarity | Text polish: "Circuit Crew Hq", mixed practise/practice, a sentence on a sign, key letters inside step text**
+R5-246 SHARED **R5-246 | P2 | arcade, arcade-rush | clarity | Arcade bench controls break cross-room key meanings and key letters are missing on bins, lever and stamp**
+R5-247 SHARED **R5-247 | P2 | arcade-rush, qfn | clarity | Station toasts persist after standing up and describe arrangements that no longer exist**
+R5-248 SHARED **R5-248 | P2 | meeting, global | clarity | "!" alarm bubbles draw through everything, pile up and stack over adjacent coworkers**
+R5-249 SHARED **R5-249 | P2 | global | clarity | Mute and sound tile: the label never changes, the muted state is a faint glyph swap, and reduced-motion drops the result-card sound**
+R5-250 SHARED **R5-250 | P2 | global, lobby | clarity | Title and Jobs board: unclear "HQ" badge, duplicate jobs icons, a dim gamepad chip that looks broken, incomplete controls string**
+R5-251 OWNED **R5-251 | P2 | lobby | clarity | Lobby bonus stars are never explained, two are the same check and the third is automatic**
+R5-252 SHARED **R5-252 | P2 | lobby | clarity | Lobby door names, numbers, medals and LOCKED tags are too small at the game camera; long names auto-shrink to half height**
+R5-253 SHARED **R5-253 | P2 | observatory | clarity | Observatory: absurd readouts "S/N −180.0 dB" and "Tone level 0%" with TONE ● lit when the gust lays the whip flat**
+R5-254 SHARED **R5-254 | P2 | arcade-rush | clarity | Two clocks that disagree: the HUD ring measures 240 s while the clock counts down 180 s, and the panel repeats the seconds**
+R5-255 OWNED **R5-255 | P2 | arcade-rush | clarity | The result card's time row is always 3:00 A, and Orders served is a small caption**
+R5-256 SHARED **R5-256 | P2 | arcade | clarity | 'PLAY TEST PASSED ✓' and sign-off for out-of-band setups contradicts the card's ask and the 'too dim' note**
+R5-257 SHARED **R5-257 | P2 | global | clarity | The strain thresholds are defined three times and disagree; the HUD meter, hose colour and prompt don't line up**
+R5-258 SHARED **R5-258 | P2 | meeting | clarity | Pip blends into the blue coworkers and the blue meeting carpet at the game camera**
+R5-259 SHARED **R5-259 | P2 | lunch | clarity | Inline capacitor docking works but its lead to the winch is unreadable at the game camera**
+R5-260 SHARED **R5-260 | P2 | global | clarity | Cable-wrap knock spams 6–10 times a second while dragging or after a slingshot**
+R5-261 SHARED **R5-261 | P2 | global | clarity | Placing any part on a bench plays the full 'plug seated' success chime, even a wrong part that will trip the fuse**
+R5-262 SHARED **R5-262 | P2 | playground | clarity | A plug dropped near the lamp switch is hidden behind the switch prompt: the card and marker say 'pick up the plug', the pill says 'E Switch on (needs power first)'**
+R5-263 SHARED **R5-263 | P2 | lunch | clarity | Capacitor-cart dock prompt lags the real dock zone: 'Push the capacitor cart' shows while the cart is already inside the 2 m dock, and nothing in the world marks the dock**
+R5-264 SHARED **R5-264 | P2 | global | clarity | The lens setting barely changes anything: Close, Standard and Wide differ by about 8–10% of view, and the bench ignores it**
+R5-265 SHARED **R5-265 | P2 | global | clarity | The camera-reset button and the lens tile share one 'photo camera' icon, so the reset reads as photo mode**
+R5-266 OWNED **R5-266 | P2 | global | clarity | Practice runs: the picker promises 'nothing is graded', but the card stamps a full grade, and the PRACTICE tag is hidden under the job card**
+R5-267 SHARED **R5-267 | P2 | garage | clarity | Prompt says 'E Work at the bench' before the robot is on the stand, contradicting the card**
+R5-268 SHARED **R5-268 | P2 | garage | clarity | TEST's five cycle lamps are hidden behind the PULSE/TEST buttons at the bench camera**
+R5-269 SHARED **R5-269 | P2 | garage | clarity | Failing readings in the bench panel aren't red: class 'no' is styled neutral grey, and only passes are coloured**
+R5-270 SHARED **R5-270 | P2 | garage | clarity | Job 3 prompt says '1–5 Change the parts' when the fix is the ground lever (G), not a part**
+R5-271 SHARED **R5-271 | P2 | garage | clarity | The fix's proof isn't shown where the failure was: job 3's START trace switches back to the STOP view once the sag is fixed**
+R5-272 SHARED **R5-272 | P2 | global | clarity | Station rooms keep the cable (F) and throw (Q) buttons on the action bar although no cable exists there**
+R5-273 SHARED **R5-273 | P2 | lobby | clarity | The pause card in the hub shows a meaningless time/damage/cost tally, title-cases the name to 'Circuit Crew Hq', and has a 'Jobs' button that just reloads the lobby**
+R5-274 SHARED **R5-274 | P2 | lobby | clarity | The lobby never states its one rule: the tagline is unused, the card has no verb, and the spawn prompt is empty**
+R5-275 SHARED **R5-275 | P2 | lunch | clarity | A clean, careful run already shows '2 broken': placing the tray and pushing the capacitor cart count as damage**
+R5-276 SHARED **R5-276 | P2 | lunch | clarity | The winch says 'E Switch the lift on' while nothing feeds it**
+R5-277 SHARED **R5-277 | P2 | lunch | clarity | The kitchen lamp's cord looks exactly like a thin job cable, is permanently plugged into the feed post, and stretches infinitely**
+R5-278 SHARED **R5-278 | P2 | lunch | clarity | The capacitor hint badge is hidden if the lift is tried before the storeroom is lit, and its schematic glyph means nothing to a novice**
+R5-279 SHARED **R5-279 | P2 | lunch | clarity | Unit and naming gaps: the fridge bonus is '80%' of a unitless thermometer, 'bars' is never defined, and carts 'A' and 'B' carry no letters**
+R5-280 SHARED **R5-280 | P2 | meeting | clarity | Grab prompts fall back to 'Grab the thing' for the vending machine and the boardroom glass panes**
+R5-281 SHARED **R5-281 | P2 | meeting | clarity | The projector's switch state is invisible; switched on early, the trip lands on the cable plug-in**
+R5-282 SHARED **R5-282 | P2 | observatory | clarity | The gust that knocks the whip flat happens indoors on the bench, and its dust reads as snowballs; the polarisation cause is not readable**
+R5-283 SHARED **R5-283 | P2 | playground | clarity | The job item (the plug) starts hidden under Pip's feet, so the first frame shows no goal**
+R5-284 SHARED **R5-284 | P2 | playground | clarity | The 'plugged in / live' cable tint is the same hex as the 70–85% strain warning**
+R5-285 SHARED **R5-285 | P2 | global | clarity | The 'next job' chain stops after 03: station results switch from 'Next' to 'Jobs', so the flow changes mid-campaign**
+R5-286 SHARED **R5-286 | P2 | global | clarity | Prop gallery tool hides the coupler behind the vending machine and floats labels away from their props**
+R5-287 SHARED **R5-287 | P2 | qfn | clarity | Decoupling 'current bursts' read as five static white blobs, and the loop glow is barely visible**
+R5-288 SHARED **R5-288 | P2 | qfn | clarity | While dropping thermal vias, the chip turns into a pink see-through wash under a pulsing glow; once dropped, the vias are hidden under the opaque body**
+R5-289 SHARED **R5-289 | P2 | qfn | clarity | Asks, the job card and a wall poster print the method ('two caps hug their pins', 'Use layer 2 and vias', 'cap beside the pins'), so the decoupling and layer-2 ideas are read, not discovered**
+R5-290 SHARED **R5-290 | P2 | qfn | clarity | Notes refer to 'U1 pin 1/U1 pin 2' and 'U1 pin 8/U1 pin 7', but the chip shows only net names, never pin numbers**
+R5-291 SHARED **R5-291 | P2 | spectrum | clarity | White clutter crates beside the storeroom pad look like the white RX pod**
+R5-292 SHARED **R5-292 | P2 | global, meeting, arcade, observatory, playground | overlap | Start-of-level interpenetrations: g.audit finds overlaps in 6 of 9 levels (51 in the Meeting; beanbags in paper, cabinets in boxes, monitors in paper)**
+R5-293 SHARED **R5-293 | P2 | global, arcade | overlap | Every prop gets a cuboid collider and models overhang it by up to 19 cm: round props rest on corners, reels and bins cannot roll**
+R5-294 SHARED **R5-294 | P2 | lobby | overlap | Lobby: the Workshop arch corner is crowded — decor passes through the bench leg, toy cubes under the bench, a dead end Pip gets stuck in**
+R5-295 SHARED **R5-295 | P2 | arcade | overlap | Claw machine tell overlaps its own cabinet: the glass case swallows the deck and hides the screen, so two machines are merged into one muddy silhouette**
+R5-296 SHARED **R5-296 | P2 | arcade | overlap | LED BASICS teaching poster is half hidden behind the prize shelf; the R = (V − Vf) / I strip is covered by the prize balls**
+R5-297 SHARED **R5-297 | P2 | meeting | overlap | Interior walls stop thrown props in mid-air 1.25 m above their visible top**
+R5-298 SHARED **R5-298 | P2 | garage | overlap | Rolling road is four short stubs that read as tombstones; the bench harness ends inside the robot's wheel**
+R5-299 SHARED **R5-299 | P2 | garage | overlap | Parcel shelves have posts only at the front: boards and boxes cantilever with nothing at the back**
+R5-300 SHARED **R5-300 | P2 | lobby | overlap | Directory board: rows overlap by 11.5 cm and z-fight, it floats with no stand, reads in zig-zag order, and shrinks the text unevenly**
+R5-301 SHARED **R5-301 | P2 | lunch | overlap | Power-room wall rack: an upright runs through two stock crates, the crates overhang the plank front, the rack has no collider, and it is built twice**
+R5-302 SHARED **R5-302 | P2 | lunch | overlap | Corridor and dining furniture have no colliders: Pip walks into the benches and plants, the bench blobs stand inside the benches, and the pink blob is inside a dining chair**
+R5-303 SHARED **R5-303 | P2 | meeting | overlap | A potted plant sits inside the decor box stack at (7.8, 9.2), and decor box stacks have no colliders, so the audit can't see them (M2 class, new spot)**
+R5-304 SHARED **R5-304 | P2 | meeting | overlap | Desk dressing collides with itself: the desk cable tail runs through the drawer pedestal, and the mug sits inside the desk-lamp base**
+R5-305 SHARED **R5-305 | P2 | observatory | overlap | Laid-flat 1.5 m whip pushes into the scope cabinet; the route lever covers the '1.5 m' rack label**
+R5-306 SHARED **R5-306 | P2 | observatory | overlap | Telescope tube pokes through the dome shell; no slit; fork arms don't touch the tube**
+R5-307 SHARED **R5-307 | P2 | playground | overlap | Every dynamic prop rests about 2.7 cm below the visible floor (the floor collider top is at y −0.025)**
+R5-308 SHARED **R5-308 | P2 | meeting | overlap | Sofa floats 12.5 cm off the floor with no feet, and its seat is one slab**
+R5-309 SHARED **R5-309 | P2 | qfn | overlap | AOI monitor is sunk 12.5 cm into the machine's top box with no stand; the pick-and-place gantry pokes through its glass hood; feeder reels are buried in the PnP body**
+R5-310 SHARED **R5-310 | P2 | spectrum | overlap | Rainbow floor stripes run under the pod-dock rug and the win glow strips double up on them**
+R5-311 SHARED **R5-311 | P2 | arcade, garage, observatory, spectrum, qfn | visual-bug | Floating single-sided sign planes vanish from behind or hover off walls (Arcade STOREROOM, Garage TEST STAND, ROOF RECEIVER, Spectrum signs, QFN STOCK)**
+R5-312 SHARED **R5-312 | P2 | global, qfn, observatory, spectrum, garage | visual-bug | Clutter is parked against showpieces and intrudes into bench views (QFN machines, Observatory gallery, Spectrum ladder, Garage test stand)**
+R5-313 SHARED **R5-313 | P2 | global, playground, lobby | visual-bug | Sprint and footstep dust are opaque outlined toon spheres up to 1.2 m: a sprint leaves a trail of snowballs / hollow ink rings**
+R5-314 SHARED **R5-314 | P2 | meeting | visual-bug | Coffee and kettle steam are stacked hard-edged grey balls / 1.5 m ghost discs (M7 regression)**
+R5-315 SHARED **R5-315 | P2 | lobby, observatory | visual-bug | Decor parented to game.root floats in mid-air when its wall cuts away (lobby blade signs and wing glows, observatory light rail)**
+R5-316 SHARED **R5-316 | P2 | lobby, meeting | visual-bug | Pendant lamp cords run up into the void above the cut-away walls; the lounge pendant covers Pip's head**
+R5-317 SHARED **R5-317 | P2 | lunch, playground | visual-bug | Posters collide with windows and each other (graph poster over a window mullion, plant poster on the store window)**
+R5-318 SHARED **R5-318 | P2 | qfn | visual-bug | QFN: REGRESSION (R3A N7) — the reference J1 placement covers the board title plate**
+R5-319 SHARED **R5-319 | P2 | arcade | visual-bug | Handheld tell is a giant Game Boy hovering 12 cm in front of the cabinet with no bracket, covering the cabinet screen**
+R5-320 SHARED **R5-320 | P2 | arcade-rush | visual-bug | Back-wall cabinets light by index % 5 from the story jobs, and every rush sign-off stacks another glow and confetti burst on them**
+R5-321 SHARED **R5-321 | P2 | global | visual-bug | The cable passes straight through the box or shelf Pip presses the plug against**
+R5-322 SHARED **R5-322 | P2 | global | visual-bug | Orbiting toward the open front, or spawning near it, frames large areas of void (up to 48% of the start frame)**
+R5-323 SHARED **R5-323 | P2 | global | visual-bug | Occluder fade speed depends on frame rate: 0.22 s at 60 fps and 0.44 s at 30 fps, and depthWrite pops at 0.8**
+R5-324 OWNED **R5-324 | P2 | global | visual-bug | Overstretch pull pose swings the plug over the shoulder into the helmet**
+R5-325 SHARED **R5-325 | P2 | global | visual-bug | Alarm pose squashes blobs flat while the sweat drop and "!" float detached above them**
+R5-326 SHARED **R5-326 | P2 | global | visual-bug | Respawn feedback is one-sided: items vanish silently from where they were stuck, and falls out of the room respawn with no puff at all**
+R5-327 SHARED **R5-327 | P2 | global | visual-bug | The impact's own dust cloud covers the startled coworker**
+R5-328 SHARED **R5-328 | P2 | lobby | visual-bug | Seen at a grazing angle, the open portal reads as a shallow orange closet, and the destination view vanishes**
+R5-329 SHARED **R5-329 | P2 | meeting | visual-bug | Fire extinguishers float: the pillar ones hang 22 cm off the floor with no bracket, and the spawn one stands 5 cm in the air**
+R5-330 SHARED **R5-330 | P2 | observatory | visual-bug | Shared toon material mutated to DoubleSide by the dish exhibit**
+R5-331 SHARED **R5-331 | P2 | qfn | visual-bug | Crane hazard bars stick out 5 mm above and below the beam and sit only on its front face, so they read as black teeth from above and the back is plain**
+R5-332 SHARED **R5-332 | P2 | qfn | visual-bug | The ratsnest draws dashed lines to invisible parts before the crate arrives, and doesn't follow a part being dragged**
+R5-333 SHARED **R5-333 | P2 | qfn | visual-bug | New-board parts drop from 0.6–0.9 m and look like they're floating over the room; the ship toast describes the board that just left**
+R5-334 SHARED **R5-334 | P2 | spectrum | visual-bug | Toaster smoke is a flat white veil that washes out Pip and the tea coworker, hides its own toaster, and reads as a glow from low angles**
+R5-335 SHARED **R5-335 | P2 | spectrum | visual-bug | REGRESSION / still open (R3B N4): the transmitter tower's black base and turret arm cut into the right end of the bench view, crowding SEND**
+R5-336 SHARED **R5-336 | P2 | global, arcade, garage, observatory, spectrum, meeting, lobby, qfn, lunch | model-detail | Fixtures have big flat single-colour faces and bare, unfinished backs (cabinets, benches, racks, desks, scope, reception desk)**
+R5-337 SHARED **R5-337 | P2 | global, lunch, playground, qfn | model-detail | Pip's hard-hat ridge reads as a fin or cat ears, with grey plinth soles (DR-64 / F9 still open)**
+R5-338 SHARED **R5-338 | P2 | meeting, global, lunch, lobby | model-detail | Vending machine, water cooler, printer and ping-pong table miss their identifying cues (slab with sticker grid, pedestal with a can; the "printer stand" does not exist)**
+R5-339 SHARED **R5-339 | P2 | global, observatory, qfn | model-detail | Bookshelves are tinted accent colours and filled with uniform saturated candy-block books that poke above the frame**
+R5-340 SHARED **R5-340 | P2 | arcade | model-detail | Arcade: the serviced cabinet's ribbon cable stops in mid-air on the bench as a loose purple stub, short of the board**
+R5-341 SHARED **R5-341 | P2 | lunch | model-detail | Wedge and cable bridge are unbevelled knife-edge extrusions with no ink outline and no functional cues**
+R5-342 SHARED **R5-342 | P2 | global, meeting | model-detail | Gameplay parts are 2–4× real size (plug 0.42 m, strip 0.9 m, mugs as tall as a monitor stand)**
+R5-343 SHARED **R5-343 | P2 | lunch, global | model-detail | Capacitor cart, power strip and reel lack the electrical cues that make them read as what they teach (cart reads as paint cans, no inlet)**
+R5-344 SHARED **R5-344 | P2 | global, garage | model-detail | Floor lamps read as unlit mushrooms or yellow pennant flags (open zero-thickness shade, no bulb, no cord)**
+R5-345 SHARED **R5-345 | P2 | arcade | model-detail | Pinball tell reads as a side table with three knobs, not a pinball machine; an office chair is parked in front of it**
+R5-346 SHARED **R5-346 | P2 | arcade | model-detail | Change machine and prize shelf are minimum-detail slabs (one 1.2 m² flat face with two decals; a cream box with balls)**
+R5-347 SHARED **R5-347 | P2 | arcade | model-detail | Players' 'stools' are office task chairs with five-star caster bases, parked in front of every cabinet**
+R5-348 SHARED **R5-348 | P2 | lunch | model-detail | Coworkers only sit in the Meeting; the Lunch crowd stands beside empty benches, and the chef faces away**
+R5-349 SHARED **R5-349 | P2 | global | model-detail | Sprint makes the feet skate about 50% and the steps get slower than walking; slow hauling also slides**
+R5-350 SHARED **R5-350 | P2 | global | model-detail | Pip's back is a blank blue egg, and the default camera shows his back most of the time**
+R5-351 SHARED **R5-351 | P2 | global | model-detail | Big rounded boxes are bevelled at 2.5–4.4% of their size (2 cm cap), so cabinets, vending, printers and crates read as sharp slabs**
+R5-352 SHARED **R5-352 | P2 | global | model-detail | Round parts built outside the kit skip the ≥24-segment rule (lamp shades 14–20, tori 6, accessories 6–16)**
+R5-353 SHARED **R5-353 | P2 | garage | model-detail | Wall chargers are blank cream plaques with no cable or plug: they read as paper notices**
+R5-354 SHARED **R5-354 | P2 | lunch | model-detail | Dining chairs float on a single stalk with no foot, and the corridor plants use a different model from the prop plants**
+R5-355 SHARED **R5-355 | P2 | meeting | model-detail | Boardroom appliances: the kettle reads as a toilet roll, the cords are short black stubs, and the 'on' glow parts are likely frozen out of the scene**
+R5-356 SHARED **R5-356 | P2 | meeting | model-detail | The payoff hardware is the plainest in the room: the projector is a box with a lens, and the socket box has sharp corners**
+R5-357 SHARED **R5-357 | P2 | meeting | model-detail | Lounge furniture is placeholder-grade: an office desk with keyboard as the coffee table, a flat green ping-pong slab, a plain sofa and over-tall book blocks**
+R5-358 SHARED **R5-358 | P2 | observatory | model-detail | Exhibit models read wrong: the dish is a salad bowl, the prism a grey can with a floating rainbow flag**
+R5-359 SHARED **R5-359 | P2 | observatory | model-detail | Motor reads as a red cable reel, not a noisy motor**
+R5-360 SHARED **R5-360 | P2 | playground | model-detail | The spool's remaining length can't be read at the game camera; the reel has no stand and sinks into its base**
+R5-361 SHARED **R5-361 | P2 | playground | model-detail | The cable is a 20 cm fire hose as thick as the plug, and pale when slack**
+R5-362 SHARED **R5-362 | P2 | playground | model-detail | Pallets overlap each other and are flat slabs; cage reels float; cooler and plant pots have too few cues**
+R5-363 SHARED **R5-363 | P2 | qfn | model-detail | The three signature fab machines don't read as fab machines: the pick-and-place looks like a yellow gate over a table, the reflow oven like a lavender sideboard, the AOI like a photocopier**
+R5-364 SHARED **R5-364 | P2 | qfn | model-detail | Stock-shelf bins are closed rounded blocks that read as soap bars; the shelf has no frame or back, so the 'STOCK' corner lacks identity**
+R5-365 SHARED **R5-365 | P2 | qfn | model-detail | Bench part models: locked connector end caps are plain job yellow (the code comment says striped), and in the layer-2 x-ray the pin tags float at full opacity over a 28% chip**
+R5-366 SHARED **R5-366 | P2 | qfn | model-detail | The parts crate is the generic shipping carton recoloured, is named 'crate' like every other box, and the grab cue lands on a junk box**
+R5-367 SHARED **R5-367 | P2 | qfn | model-detail | The board rack at (9.9, 0.2) is a solid cream block: its seven board shelves are modelled inside the box, so it reads as a fridge**
+R5-368 SHARED **R5-368 | P2 | spectrum | model-detail | Transmitter tower: the colour band rings are buried inside the mast; the silhouette reads as a glove on a stick**
+R5-369 SHARED **R5-369 | P2 | spectrum | model-detail | Pod reads as an arcade joystick, and its lid handle runs into the mast plate**
+R5-370 SHARED **R5-370 | P2 | spectrum | model-detail | Storeroom shelf stock reads as bread loaves: identical rounded blocks with no box cues**
+R5-371 SHARED **R5-371 | P2 | arcade, global | art-style | The Arcade play-tester is still a realistic peg-person human kid in a world of Pip plus blobs (DR-60)**
+R5-372 SHARED **R5-372 | P2 | global | art-style | The new rim light has no measurable effect and misses Pip, the cable and every coworker (glossyToon overwrites it; toon().clone() drops it)**
+R5-373 SHARED **R5-373 | P2 | arcade | art-style | Lighting is over budget: 6 point lights at start (+1 on lightUp) and a neon glow sprite that grows to 8 m**
+R5-374 SHARED **R5-374 | P2 | global | art-style | A cable at rest is cream on a cream floor, less saturated than the floor; yellow strain is lost on Lunch's wood**
+R5-375 SHARED **R5-375 | P2 | global | art-style | Pip's outline is thin and light: luma about 106, 1–2 px, even at zoom 9**
+R5-376 SHARED **R5-376 | P2 | global | art-style | Neither toon ramp shows 3 bands: a white sphere spans only 13–25 luma, and from the game camera the lit side uses only the top of the ramp**
+R5-377 SHARED **R5-377 | P2 | global | art-style | Gloss is used on painted wood (the nine 3.7 m² lobby door leaves) and on metals the rule doesn't list**
+R5-378 SHARED **R5-378 | P2 | spectrum | art-style | Brick texture squashed on narrow wall faces; wall caps and the STOREROOM sign stay opaque when the brick wall fades**

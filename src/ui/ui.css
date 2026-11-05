@@ -275,6 +275,7 @@ body[data-bench] .marker-edge,body[data-menu] .marker-edge{display:none}
 
 /* Desktop readability floor; station canvas labels remain owned by station renderers. */
 @media(min-width:701px){.station-panel header small,.station-panel .profile,.key,.pill,.bench-chip kbd,.result .prev,.result-bonus,.practice-tag{font-size:14px}}
+@media(min-width:701px){body[data-bench] .station-panel .nets li b{font-size:14px}}
 .objective .stars i.at-risk{color:var(--ink-2);opacity:.8}.objective .stars i.missed{opacity:.45}
 .nocable .act.cable{display:none}.badge.urgent{color:#c0392b;animation:nowpulse .6s ease-in-out infinite alternate}
 body[data-practice] .jobplate::after{left:auto;right:-8px;top:-8px;bottom:auto;font-size:14px;z-index:2}

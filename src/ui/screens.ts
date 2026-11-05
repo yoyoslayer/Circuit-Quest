@@ -88,7 +88,7 @@ export const titleMarkup=(l:Level)=>`
       </button>
       <button class="btn jobsbtn" data-ui="jobs" aria-label="Choose a job">${icon('jobs')}</button>
     </div>
-    <p class="tagline">Big offices, springy cables, one small technician.</p>
+    <p class="tagline">${l.id==='lobby'?'Every door is a job. Pick one.':'Big offices, springy cables, one small technician.'}</p>
   </main>
   <div class="controls" aria-label="Controls">
     <div><span class="key">W A S D</span>${icon('move')}</div>
@@ -156,7 +156,7 @@ export const pauseMarkup=(l:Level)=>`
         <div class="grid">
           <button class="btn tile" data-ui="restart" aria-label="Restart">${icon('retry')}<span>Restart</span><span class="key">R</span></button>
           <button class="btn tile" data-ui="jobs-reload" aria-label="Jobs">${icon('jobs')}<span>Jobs</span></button>
-          <button class="btn tile on" data-ui="sound" aria-label="Mute audio" aria-pressed="false">${icon('sound')}<span>Sound</span></button>
+          <button class="btn tile" data-ui="sound" aria-label="Mute audio" aria-pressed="false">${icon('sound')}<span data-p="sound">Sound on</span></button>
           <button class="btn tile" data-ui="lens" aria-label="Camera view">${icon('camera')}<span data-p="lens">Standard</span></button>
         </div>
       </div>
@@ -167,7 +167,13 @@ export const pauseMarkup=(l:Level)=>`
         <span class="k key">Q</span>${icon('throw')}<span class="btnpad py">Y</span>
         <span class="k key sp"></span>${icon('jump')}<span class="btnpad pa">A</span>
         <hr>
-        <span class="k">${icon('mouse','sm')}<span class="key">C</span></span>${icon('camera')}<span class="pill">RS</span>
+        <span class="k key">Shift</span>${icon('dash')}<span></span>
+        <span class="k key">Tab</span>${icon('survey')}<span class="pill">View / L3</span>
+        <span class="k"><span class="key">Esc</span><small>Stand up</small></span>${icon('hand')}<span class="btnpad pb">B</span>
+        <hr>
+        <span class="k">Right drag</span>${icon('mouse')}<span>Orbit</span>
+        <span class="k">Wheel</span>${icon('mouse')}<span>Zoom</span>
+        <span class="k key">C</span>${icon('retry')}<span class="pill">RS</span>
       </div>
       <ul class="pause-bonus" aria-label="Bonus goals"></ul>
     </div>

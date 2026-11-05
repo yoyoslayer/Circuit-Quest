@@ -46,7 +46,7 @@ export class Lobby {
     // Bonus jobs (Rush) get a door but aren't required steps or part of "finish every job".
     const jobs=levels.filter(l=>!isOptional(l));
     this.job={goal:'Circuit Crew HQ: pick a door, fix what\'s behind it',
-      steps:jobs.map(l=>({text:`${l.number} · ${title(l)}`,done:()=>!!bestFor(l.id),at:()=>this.doors.find(d=>d.level===l)?.at})),
+      steps:jobs.map(l=>({text:`Enter ${l.number} · ${title(l)}`,done:()=>!!bestFor(l.id),at:()=>this.doors.find(d=>d.level===l)?.at})),
       bonuses:[
         {text:'Finish every job',ok:()=>campaignProgress(levels).allJobs},
         {text:'Crew Gold on three jobs',ok:()=>campaignProgress(levels).goldJobs>=3},

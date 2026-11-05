@@ -1,0 +1,78 @@
+
+[WebServer] (node:12084) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:19020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/1] tests\astra-bench-budget.spec.ts:25:71 › qfn: clean-route task names and shared bench word budget
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[WebServer] 
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+  1) tests\astra-bench-budget.spec.ts:25:71 › qfn: clean-route task names and shared bench word budget 
+
+    Error: Visible shared HTML labels must be at least 14 CSS px
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 18
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/3 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/3 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/2 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/2 pads",
+    +   },
+    + ]
+
+      32 |  });
+      33 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+    > 34 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+         |                                                                                    ^
+      35 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+      36 | });
+      37 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:34:84
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    62
+
+      33 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      34 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 35 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      36 | });
+      37 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:35:106
+
+    Error Context: test-results\astra\astra-bench-budget-qfn-cle-93b7d-nd-shared-bench-word-budget\error-context.md
+
+
+  1 failed
+    tests\astra-bench-budget.spec.ts:25:71 › qfn: clean-route task names and shared bench word budget 

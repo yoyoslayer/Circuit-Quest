@@ -1,0 +1,27 @@
+{
+  "unit": {
+    "passed": 171,
+    "failed": 0
+  },
+  "build": "passed",
+  "browser": {
+    "uniquePassedAcrossRuns": 25,
+    "knownFailingWordBudgets": {
+      "arcade": 32,
+      "garage": 34,
+      "qfn": 62,
+      "observatory": 69,
+      "spectrum": 52
+    },
+    "targetWords": 25,
+    "allMeasuredHtmlFontsAtLeast14CssPx": true,
+    "canvasCapHeightVerified": false
+  },
+  "remainingSharedDependencies": [
+    "Station panel/monitor/toast copy",
+    "Game and station gameplay assist hooks, then connected UI toggles and Assisted result tag",
+    "Explicit failure/bump animation inputs and NPC bubble anchors",
+    "Human-time par tuning and actual canvas cap-height verification"
+  ],
+  "captureServer4192": "stopped"
+}

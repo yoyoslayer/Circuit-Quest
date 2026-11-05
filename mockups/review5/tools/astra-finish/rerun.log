@@ -1,0 +1,63 @@
+
+[WebServer] (node:19864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+
+(node:17688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/5] tests\astra-bench-budget.spec.ts:23:71 › spectrum: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[WebServer] 
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+
+  1) tests\astra-bench-budget.spec.ts:23:71 › spectrum: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    52
+
+      31 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      32 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 33 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      34 | });
+      35 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:33:106
+
+    Error Context: test-results\astra\astra-bench-budget-spectru-f9ffb-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:18284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/5] tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[3/5] tests\astra-settings.spec.ts:3:1 › pause explains dash, survey, stand-up and camera; mute remains clear after reload
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[4/5] tests\astra-settings.spec.ts:9:1 › reduced motion keeps completion audio without the card shake
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[5/5] tests\astra-settings.spec.ts:14:1 › HQ gives a verb and Jobs arrows stay outside the visible tag lane
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  1 failed
+    tests\astra-bench-budget.spec.ts:23:71 › spectrum: clean-route task names and shared bench word budget 
+  4 passed (1.7m)

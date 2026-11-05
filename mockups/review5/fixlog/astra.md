@@ -154,3 +154,42 @@ Skipped: station canvas text edits, physical cable acceptance and bot/runtime ch
 ### Questions for the product owner
 
 None blocking. Human clean-run pars and first-time-player testing remain unmeasured. Stage 4 is finished under the brief's explicit known-failure handoff option; these are not claimed as passing gameplay outcomes.
+
+## Stage 5 — remaining owned usability work and final audit
+
+Synced Claude through ebac18c before this stage. The sole merge conflict was the served-row assertion: retained separate label/value assertions, preserving both branches' intent. Shared code was taken from Claude; station mains leads remain visible/usable in GameUI.
+
+| Entry | Change / disposition | Files | Verification |
+|---|---|---|---|
+| R5-174 (controls), R5-265 | Pause lists Shift dash, Tab/View/L3 survey, Esc/B stand-up, right-drag orbit, wheel zoom and C/RS recenter. Compact paper tiles, readable map, visible pause badge and a scrollable body on shorter desktop windows. Reused the existing retry glyph for recenter. | ui/screens.ts, screens.css | New settings browser checks; settled pause capture inspected. Gameplay assists are a shared dependency below. |
+| R5-249 | Muted/Sound on label follows persisted audio state. Keep the fixed Mute audio label plus aria-pressed, per verifier correction. Completion thud/tone plays with reduced motion; card shake remains suppressed. | ui/game-ui.ts, screens.ts | Reload/mute and reduced-motion browser tests pass. |
+| R5-250 | Arrows sit outside a clipped tag lane; selected card stays centred. | ui/screens.css | Rectangle separation check passes; settled Jobs capture inspected. |
+| R5-274 (owned part) | HQ title gives the door rule; the job card repeats it for four seconds on arrival, then says Enter plus the job name. | hub/lobby.ts, ui/screens.ts, objectives.ts | New HQ card browser case passes. Existing return-at-door session handling is preserved. |
+| Station integration | New budget tests now physically plug the bench in. Spectrum uses the side approach; QFN returns via the same safe route as the existing clean spec. | tests/astra-bench-budget.spec.ts | Budget checks remain strict and report known station copy failures. |
+| R5-078 / 220 integration | Idle Rush test observes the new grace period and then waits the actual remaining shift; zero cabinets still records D. | tests/astra-grading.spec.ts | Updated idle regression passes. |
+| P2 inventory audit | Scanned all 218 P2 entries; ownership uses the complete entry path set, not only Fix. Stop at the report footer; include asset/tool paths so model work cannot appear UI-only. | tools/astra-review/inventory.mjs, p2-inventory.json | Reproducible inventory plus dispositions for every strict owned-only candidate. |
+
+### Skipped / already fixed
+
+- Strict owned-only candidates: R5-162 locked-door rattle/padlock/flash was already fixed in merged lobby; R5-198 desktop fail cause is Stage 2 (phone work excluded); R5-251 campaign rewards is Stage 1; R5-255 Rush served row is Stage 1; R5-266 practice is Stages 1–2; R5-324 low two-hand haul is retained by the models merge and Stage 3. R5-174 controls are now done; actual gameplay assists require shared hooks. No independent owned P2 implementation remains beyond that dependency.
+- R5-227 / 337 are implemented by the models merge and Stage 3, with model exports outside ownership. R5-233's Follow the robot and R5-269/271's failing-reading classes/START trace are already present in Claude's station code. R5-247's visible panel/toast leakage while walking is fixed in shared CSS; stale toasts after bench setup changes remain station-owned.
+- R5-252/300 canvas sign cap height still needs render/labels.ts; board support and row arrangement already exist. Actual canvas glyph height is not proven by CSS.
+- The new perf log requests rigid Pip mesh merging (P1 R5-026). That is a separate animation-performance follow-up, not a remaining P2 UI entry; Stage 5 does not edit the Stage-3-only rig files. Preserve all animated pivots and glossy material classes when integrating it.
+
+### Needs Claude — current dependencies (supersedes historical route failures)
+
+- **Resolved by latest merge:** the Lunch bot crossing fix in lunch3 makes the new early-fridge route win. The new single-reel Meeting chaos regression also wins at this integrated tip. The historical Stage 4 snapshots remain in the log for traceability.
+- **Still failing:** station HTML word budgets, target <=25. Current verified counts: Arcade 32, Garage 34, Observatory 69, Spectrum 52; QFN's final route rerun is recorded below. All measured shared HTML font checks pass. Shorten each station's updatePanel asks, remove monitor-duplicated rows, keep QFN's one layer/crossing constraint, and cap fault toasts at 14 words. Do not remove the sole measured value or hide the taught electrical constraint. These checks sample initial bench state, not every fault/pass toast.
+- **R5-174 / DR-23:** gameplay assists need shared Game/station support before truthful UI toggles can be connected. Add a run-level assists state with extra time, a longer cable limit, and a station-step skip; expose a station-owned skip operation that follows its normal transition rather than forging won. Apply extra time to the actual Rush/Lunch timers, and cable length to the rope's physical maximum. Preserve grades; latch an assisted-used flag even if toggled off later. Then wire the three pause toggles and the Assisted result tag. A comfort setting would not satisfy these gameplay requirements, so no inert or misleading assist controls were added.
+- **Animation signals:** still pass optional failed:!!this.failAt into animateRig's rig.update. An optional newly registered horizontal bump flag can enhance stationary-impact reactions; do not use floor contacts. Coworker bubble anchors and remaining rigid-part performance merging need shared integration as described in Stage 3/perf logs.
+- **Other historical shared items:** human par tuning; actual canvas 14-pixel cap height and repeated monitor values; station toast clearing on setup changes; real PTC behavior/disclosures and campaign documentation remain in their owners' files. This pass does not claim those are all resolved.
+
+### Questions for the product owner
+
+No blocking questions. HQ's short rule is shown on each arrival, so returning players also get context. Human timing/first-time-player studies remain unmeasured. The five assigned stages have reached their owned-file stopping point; Stage 4 uses the explicitly authorized known-failure handoff. Full game completion is not claimed.
+
+Verification before final commit: 171 unit tests pass and production build passes. Initial 30-check browser run: 24 passed, six failed (three measured word budgets, two test approach mistakes after the new cable integration, and the obsolete idle-wait duration). Corrected rerun: 4/5 passed; only Spectrum's word budget remains. Settled pause and Jobs captures were opened after fixing the stretched tiles and waiting for card entrance animation. Capture server 4192 was stopped via its own session. Final QFN/result audit follows below.
+
+Final Stage 5 audit: the corrected QFN return route reaches the bench. Four net pad-count labels inherited a station-specific 13 px rule; the owned desktop CSS override now makes that final font check pass. QFN still measures **62 words** and fails only the strict 25-word budget. Final initial-state budgets are **32 / 34 / 62 / 69 / 52** for Arcade / Garage / QFN / Observatory / Spectrum. All five are explicitly failing regressions awaiting station-copy changes, not expected-failure skips.
+
+Across the 30-case final selection and corrected reruns, **25 unique checks pass** (all gameplay routes, idle D, clean three-A, practice isolation, settings, animation, smoke and layouts), and **five bench word-budget checks fail**. The final QFN-only run confirms the font fix independently. Latest production build passes; unit suite is **171/171**. Exact output: tools/astra-finish/{browser,rerun,qfn-rerun,qfn-final,unit,build}.log. Raw captures remain ignored as required; reproducible specs, compact status and logs are committed. All authorized owned work is at its stopping point; shared-file dependencies above remain open.

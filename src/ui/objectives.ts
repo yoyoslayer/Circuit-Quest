@@ -128,13 +128,13 @@ export class ObjectivesHUD{
     this.job.steps.forEach((s,i)=>{if(!this.done.has(i)&&this.job.steps.slice(0,i).every((_,k)=>this.done.has(k))&&s.done(g)){this.done.add(i);this.flash.add(i);g.audio.bell(1175,.35,.035);setTimeout(()=>{this.flash.delete(i);this.shown='';},900);}});
     const current=this.job.steps.findIndex((_,i)=>!this.done.has(i));
     const bonus=this.job.bonuses.map(b=>bonusState(b.text,b.ok(g),g.won));
-    const key=`${[...this.done].join()}|${current}|${bonus.join()}|${[...this.flash].join()}`;
+    const key=`${!!g.hub&&g.time<4}|${[...this.done].join()}|${current}|${bonus.join()}|${[...this.flash].join()}`;
     if(key!==this.shown){this.shown=key;
       // One line: progress dots, the current step, and three stars for the bonus goals (their wording
       // is on the pause and result screens). Steps that just finished flash a tick before moving on.
       const n=this.job.steps.length,cur=current<0?n-1:current,flashing=[...this.flash].pop();
       const dots=this.job.steps.map((_,i)=>`<b class="${this.done.has(i)?'done':i===current?'now':''}"></b>`).join('');
-      const text=this.job.steps[cur].text; // Flash the tick, never leave the previous object's instruction on screen.
+      const text=g.hub&&g.time<4?'Every door is a job: pick one':this.job.steps[cur].text; // Flash the tick, never leave the previous object's instruction on screen.
       this.card.classList.toggle('flash',flashing!==undefined);
       this.card.innerHTML=`<div class="dots" aria-label="Step ${Math.min(n,this.done.size+1)} of ${n}">${dots}</div><p class="cur">${current<0?'Done!':text}</p>`+
         `<div class="stars" aria-label="Bonus goals">${bonus.map((state,i)=>`<i class="${state==='earned'?'ok':state}" title="${this.job.bonuses[i].text}${state==='at-risk'?' (keep it up)':''}">${state==='earned'?'&#9733;':'&#9734;'}</i>`).join('')}</div>`;}

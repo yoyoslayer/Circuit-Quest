@@ -1,9 +1,13 @@
 import {test,expect,type Page} from '@playwright/test';
 import {walk,route,wait,snapshot} from './navigation';
+import {plugBench} from './station-lead';
 test.describe.configure({timeout:300000});
 async function sameObject(page:Page,name:RegExp){await wait(page,.1);await expect(page.locator('.objective .cur')).toContainText(name);await expect(page.locator('.prompt-pill')).toContainText(name);}
 async function prepare(page:Page,level:string){
  await page.goto(`/?level=${level}&manual&lowfx`);await expect(page.locator('body')).toHaveAttribute('data-ready','true');await page.getByRole('button',{name:'Start playing'}).click();
+ const approach:[number,number][]=level==='spectrum'?[[-6.3,3.6],[-6.4,1.2]]:[];
+ const back:[number,number][]=level==='spectrum'?[[-8.6,1.5],[-6.4,1.45]]:level==='qfn'?[[9,-5],[8.6,-3],[6.2,-2.6],[3.3,0],[1.3,-.4]]:[];
+ await plugBench(page,approach,back);
  if(level==='arcade'){
   await route(page,[[-5.5,6.6],[-7.2,5.8]]);await walk(page,-8.3,4.4,.3);await sameObject(page,/tray|blocks/i);await page.keyboard.press('KeyE');await sameObject(page,/tray|blocks/i);
   await route(page,[[-7.2,5.8],[-5.5,6.4]]);await walk(page,1.2,-1.3,.5);await page.keyboard.press('KeyE');await wait(page,.2);await walk(page,0,-1.55,.4);

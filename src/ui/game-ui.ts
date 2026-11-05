@@ -3,7 +3,7 @@
 // (src/ui/objectives.ts).
 import type {Game} from '../game';
 import {FOVS,LENS_NAMES,type Lens} from '../render/lens';
-import type {Grade} from '../sim/grade';
+import {crewGold,gradeRush,type Grade} from '../sim/grade';
 import type {LunchJob} from '../sim/lunch';
 import {installIcons} from '../render/icons';
 import {levels} from '../levels';
@@ -213,8 +213,11 @@ export class GameUI {
   // ---------- end of job ----------
   won(result:{parts:Grade[];overall:Grade}){
     const g=this.game,stars=this.objectives.results().reduce((m,b,i)=>b.ok?m|1<<i:m,0);
-    const {improved,old}=g.practice?{improved:false,old:undefined}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost,stars});
-    const next=levels.find(l=>l.id===g.level.next),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next,previous:old};
+    const rushScore=g.station?.rushStatus?.();
+    if(rushScore)result=gradeRush(rushScore.served,g.damage,g.cost);
+    const gold=crewGold(result.parts,stars);
+    const {improved,old}=g.practice?{improved:false,old:undefined}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost,stars,crewGold:gold});
+    const next=levels.find(l=>l.id===g.level.next),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next,previous:old,crewGold:gold,served:rushScore?.served};
     // Let the camera push in on the machine coming to life before the card lands.
     setTimeout(()=>{
       g.hud.insertAdjacentHTML('beforeend',resultMarkup(view));this.show('result');document.body.dataset.complete='true';
@@ -222,7 +225,7 @@ export class GameUI {
       if(g.practice)screen.querySelector('.result .head')?.insertAdjacentHTML('beforeend','<span class="practice-tag">Practice · not recorded</span>');
       // Bonus goals under the grade rows: a star for each one achieved.
       const rows=screen.querySelector('.result .rows');const bonus=this.objectives.results();const rush=g.station?.rushStatus?.();
-      if(rush&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Orders served: <b>${rush.served}</b></p>`);
+      if(rush&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Cabinets fixed: <b>${rush.served}</b></p>`);
       if(g.strip&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Strip trips: <b>${g.strip.trips}</b></p>`);if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
       if(this.keyboard)requestAnimationFrame(()=>screen.querySelector<HTMLElement>('.btn.primary')?.focus({preventScroll:true}));
       if(!reduced())setTimeout(()=>{g.audio.thud(9);g.audio.tone(90,.18,.08,'triangle');screen.querySelector('.result')?.classList.add('thud');},1800);

@@ -49,8 +49,8 @@ export class Lobby {
       steps:jobs.map(l=>({text:`${l.number} · ${title(l)}`,done:()=>!!bestFor(l.id),at:()=>this.doors.find(d=>d.level===l)?.at})),
       bonuses:[
         {text:'Finish every job',ok:()=>jobs.every(l=>!!bestFor(l.id))},
-        {text:'Earn an A on three jobs',ok:()=>jobs.filter(l=>bestFor(l.id)?.grade==='A').length>=3},
-        {text:'Light every wing',ok:()=>this.doors.every(d=>d.done)}]};
+        {text:'Crew Gold on three jobs',ok:()=>jobs.filter(l=>bestFor(l.id)?.crewGold).length>=3},
+        {text:'Collect 15 bonus stars',ok:()=>levels.reduce((n,l)=>n+[0,1,2].filter(i=>((bestFor(l.id)?.stars??0)&(1<<i))!==0).length,0)>=15}]};
   }
   dress(kit:RoomKit){
     const g=this.game,l=g.level,r=g.decorRoot,W=l.width/2,D=l.depth/2;

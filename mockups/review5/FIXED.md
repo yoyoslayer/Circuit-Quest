@@ -45,6 +45,21 @@ Not done from these entries:
 - R5-004's optional key remaps for QFN and Observatory (R stays a bench verb there; it is harmless now because the bench owns its keys).
 - R5-015's pad glyphs in bench prompts (prompts still show keyboard keys).
 
+## Room batches (done in parallel by six agents, merged into this branch)
+
+Each room's full table (entry → change → how it was checked), skipped entries and open questions are in `fixlog/<room>.md`:
+
+| Room | P1s | Log | Headline changes |
+|---|---|---|---|
+| Arcade + Rush | 8 of 9 (R5-117 partly; its HUD tally was then done in shared code) + 17 P2 | [fixlog/arcade.md](fixlog/arcade.md) | Powering a cabinet as found is free; live swaps switch off first; scrap cost for removed blocks; LED overdrive shows as glare and heats on its own; truthful rush stories; hopper loops drawn. |
+| Robot Garage | 7 of 7 + 12 P2 | [fixlog/garage.md](fixlog/garage.md) | Protection parts fit both sockets with matching physics; parts lie either way round; job 2 is a brake coil with a real stop limit; beads follow real current; star ground shown as a long red-tinted return. |
+| QFN bench | 7 of 7 (R5-160 partly) + 13 P2 | [fixlog/qfn.md](fixlog/qfn.md) | Grab two-pin parts by the body; SHIP runs a bring-up test that names the flaw; mirrored header on board 1; loops outlined by length; fab-floor dressing instead of office clutter. |
+| Signal Observatory | 11 of 11 + 6 P2 | [fixlog/observatory.md](fixlog/observatory.md) | Dome step and shutter; knob turns per step; a fixed Elegant target; floor receiver line; thin decodes are near misses; captions follow the simulated trace. |
+| Spectrum Delivery | 11 of 11 + 13 P2 | [fixlog/spectrum.md](fixlog/spectrum.md) | No dB before SEND; doors and openings matter for radio/microwave; sunlight in the lab; loss waterfall after SEND; a held success beat. |
+| Lunch Rush | 14 P1s (3 partly) + 3 cable P1s + 10 P2 | [fixlog/lunch.md](fixlog/lunch.md) | Carts can't tip; doors don't pin Pip; dolly trails the cable; real lift shaft and rope; capacitor charges from real current; water only trips at bare metal; cable lengths that matter; cables wrap furniture. |
+
+Shared-code requests from those logs that are now done: R5-117 HUD tally, `Station.winFocus()` hook. Still open (shared code): see each log's "Needs shared change" (objectives steps for Lunch conveyor/fridge, a "no pill" prompt for stations, Lunch cable feel in game.ts, electrical.ts capacitor recharge, new prop kinds).
+
 ## Batch B7: the cable (lead's part; the Lunch cable entries R5-086/145/146 went to the Lunch agent)
 
 | ID | Fix | Files |

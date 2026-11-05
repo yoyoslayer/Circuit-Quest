@@ -78,7 +78,7 @@ export class GameUI {
   restart(){flagAutostart(this.game.level.id);location.reload();}
   /** "Jobs" from pause or the result card walks back into the HQ lobby. */
   toJobs(){flagAutostart('lobby');location.href='?level=lobby';}
-  playSelected(){const l=levels[this.sel];if(isLocked(l)){this.game.audio.tone(140,.2,.06,'square');return;}if(l.id===this.game.level.id){this.game.begin();return;}flagAutostart(l.id);location.href=`?level=${l.id}`;}
+  playSelected(){const l=levels[this.sel];if(l.id===this.game.level.id){this.game.begin();return;}if(isLocked(l)){this.game.audio.tone(140,.2,.06,'square');return;}flagAutostart(l.id);location.href=`?level=${l.id}`;}
 
   selectJob(i:number){
     this.sel=(i+levels.length)%levels.length;const hud=this.game.hud,l=levels[this.sel];

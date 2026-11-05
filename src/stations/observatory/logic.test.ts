@@ -1,6 +1,6 @@
 import {describe,expect,it} from 'vitest';
 import {JOBS,CIRCUIT,CART_SAFE,impedance,transfer,gain,dB,latchVolts,read,judge,solutions,cheapest,stepResponse,part,dcr,corner,passes,VALUES,snap,
-  quarterWave,wavelength,antennaFactor,morse,decoded,type Setup} from './logic';
+  quarterWave,wavelength,antennaFactor,morse,decoded,garbleRate,filterCorner,filterName,switchOnText,SPEC,type Setup} from './logic';
 
 const M={R470:part('R',470),L1m:part('L',1e-3),L10m:part('L',10e-3),C100n:part('C',100e-9),C1u:part('C',1e-6),C10u:part('C',10e-6)};
 
@@ -47,7 +47,7 @@ describe('observatory circuit rules',()=>{
     expect(judge(j,setup({cartDistance:1})).tier).toBe(0);
     expect(judge(j,setup({cartDistance:9})).tier).toBe(0); // distance alone isn't enough
     expect(judge(j,setup({shunt:M.C1u})).tier).toBe(1);       // decodes, thin margin
-    expect(judge(j,setup({shunt:M.C1u,rerouted:true})).tier).toBe(3);
+    expect(judge(j,setup({shunt:part('C',1.5e-6),rerouted:true})).tier).toBe(3);
     const lc=judge(j,setup({series:M.L10m,shunt:M.C1u,rerouted:true}));expect(lc.tier).toBe(2);expect(lc.notes.join()).toMatch(/Cheaper parts/);
     expect(judge(j,setup({series:M.C1u})).problems.join()).toMatch(/high-pass/);
   });
@@ -64,9 +64,11 @@ describe('observatory circuit rules',()=>{
   it('job 3: quarter-wave whips from c = fλ, and polarisation matters',()=>{
     expect(wavelength(100e6)).toBeCloseTo(3,1);expect(quarterWave(100e6)).toBeCloseTo(.75,2);expect(quarterWave(2.4e9)*100).toBeCloseTo(3.1,1);
     expect(antennaFactor('r75',true,100e6)).toBeGreaterThan(.95);expect(antennaFactor('r75',false,100e6)).toBeLessThan(.11);
-    expect(antennaFactor('r3',true,100e6)).toBeLessThan(.01);
+    expect(antennaFactor('r3',true,100e6)).toBeLessThanOrEqual(.01);
+    // Floored at −40 dB, so a flat long whip never reads an absurd −180 dB (R5-253).
+    expect(read(job('beacon'),setup({rod:'r3',vertical:false,series:M.L10m,shunt:M.C1u})).snr).toBeGreaterThanOrEqual(-40);
     const j=job('beacon'),lc={series:M.L10m,shunt:M.C1u};
-    expect(judge(j,setup({...lc,rod:'r3'})).problems.join()).toMatch(/quarter wave/);
+    expect(judge(j,setup({...lc,rod:'r3'})).problems.join()).toMatch(/poor match.*reflects/);
     expect(judge(j,setup({...lc,rod:'r75',vertical:false})).problems.join()).toMatch(/vertically polarised/);
     expect(judge(j,setup({...lc,rod:'r75'})).tier).toBe(3);
   });
@@ -101,6 +103,53 @@ describe('filter cans with a value knob',()=>{
   });
   it('failure messages say why, never what to change',()=>{
     const all=JOBS.flatMap(j=>[setup({cartDistance:1}),setup({shunt:M.C10u}),setup({series:M.C1u}),setup({series:M.R470,shunt:M.C1u}),setup({rod:'r3'}),setup({vertical:false})].flatMap(s=>judge(j,s).problems));
-    for(const m of all)expect(m).not.toMatch(/Pick a|move the motor|reroute|filter harder|Stand the rod/i);
+    for(const m of all)expect(m).not.toMatch(/Pick a|move the motor|reroute|filter harder|Stand the rod|λ\/4 ≈|move the|fit and orient/i);
+    // A failure never prints a number that matches a rack label (R5-065).
+    for(const m of all)expect(m).not.toMatch(/0\.75 m|75 cm/);
+    // The job asks state the situation, not the method.
+    for(const j of JOBS)expect(j.ask).not.toMatch(/move the|reroute|filter (it|the)|fit and orient/i);
+  });
+});
+
+describe('review 5 fixes',()=>{
+  it('R5-043: the elegant target is fixed per job, so a far throw never costs the star',()=>{
+    const j=job('garble'),c15=part('C',1.5e-6);
+    for(const d of [4.5,6,8,12,17])expect(judge(j,setup({shunt:c15,rerouted:true,cartDistance:d})).tier,`d ${d}`).toBe(3);
+    expect(judge(j,setup({shunt:M.C1u,rerouted:true,cartDistance:14})).tier).toBe(3);
+  });
+  it('R5-043/063: moving the cart helps out to about 6 m; past that the line still needs a filter',()=>{
+    const j=job('garble');
+    for(const d of [6,10,17])for(const rerouted of [false,true])expect(read(j,setup({cartDistance:d,rerouted})).snr).toBeLessThan(SPEC.reliableSnr);
+  });
+  it('R5-045: rerouting the cable matters only while the cart sits near the front route',()=>{
+    const j=job('garble'),c=part('C',1.5e-6),snr=(d:number,rerouted:boolean)=>read(j,setup({shunt:c,cartDistance:d,rerouted})).snr;
+    expect(snr(1.4,true)-snr(1.4,false)).toBeCloseTo(6,0);
+    expect(Math.abs(snr(7,true)-snr(7,false))).toBeLessThan(1);
+  });
+  it('R5-063: jobs 1 and 2 need a reliable decode, and no single can gives one in job 2',()=>{
+    expect(job('garble').minTier).toBe(2);expect(job('latch').minTier).toBe(2);
+    // Far cart, no filter: it decodes at best, so it can't finish job 1.
+    expect(judge(job('garble'),setup({cartDistance:12,rerouted:true})).tier).toBeLessThan(2);
+    for(const v of VALUES.C)expect(judge(job('latch'),setup({shunt:part('C',v)})).tier).toBeLessThan(2);
+  });
+  it('R5-064: a coil and capacitor act together at f0 = 1/(2π√LC)',()=>{
+    expect(filterCorner({series:M.L10m,shunt:M.C1u})!).toBeCloseTo(1592,-1);
+    expect(filterCorner({shunt:M.C1u})).toBeUndefined();
+    expect(filterCorner({series:M.R470,shunt:M.C1u})!).toBeCloseTo(1/(2*Math.PI*(520*600/1120)*1e-6),3);
+  });
+  it('R5-066: the switch-on caption follows the simulated trace',()=>{
+    expect(switchOnText({series:M.L1m,shunt:part('C',1.5e-6)})).not.toMatch(/ring/);
+    expect(switchOnText({series:M.L10m,shunt:part('C',150e-9)})).toMatch(/ring/);
+    expect(switchOnText({series:M.L10m,shunt:M.L1m})).toMatch(/only .* reaches the latch/);
+    expect(switchOnText({series:M.C1u})).toMatch(/no DC/);
+  });
+  it('R5-115: the decoder readout follows the judge: clean when reliable, garbled when the tone is too quiet',()=>{
+    expect(garbleRate(12.5)).toBe(0);expect(garbleRate(7)).toBeLessThan(.15);expect(garbleRate(3)).toBeGreaterThan(.5);
+    expect(garbleRate(34,.07)).toBeGreaterThan(.5);expect(decoded('CQ CQ DE PIP',34,1,.07)).not.toBe('CQ CQ DE PIP');
+    expect(garbleRate(20,.55)).toBe(0);
+  });
+  it('R5-207: filter names for every pair',()=>{
+    expect(filterName({series:M.C1u,shunt:part('C',1.5e-6)})).toMatch(/band-pass/);expect(filterName({series:M.L1m,shunt:M.L10m})).toMatch(/band-pass/);
+    expect(filterName({series:M.C1u,shunt:M.L1m})).toMatch(/high-pass/);expect(filterName({series:M.R470,shunt:M.L1m})).toMatch(/high-pass/);
   });
 });

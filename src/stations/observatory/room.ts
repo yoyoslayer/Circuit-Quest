@@ -2,6 +2,7 @@
 // the receiver rack and its mast beside the signal bench, and a gallery of spectrum exhibits
 // (radio → gamma) along the back wall with a plain safety note. Warm wood where Pip works.
 import * as T from 'three';
+import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
 import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,DMETAL,INK} from '../../render/kit';
@@ -67,15 +68,41 @@ export function dressObservatory(game:Game,kit:RoomKit){
   // ---- The dome: a half-shell open to the room, painted inside with the night sky.
   const dx=-6.1,dz=-5.3,R=2.55;
   part(r,cyl(R+.25,R+.3,.14,40),toon('#c9b8f0'),dx,.07,dz);part(r,cyl(R+.05,R+.05,.02,40),toon(NIGHT),dx,.15,dz,false);solid(game,1.2,2,1.2,dx,1,dz);
-  const skyMat=flat(starfield(7),{side:T.BackSide,transparent:false});
-  const dome=new T.Mesh(new T.SphereGeometry(R,48,24,Math.PI,Math.PI,0,Math.PI/2),skyMat);dome.position.set(dx,.15,dz);dome.userData.noAO=true;game.root.add(dome);
-  const shellOut=new T.Mesh(new T.SphereGeometry(R+.06,48,24,Math.PI,Math.PI,0,Math.PI/2),toon('#e9dcc0'));shellOut.material.side=T.FrontSide;shellOut.position.copy(dome.position);r.add(shellOut);
+  // Colliders (R5-021): the platform is a real 16 cm step (Pip's controller climbs it, props rest on
+  // it), and a low ring of segments just inside the back half of the shell keeps Pip and thrown props
+  // out of the solid-looking wall. They stop at 1.35 m, where the hemisphere still stands over them,
+  // so nothing hits an invisible wall outside the visible curve.
+  game.world.createCollider(RAPIER.ColliderDesc.cylinder(.08,R+.3).setFriction(.8),game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(dx,.08,dz)));
+  for(let k=0;k<12;k++){const a=Math.PI+(k+.5)/12*Math.PI,rr=R-.1;solid(game,.15,1.2,.7,dx+Math.cos(a)*rr,.75,dz+Math.sin(a)*rr,-a);}
+  // The shell has a slit along its back meridian (the telescope looks out through it), closed by a
+  // shutter that the 12 V latch holds open (R5-044, R5-306).
+  const SLIT=.13,ss=3*Math.PI/2,halves:[number,number][]=[[Math.PI,ss-SLIT-Math.PI],[ss+SLIT,2*Math.PI-ss-SLIT]];
+  const skyMat=flat(starfield(7),{side:T.BackSide,transparent:false}),shellMat=toon('#e9dcc0');
+  for(const [p0,len] of halves){
+    const dome=new T.Mesh(new T.SphereGeometry(R,24,24,p0,len,0,Math.PI/2),skyMat);dome.position.set(dx,.15,dz);dome.userData.noAO=true;game.root.add(dome);
+    const shellOut=new T.Mesh(new T.SphereGeometry(R+.06,24,24,p0,len,0,Math.PI/2),shellMat);shellOut.position.copy(dome.position);r.add(shellOut);}
+  // Brass ribs frame the slit edges.
+  // (A torus arc lies in its own xy plane from +x up to +y; turning it by φ − π about y stands it on
+  // the shell's meridian at φ.)
+  for(const s of [-1,1])part(r,new T.TorusGeometry(R+.06,.035,8,32,Math.PI/2),toon(BRASS),dx,.15,dz).rotation.y=Math.PI/2+s*SLIT;
   part(r,new T.TorusGeometry(R+.03,.06,10,64,Math.PI),toon(BRASS),dx,.18,dz).rotation.set(Math.PI/2,0,Math.PI);
-  // Telescope on its pier: cream pier, brass fork, a long tube aimed up through the slit.
+  // Night sky just outside the slit: from the room you see it through the open front of the dome
+  // while the shutter is open, and the brass leaf hides it when the shutter shuts.
+  const skyStrip=new T.MeshBasicMaterial({color:'#cfe2ff',side:T.DoubleSide});skyStrip.userData.outlineParameters={visible:false};
+  const strip=part(game.root,new T.SphereGeometry(R+.32,4,20,ss-SLIT-.03,2*SLIT+.06,.02,Math.PI/2-.06),skyStrip,dx,.15,dz,false);strip.userData.noAO=true;
+  // The leaf shows both faces: from the room you look at its inside through the open front.
+  const shutter=group(game.root,dx,.15,dz),leafMat=toon('#b9893f').clone();leafMat.side=T.DoubleSide;
+  part(shutter,new T.SphereGeometry(R+.12,6,20,ss-SLIT-.05,2*SLIT+.1,.02,Math.PI/2-.04),leafMat,0,0,0);
+  for(const s of [-1,1])part(shutter,new T.TorusGeometry(R+.13,.03,6,24,Math.PI/2-.04),toon(BRASS),0,0,0).rotation.y=Math.PI/2+s*(SLIT+.05);
+  // Telescope on its pier: cream pier, brass fork with trunnion pins, a long tube aimed up through the slit.
   const scope=group(r,dx,.15,dz+.1);part(scope,cyl(.28,.36,1,20),toon(CREAM),0,.5,0);part(scope,cyl(.34,.34,.06,20),toon(BRASS),0,1.02,0);
-  const fork=group(scope,0,1.05,0);for(const s of [-1,1])part(fork,box(.06,.55,.14),toon(BRASS),s*.3,.27,0);
+  const fork=group(game.root,dx,1.2,dz+.1);for(const s of [-1,1]){part(fork,box(.06,.55,.14),toon(BRASS),s*.27,.27,0);part(fork,cyl(.045,.045,.1,12,'x'),toon(DMETAL),s*.225,.52,0);}
   const tube=group(fork,0,.52,0);tube.rotation.x=-.75;part(tube,cyl(.2,.2,1.9,24),glossyToon('#f4efe6',{spec:.7,size:.97}),0,.3,0);part(tube,cyl(.23,.23,.12,24),toon(BRASS),0,1.22,0);part(tube,cyl(.21,.21,.08,24),toon(BRASS),0,-.6,0);
   part(tube,cyl(.05,.05,.35,12),toon(INK),.24,.4,0).rotation.z=.2;part(tube,cyl(.045,.045,.2,12,'z'),toon(BRASS),0,-.5,.2);
+  // The dome motor (it drives the shutter and turns the dome): a brass housing on the rim at the
+  // room side, humming while its 4 kHz whine is on the line.
+  const domeMotor=group(game.root,dx+R+.16,.15,dz-.25);part(domeMotor,rbox(.36,.3,.34,.05),toon('#3a3563'),0,.15,0);part(domeMotor,cyl(.11,.11,.38,16,'x'),toon(BRASS),0,.36,0);
+  for(let k=0;k<6;k++)part(domeMotor,box(.025,.04,.3),toon(DMETAL),-.15+k*.06,.47,0,false);part(domeMotor,cyl(.04,.04,.14,10,'z'),toon(INK),.12,.2,.2);
   glow(game.root,'rgba(160,150,255,1)',4,.1).position.set(dx,1.6,dz-1);pointLamp(game.root,dx,2.2,dz+.6,{color:'#b9b0ff',intensity:4,distance:5});
   // ---- The receiver rack and its rooftop mast, just left of the bench.
   const rack=group(r,RX.x-.3,0,RX.z-.2);part(rack,rbox(.9,1.5,.7,.06),toon(NIGHT),0,.75,0);part(rack,box(.92,.06,.72),toon(BRASS),0,1.52,0);
@@ -95,7 +122,8 @@ export function dressObservatory(game:Game,kit:RoomKit){
   pointLamp(game.root,x0+1.5*step,2.6,-D+1.8,{color:'#fff1d6',intensity:4,distance:5.5});pointLamp(game.root,x0+5*step,2.6,-D+1.8,{color:'#fff1d6',intensity:4,distance:5.5});
   // Exhibit plinths in front of the gallery: a dish, a prism with its rainbow, a lead-lined box.
   const plinth=(x:number,z:number)=>{const g=group(r,x,0,z);part(g,rbox(.7,.9,.7,.06),toon(CREAM),0,.45,0);part(g,box(.74,.05,.74),toon(BRASS),0,.92,0);solid(game,.7,1,.7,x,.5,z);return g;};
-  const dish=plinth(3.2,-6.3);const bowl=part(dish,new T.SphereGeometry(.34,24,12,0,Math.PI*2,0,Math.PI/2.6),toon('#dfe3ea'),0,1.3,0);bowl.rotation.x=Math.PI*.8;(bowl.material as T.Material).side=T.DoubleSide;part(dish,cyl(.03,.03,.36,8),toon(DMETAL),0,1.1,0);
+  // The dish needs both faces: it gets its own material, so the shared toon one stays front-sided (R5-330).
+  const dish=plinth(3.2,-6.3),dishMat=toon('#dfe3ea').clone();dishMat.side=T.DoubleSide;const bowl=part(dish,new T.SphereGeometry(.34,24,12,0,Math.PI*2,0,Math.PI/2.6),dishMat,0,1.3,0);bowl.rotation.x=Math.PI*.8;part(dish,cyl(.03,.03,.36,8),toon(DMETAL),0,1.1,0);
   const prism=plinth(6.2,-6.3);const glass=part(prism,cyl(.2,.2,.3,3),toon('#cfefff',{opacity:.6}),0,1.1,0);glass.rotation.z=Math.PI/2;
   ['#e5484d','#f08a4b','#ffd66b','#6cc58a','#5b9cf0','#8b7be8'].forEach((c,k)=>{const b=part(prism,box(.4,.012,.035),toon(c),.35,1.1+k*.0,-.09+k*.036,false);b.rotation.y=-.35+k*.06;});
   const lead=plinth(9,-6.3);part(lead,rbox(.46,.36,.46,.05),toon('#6b7385'),0,1.13,0);part(lead,new T.PlaneGeometry(.3,.3),flat(plaque('☢',128,128,'#ffd66b',INK,80)),0,1.13,.235,false);
@@ -106,6 +134,23 @@ export function dressObservatory(game:Game,kit:RoomKit){
   pointLamp(game.root,0,2.7,-1.6,{color:'#fff1d6',intensity:5,distance:5.5});lampPool(game.root,0,-2.2,2.6,.2);
   pointLamp(game.root,-4,2.4,3,{color:'#ffd9a8',intensity:3,distance:6});
   // When the last transmission is decoded, the dome's stars brighten.
-  const lightUp=()=>{glow(game.root,'rgba(200,190,255,1)',6,.35).position.set(dx,1.8,dz-1.2);pointLamp(game.root,dx,1.8,dz,{color:'#c9c0ff',intensity:8,distance:8});};
-  return {lightUp};
+  let won=false;
+  const lightUp=()=>{won=true;glow(game.root,'rgba(200,190,255,1)',6,.35).position.set(dx,1.8,dz-1.2);pointLamp(game.root,dx,1.8,dz,{color:'#c9c0ff',intensity:8,distance:8});};
+  // Shutter and telescope follow the latch: open, the leaf slides aside and the tube looks out
+  // through the slit; when the latch drops, the leaf slams shut and the tube drops back inside.
+  const OPEN=.42,TUBE_UP=-.75,TUBE_DOWN=-1.25;let open=true,s=0,pulse=0;const motorHome=domeMotor.position.clone();
+  shutter.rotation.y=OPEN;
+  return {lightUp,
+    /** Where the shutter leaf's foot is (for the slam's dust) and where the dome motor sits. */
+    shutterAt:new T.Vector3(dx,.6,dz-R-.1),motorAt:new T.Vector3(dx+R+.16,.6,dz-.25),
+    setShutter(o:boolean){open=o||won;},
+    get shutterOpen(){return open;},
+    /** Animates the shutter and the tube, and jitters the dome motor while it hums. */
+    tick(dt:number,hum:boolean){
+      const goal=open?OPEN:0,rate=open?.45:2.2;shutter.rotation.y+=Math.sign(goal-shutter.rotation.y)*Math.min(Math.abs(goal-shutter.rotation.y),rate*dt);
+      tube.rotation.x+=((open?TUBE_UP:TUBE_DOWN)-tube.rotation.x)*Math.min(1,dt*(open?1.5:6));
+      s+=dt;domeMotor.position.copy(motorHome);
+      if(hum){domeMotor.position.x+=Math.sin(s*190)*.002;domeMotor.position.z+=Math.cos(s*170)*.002;pulse-=dt;
+        if(pulse<=0){pulse=.8;game.burst({x:motorHome.x,y:.6,z:motorHome.z},'#ffd66b',1,'ring');}}
+    }};
 }

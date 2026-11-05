@@ -10,8 +10,14 @@
 //   sits straight across the supply. It only adds a second, wasteful path.
 // - A transistor's base–emitter junction behaves like a diode (~0.7 V), so a logic pin driving it
 //   needs a base resistor too; the base current must be big enough to switch the motor fully on.
-// - The fuse is a PTC: it trips on a fault, heats, and conducts again by itself once it cools.
+// - The fuse is a self-resetting thermal breaker: it trips on a fault, and conducts again by itself
+//   once it cools (so a fault left powered clicks on and off).
 // - Over-current shortens an LED's life (it runs hot); only a gross overload kills one outright.
+//   An LED's colour does not change with current: overdriven it glares, it does not turn white.
+// - A resistor's rating is a long-term one: a little over it the block scorches and fails after a
+//   while; only a gross overload makes it pop at once.
+// - A transistor's gain varies from part to part: the base current must switch even a weak one
+//   (β 40) fully on, so the design leaves margin over the typical β 100.
 // - Simplified LED model: a fixed forward voltage, light roughly proportional to current. Real LEDs
 //   have a curved I–V characteristic; the panel says so. Ratings, margins and battery capacity are
 //   this arcade's house values, labelled as such.
@@ -40,6 +46,11 @@ export const HOUSE={
   tau:2,
   /** An LED driven past this multiple of its rated current fails outright (it pops). */
   ledPop:2.5,
+  /** The LED's own thermal time constant (s): a tiny die heats in a fraction of a second. */
+  ledTau:.25,
+  /** A block past this multiple of its rating pops at once; a little over 1× it scorches and fails
+   *  after `scorchFail` seconds. House values: real parts survive brief overloads. */
+  blockPop:2.5,scorchFail:8,
   /** A kid plays the cabinet this long (s) with everything in spec before it can be signed off. */
   soak:3,
   /** A 9 V alkaline battery, roughly (mAh). */
@@ -48,7 +59,7 @@ export const HOUSE={
 export type LedColor='red'|'green'|'blue'|'white';
 export interface Led {kind:'led';color:LedColor;vf:number;imax:number}
 /** A logic pin driving an NPN transistor's base (the motor switch). */
-export interface Base {kind:'base';vf:number;imax:number;imin:number;beta:number;motor:number}
+export interface Base {kind:'base';vf:number;imax:number;imin:number;beta:number;betaMin:number;motor:number}
 export type Load=Led|Base;
 /** The chain: each position lists the blocks standing in it (empty positions are bridged by wire). */
 export type Chain=Block[][];
@@ -70,16 +81,16 @@ export const JOBS:Job[]=[
     ask:'Blue LED on 3.3 V: 10–20 mA'},
   {id:'claw',title:'Claw machine',cabinet:'CLAW',supply:12,load:led('green'),band:[.01,.02],
     start:{chain:[[220],[],[]],reversed:false},
-    story:'The claw light glows white-hot and its block smells warm.',
+    story:'The claw light glares far too bright and its block smells hot.',
     ask:'Green LED on 12 V: 10–20 mA'},
   {id:'handheld',title:'Handheld',cabinet:'HANDHELD',supply:9,battery:true,load:led('red'),band:[.005,.015],
     start:{chain:[[220],[],[]],reversed:false},
     story:'A 9 V battery handheld. Its power light is blinding, and the battery is flat by lunch.',
     ask:'Red LED on a 9 V battery: 5–15 mA, long battery life'},
-  {id:'hopper',title:'Coin hopper',cabinet:'PRIZES',supply:5,load:{kind:'base',vf:.7,imax:.02,imin:.002,beta:100,motor:.2},band:[.004,.01],
+  {id:'hopper',title:'Coin hopper',cabinet:'PRIZES',supply:5,load:{kind:'base',vf:.7,imax:.02,imin:.002,beta:100,betaMin:40,motor:.2},band:[.005,.015],
     start:{chain:empty(),reversed:false},
-    story:'A 5 V logic pin (rated 20 mA) switches the hopper motor through a transistor. The motor needs 2 mA of base current.',
-    ask:'Transistor base on a 5 V pin: 4–10 mA'},
+    story:'A 5 V logic pin (rated 20 mA) switches the 12 V hopper motor through a transistor. A typical transistor needs 2 mA of base current to pass the motor’s 200 mA, but a weak one needs 5.',
+    ask:'Transistor base on a 5 V pin: 5–15 mA'},
 ];
 
 /** Resistance of one position: a single block, or two side by side (parallel). */
@@ -136,8 +147,14 @@ export const mA=(a:number)=>{const v=a*1000;return v>=100?v.toFixed(0):v>=10?v.t
 export const mAr=(a:number)=>`${+(a*1000).toFixed(1)}`;
 export const ohms=(r:number)=>r>=1000?`${+(r/1000).toFixed(2)} kΩ`:`${+r.toFixed(r<100?1:0)} Ω`;
 export const watts=(p:number)=>p>=1?`${p.toFixed(2)} W`:`${(p*1000).toFixed(p<.01?1:0)} mW`;
-/** The elegant zone: the lowest third of the band. Least wasted power while still bright enough. */
-export const starZone=(job:Job):[number,number]=>[job.band[0],job.band[0]+(job.band[1]-job.band[0])/3];
+/** The elegant zone. For an LED, the lowest third of the band: least wasted power while still bright
+ *  enough. For a transistor base, the middle third: enough drive for even a weak part, without
+ *  loading the logic pin. */
+export const starZone=(job:Job):[number,number]=>{const [a,b]=job.band,w=(b-a)/3;return job.load.kind==='base'?[a+w,a+2*w]:[a,a+w];};
+/** Motor drive (1 = full speed) for a base current, with a typical part and with a weak one. */
+export function motorDrive(load:Base,iLoad:number){return {typical:Math.min(1,iLoad*load.beta/load.motor),weak:Math.min(1,iLoad*load.betaMin/load.motor)};}
+/** Why an LED popped: driven far past its rating, it burns out at once. */
+export const popWhy=(job:Job,r:Reading)=>`${mA(r.iLoad)} mA is ${r.level.toFixed(1)}× the LED's ${mAr(job.load.imax)} mA rating: that far over, it burns out at once. A spare goes in.`;
 
 export interface Verdict {tier:0|1|2|3;problems:string[];notes:string[];cost:number}
 export const partsCost=(s:Setup)=>(blockCount(s.chain)+(s.across?1:0))*BLOCK_COST;
@@ -155,19 +172,22 @@ export function judge(job:Job,s:Setup):Verdict{
     if(s.across&&r.i>HOUSE.lit)problems.push(`The block across ${what} steals the current (${mA(r.i-r.iLoad)} mA) and wastes it.`);
     else if(isLed)problems.push(`Too dim to see: ${mA(r.iLoad)} mA through ${ohms(r.rChain)}.`);
     else problems.push(`Only ${mA(r.iLoad)} mA into the base: the transistor is half on, so the motor crawls and the transistor heats. It needs ${mAr((job.load as Base).imin)} mA.`);
-  }else if(r.iLoad>job.load.imax)problems.push(isLed?`${mA(r.iLoad)} mA is over the LED's ${mAr(job.load.imax)} mA rating: it runs hot and dies early. (I = (V − Vf) ÷ R)`
+  }else if(r.iLoad>job.load.imax)problems.push(isLed?(r.level>HOUSE.ledPop?popWhy(job,r):`${mA(r.iLoad)} mA is ${r.level.toFixed(1)}× the LED's ${mAr(job.load.imax)} mA rating: it runs hot and dies early. (I = (V − Vf) ÷ R)`)
     :`${mA(r.iLoad)} mA is over the logic pin's ${mAr(job.load.imax)} mA rating. (I = (5 V − 0.7 V) ÷ R)`);
   if(!problems.length){
     const hot=r.blocks.find(b=>b.p>BLOCK_RATING);
-    if(hot)problems.push(`A ${ohms(hot.r)} block turns ${watts(hot.p)} into heat (P = I²R), but it is a ¼ W part: it scorches.`);
+    if(hot)problems.push(`A ${ohms(hot.r)} block turns ${watts(hot.p)} into heat (P = I²R), but it is a ¼ W part: it is scorching and will fail.`);
     else if(s.across&&r.pP>BLOCK_RATING)problems.push(`The block across ${what} turns ${watts(r.pP)} into heat: it scorches.`);
   }
   if(problems.length)return {tier:0,problems,notes,cost};
   const inBand=r.iLoad>=job.band[0]-1e-9&&r.iLoad<=job.band[1]+1e-9;
-  if(!inBand)notes.push(r.iLoad<job.band[0]?`${mA(r.iLoad)} mA is under the ${mAr(job.band[0])}–${mAr(job.band[1])} mA band: too dim.`:`${mA(r.iLoad)} mA is over the ${mAr(job.band[0])}–${mAr(job.band[1])} mA band.`);
+  if(!inBand)notes.push(r.iLoad<job.band[0]?`${mA(r.iLoad)} mA is under the ${mAr(job.band[0])}–${mAr(job.band[1])} mA band: ${isLed?'too dim':'a typical transistor switches fully on, but a weak one would be only half on'}.`:`${mA(r.iLoad)} mA is over the ${mAr(job.band[0])}–${mAr(job.band[1])} mA band.`);
   if(r.rHeat>HOUSE.margin)notes.push(`The hottest block runs at ${Math.round(r.rHeat*100)} % of its ¼ W rating; the house rule is ${HOUSE.margin*100} %.`);
   if(notes.length)return {tier:1,problems,notes,cost};
   if(s.across)notes.push('The block across the LED only wastes current.');
+  else if(!isLed){const z=starZone(job);
+    if(r.iLoad<z[0]-1e-9)notes.push('In the band, but near its bottom: little spare drive if the transistor is a weak one.');
+    else if(r.iLoad>z[1]+1e-9)notes.push('In the band, but above the ★ zone: the logic pin works harder than it needs to.');}
   else if(r.iLoad>starZone(job)[1]+1e-9)notes.push(`In the band, but above the ★ zone: a little more resistance wastes less power${job.battery?' and the battery lasts longer':''}.`);
   return {tier:notes.length?2:3,problems,notes,cost};
 }
@@ -196,11 +216,27 @@ export const heatAt=(steady:number,t:number)=>steady*(1-Math.exp(-t/HOUSE.tau));
 export const failTime=(steady:number)=>steady>1?-HOUSE.tau*Math.log(1-1/steady):Infinity;
 export const TIER_WORD=['Fails','Works','Works reliably','Elegant'];
 
+/** The fewest credits any chain that reaches `tier` costs: what a sign-off at that tier has to
+ *  spend; anything over it is waste. */
+export function minCost(job:Job,tier:number){cache??=allChains();let n=Infinity;
+  for(const c of cache){const k=blockCount(c)*BLOCK_COST;if(k<n&&judge(job,{chain:c,reversed:false}).tier>=tier)n=k;}return Number.isFinite(n)?n:0;}
+
 // ---------- rush (level arcade-rush) ----------
 const RUSH_CABINETS=['PINBALL','RHYTHM','CLAW','RACER','SKEE','DANCE','LIGHTGUN','PUSHER','AIR HOCKEY','TOKEN'];
 const RUSH_FAULTS=['across','backwards','hot','dim','empty'] as const;
+/** What the player says about a cabinet, read from what its start setup really does when powered. */
+export function storyFor(job:Job,s:Setup):string{
+  const r=read(job,s);
+  if(r.tripped)return s.across&&blockCount(s.chain)===0?'Someone fitted a block across the LED. The fuse keeps cutting out.'
+    :blockCount(s.chain)===0?'The chain socket is empty, and the fuse keeps cutting out.':'The fuse keeps cutting out.';
+  if(job.load.kind==='led'&&s.reversed&&!r.lit)return 'Right blocks, but the LED went in backwards. It stays dark.';
+  if(r.level>HOUSE.ledPop)return 'Its light flashed and died; a spare is in.';
+  if(r.iLoad>job.load.imax)return r.rHeat>HOUSE.margin?'Glaring, and the block smells warm.':'Glaring: far brighter than the others.';
+  if(r.iLoad<job.band[0])return 'Dimmer than the other cabinets.';
+  return 'Not quite right.';
+}
 /** An endless supply of LED cabinets for rush: random supply, colour, brightness window and fault,
- *  only ever one the bins can fix elegantly. */
+ *  only ever one the bins can fix elegantly. The story always matches what powering it on shows. */
 export function rushJob(rng:()=>number,n:number):Job{
   const pick=<V>(a:readonly V[])=>a[Math.floor(rng()*a.length)];
   for(;;){
@@ -209,14 +245,25 @@ export function rushJob(rng:()=>number,n:number):Job{
     const job:Job={id:`rush-${n}`,title:cabinet[0]+cabinet.slice(1).toLowerCase(),cabinet,supply,load:led(color),band,start:{chain:empty(),reversed:false},story:'',
       ask:`${color[0].toUpperCase()+color.slice(1)} LED on ${supply} V: ${Math.round(band[0]*1000)}–${Math.round(band[1]*1000)} mA`};
     const fix=best(job);if(!fix)continue;
+    let start:Setup|undefined;
     switch(fault){
-      case 'across':job.start={chain:empty(),across:pick(BLOCKS),reversed:false};job.story='Someone fitted a block across the LED. The fuse keeps clicking.';break;
-      case 'backwards':job.start={chain:fix.map(p=>[...p]),reversed:true};job.story='Right blocks, but the LED went in backwards. It stays dark.';break;
-      case 'hot':job.start={chain:[[47],[],[]],reversed:false};job.story='Too bright, and the block smells warm.';break;
-      case 'dim':job.start={chain:[[470],[470],[470]],reversed:false};job.story='Barely glowing. The player says it looks broken.';break;
-      case 'empty':job.story='The chain socket is empty.';break;
+      case 'across':start={chain:empty(),across:pick(BLOCKS),reversed:false};break;
+      // Backwards on more than 5 V would be past a typical LED's reverse rating, so only low supplies.
+      case 'backwards':if(supply<=5)start={chain:fix.map(p=>[...p]),reversed:true};break;
+      // Too bright but not destructive: the LED over its rating (short of popping) and a warm block.
+      case 'hot':{let pickR=-1;
+        for(const c of HOT_CHAINS){const st={chain:c,reversed:false},r=read(job,st);
+          if(!r.tripped&&r.level>1&&r.level<HOUSE.ledPop*.9&&r.rHeat>=.6&&r.rHeat<=1&&r.rChain>pickR){pickR=r.rChain;start={chain:c.map(p=>[...p]),reversed:false};}}
+        break;}
+      // Visibly dimmer: under half the band's bottom.
+      case 'dim':for(const c of DIM_CHAINS){const st={chain:c,reversed:false};if(read(job,st).iLoad<job.band[0]*.5){start={chain:c.map(p=>[...p]),reversed:false};break;}}break;
+      case 'empty':start={chain:empty(),reversed:false};break;
     }
-    if(judge(job,job.start).tier>=2)continue;
+    if(!start||judge(job,start).tier>=2)continue;
+    job.start=start;job.story=storyFor(job,start);
     return job;
   }
 }
+/** Single blocks and two-block runs (the 'hot' fault's candidates), and growing runs of 470s ('dim'). */
+const HOT_CHAINS:Chain[]=[...BLOCKS.map(b=>[[b],[],[]] as Chain),...BLOCKS.flatMap((a,i)=>BLOCKS.slice(i).map(b=>[[a],[b],[]] as Chain))];
+const DIM_CHAINS:Chain[]=[[[470],[],[]],[[470],[470],[]],[[470],[470],[470]]];

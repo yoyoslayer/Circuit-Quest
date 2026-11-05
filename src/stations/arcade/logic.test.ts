@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {JOBS,HOUSE,BLOCK_RATING,read,judge,best,reliable,chainR,positionR,blockHeat,starZone,rushJob,heatAt,failTime,type Setup,type Chain,type Block} from './logic';
+import {JOBS,HOUSE,BLOCK_RATING,read,judge,best,reliable,chainR,positionR,blockHeat,starZone,rushJob,heatAt,failTime,motorDrive,minCost,partsCost,storyFor,type Setup,type Chain,type Block,type Base} from './logic';
 import {rng} from '../../render/textures';
 
 const job=(id:string)=>JOBS.find(j=>j.id===id)!;
@@ -47,7 +47,7 @@ describe('arcade circuit rules',()=>{
     const r=read(job('claw'),s(chain([220])));expect(r.iLoad).toBeGreaterThan(.02);
     // 47 Ω alone on the claw: way over the LED's rating.
     expect(judge(job('claw'),s(chain([47]))).problems[0]).toMatch(/fuse tripped/);
-    expect(judge(job('claw'),s(chain([100]))).problems[0]).toMatch(/over the LED/);
+    expect(judge(job('claw'),s(chain([100]))).problems[0]).toMatch(/burns out at once/);
     // A 3.3 V channel at 25 mA through a single 47 Ω block is fine, but heat is reported per block.
     expect(read(job('claw'),s(chain([470],[470]))).rHeat).toBeLessThan(HOUSE.margin);
     expect(BLOCK_RATING).toBe(.25);
@@ -63,17 +63,36 @@ describe('arcade circuit rules',()=>{
   it('a battery lasts longer with less current',()=>{
     const j=job('handheld'),a=read(j,s(chain([470]))).lifeH!,b=read(j,s(chain([470],[470]))).lifeH!;expect(b).toBeGreaterThan(a*1.9);
   });
-  it('a logic pin driving a transistor base needs enough base current for the motor',()=>{
-    const j=job('hopper');
-    expect(judge(j,s(chain([470],[470],[470]))).tier).toBe(1);
+  it('a logic pin driving a transistor base needs enough base current for even a weak transistor',()=>{
+    const j=job('hopper'),load=j.load as Base;
+    // 3.05 mA runs a typical part (β 100) fully, but a weak one (β 40) only half: under the band.
+    const low=judge(j,s(chain([470],[470],[470])));expect(low.tier).toBe(1);expect(low.notes[0]).toMatch(/half on/);
+    const d=motorDrive(load,read(j,s(chain([470],[470],[470]))).iLoad);expect(d.typical).toBe(1);expect(d.weak).toBeLessThan(1);
     expect(judge(j,s(chain([47]))).problems[0]).toMatch(/pin/);
-    expect(judge(j,s(chain([470],[220],[100]))).tier).toBe(3);
+    // The ★ zone is the middle of the band: one 470 Ω block gives 9.1 mA, enough for a weak part.
+    const r=read(j,s(chain([470])));expect(r.iLoad*1000).toBeGreaterThan(8);expect(r.iLoad*1000).toBeLessThan(12);
+    expect(judge(j,s(chain([470]))).tier).toBe(3);expect(motorDrive(load,r.iLoad).weak).toBe(1);expect(best(j)).toEqual([[470],[],[]]);
+    expect(judge(j,s(chain([470],[220],[100]))).tier).toBe(2);
   });
   it('every job has an elegant chain, and every starting state is broken',()=>{
     for(const j of JOBS){expect(best(j),j.id).toBeDefined();expect(reliable(j).length,j.id).toBeGreaterThan(0);expect(judge(j,j.start).tier,j.id).toBeLessThan(2);}
   });
-  it('thermal ramps: a part at 150 % of its rating fails after a couple of seconds, one at 90 % never does',()=>{
-    expect(failTime(1.5)).toBeGreaterThan(1);expect(failTime(.9)).toBe(Infinity);expect(heatAt(1,HOUSE.tau)).toBeCloseTo(1-Math.exp(-1),9);
+  it('thermal ramps: a block a little over its rating scorches (and fails slowly); a gross overload pops it',()=>{
+    expect(failTime(.9)).toBe(Infinity);expect(heatAt(1,HOUSE.tau)).toBeCloseTo(1-Math.exp(-1),9);
+    // 1.5× for 10 s: hot, but nowhere near the instant-pop line; the verdict says it is scorching.
+    expect(heatAt(1.5,10)).toBeGreaterThan(1);expect(heatAt(1.5,10)).toBeLessThan(HOUSE.blockPop);
+    expect(HOUSE.scorchFail).toBeGreaterThan(5);
+    // At 3× it crosses the pop line within a few seconds.
+    expect(heatAt(3,5)).toBeGreaterThan(HOUSE.blockPop);
+    // The claw as found: its 220 Ω block runs at 1.77× and scorches rather than popping in seconds.
+    const r=read(job('claw'),job('claw').start);expect(r.rHeat).toBeGreaterThan(1);expect(r.rHeat).toBeLessThan(HOUSE.blockPop);
+    expect(judge(job('hopper'),s(chain([100],[47]))).problems[0]??'').not.toMatch(/popped/);
+  });
+  it('an LED over its rating runs hot; only far past it does it burn out at once',()=>{
+    const over=judge(job('bumper'),s(chain([100]))).problems[0];expect(over).toMatch(/1\.5× the LED/);expect(over).toMatch(/dies early/);
+    const pop=judge(job('bumper'),s(chain([47]))).problems[0];expect(read(job('bumper'),s(chain([47]))).level).toBeGreaterThan(HOUSE.ledPop);expect(pop).toMatch(/at once/);
+    // The LED's die has its own fast time constant, and the claw as found (2.2×) stays short of the pop line.
+    expect(HOUSE.ledTau).toBeLessThan(HOUSE.tau);expect(read(job('claw'),job('claw').start).level).toBeLessThan(HOUSE.ledPop);
   });
 });
 
@@ -81,5 +100,18 @@ describe('arcade rush cabinets',()=>{
   it('are always fixable elegantly from the bins, and start broken',()=>{
     const r=rng(11);for(let i=0;i<120;i++){const j=rushJob(r,i),fix=best(j);expect(fix,j.ask).toBeDefined();
       expect(judge(j,s(fix!)).tier).toBe(3);expect(judge(j,j.start).tier,`${j.ask} ${JSON.stringify(j.start)}`).toBeLessThan(2);}
-  });
+  },30000);
+  it('tell a story that matches what powering them on shows',()=>{
+    const r=rng(20261029);let glaring=0,dim=0;
+    for(let i=0;i<500;i++){const j=rushJob(r,i),st=read(j,j.start);expect(j.story).toBe(storyFor(j,j.start));
+      if(/fuse/.test(j.story))expect(st.tripped,j.story).toBe(true);else expect(st.tripped,j.story).toBe(false);
+      if(/Glaring/.test(j.story)){glaring++;expect(st.level).toBeGreaterThan(1);expect(st.level).toBeLessThan(HOUSE.ledPop);}
+      if(/Dimmer/.test(j.story)){dim++;expect(st.iLoad).toBeLessThan(j.band[0]/2);}
+      // Backwards only on low supplies: past 5 V an LED's reverse rating would be exceeded.
+      if(j.start.reversed)expect(j.supply).toBeLessThanOrEqual(5);}
+    expect(glaring).toBeGreaterThan(20);expect(dim).toBeGreaterThan(5);
+  },30000);
+  it('signing off the elegant chain wastes nothing',()=>{
+    const r=rng(5);for(let i=0;i<40;i++){const j=rushJob(r,i),fix=best(j)!;expect(partsCost(s(fix))-minCost(j,3),j.ask).toBe(0);}
+  },30000);
 });

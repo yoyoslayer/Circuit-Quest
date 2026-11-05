@@ -14,13 +14,23 @@ test('arcade rush: generated cabinets, a shorter play test, a running count, and
   await expect(page.locator('.station-panel')).toContainText('RUSH');
   for(let k=0;k<2;k++){
     const s=await station(page);expect(s.rush).toBe(true);expect(s.fix).not.toBeNull();
+    // Power it on as found to see the fault: free, but the symptom and the reason still show.
+    await steps(page,[['power']]);await wait(page,.9);
+    let now=await station(page);expect(now.mistakes).toBe(0);expect(now.trips).toBe(0);
+    if(now.tripped||!now.reading.lit||now.reading.level>1)await expect(page.locator('.station-toast')).toContainText('As found');
     // Empty the board the way a player would, then build the elegant chain.
     const list:[string,unknown?][]=[];if(s.setup.across)list.push(['slot','across']);
     s.setup.chain.forEach((p:number[],i:number)=>p.forEach(()=>list.push(['slot',i])));if(s.setup.reversed)list.push(['flip']);
     s.fix.forEach((p:number[],i:number)=>p.forEach(v=>list.push(['pick',v],['slot',i])));
-    await steps(page,[...list,['power']]);await wait(page,2.4);
+    await steps(page,list);
+    // Lifting the last block switched the bench off; a fault left live clears once the fuse cools.
+    if(!(await station(page)).powered)await steps(page,[['power']]);
+    for(let i=0;i<12&&!(now=await station(page)).soakDone;i++)await wait(page,.5);
+    expect(now.soakDone).toBe(true);
     await steps(page,[['signoff']]);
     const after=await station(page);expect(after.served.length).toBe(k+1);expect(after.served[k].tier).toBe(3);
+    // The elegant chain is the leanest one: in rush it costs nothing.
+    expect(after.spent).toBe(0);expect(after.mistakes).toBe(0);
   }
   // The shift ends on the clock, not on a cabinet count.
   await page.keyboard.press('Escape');for(let i=0;i<20&&!(await snapshot(page)).won;i++)await wait(page,10);

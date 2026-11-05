@@ -5,8 +5,10 @@
 // (positions add; two blocks side by side in one position share the current), flips the LED if it is
 // in backwards and switches the POWER on. The circuit is live: every change shows on the meter at once.
 // A kid play-tests the cabinet while it runs in spec; then it can be signed off.
-// Too much current trips the PTC fuse (it glows, cools and conducts again by itself); an overloaded
-// block pops off the board; an LED driven far past its rating pops and a spare goes in. Rules: ./logic.ts.
+// Too much current trips the self-resetting fuse (it warms amber, cools and conducts again by itself);
+// a block over its rating scorches and fails, a gross overload pops it off the board; an LED driven far
+// past its rating pops and a spare goes in. Powering a cabinet on as found, to see its fault, is free:
+// only faults the player builds count. Rules: ./logic.ts.
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
@@ -14,7 +16,7 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressArcade,type ArcadeRoom} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK} from '../../render/kit';
 import {hot} from '../../render/actors';
-import {JOBS,rushJob,BLOCKS,BLOCK_RATING,BLOCK_COST,PER_POSITION,HOUSE,read,judge,best,mA,ohms,watts,partsCost,positionR,starZone,TIER_WORD,
+import {JOBS,rushJob,BLOCKS,BLOCK_RATING,BLOCK_COST,PER_POSITION,HOUSE,read,judge,best,mA,ohms,watts,partsCost,positionR,starZone,TIER_WORD,motorDrive,popWhy,minCost,
   type Block,type Chain,type Job,type Setup,type Reading,type Verdict,type LedColor} from './logic';
 import './arcade.css';
 import {cheer} from '../shared';
@@ -37,6 +39,10 @@ const BOARD={x:.12,z:.16};
 const BINSAT={x:-1.5,z:.12},METER={x:.1,z:-.56},POWERAT={x:1.36,z:.38};
 const BAND_COLORS=['#1d1d24','#8a4b2a','#e5484d','#ff8a3d','#ffd84d','#3fae5a','#3f7fd6','#8b5cc7','#9aa0ad','#fbfbf6'];
 const POS_LETTERS=['A','S','D'];
+/** The hopper's 12 V motor supply posts, at the board's right edge (board-local x). */
+const MOTX=ACRX+.14;
+/** A part placed by the player and later taken out again is scrap: half a credit. */
+const SCRAP=BLOCK_COST*.5;
 
 // ---------- canvas helpers ----------
 const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;
@@ -99,12 +105,19 @@ export class ArcadeBench implements Station {
   private kid=new T.Group();private kidBody=new T.Group();private kidArms:T.Object3D[]=[];
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';
   /** Time the current fault has lasted (s), how long this setup has run, and whether it was explained. */
-  private tripT=0;private runT=0;private explained=false;private faultCounted=false;private ledT=0;private ledDead=0;
-  private spin=0;private flicker=0;private smokeT=0;private hop=0;
+  private tripT=0;private runT=0;private explained=false;private faultCounted=false;private ledDead=0;private scorchT=0;
+  /** False while the cabinet is as found: powering it on to look is free; faults count once the player changes it. */
+  private touched=false;
+  /** Which blocks on the board the player placed (taking one of those out again is scrap). */
+  private mine:boolean[][]=[[],[],[]];private mineAcross=false;
+  /** The ★ zone shows on the meter once this cabinet has passed a play test. */
+  private passed=false;
+  private flowMain!:Flow;private flowMotor!:Flow;private motorLoop=new T.Group();private fusePips:T.Mesh[]=[];private pinPost!:T.Mesh;private pinHot=unlitMat();private wisp!:Wisp;
+  private spin=0;private flicker=0;private hop=0;
   private tray?:Game['props'][number];private trayRide=new T.Group();private ready=false;
   constructor(private game:Game){
     this.rush=game.level.id==='arcade-rush';this.jobs=this.rush?[]:[...JOBS];this.setup=clone(this.current()!.start);this.heat=zeroHeat(this.setup.chain);
-    this.limits.cost=this.rush?24:Math.ceil(JOBS.reduce((n,j)=>n+partsCost({chain:best(j)??[],reversed:false}),0)*1.25);
+    this.limits.cost=this.rush?24:Math.ceil(JOBS.reduce((n,j)=>n+partsCost({chain:best(j)??[],reversed:false}),0)*1.5);
     if(this.rush){this.limits.time=RUSH_TIME+10;this.limits.damage=3;}
     const carry={text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.tray?.body.translation()??this.stand};
     const step={text:'Step up to the service bench (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand};
@@ -114,7 +127,7 @@ export class ArcadeBench implements Station {
         {text:'Eight cabinets or more',ok:()=>this.served.length>=8},
         {text:'Every one reliable',ok:()=>this.served.length>0&&this.served.every(s=>s.tier>=2)},
         {text:'Fuse tripped no more than once',ok:()=>this.trips<=1}]}:{goal:'Fix five arcade cabinets with candy resistors',
-      steps:[carry,step,...JOBS.map((j,i)=>({text:`${j.title}: ${j.ask}`,done:()=>this.served.length>i,at:()=>this.stand}))],
+      steps:[carry,step,...JOBS.map((j,i)=>({text:`${j.title} — ${j.ask.replace(':',' ·')}`,done:()=>this.served.length>i,at:()=>this.stand}))],
       bonuses:[
         {text:'Every cabinet reliable',ok:()=>this.served.every(s=>s.tier>=2)},
         {text:'Every cabinet in the ★ zone',ok:()=>this.served.every(s=>s.tier===3)},
@@ -124,8 +137,10 @@ export class ArcadeBench implements Station {
   }
   dress(kit:RoomKit){const r=dressArcade(this.game,kit);this.room=r;return {lightUp:r.lightUp};}
   current():Job|undefined{
-    if(this.rush){if(this.game.time>=RUSH_TIME)return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length));}
+    // Rush: the clock ends the shift, but a cabinet already in its play test gets to finish it.
+    if(this.rush){if(this.game.time>=RUSH_TIME&&!this.overtime())return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length));}
     return this.jobs[this.index];}
+  private overtime(){return this.powered&&this.soak>0&&this.game.time<RUSH_TIME+RUSH_SOAK+.5;}
   reading():Reading|undefined{const j=this.current();return j&&read(j,this.setup);}
   /** Current only flows while the bench is on and the fuse is cool. */
   private get live(){return this.powered&&!this.tripped&&this.ledDead<=0;}
@@ -147,11 +162,21 @@ export class ArcadeBench implements Station {
     part(b,rbox(BW,.03,BD,.05),toon('#2f7a5b'),0,.015,0);
     const face=part(b,new T.PlaneGeometry(BW-.04,BD-.04),new T.MeshBasicMaterial({map:this.board.tex}),0,.031,0,false);face.rotation.x=-Math.PI/2;(face.material as T.Material).userData.outlineParameters={visible:false};face.userData.noAO=true;
     // Supply terminal: two brass posts (+ on the top rail, − on ground).
-    for(const [z,c] of [[TOPZ,'#e5484d'],[GNDZ,'#2b2d42']] as const){part(b,cyl(.04,.045,.05,14),toon(c),SUPX,.055,z);part(b,cyl(.022,.022,.04,10),toon('#d9a441'),SUPX,.09,z);}
-    // The PTC fuse: a yellow disc on two legs. Tripped, it glows red and cools back to yellow.
+    for(const [z,c] of [[TOPZ,'#e5484d'],[GNDZ,'#2b2d42']] as const){const post=part(b,cyl(.04,.045,.05,14),toon(c),SUPX,.055,z);if(z===TOPZ)this.pinPost=post;part(b,cyl(.022,.022,.04,10),toon('#d9a441'),SUPX,.09,z);}
+    // The self-resetting fuse: a yellow disc on two legs. Tripped, it warms amber and cools back to yellow.
     this.fuseDisc=part(b,cyl(.06,.06,.03,20,'z'),toon(LEMON),FUSEX,.09,TOPZ);
     for(const x of [-.03,.03])part(b,cyl(.006,.006,.06,6),toon('#c9ced8'),FUSEX+x,.055,TOPZ,false);
-    this.fuseHalo=glow(b,'rgba(255,90,60,1)',.5,0);this.fuseHalo.position.set(FUSEX,.12,TOPZ);
+    this.fuseHalo=glow(b,'rgba(255,179,71,1)',.4,0);this.fuseHalo.position.set(FUSEX,.12,TOPZ);
+    // Three pips beside the fuse count the trips the player caused (the bonus allows one).
+    for(let k=0;k<3;k++){const pip=part(b,sphere(.016,10,8),toon('#3a4a40'),FUSEX-.05+k*.05,.04,TOPZ+.1,false);pip.userData.noAO=true;this.fusePips.push(pip);}
+    // Current flows: dashes run along a closed, live loop (faster for more current).
+    this.wisp=new Wisp(b);
+    this.flowMain=new Flow(b,[[SUPX,TOPZ],[LEDX,TOPZ],[LEDX,GNDZ],[SUPX,GNDZ]],.11);
+    // The coin hopper's motor loop: 12 V → motor → collector, emitter → ground. Thick, because it
+    // carries the big current the small base current switches.
+    const ml=this.motorLoop;b.add(ml);
+    for(const [z,c] of [[TOPZ,'#e5484d'],[GNDZ,'#2b2d42']] as const){part(ml,cyl(.04,.045,.05,14),toon(c),MOTX,.055,z);part(ml,cyl(.022,.022,.04,10),toon('#d9a441'),MOTX,.09,z);}
+    this.flowMotor=new Flow(ml,[[MOTX,TOPZ],[MOTX,MIDZ],[LEDX+.05,MIDZ],[LEDX,GNDZ],[MOTX,GNDZ]],.07,1.6);
     // The chain socket: three pads in a row on the top rail. An empty pad is bridged by a wire link.
     POSX.forEach((x,k)=>{const pg=group(b,x,.036,TOPZ);part(pg,rbox(PADW,.012,.27,.04),toon('#173a2c'),0,0,0);
       for(const sx of [-1,1])part(pg,box(.02,.008,.24),toon('#d9a441'),sx*(PADW/2-.018),.008,0,false);
@@ -175,7 +200,7 @@ export class ArcadeBench implements Station {
     const tr=this.transistor;b.add(tr);tr.position.set(LEDX,.03,MIDZ);
     const bodyT=part(tr,cyl(.06,.06,.12,20),toon('#2b2d42'),0,.09,0);bodyT.scale.z=.6;part(tr,box(.12,.12,.012),toon('#2b2d42'),0,.09,.034);
     for(const x of [-.035,0,.035])part(tr,cyl(.005,.005,.05,6),toon('#c9ced8'),x,.025,0,false);
-    const mo=this.motor;this.top.add(mo);mo.position.set(1.1,.04,-.46);part(mo,rbox(.42,.05,.34,.04),toon(PLUM),0,.025,0);
+    const mo=this.motor;this.top.add(mo);mo.position.set(BOARD.x+ACRX-.02,.075,BOARD.z+MIDZ+.02);mo.scale.setScalar(.55);part(mo,rbox(.42,.05,.34,.04),toon(PLUM),0,.025,0);
     part(mo,cyl(.075,.075,.22,18,'x'),toon('#9aa0ad'),-.04,.13,-.04);part(mo,cyl(.079,.079,.03,18,'x'),toon(INK),-.15,.13,-.04);
     this.coin=group(mo,.1,.13,-.04);part(this.coin,cyl(.1,.1,.02,24,'x'),toon('#d9a441'),0,0,0);for(let k=0;k<4;k++)part(this.coin,cyl(.022,.022,.024,10,'x'),toon('#fff0b8'),0,Math.cos(k*1.57)*.06,Math.sin(k*1.57)*.06);
   }
@@ -219,8 +244,15 @@ export class ArcadeBench implements Station {
     part(c,rbox(.97,.08,.5,.03),toon(PLUM),0,1.2,.25);for(const [x,col] of [[-.2,'#e5484d'],[0,LEMON],[.2,'#3f7fd6']] as const)part(c,cyl(.05,.05,.04,16),toon(col),x,1.26,.35);
     const mq=group(c,0,2.02,.05);part(mq,rbox(1,.28,.3,.06),toon(PLUM),0,0,0);const face=part(mq,new T.PlaneGeometry(.92,.23),new T.MeshBasicMaterial({map:this.marquee.tex,toneMapped:false}),0,0,.155,false);(face.material as T.Material).userData.outlineParameters={visible:false};
     this.cabLamp=part(c,sphere(.07,14,10),toon('#5a4a60'),0,1.02,.41);this.cabHalo=glow(c,'rgba(255,140,150,1)',.9,0);this.cabHalo.position.set(0,1.02,.5);
-    const cable=new T.CatmullRomCurve3([new T.Vector3(.35,.9,-.2),new T.Vector3(.9,.6,.1),new T.Vector3(1.45,.95,.3),new T.Vector3(1.8,1.05,.5)]);
-    part(c,new T.TubeGeometry(cable,24,.03,8),toon(GRAPE),0,0,0);
+    // The ribbon cable runs from the cabinet's open back, sags onto the bench top and plugs into a
+    // connector on the board's supply edge.
+    c.updateMatrixWorld(true);this.top.updateMatrixWorld(true);
+    const toCab=(x:number,y:number,z:number)=>c.worldToLocal(this.top.localToWorld(new T.Vector3(x,y,z)));
+    // Behind the bins, then forward between the bins and the board to its left edge by SUPPLY.
+    const end=toCab(BOARD.x+SUPX-.15,.06,BOARD.z+TOPZ+.1);
+    const cable=new T.CatmullRomCurve3([new T.Vector3(.35,.9,-.2),new T.Vector3(.75,1.0,-.05),toCab(-2.05,.04,-.42),toCab(-1.02,.04,-.4),toCab(-.97,.045,-.2),end]);
+    const ribbon=part(c,new T.TubeGeometry(cable,40,.03,8),toon(GRAPE),0,0,0);ribbon.userData.noAO=true;
+    const plug=part(c,rbox(.12,.05,.1,.015),toon(INK),end.x,end.y+.01,end.z);plug.rotation.y=-.38;
     this.solid(1,2.2,.9,t.x+OX-2.75,1.1,t.z-.35);
     // The play tester: a small kid at the controls. They hop while the cabinet works and slump when it is dark.
     const k=this.kid;c.add(k);k.position.set(.05,0,.72);k.rotation.y=Math.PI;
@@ -239,12 +271,19 @@ export class ArcadeBench implements Station {
     const j=this.current();
     this.board.draw(`b${this.index}`,(c,w,h)=>drawBoard(c,w,h,j));
     this.marquee.draw(`m${this.index}`,(c,w,h)=>drawMarquee(c,w,h,j?j.cabinet:'ALL FIXED',!j));
-    const base=j?.load.kind==='base';this.ledGroup.visible=!!j&&!base;this.transistor.visible=!!base;this.motor.visible=!!base;
+    const base=j?.load.kind==='base';this.ledGroup.visible=!!j&&!base;this.transistor.visible=!!base;this.motor.visible=!!base;this.motorLoop.visible=!!base;
+    // A transistor base has no use for the ACROSS slot.
+    this.acrossGroup.visible=!base;
+    this.touched=false;this.passed=false;this.mine=this.setup.chain.map(p=>p.map(()=>false));this.mineAcross=false;this.unhover();
     if(j&&!base){const col=LED_HEX[(j.load as {color:LedColor}).color];(this.ledHalo.material as T.SpriteMaterial).color.set(col);this.ledLight.color.set(col);}
     this.redraw();
   }
   /** Something on the board changed: the play test starts over (the bench stays live). */
-  private changed(){this.soak=0;this.soakDone=false;this.verdict=undefined;this.runT=0;this.explained=false;this.faultCounted=false;this.tripT=0;this.ledT=0;}
+  private changed(){this.soak=0;this.soakDone=false;this.verdict=undefined;this.runT=0;this.explained=false;this.faultCounted=false;this.tripT=0;this.scorchT=0;}
+  /** The player changed the board: from now on faults count, and an old message no longer applies. */
+  private edited(){this.touched=true;if(this.toast)this.toast.hidden=true;this.changed();}
+  /** A hovered part that is no longer on show (a hidden LED or slot) drops its hover. */
+  private unhover(){if(this.hovered&&!visibleUp(this.hovered.obj)){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}
   private powerOff(){this.powered=false;this.changed();}
   act(name:string,arg?:unknown):boolean{
     const a=this.game.audio,j=this.current();
@@ -256,15 +295,20 @@ export class ArcadeBench implements Station {
         this.held=v;a.pop();break;}
       case 'slot':{const s=arg as Slot;
         if(s==='across'){
-          if(this.held){if(this.setup.across)this.heat.across=0;this.setup.across=this.held;this.held=undefined;this.changed();a.plug();break;}
-          if(this.setup.across){this.setup.across=undefined;this.heat.across=0;this.changed();a.tone(300,.06,.04,'triangle');break;}
+          if(j.load.kind!=='led')return false;
+          if(this.held){if(this.setup.across){this.heat.across=0;if(this.mineAcross)this.spent+=SCRAP;}this.setup.across=this.held;this.mineAcross=true;this.held=undefined;this.edited();a.plug();break;}
+          if(this.setup.across){this.setup.across=undefined;this.heat.across=0;if(this.mineAcross)this.spent+=SCRAP;this.mineAcross=false;this.edited();a.tone(300,.06,.04,'triangle');break;}
           a.voice('hm',1.4);return false;}
         if(typeof s!=='number'||s<0||s>2)return false;const p=this.setup.chain[s];
         if(this.held){if(p.length>=PER_POSITION){this.say('Two side by side is all a position holds.');a.voice('hm',1.4);return false;}
-          p.push(this.held);this.heat.blocks[s].push(0);this.held=undefined;this.changed();a.plug();break;}
-        if(p.length){p.pop();this.heat.blocks[s].pop();this.changed();a.tone(300,.06,.04,'triangle');break;}
+          p.push(this.held);this.heat.blocks[s].push(0);this.mine[s].push(true);this.held=undefined;this.edited();a.plug();break;}
+        if(p.length){p.pop();this.heat.blocks[s].pop();if(this.mine[s].pop())this.spent+=SCRAP;this.edited();a.tone(300,.06,.04,'triangle');
+          // Lifting the last block out of a live chain would short the LED straight across the
+          // supply: the bench switches itself off first (the lever clacks back), so a swap is safe.
+          if(this.powered&&this.setup.chain.every(q=>q.length===0)){this.powerOff();a.noise(.03,.07,2500,'highpass');a.tone(220,.09,.04);}
+          break;}
         a.voice('hm',1.4);return false;}
-      case 'flip':{if(j.load.kind!=='led')return false;this.setup.reversed=!this.setup.reversed;this.changed();a.tone(this.setup.reversed?440:560,.06,.04,'triangle');a.pop();break;}
+      case 'flip':{if(j.load.kind!=='led')return false;this.setup.reversed=!this.setup.reversed;this.edited();a.tone(this.setup.reversed?440:560,.06,.04,'triangle');a.pop();break;}
       case 'power':{
         // Tripped, the PTC fuse comes back by itself once it cools, so P leaves the power on.
         if(this.powered&&this.tripped){a.voice('hm',1.4);return false;}
@@ -272,10 +316,14 @@ export class ArcadeBench implements Station {
         this.powered=true;this.changed();a.noise(.03,.07,2500,'highpass');a.tone(420,.09,.04);break;}
       case 'signoff':{
         if(!this.soakDone||!this.verdict){a.voice('hm',1.4);return false;}
-        const v=this.verdict;this.served.push({job:j.id,tier:v.tier,cost:v.cost});this.spent+=v.cost;
+        // Rush has no fixed parts budget: a sign-off only costs what it spends over the leanest chain
+        // that reaches the same tier, so fixing more cabinets never costs grade.
+        const v=this.verdict;this.served.push({job:j.id,tier:v.tier,cost:v.cost});this.spent+=this.rush?Math.max(0,v.cost-minCost(j,v.tier)):v.cost;
         this.say(`${j.title}: ${TIER_WORD[v.tier]}${v.tier===3?' ★':''}`,'ok');
         a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,LEMON);
-        this.room?.light(this.index%5);
+        // Story: the cabinet's own place on the back wall lights. Rush: the back wall is a progress
+        // meter, one cabinet lighting for every two fixed.
+        if(!this.rush)this.room?.light(this.index);else if(this.served.length%2===0)this.room?.light(this.served.length/2-1,j.cabinet);
         this.index++;this.powerOff();this.held=undefined;this.tripped=false;this.cooling=0;
         this.setup=clone(this.current()?.start??{chain:[[],[],[]],reversed:false});this.heat=zeroHeat(this.setup.chain);this.showJob();return true;}
       case 'clear':{if(!this.held)return false;this.held=undefined;a.tone(380,.05,.03,'triangle');break;}
@@ -283,32 +331,37 @@ export class ArcadeBench implements Station {
     }
     this.redraw();return true;
   }
-  /** Counts a fault (a mistake, and a trip if it tripped) once per arrangement on the board. */
-  private fault(trip:boolean){if(this.faultCounted)return;this.faultCounted=true;this.mistakes++;if(trip)this.trips++;}
-  /** Too much current: the PTC fuse trips with a click and glows; it conducts again once cool. */
+  /** Counts a fault (a mistake, and a trip if it tripped) once per arrangement on the board. The
+   *  cabinet as found is free to power on and look at: only setups the player built count. */
+  private fault(trip:boolean){if(this.faultCounted)return;this.faultCounted=true;if(!this.touched)return;this.mistakes++;if(trip)this.trips++;}
+  /** A message about the setup, marked as a diagnosis while the cabinet is still as found. */
+  private explain(text:string){this.say(this.touched?text:`As found: ${text}`,'bad');}
+  /** Too much current: the fuse trips with a click and warms; it conducts again once cool. */
   private trip(){
     const j=this.current()!,a=this.game.audio,first=!this.faultCounted;this.tripped=true;this.cooling=HOUSE.fuseCool;this.tripT=0;this.soak=0;this.fault(true);
-    if(first)this.say(judge(j,this.setup).problems[0]??'The fuse tripped.','bad');
+    if(first)this.explain(judge(j,this.setup).problems[0]??'The fuse tripped.');
     a.noise(.05,.12,1800,'bandpass');a.tone(120,.35,.07,'square');if(first)a.voice('groan',1.1);
     const at=this.boardWorld(FUSEX,TOPZ);this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#fff3a3',12,'spark');if(first)this.game.alarm({x:this.table.x,z:this.table.z},3);
     this.marquee.draw('tilt',(c,w,h)=>drawMarquee(c,w,h,'TILT!',false,true));this.redraw();
   }
-  /** A block ran past its rating: it pops off the board with a puff of smoke and the bench cuts out. */
-  private popBlock(pos:Slot,slot=0){
+  /** A block failed: grossly overloaded it pops at once; a little over its rating it scorches and
+   *  fails after a while. It comes off the board with a puff of smoke and the bench cuts out. */
+  private popBlock(pos:Slot,slot=0,slow=false){
     const j=this.current()!,a=this.game.audio,r=read(j,this.setup);
     let v:Block,at:T.Vector3,p:number;
-    if(pos==='across'){v=this.setup.across!;p=r.pP;this.setup.across=undefined;this.heat.across=0;at=this.boardWorld(ACRX,MIDZ);}
-    else{v=this.setup.chain[pos][slot];p=r.blocks.find(b=>b.pos===pos&&b.slot===slot)?.p??0;this.setup.chain[pos].splice(slot,1);this.heat.blocks[pos].splice(slot,1);at=this.boardWorld(POSX[pos],TOPZ);}
-    this.mistakes++;this.spent+=BLOCK_COST;this.powerOff();
-    this.say(`The ${v} Ω block turned ${watts(p)} into heat (P = I²R). It is a ¼ W part: it popped.`,'bad');
+    if(pos==='across'){v=this.setup.across!;p=r.pP;this.setup.across=undefined;this.mineAcross=false;this.heat.across=0;at=this.boardWorld(ACRX,MIDZ);}
+    else{v=this.setup.chain[pos][slot];p=r.blocks.find(b=>b.pos===pos&&b.slot===slot)?.p??0;this.setup.chain[pos].splice(slot,1);this.mine[pos]?.splice(slot,1);this.heat.blocks[pos].splice(slot,1);at=this.boardWorld(POSX[pos],TOPZ);}
+    if(this.touched){this.mistakes++;this.spent+=BLOCK_COST;}this.powerOff();
+    this.explain(slow?`The ${v} Ω block turned ${watts(p)} into heat (P = I²R) for ${HOUSE.scorchFail} s. It is a ¼ W part: it scorched and failed.`
+      :`The ${v} Ω block turned ${watts(p)} into heat (P = I²R), far past its ¼ W rating: it popped.`);
     a.noise(.25,.1,900);a.pop();a.tone(150,.3,.05,'sawtooth');a.voice('alarm',1.2);
     this.game.burst({x:at.x,y:at.y+.08,z:at.z},CANDY[v],8,'debris');this.game.burst({x:at.x,y:at.y+.12,z:at.z},'#8a8a96',8,'smoke');this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();
   }
   /** An LED driven far past its rating pops; a spare goes in after a moment. */
   private popLed(){
-    const j=this.current()!,a=this.game.audio,why=judge(j,this.setup).problems[0];
-    this.mistakes++;this.spent+=BLOCK_COST;this.ledDead=1.2;this.powerOff();
-    this.say(why??'The LED ran far past its rating and popped.','bad');
+    const j=this.current()!,a=this.game.audio,why=popWhy(j,read(j,this.setup));
+    if(this.touched){this.mistakes++;this.spent+=BLOCK_COST;}this.ledDead=1.2;this.powerOff();
+    this.explain(why);
     a.noise(.15,.12,2600,'bandpass');a.tone(90,.25,.06,'square');a.voice('groan',1.2);
     const at=this.boardWorld(LEDX,MIDZ);this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#ffffff',1,'flash');this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#8a8a96',10,'smoke');this.game.alarm({x:this.table.x,z:this.table.z},3);
   }
@@ -334,12 +387,13 @@ export class ArcadeBench implements Station {
     this.lever.rotation.x=this.powered?.6:-.6;this.powerLamp.material=this.powered?hot('#6dff9a',1.6):toon('#5a4a60');
     this.signBtn.material=this.soakDone?hot('#6dff9a',1.1):toon('#8a9a8e');
     if(j&&!this.tripped)this.marquee.draw(`m${this.index}`,(c,w,h)=>drawMarquee(c,w,h,j.cabinet,false));
-    this.drawMeter();this.shown='';this.updatePanel();
+    this.unhover();this.drawMeter();this.shown='';this.updatePanel();
   }
   private drawMeter(){
     const j=this.current(),r=this.reading(),hottest=Math.max(0,...this.heat.blocks.flat(),this.heat.across);
-    const key=JSON.stringify([this.index,this.live,this.tripped,Math.ceil(this.cooling*5),this.setup,Math.round(this.soak*5),this.soakDone,Math.round(this.heat.led*40),Math.round(hottest*40)]);
-    this.meter.draw(key,(c,w,h)=>drawMeter(c,w,h,j,r,{live:this.live,powered:this.powered,tripped:this.tripped,cooling:this.cooling,led:this.heat.led,block:hottest,soak:this.soak,soakDone:this.soakDone,soakTime:this.soakTime,s:this.setup}));
+    const tier=this.verdict?.tier??-1;
+    const key=JSON.stringify([this.index,this.live,this.tripped,Math.ceil(this.cooling*5),this.setup,Math.round(this.soak*5),this.soakDone,Math.round(this.heat.led*40),Math.round(hottest*40),this.passed,tier]);
+    this.meter.draw(key,(c,w,h)=>drawMeter(c,w,h,j,r,{live:this.live,powered:this.powered,tripped:this.tripped,cooling:this.cooling,led:this.heat.led,block:hottest,soak:this.soak,soakDone:this.soakDone,soakTime:this.soakTime,s:this.setup,passed:this.passed,tier}));
   }
 
   // ---------- pointer, keys, room ----------
@@ -372,7 +426,7 @@ export class ArcadeBench implements Station {
   update(dt:number){
     if(!this.ready)this.setup0();
     if(this.tray&&!this.trayReady){const q=this.tray.body.translation(),r=this.tray.body.rotation();this.trayRide.position.set(q.x,q.y,q.z);this.trayRide.quaternion.set(r.x,r.y,r.z,r.w);this.trayRide.visible=this.tray.mesh.visible;}
-    const j=this.current(),r=this.reading(),time=this.game.time,k=1-Math.exp(-dt/HOUSE.tau);
+    const j=this.current(),r=this.reading(),time=this.game.time,k=1-Math.exp(-dt/HOUSE.tau),kl=1-Math.exp(-dt/HOUSE.ledTau);
     let playing=false;
     if(this.ledDead>0){this.ledDead-=dt;if(this.ledDead<=0){this.game.audio.pop();this.redraw();}}
     // The PTC fuse cools whether or not the bench is on; once cool it conducts again by itself.
@@ -382,20 +436,26 @@ export class ArcadeBench implements Station {
       else if(this.live){
         this.tripT=0;this.runT+=dt;
         // Heat follows its steady value with the bench's time constant; parts cool when off.
-        this.heat.led+=(r.level-this.heat.led)*k;
+        this.heat.led+=(r.level-this.heat.led)*kl;
         for(const b of r.blocks){const h=this.heat.blocks[b.pos];if(h&&h[b.slot]!==undefined)h[b.slot]+=(b.heat-h[b.slot])*k;}
         this.heat.across+=(r.pHeat-this.heat.across)*k;
-        const over=this.heat.blocks.flatMap((p,pos)=>p.map((h,slot)=>({pos,slot,h}))).find(b=>b.h>1);
-        if(over)this.popBlock(over.pos,over.slot);
-        else if(this.heat.across>1)this.popBlock('across');
-        else if(j.load.kind==='led'&&r.level>HOUSE.ledPop&&(this.ledT+=dt)>.5)this.popLed();
+        // Blocks: a gross overload pops one at once; above its rating it scorches, then fails.
+        const all=this.heat.blocks.flatMap((p,pos)=>p.map((h,slot)=>({pos:pos as Slot,slot,h}))).concat(this.setup.across?[{pos:'across',slot:0,h:this.heat.across}]:[]);
+        const pop=all.find(b=>b.h>HOUSE.blockPop),worst=all.reduce<typeof all[number]|undefined>((a,b)=>!a||b.h>a.h?b:a,undefined);
+        if(worst&&worst.h>1)this.scorchT+=dt;else this.scorchT=0;
+        if(pop)this.popBlock(pop.pos,pop.slot);
+        else if(worst&&this.scorchT>HOUSE.scorchFail)this.popBlock(worst.pos,worst.slot,true);
+        // The LED's die heats in a fraction of a second; far past its rating it burns out.
+        else if(j.load.kind==='led'&&this.heat.led>HOUSE.ledPop)this.popLed();
         else{
           const v=judge(j,this.setup);
           // Explain a setup that does not work (why, never the fix), once it has run a moment.
-          if(v.tier===0&&!this.explained&&this.runT>.6){this.explained=true;this.fault(false);this.say(v.problems[0],'bad');if(r.iLoad>j.load.imax)this.game.audio.voice('hm',.9);}
+          if(v.tier===0&&!this.explained&&this.runT>.6){this.explained=true;this.fault(false);this.explain(v.problems[0]);if(r.iLoad>j.load.imax)this.game.audio.voice('hm',.9);}
           if(v.tier>=1&&!this.soakDone){playing=true;this.soak+=dt;
-            if(this.soak>=this.soakTime){this.soakDone=true;this.verdict=v;this.say(`${TIER_WORD[v.tier]}${v.tier===3?' ★':''}${v.notes[0]?`: ${v.notes[0]}`:''}`,'ok');this.game.audio.bell(988,.4,.05);this.redraw();}}
+            if(this.soak>=this.soakTime){this.soakDone=true;this.passed=true;this.verdict=v;this.say(`${TIER_WORD[v.tier]}${v.tier===3?' ★':''}${v.notes[0]?`: ${v.notes[0]}`:''}`,'ok');this.game.audio.bell(988,.4,.05);this.redraw();}}
           else if(this.soakDone)playing=true;
+          // Rush overtime: the last cabinet signs itself off as soon as its play test passes.
+          if(this.rush&&this.soakDone&&time>=RUSH_TIME){this.act('signoff');return;}
         }
       }else{this.heat.led-=this.heat.led*k;for(const p of this.heat.blocks)for(let i=0;i<p.length;i++)p[i]-=p[i]*k;this.heat.across-=this.heat.across*k;}
       this.animate(dt,j,r,playing,time);
@@ -404,16 +464,27 @@ export class ArcadeBench implements Station {
   }
   /** The LED, the cabinet, hot blocks, the fuse and the kid. */
   private animate(dt:number,j:Job,r:Reading,playing:boolean,time:number){
-    // The LED (and the cabinet's lamp) glow with the current; over its rating it flickers white-hot.
-    const on=this.live,lit=on?Math.min(1.6,r.level):0,over=this.heat.led>.9;this.flicker+=dt*30;
-    const glowK=lit*(over?.8+Math.sin(this.flicker)*.2:1);
+    // The LED (and the cabinet's lamp) glow with the current. An LED keeps its colour at any current:
+    // overdriven it glares (a bigger halo that flickers), it never turns white.
+    const on=this.live,level=on?r.level:0,over=level>1;this.flicker+=dt*30;
+    const glowK=Math.min(1,level)*(over?.85+Math.sin(this.flicker*.8)*.15:1);
     this.ledDome.visible=this.ledDead<=0;
-    if(j.load.kind==='led'){const col=LED_HEX[j.load.color];
-      if(glowK>.02){this.ledOn.color.set(col).lerp(new T.Color('#ffffff'),over?Math.min(.7,(this.heat.led-.9)*1.2):0).multiplyScalar(.6+glowK*1.1);this.ledDome.material=this.ledOn;}else this.ledDome.material=toon(tint(col));
-      (this.ledHalo.material as T.SpriteMaterial).opacity=Math.min(.95,glowK*.75);this.ledHalo.scale.setScalar(.4+glowK*.8);this.ledLight.intensity=glowK*3;
-      if(glowK>.02){this.cabOn.color.set(col).multiplyScalar(.6+glowK);this.cabLamp.material=this.cabOn;}else this.cabLamp.material=this.lampOff;(this.cabHalo.material as T.SpriteMaterial).color.set(col);(this.cabHalo.material as T.SpriteMaterial).opacity=Math.min(.9,glowK*.7);
-    }else{const drive=on?Math.min(1,r.iLoad*j.load.beta/j.load.motor):0;this.spin+=dt*drive*14;this.coin.rotation.x=-this.spin;
-      this.cabOn.color.set(LEMON).multiplyScalar(1.4);this.cabLamp.material=drive>=1?this.cabOn:this.lampOff;(this.cabHalo.material as T.SpriteMaterial).opacity=drive>=1?.6:0;(this.cabHalo.material as T.SpriteMaterial).color.set(LEMON);}
+    this.flowMain.update(dt,on?r.i:0);
+    if(j.load.kind==='led'){const col=LED_HEX[j.load.color];this.ledLight.distance=.8;
+      if(level>.02){this.ledOn.color.set(col).multiplyScalar(.6+glowK*.55);this.ledDome.material=this.ledOn;}else this.ledDome.material=toon(tint(col));
+      const halo=Math.min(3,level);(this.ledHalo.material as T.SpriteMaterial).opacity=level>.02?Math.min(.9,.25+halo*.3)*(over?.8+Math.sin(this.flicker)*.2:1):0;this.ledHalo.scale.setScalar(.4+halo*.6);this.ledLight.intensity=Math.min(2,level*2);
+      if(level>.02){this.cabOn.color.set(col).multiplyScalar(.6+glowK*.55);this.cabLamp.material=this.cabOn;}else this.cabLamp.material=this.lampOff;(this.cabHalo.material as T.SpriteMaterial).color.set(col);(this.cabHalo.material as T.SpriteMaterial).opacity=Math.min(.9,glowK*.7);
+    }else{
+      // A typical transistor runs the motor fully from 2 mA; a weak one needs 5 mA. In between the
+      // motor runs but judders: it would stall with a weaker part.
+      const d=motorDrive(j.load,on?r.iLoad:0),marginal=d.typical>=1&&d.weak<1;
+      this.spin+=dt*d.typical*14*(marginal?.6+.4*Math.abs(Math.sin(time*11)):1);this.coin.rotation.x=-this.spin;
+      this.motor.rotation.z=marginal?Math.sin(time*47)*.04:0;
+      this.flowMotor.update(dt,on?r.iLoad*j.load.beta*Math.min(1,d.typical):0);
+      this.cabOn.color.set(LEMON).multiplyScalar(1.1);this.cabLamp.material=d.typical>=1?this.cabOn:this.lampOff;(this.cabHalo.material as T.SpriteMaterial).opacity=d.typical>=1?.5:0;(this.cabHalo.material as T.SpriteMaterial).color.set(LEMON);
+      // An overloaded logic pin runs hot: its terminal glows orange and smokes.
+      const pinHot=on&&r.iLoad>j.load.imax;if(pinHot){this.pinHot.color.set('#ff8a3d').multiplyScalar(1.2+Math.sin(time*9)*.2);this.pinPost.material=this.pinHot;}else this.pinPost.material=toon('#e5484d');
+      if(pinHot&&Math.random()<dt*4){const at=this.boardWorld(SUPX,TOPZ);this.game.burst({x:at.x,y:at.y+.08,z:at.z},'#9a96a4',1,'smoke');}}
     // Hot blocks glow orange, then red, and smoke a little before they pop.
     const hotBody=(m:T.Mesh|undefined,v:Block|undefined,h:number)=>{if(!m||v===undefined)return;
       if(h>.6){const c=new T.Color(CANDY[v]).lerp(new T.Color(h>.9?'#ff4a2a':'#ff9a5b'),Math.min(1,(h-.6)*2.5));
@@ -421,19 +492,22 @@ export class ArcadeBench implements Station {
       else if(m.material instanceof T.MeshBasicMaterial)m.material=toon(CANDY[v]);};
     this.setup.chain.forEach((p,pos)=>p.forEach((v,s)=>hotBody(this.bodies[pos][s],v,this.heat.blocks[pos]?.[s]??0)));
     hotBody(this.acrossBody,this.setup.across,this.heat.across);
-    this.smokeT-=dt;
-    if(this.smokeT<=0&&on){const all=this.heat.blocks.flatMap((p,pos)=>p.map(h=>({h,x:POSX[pos],z:TOPZ}))).concat([{h:this.heat.across,x:ACRX,z:MIDZ}]),worst=all.reduce((a,b)=>b.h>a.h?b:a,{h:0,x:0,z:0});
-      if(worst.h>.8){this.smokeT=.3;const at=this.boardWorld(worst.x,worst.z);this.game.burst({x:at.x,y:at.y+.08,z:at.z},'#b9b4c4',1,'smoke');}}
-    // The fuse glows red while it is tripped and fades back to yellow as it cools.
+    // A hot block gives off a thin wisp of smoke (small and local, so a scorching block can sit
+    // there for seconds without clouding the bench).
+    {const all=this.heat.blocks.flatMap((p,pos)=>p.map(h=>({h,x:POSX[pos],z:TOPZ}))).concat([{h:this.heat.across,x:ACRX,z:MIDZ}]),worst=all.reduce((a,b)=>b.h>a.h?b:a,{h:0,x:0,z:0});
+      this.wisp.update(time,on&&worst.h>.8?Math.min(1,(worst.h-.8)*2):0,worst.x,worst.z);}
+    // The fuse warms amber while it is tripped and fades back to yellow as it cools.
     const f=this.tripped?Math.min(1,this.cooling/HOUSE.fuseCool):0;
-    if(f>0){this.fuseHot.color.set(LEMON).lerp(new T.Color('#ff3b2a'),Math.min(1,f*1.4)).multiplyScalar(1+f*.8);this.fuseDisc.material=this.fuseHot;}else this.fuseDisc.material=toon(LEMON);
-    (this.fuseHalo.material as T.SpriteMaterial).opacity=f*.8;
+    if(f>0){this.fuseHot.color.set(LEMON).lerp(new T.Color('#ffb347'),Math.min(1,f*1.4)).multiplyScalar(1+f*.1);this.fuseDisc.material=this.fuseHot;}else this.fuseDisc.material=toon(LEMON);
+    (this.fuseHalo.material as T.SpriteMaterial).opacity=f*.28;
+    this.fusePips.forEach((p,i)=>{const want=i<this.trips?'#ff5a4a':'#3a4a40';if(p.userData.col!==want){p.userData.col=want;p.material=i<this.trips?hot(want,1.1):toon(want);}});
     this.cabScreen.material=on&&r.lit?this.screenOn:this.screenOff;
-    // The kid: hops and mashes buttons while it plays, cheers when it passes, slumps at a dark screen.
-    const want=playing?1:0;this.hop+=(want-this.hop)*Math.min(1,dt*6);
-    const bounce=Math.abs(Math.sin(time*(this.soakDone?9:7)))*(this.soakDone?.14:.07)*this.hop;
-    this.kidBody.position.y=.42+bounce;this.kidBody.rotation.x=(1-this.hop)*.35;
-    this.kidArms.forEach((a,i)=>a.rotation.x=this.soakDone?-2.8+Math.sin(time*9+i)*.2:-.9-this.hop*.3+Math.sin(time*16+i*2)*.25*this.hop);
+    // The kid: hops and mashes buttons while it plays, cheers when it passes (a shrug if it only just
+    // works), slumps at a dark screen.
+    const want=playing?1:0,meh=this.soakDone&&(this.verdict?.tier??0)<2,yay=this.soakDone&&!meh;this.hop+=(want-this.hop)*Math.min(1,dt*6);
+    const bounce=Math.abs(Math.sin(time*(yay?9:7)))*(yay?.14:meh?.02:.07)*this.hop;
+    this.kidBody.position.y=.42+bounce;this.kidBody.rotation.x=(1-this.hop)*.35;this.kidBody.rotation.z=meh?Math.sin(time*2.2)*.12:0;
+    this.kidArms.forEach((a,i)=>a.rotation.x=yay?-2.8+Math.sin(time*9+i)*.2:meh?-1.5+Math.abs(Math.sin(time*2.2))*.5:-.9-this.hop*.3+Math.sin(time*16+i*2)*.25*this.hop);
   }
 
   // ---------- panels ----------
@@ -445,26 +519,27 @@ export class ArcadeBench implements Station {
   private updatePanel(){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const j=this.current(),r=this.reading();
-    const key=JSON.stringify([this.active,this.index,this.setup,this.held,this.live,this.tripped,this.soakDone,this.trayReady,this.rush?Math.ceil(this.game.time):0]);if(key===this.shown)return;this.shown=key;
+    const key=JSON.stringify([this.active,this.index,this.setup,this.held,this.live,this.tripped,this.soakDone,this.trayReady,this.spent,this.served.length]);if(key===this.shown)return;this.shown=key;
     if(!this.panel){const l=this.layer();if(!l){this.shown='';return;}this.panel=document.createElement('section');this.panel.className='station-panel panel arc-panel';l.append(this.panel);}
     this.panel.hidden=!j||!r;if(!j||!r)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const isLed=j.load.kind==='led',on=this.live,inBand=r.iLoad>=j.band[0]-1e-9&&r.iLoad<=j.band[1]+1e-9;
     const hottest=r.blocks.reduce((a,b)=>Math.max(a,b.p),0);
-    this.panel.innerHTML=`<header><small>${this.rush?`RUSH · ${Math.max(0,Math.ceil(RUSH_TIME-this.game.time))} s · ${this.served.length} fixed`:`${this.index+1}/${JOBS.length}`} · ${j.cabinet}</small><h4>${j.ask}</h4>${this.active?`<p>${j.story}</p>`:""}</header>`+
+    // The clock lives on the HUD; the story job card already shows the ask, so only rush repeats it here.
+    this.panel.innerHTML=`<header><small>${this.rush?`RUSH · ${this.served.length} fixed`:`${this.index+1}/${JOBS.length}`} · ${j.cabinet}</small>${this.rush?`<h4>${j.ask}</h4>`:''}${this.active?`<p>${j.story}</p>`:""}</header>`+
       (this.active&&this.trayReady?`<ul class="build">${row('Chain',chainText(this.setup.chain))}`+
         `${row('Current',on?`${mA(r.iLoad)} mA`:this.tripped?'fuse cooling':'off',on?inBand:undefined)}`+
         (on&&r.blocks.length?row('Hottest block',`${watts(hottest)} of ${watts(BLOCK_RATING)}`,hottest<=BLOCK_RATING*HOUSE.margin):'')+
         (j.battery&&on&&r.lifeH?row('Battery life',`≈ ${Math.round(r.lifeH)} h`):'')+
-        `${row('Parts',`${partsCost(this.setup)} credit${partsCost(this.setup)===1?'':'s'}`)}</ul>`+
-        `<p class="profile">${isLed?'I = (V − V<sub>f</sub>) ÷ R and P = I²R. Simplified LED: fixed V<sub>f</sub>, light ∝ current.':'I = (5 V − 0.7 V) ÷ R. Simplified: the base–emitter junction drops a fixed 0.7 V, β ≈ 100.'} Blocks in a row add; side by side they share. House rule: blocks under ${HOUSE.margin*100} % of ¼ W.</p>`:'');
+        `${row('Parts',`${partsCost(this.setup)} credit${partsCost(this.setup)===1?'':'s'}${this.spent?` · spent ${+this.spent.toFixed(1)}`:''}`)}</ul>`+
+        `<p class="profile">${isLed?'I = (V − V<sub>f</sub>) ÷ R and P = I²R. Simplified LED: fixed V<sub>f</sub>, light ∝ current.':'I = (5 V − 0.7 V) ÷ R. Simplified: the base–emitter junction drops a fixed 0.7 V; β is 100 typical, 40 for a weak part.'} Blocks in a row add; side by side they share. House rule: blocks under ${HOUSE.margin*100} % of ¼ W.</p>`:'');
   }
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;
     switch(h.act){
       case 'pick':{const v=Number(h.arg) as Block;return {key:String(BLOCKS.indexOf(v)+1),text:this.held===v?'Put it back':`Take a ${v} Ω block`};}
       case 'slot':{const s=h.arg as Slot;
-        if(s==='across')return this.held!==undefined?{key:'X',text:'Put it across the LED'}:{key:'Click',text:this.setup.across?'Take it out':'Across the LED'};
+        if(s==='across')return this.current()?.load.kind!=='led'?null:this.held!==undefined?{key:'X',text:'Put it across the LED'}:{key:'Click',text:this.setup.across?'Take it out':'Across the LED'};
         const p=this.setup.chain[s],key=POS_LETTERS[s];
         if(this.held!==undefined)return {key,text:p.length>=PER_POSITION?'Full':p.length?'Put it beside':'Put it here'};
         return {key:'Click',text:p.length?'Take a block out':'Empty: plain wire'};}
@@ -488,9 +563,9 @@ export class ArcadeBench implements Station {
     if(this.held)return {key:'A S D',text:'Place it in the chain'};
     if(this.tripped)return {key:'',text:'Fuse cooling…'};
     if(this.powered)return this.soak>0?{key:'',text:'Play-testing…'}:{key:'P',text:'Power off'};
-    return this.setup.chain.some(p=>p.length)?{key:'P',text:'Power on'}:{key:'1–4',text:'Take a block'};
+    return this.setup.chain.some(p=>p.length)?{key:'P',text:this.touched?'Power on':'Power on to see the fault'}:{key:'1–4',text:'Take a block'};
   }
-  complete(){return this.rush?this.game.time>=RUSH_TIME:this.served.length>=JOBS.length;}
+  complete(){return this.rush?this.game.time>=RUSH_TIME&&!this.overtime():this.served.length>=JOBS.length;}
   /** Rush: cabinets fixed and seconds left, for the HUD clock and the result card. */
   rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
@@ -500,11 +575,38 @@ export class ArcadeBench implements Station {
     heat:{led:this.heat.led,blocks:this.heat.blocks.map(p=>[...p]),across:this.heat.across}};}
 }
 
+/** Current made visible: small glowing dashes that run along a closed loop on the board while current
+ *  flows, faster for more current. Board-local points; the loop closes back to its first point. */
+class Flow {
+  group=new T.Group();private dashes:T.Mesh[]=[];private curve=new T.CurvePath<T.Vector3>();private phase=0;private length:number;
+  constructor(parent:T.Object3D,pts:[number,number][],spacing:number,size=1){
+    const v=pts.map(([x,z])=>new T.Vector3(x,.042,z));for(let i=0;i<v.length;i++)this.curve.add(new T.LineCurve3(v[i],v[(i+1)%v.length]));
+    this.length=this.curve.getLength();const mat=hot('#fff3a3',1.5),n=Math.max(4,Math.round(this.length/spacing));
+    for(let i=0;i<n;i++){const m=new T.Mesh(new T.BoxGeometry(.035*size,.006,.016*size),mat);m.userData.noAO=true;m.castShadow=false;this.dashes.push(m);this.group.add(m);}
+    parent.add(this.group);this.group.visible=false;
+  }
+  /** `amps` through the loop; nothing shows when it is not flowing. */
+  update(dt:number,amps:number){
+    const on=amps>5e-4;this.group.visible=on;if(!on)return;
+    this.phase=(this.phase+dt*Math.min(.9,.06+amps*10)/this.length)%1;const up=new T.Vector3(1,0,0);
+    this.dashes.forEach((m,i)=>{const u=(this.phase+i/this.dashes.length)%1,p=this.curve.getPointAt(u),t=this.curve.getTangentAt(u);m.position.copy(p);m.quaternion.setFromUnitVectors(up,t);});
+  }
+}
+/** A thin wisp of smoke over a hot part: a few small puffs that rise, swell a little and fade. */
+class Wisp {
+  private puffs:T.Mesh[]=[];private mat=new T.MeshBasicMaterial({color:'#b9b4c4',transparent:true,depthWrite:false});
+  constructor(parent:T.Object3D){this.mat.userData.outlineParameters={visible:false};
+    for(let i=0;i<5;i++){const m=new T.Mesh(new T.IcosahedronGeometry(1,1),this.mat.clone());m.userData.noAO=true;m.castShadow=false;m.visible=false;parent.add(m);this.puffs.push(m);}}
+  update(time:number,k:number,x:number,z:number){
+    this.puffs.forEach((m,i)=>{m.visible=k>0;if(!m.visible)return;const u=(time*.55+i/this.puffs.length)%1;
+      m.position.set(x+Math.sin(u*6+i)*.03,.09+u*.38,z+Math.cos(u*5+i)*.02);m.scale.setScalar(.018+u*.05);(m.material as T.MeshBasicMaterial).opacity=k*.55*Math.sin(u*Math.PI);});
+  }
+}
 function unlitMat(){const m=new T.MeshBasicMaterial({color:'#ffffff'});m.userData.outlineParameters={visible:false};return m;}
 function clone(s:Setup):Setup{return {chain:s.chain.map(p=>[...p]),across:s.across,reversed:s.reversed};}
 function visibleUp(o:T.Object3D){let p:T.Object3D|null=o;while(p){if(!p.visible)return false;p=p.parent;}return true;}
-/** An unlit LED is its own colour, pale. */
-function tint(hex:string){const c=new T.Color(hex).lerp(new T.Color('#ffffff'),.55);return `#${c.getHexString()}`;}
+/** An unlit LED is its own colour, a little pale. */
+function tint(hex:string){const c=new T.Color(hex).lerp(new T.Color('#ffffff'),.25);return `#${c.getHexString()}`;}
 /** The chain as a sum: positions add, a side-by-side pair is shown as a ‖ b. */
 function chainText(c:Chain){
   const parts=c.filter(p=>p.length).map(p=>p.length===2?`(${p[0]}‖${p[1]})`:`${p[0]}`);
@@ -521,22 +623,29 @@ function drawBoard(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined)
   c.strokeStyle='#f0b25a';c.lineWidth=16;c.lineCap='round';c.lineJoin='round';
   const line=(pts:[number,number][])=>{c.beginPath();pts.forEach(([x,z],i)=>i?c.lineTo(X(x),Y(z)):c.moveTo(X(x),Y(z)));c.stroke();};
   // Top rail: supply → fuse → each chain position in turn → the LED's + leg and the ACROSS slot.
+  const isLed=j?.load.kind!=='base';
   line([[SUPX,TOPZ],[POSX[0]-PADW/2,TOPZ]]);
   for(let k=0;k<2;k++)line([[POSX[k]+PADW/2,TOPZ],[POSX[k+1]-PADW/2,TOPZ]]);
-  line([[POSX[2]+PADW/2,TOPZ],[ACRX,TOPZ],[ACRX,TOPZ+.05]]);line([[LEDX,TOPZ],[LEDX,TOPZ+.05]]);
-  line([[SUPX,GNDZ],[ACRX,GNDZ],[ACRX,GNDZ-.05]]);line([[LEDX,GNDZ],[LEDX,GNDZ-.05]]);
-  const isLed=j?.load.kind!=='base';
-  c.fillStyle='#f0b25a';for(const [x,z] of [[LEDX,TOPZ],[LEDX,GNDZ],[ACRX,TOPZ],[ACRX,GNDZ]] as [number,number][]){c.beginPath();c.arc(X(x),Y(z),13,0,7);c.fill();}
+  line([[LEDX,TOPZ],[LEDX,TOPZ+.05]]);line([[LEDX,GNDZ],[LEDX,GNDZ-.05]]);
+  if(isLed){line([[POSX[2]+PADW/2,TOPZ],[ACRX,TOPZ],[ACRX,TOPZ+.05]]);line([[SUPX,GNDZ],[ACRX,GNDZ],[ACRX,GNDZ-.05]]);}
+  else{
+    // Two loops share the emitter's ground: the thin base loop (logic pin → chain → B → E) and the
+    // thick motor loop (12 V → motor → C → E → ground), which carries the big current.
+    line([[POSX[2]+PADW/2,TOPZ],[LEDX,TOPZ]]);line([[SUPX,GNDZ],[LEDX,GNDZ]]);
+    c.strokeStyle='#ffcf7a';c.lineWidth=30;line([[MOTX,TOPZ],[MOTX,MIDZ],[LEDX+.06,MIDZ]]);line([[LEDX,GNDZ],[MOTX,GNDZ]]);c.lineWidth=16;c.strokeStyle='#f0b25a';
+  }
+  c.fillStyle='#f0b25a';for(const [x,z] of (isLed?[[LEDX,TOPZ],[LEDX,GNDZ],[ACRX,TOPZ],[ACRX,GNDZ]]:[[LEDX,TOPZ],[LEDX,GNDZ]]) as [number,number][]){c.beginPath();c.arc(X(x),Y(z),13,0,7);c.fill();}
   const text=(t:string,x:number,z:number,size=30,col='#fffaf0')=>{c.font=FONT(size);c.fillStyle=col;c.textAlign='center';c.textBaseline='middle';c.fillText(t,X(x),Y(z));};
   text(j?`${j.supply} V`:'',SUPX,MIDZ,48,LEMON);
   text('+',SUPX-.11,TOPZ,44,'#ff9a9a');text('−',SUPX-.11,GNDZ,44,'#fffaf0');
   text(isLed?'+':'B',LEDX-.1,TOPZ+.06,34,'#ff9a9a');text(isLed?'−':'E',LEDX-.1,GNDZ-.05,34);
+  if(!isLed){text('C',LEDX+.1,MIDZ-.075,34,'#ffcf7a');text('12 V',MOTX-.15,TOPZ-.1,36,LEMON);}
   // The chain's key letters, printed under each position and the ACROSS slot.
-  POSX.forEach((x,k)=>text(POS_LETTERS[k],x,TOPZ+.19,26,'rgba(255,250,240,.55)'));text('X',ACRX+.12,MIDZ,26,'rgba(255,250,240,.55)');
+  POSX.forEach((x,k)=>text(POS_LETTERS[k],x,TOPZ+.19,26,'rgba(255,250,240,.55)'));if(isLed)text('X',ACRX+.12,MIDZ,26,'rgba(255,250,240,.55)');
   // Legend strip along the front edge.
   c.fillStyle='rgba(20,50,38,.55)';c.fillRect(0,Y(LABZ-.055),w,Y(LABZ+.055)-Y(LABZ-.055));
   text(j?.battery?'BATTERY':isLed?'SUPPLY':'LOGIC PIN',SUPX,LABZ,26);text('FUSE',FUSEX,LABZ,26);text('CHAIN',POSX[1],LABZ,30,LEMON);
-  text(isLed?'LED':'TRANSISTOR',LEDX,LABZ,26);text('ACROSS',ACRX,LABZ,26);
+  text(isLed?'LED':'TRANSISTOR',LEDX,LABZ,26);text(isLed?'ACROSS':'MOTOR',isLed?ACRX:MOTX-.08,LABZ,26);
 }
 function drawMarquee(c:CanvasRenderingContext2D,w:number,h:number,title:string,done:boolean,tilt=false){
   const g=c.createLinearGradient(0,0,w,0);g.addColorStop(0,tilt?'#ff3b5c':PINK);g.addColorStop(.5,tilt?'#ff8a3d':LEMON);g.addColorStop(1,tilt?'#ff3b5c':MINT);
@@ -545,7 +654,7 @@ function drawMarquee(c:CanvasRenderingContext2D,w:number,h:number,title:string,d
   let s=64;c.font=FONT(s);while(c.measureText(title).width>w-60){s--;c.font=FONT(s);}
   c.textAlign='center';c.textBaseline='middle';c.lineWidth=10;c.strokeStyle=PLUM;c.strokeText(title,w/2,h/2+3);c.fillStyle=done?LEMON:'#fffaf0';c.fillText(title,w/2,h/2+3);
 }
-interface MeterState {live:boolean;powered:boolean;tripped:boolean;cooling:number;led:number;block:number;soak:number;soakDone:boolean;soakTime:number;s:Setup}
+interface MeterState {live:boolean;powered:boolean;tripped:boolean;cooling:number;led:number;block:number;soak:number;soakDone:boolean;soakTime:number;s:Setup;passed:boolean;tier:number}
 /** The live meter: current, chain resistance and the hottest block's power; then light against the
  *  band (with its ★ zone), LED heat (or motor speed) and block heat against the house margin. */
 function drawMeter(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined,r:Reading|undefined,m:MeterState){
@@ -559,10 +668,11 @@ function drawMeter(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined,
   tile(16,isLed?'CURRENT':'BASE CURRENT',on?mA(r.iLoad):m.tripped?'TRIP':'—',on?'mA':'',m.tripped?'#ff6b6b':'#8dffd0');
   const rc=r.rChain;tile(310,'CHAIN',rc>=1000?(rc/1000).toFixed(2):rc.toFixed(rc<100&&rc%1?1:0),rc>=1000?'kΩ':'Ω',LEMON);
   tile(604,'HOTTEST BLOCK',on&&r.blocks.length?(hottest*1000).toFixed(hottest<.01?1:0):'—',on&&r.blocks.length?'mW':'',PINK);
-  const bar=(y:number,label:string,frac:number,band:[number,number]|null,star:[number,number]|null,limit:number|null,dash:number|null,col:string,right:string)=>{
+  const bar=(y:number,label:string,frac:number,band:[number,number]|null,star:[number,number]|null,limit:number|null,dash:number|null,col:string,right:string,max=1.5,danger:number|null=null)=>{
     c.fillStyle='rgba(255,255,255,.7)';c.font=FONT(22,600);c.textAlign='left';c.fillText(label,20,y+20);
-    const x0=250,x1=w-150,bw=x1-x0,max=1.5,X=(v:number)=>x0+Math.min(1,Math.max(0,v/max))*bw;
+    const x0=250,x1=w-150,bw=x1-x0,X=(v:number)=>x0+Math.min(1,Math.max(0,v/max))*bw;
     c.fillStyle='#2c2046';c.beginPath();c.roundRect(x0,y,bw,40,12);c.fill();
+    if(danger!==null){c.fillStyle='rgba(255,90,80,.3)';c.fillRect(X(danger),y,x1-X(danger),40);}
     if(band){c.fillStyle='rgba(111,224,192,.28)';c.fillRect(X(band[0]),y,X(band[1])-X(band[0]),40);}
     if(star){c.fillStyle='rgba(255,216,77,.38)';c.fillRect(X(star[0]),y,X(star[1])-X(star[0]),40);c.fillStyle=LEMON;c.font=FONT(22);c.textAlign='center';c.fillText('★',(X(star[0])+X(star[1]))/2,y-12);}
     c.fillStyle=col;c.beginPath();c.roundRect(x0,y+8,Math.max(0,X(frac)-x0),24,8);c.fill();
@@ -572,15 +682,20 @@ function drawMeter(c:CanvasRenderingContext2D,w:number,h:number,j:Job|undefined,
   };
   const lvl=on?r.level:0,im=j.load.imax,band:[number,number]=[j.band[0]/im,j.band[1]/im],sz=starZone(j),star:[number,number]=[sz[0]/im,sz[1]/im];
   const inBand=lvl>=band[0]-1e-9&&lvl<=band[1]+1e-9;
-  bar(170,isLed?'LIGHT':'BASE',lvl,band,star,1,null,inBand?MINT:LEMON,on?`${mA(r.iLoad)} mA`:'off');
-  if(isLed){const ledC=HOUSE.ambient+m.led*HOUSE.ledTheta*j.load.imax*j.load.vf;bar(232,'LED HEAT',m.led,null,null,1,null,m.led>.9?'#ff6b6b':'#ff9ec6',`${Math.round(ledC)} °C`);}
-  else{const drive=on&&j.load.kind==='base'?Math.min(1,r.iLoad*j.load.beta/j.load.motor):0;bar(232,'MOTOR',drive,null,null,null,null,drive>=1?MINT:LEMON,on?drive>=1?'FULL':`${Math.round(drive*100)} %`:'off');}
-  bar(294,'BLOCK HEAT',m.block,null,null,1,HOUSE.margin,m.block>HOUSE.margin?'#ff8a3d':'#b9a6f5',r.blocks.length||m.s.across?`${Math.round(HOUSE.ambient+m.block*HOUSE.ratedRise)} °C`:'—');
+  // The ★ zone shows once this cabinet has passed a play test: before that, the band is the target.
+  bar(170,isLed?'LIGHT':'BASE',lvl,band,m.passed?star:null,1,null,inBand?MINT:LEMON,on?`${mA(r.iLoad)} mA`:'off');
+  // LED LOAD: current against the LED's rating (dashed: rated; red zone: it burns out at once).
+  if(isLed)bar(232,'LED LOAD',m.led,null,null,HOUSE.ledPop,1,m.led>HOUSE.ledPop*.8?'#ff6b6b':m.led>1?'#ff9a5b':'#ff9ec6',on||m.led>.05?`${m.led.toFixed(1)}× rated`:'—',3,HOUSE.ledPop);
+  else{const d=on&&j.load.kind==='base'?motorDrive(j.load,r.iLoad):{typical:0,weak:0},full=d.weak>=1,marginal=d.typical>=1&&!full;
+    bar(232,'MOTOR',d.typical,null,null,null,null,full?MINT:marginal?'#ffb347':LEMON,on?full?'FULL':marginal?'FULL (typical part)':`${Math.round(d.typical*100)} %`:'off',1);}
+  bar(294,'BLOCK HEAT',m.block,null,null,1,HOUSE.margin,m.block>1?'#ff6b6b':m.block>HOUSE.margin?'#ff8a3d':'#b9a6f5',r.blocks.length||m.s.across?`${Math.round(HOUSE.ambient+m.block*HOUSE.ratedRise)} °C`:'—',HOUSE.blockPop,1);
   // The play-test strip and the fuse.
   const y=362;c.fillStyle='#2c2046';c.beginPath();c.roundRect(16,y,w-32,64,16);c.fill();
-  c.fillStyle=m.soakDone?'#6dff9a':'#8b7be8';c.beginPath();c.roundRect(16,y,(w-32)*Math.min(1,m.soak/m.soakTime),64,16);c.fill();
+  // A pass that misses the band only plays: amber, not the green tick.
+  const meh=m.soakDone&&m.tier<2,lowBand=on&&r.iLoad<j.band[0];
+  c.fillStyle=meh?'#ffb347':m.soakDone?'#6dff9a':'#8b7be8';c.beginPath();c.roundRect(16,y,(w-32)*Math.min(1,m.soak/m.soakTime),64,16);c.fill();
   c.fillStyle=m.soakDone?'#1d1430':'#fffaf0';c.font=FONT(28);c.textAlign='left';
-  c.fillText(m.soakDone?'PLAY TEST PASSED ✓':m.soak>0?`PLAY TEST  ${m.soak.toFixed(1)} / ${m.soakTime} s`:on?'NOT PLAYABLE':m.tripped?'':'POWER OFF',34,y+33);
+  c.fillText(meh?`PLAYS · ${inBand?'HOT BLOCK':lowBand?isLed?'DIM':'LOW DRIVE':'OVER BAND'}`:m.soakDone?'PLAY TEST PASSED ✓':m.soak>0?`PLAY TEST  ${m.soak.toFixed(1)} / ${m.soakTime} s`:on?'NOT PLAYABLE':m.tripped?'':'POWER OFF',34,y+33);
   c.textAlign='right';c.fillStyle=m.tripped?'#ff6b6b':m.soakDone?'#1d1430':'#8dffd0';c.fillText(m.tripped?`FUSE COOLING ${m.cooling.toFixed(1)} s`:'FUSE OK',w-34,y+33);
   c.fillStyle='rgba(255,255,255,.7)';c.font=FONT(22,600);c.textAlign='left';
   const foot=j.battery?(on&&r.lifeH?`BATTERY  ≈ ${Math.round(r.lifeH)} h`:`BATTERY  ${HOUSE.battery} mAh`):`SUPPLY  ${j.supply} V   ·   ${isLed?`LED Vf ${j.load.vf.toFixed(1)} V`:'BASE 0.7 V'}`;

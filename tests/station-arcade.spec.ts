@@ -16,17 +16,18 @@ async function toBench(page:Page){
   await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
 }
 
-test('arcade: five cabinets fixed in the ★ zone, after one fuse trip and one popped block',async({page})=>{
+test('arcade: five cabinets fixed in the ★ zone; powering them on as found to look is free',async({page})=>{
   const errors=await open(page,'arcade');await wait(page,.1);
   await expect(page.locator('.objective')).toContainText('Carry the tray of resistor blocks');
   // Nothing works at the bench before the blocks arrive.
   expect((await act(page,'pick',220)).ok).toBe(false);
   await toBench(page);
   await expect(page.locator('.station-panel')).toContainText('PINBALL');
-  // 1 · Pinball: the block across the LED limits nothing, so the PTC fuse trips and glows.
+  // 1 · Pinball: the block across the LED limits nothing, so the fuse trips. As found, that is a
+  // diagnosis, not a mistake.
   await steps(page,[['power']]);await wait(page,.5);
-  let s=await station(page);expect(s.tripped).toBe(true);expect(s.trips).toBe(1);expect(s.mistakes).toBe(1);
-  await expect(page.locator('.station-toast')).toContainText('limits nothing');
+  let s=await station(page);expect(s.tripped).toBe(true);expect(s.trips).toBe(0);expect(s.mistakes).toBe(0);
+  await expect(page.locator('.station-toast')).toContainText('As found');await expect(page.locator('.station-toast')).toContainText('limits nothing');
   // Take it out and stand a 220 Ω block in the chain. The fuse cools and conducts again by itself.
   await steps(page,[['slot','across'],...place([220])]);await wait(page,2.6);
   s=await station(page);expect(s.tripped).toBe(false);expect(s.live).toBe(true);
@@ -38,9 +39,13 @@ test('arcade: five cabinets fixed in the ★ zone, after one fuse trip and one p
   await steps(page,[['flip'],...place([47]),['power']]);await wait(page,3.4);
   s=await station(page);expect(s.setup.chain[0]).toEqual([47,47]);expect(s.reading.rChain).toBeCloseTo(23.5,6);expect(s.verdict.tier).toBe(3);
   await steps(page,[['signoff']]);
-  // 3 · Claw: the 220 Ω block on 12 V turns 0.44 W into heat. It pops off and the bench cuts out.
-  await steps(page,[['power']]);await wait(page,2.4);
-  s=await station(page);expect(s.setup.chain[0]).toEqual([]);expect(s.powered).toBe(false);expect(s.mistakes).toBe(3);expect(s.spent).toBe(4);
+  // 3 · Claw: as found, the LED glares at 2.2× its rating and the 220 Ω block turns 0.44 W into
+  // heat. It scorches, and after a while it fails and the bench cuts out (free: it came that way).
+  await steps(page,[['power']]);await wait(page,1.2);
+  s=await station(page);expect(s.powered).toBe(true);expect(s.mistakes).toBe(0);expect(s.setup.chain[0]).toEqual([220]);
+  await expect(page.locator('.station-toast')).toContainText('dies early');
+  await wait(page,9.5);
+  s=await station(page);expect(s.setup.chain[0]).toEqual([]);expect(s.powered).toBe(false);expect(s.mistakes).toBe(0);expect(s.spent).toBe(3);
   await expect(page.locator('.station-toast')).toContainText('P = I²R');
   // Two 470 Ω in a row share the voltage and the heat.
   await steps(page,[...place([470],[470]),['power']]);await wait(page,3.4);
@@ -50,12 +55,13 @@ test('arcade: five cabinets fixed in the ★ zone, after one fuse trip and one p
   await steps(page,[['slot',0],...place([470],[470]),['power']]);await wait(page,3.4);
   s=await station(page);expect(Math.round(s.reading.lifeH)).toBe(67);expect(s.verdict.tier).toBe(3);
   await expect(page.locator('.station-panel')).toContainText('Battery life');await steps(page,[['signoff']]);
-  // 5 · Coin hopper: 940 Ω gives the base 4.6 mA (the motor needs 2 mA, the pin allows 20).
-  await steps(page,[...place([470],[470]),['power']]);await wait(page,3.4);
-  s=await station(page);expect(s.reading.iLoad*1000).toBeCloseTo(4.57,2);await steps(page,[['signoff']]);
+  // 5 · Coin hopper: 470 Ω gives the base 9.1 mA: enough for even a weak transistor (5 mA), well
+  // under the pin's 20 mA.
+  await steps(page,[...place([470]),['power']]);await wait(page,3.4);
+  s=await station(page);expect(s.reading.iLoad*1000).toBeCloseTo(9.13,2);expect(s.verdict.tier).toBe(3);await steps(page,[['signoff']]);
   await wait(page,.5);s=await snapshot(page);
   expect(s.station.served.map((v:{tier:number})=>v.tier)).toEqual([3,3,3,3,3]);
-  expect(s.won).toBe(true);expect(s.station.trips).toBe(1);expect(s.station.spent).toBe(10);
+  expect(s.won).toBe(true);expect(s.station.trips).toBe(0);expect(s.station.mistakes).toBe(0);expect(s.station.spent).toBe(8);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
   await expect(page.locator('.result-bonus li.ok')).toHaveCount(3);
   expect(errors).toEqual([]);
@@ -63,17 +69,21 @@ test('arcade: five cabinets fixed in the ★ zone, after one fuse trip and one p
 
 test('arcade: an LED over its rating never passes; a reliable chain can be tuned into the ★ zone',async({page})=>{
   await open(page,'arcade');await wait(page,.1);await toBench(page);
-  // 100 Ω alone: 30 mA is over the LED's 20 mA. It flickers white-hot and the play test never starts.
+  // 100 Ω alone: 30 mA is 1.5× the LED's 20 mA. It glares and the play test never starts; the
+  // player built this, so it counts.
   await steps(page,[['slot','across'],...place([100]),['power']]);await wait(page,2);
   let s=await station(page);expect(s.powered).toBe(true);expect(s.soak).toBe(0);expect(s.mistakes).toBe(1);
-  await expect(page.locator('.station-toast')).toContainText('over the LED');
+  await expect(page.locator('.station-toast')).toContainText('1.5× the LED');
   // A second 100 Ω in the next position: 200 Ω, 15 mA. In the band but above the ★ zone.
   await steps(page,place([],[100]));await wait(page,3.4);
   s=await station(page);expect(s.verdict.tier).toBe(2);expect(s.verdict.notes[0]).toContain('★');expect(s.served).toEqual([]);
-  // Swap both for one 220 Ω block: the bench stays live, the play test starts over and passes in the ★ zone.
-  await steps(page,[['slot',1],['slot',0],...place([220])]);s=await station(page);expect(s.soakDone).toBe(false);expect(s.powered).toBe(true);
-  await wait(page,3.4);s=await station(page);expect(s.verdict.tier).toBe(3);
-  await steps(page,[['signoff']]);s=await station(page);expect(s.index).toBe(1);expect(s.served[0]).toEqual({job:'bumper',tier:3,cost:1});
+  // Swap both for one 220 Ω block. Lifting the last block out of a live chain switches the bench off
+  // first, so the swap never trips the fuse; each block taken back out is half a credit of scrap.
+  await steps(page,[['slot',1],['slot',0]]);s=await station(page);expect(s.powered).toBe(false);expect(s.spent).toBe(1);
+  await wait(page,.5);s=await station(page);expect(s.trips).toBe(0);expect(s.tripped).toBe(false);
+  await steps(page,[...place([220]),['power']]);s=await station(page);expect(s.soakDone).toBe(false);expect(s.powered).toBe(true);
+  await wait(page,3.4);s=await station(page);expect(s.verdict.tier).toBe(3);expect(s.mistakes).toBe(1);
+  await steps(page,[['signoff']]);s=await station(page);expect(s.index).toBe(1);expect(s.served[0]).toEqual({job:'bumper',tier:3,cost:1});expect(s.spent).toBe(2);
   // Signing off needs a fresh play test, and a position holds two blocks at most.
   expect((await act(page,'signoff')).ok).toBe(false);
   await steps(page,place([47]));expect((await act(page,'pick',47)).ok).toBe(true);expect((await act(page,'slot',0)).ok).toBe(false);

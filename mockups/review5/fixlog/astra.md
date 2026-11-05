@@ -35,3 +35,6 @@ Browser verification note: the initial lobby layout test timed out during browse
 
 Completed browser run: 15 passed, 1 failed in 9.4 minutes. The sole failure was the lobby browser-context setup timeout described above; the idle Rush regression, all nine non-lobby layout checks, and all five smoke checks passed.
 
+
+Isolated lobby rerun: passed in 20.7 seconds on port 4191. Thus every selected assertion passed, with the original context-setup timeout retained above for traceability. No source changes were made between the combined run and this rerun.
+

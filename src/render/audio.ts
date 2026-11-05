@@ -53,7 +53,8 @@ export class Sound {
   /** Soft footstep; pitch varies so a walk never sounds like a metronome. */
   step(){this.noise(.07,.035,260+Math.random()*120);this.tone(80+Math.random()*20,.06,.03);}
   /** Wooden knock when the cable wraps a corner. */
-  knock(pitch=1){this.tone(190*pitch,.07,.07,'triangle');this.noise(.03,.04,2400,'bandpass');}
+  knock(pitch=1){if(!this.context)return;if(this.t-this.lastKnock<.3)return;this.lastKnock=this.t;this.tone(190*pitch,.07,.07,'triangle');this.noise(.03,.04,2400,'bandpass');}
+  private lastKnock=-9;
   pop(){this.tone(320,.06,.05,'sine');this.tone(520,.05,.03,'triangle',.03);}
   thud(mass=2){this.noise(.1+Math.min(.2,mass*.01),.05+Math.min(.07,mass*.004),300+Math.random()*500);this.tone(70+Math.random()*30,.12,.04);}
   /** Plug seated: a mechanical click-clack, then a bright rising chime. */
@@ -71,6 +72,55 @@ export class Sound {
       this.env(g,t,.06,.012,plan.len);o.connect(f).connect(g).connect(this.out());o.start(t);o.stop(t+plan.len+.05);}
   }
   cheer(){this.jingle();setTimeout(()=>{for(let i=0;i<4;i++)setTimeout(()=>this.voice('cheer',.8+Math.random()*.5),i*140);},250);}
+  // Three tiers of success (R5-093): a step's bell (objectives), a milestone, and the win.
+  /** Milestone (a bench sign-off, ship, log or send, the Meeting extension, a strike): a short two-note
+   *  up-chime and one crew "hm-cheer". */
+  milestone(){this.bell(784,.25,.05);this.bell(1175,.35,.05,.12);setTimeout(()=>this.voice('cheer',1.1),180);}
+  /** The win: a low kick, the arpeggio an octave lower, a held five-note chord and a crowd. Music ducks under it. */
+  win(){if(!this.context||this.isMuted)return;const c=this.context,t=this.t,o=c.createOscillator(),g=c.createGain();
+    o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(45,t+.15);g.gain.setValueAtTime(.16,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);o.connect(g).connect(this.out());o.start(t);o.stop(t+.32);
+    [262,330,392,523,659,784,1047].forEach((f,i)=>this.bell(f,.35,.055,.05+i*.08));[262,330,392,494,659].forEach(f=>this.bell(f,1.8,.03,.62));
+    this.duck(.12,2.5);setTimeout(()=>{for(let i=0;i<7;i++)setTimeout(()=>this.voice('cheer',.75+Math.random()*.6),i*110);},420);}
+  /** Music ducks to `level` of its volume for `secs`, then comes back. */
+  duck(level:number,secs:number){const b=this.musicBus,c=this.context;if(!b||!c)return;b.gain.cancelScheduledValues(c.currentTime);b.gain.setTargetAtTime(.55*level,c.currentTime,.08);if(secs>0)b.gain.setTargetAtTime(.55,c.currentTime+secs,.4);}
+  /** Paused: the music sits low until play resumes. */
+  paused(on:boolean){this.duck(on?.25:1,0);}
+  /** A failed job: a sad trombone of four falling notes, with the fault's own tail (R5-088). */
+  fail(kind:'spoil'|'burn'|'other'='other'){if(!this.context||this.isMuted)return;const c=this.context;
+    [392,370,349,294].forEach((f,i)=>{const t=this.t+.15+i*.26,o=c.createOscillator(),lp=c.createBiquadFilter(),g=c.createGain();o.type='sawtooth';o.frequency.setValueAtTime(f,t);if(i===3)o.frequency.linearRampToValueAtTime(f*.94,t+.5);lp.type='lowpass';lp.frequency.value=1200;
+      this.env(g,t,.09,.02,i===3?.6:.25);o.connect(lp).connect(g).connect(this.out());o.start(t);o.stop(t+.7);});
+    if(kind==='spoil')this.noise(.12,.1,250);if(kind==='burn')this.noise(.8,.06,3000,'highpass');
+    if(this.musicBus)this.musicBus.gain.setTargetAtTime(0,c.currentTime,.3);}
+  /** Lunch fridge warming (R5-088): a compressor stutter, then an urgent double beep near spoiling. */
+  fridgeWarn(urgent:boolean){if(urgent){this.tone(660,.08,.05,'square');this.tone(660,.08,.05,'square',.14);}else{this.noise(.09,.07,200);this.noise(.09,.06,200,'lowpass',.16);}}
+  // Named fault cues (R5-120), so different faults never sound the same.
+  /** Breaker trip: a heavy clack, then a power-down whirr for each load that drops. */
+  breakerTrip(loads=1){this.noise(.1,.14,300);for(let i=0;i<Math.max(1,loads);i++)this.sweep(220,55,.6,.05,'sawtooth',800,.08+i*.12);}
+  /** Short circuit: a sharp zap and crackle; with water, a hiss as well. */
+  short(water=false){this.noise(.08,.14,4000,'highpass');for(let i=0;i<3;i++)this.tone(2000+Math.random()*1000,.03,.03,'square',.03+i*.05);if(water)this.noise(.5,.04,6000,'highpass',.05);}
+  /** A PTC fuse trips: a tick, then a rising thermal hum (not the garage's fuse bang). */
+  ptcTrip(){this.noise(.03,.1,3000,'highpass');this.sweep(90,160,.5,.04,'sawtooth',500,.04);}
+  /** A fuse blowing on a dead short (garage): a bang and a crackle. */
+  fuseBang(){this.noise(.2,.14,1800,'bandpass');this.tone(120,.3,.06,'square');this.short();}
+  /** A bench verdict that fails, with a timbre per kind (R5-120). */
+  verdictFail(kind:'reset'|'weak'|'layout'|'other'='other'){
+    if(kind==='reset'){this.sweep(500,140,.25,.06,'square',1400);this.tone(90,.12,.05,'sine',.22);}
+    else if(kind==='weak')this.sweep(420,160,.45,.06,'sine',3000);
+    else if(kind==='layout'){this.tone(150,.12,.06,'square');this.tone(150,.12,.06,'square',.18);}
+    else this.tone(160,.25,.06,'square');}
+  /** A send-back (QFN): a rubber-stamp thunk and a two-pulse reject buzzer (R5-219). */
+  reject(){this.noise(.1,.12,400);this.tone(140,.12,.07,'square',.12);this.tone(140,.12,.07,'square',.3);}
+  /** A part set into a bench slot: two dry clicks, no success bells (R5-261). */
+  seat(){this.noise(.02,.06,3200,'highpass');this.noise(.02,.06,2600,'highpass',.04);}
+  /** A short motor whirr (the garage robot driving) and the docked clunk plus chime. */
+  whirr(){this.sweep(90,120,.5,.02,'sawtooth',500);}
+  docked(){this.noise(.08,.12,350);this.tone(70,.15,.06);[1047,1319,1568].forEach((f,i)=>this.bell(f,.5,.045,.12+i*.09));}
+  /** The cable sliding off a corner: a soft slip, never louder than the wrap knock. */
+  slip(){if(!this.context||this.t-this.lastSlip<.5)return;this.lastSlip=this.t;this.noise(.05,.02,1500,'bandpass');}
+  private lastSlip=-9;
+  private sweep(from:number,to:number,duration:number,volume:number,type:OscillatorType,cutoff:number,at=0){
+    if(!this.context||this.isMuted)return;const c=this.context,t=this.t+at,o=c.createOscillator(),f=c.createBiquadFilter(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,t+duration);f.type='lowpass';f.frequency.value=cutoff;
+    g.gain.setValueAtTime(volume,t);g.gain.exponentialRampToValueAtTime(.001,t+duration);o.connect(f).connect(g).connect(this.out());o.start(t);o.stop(t+duration+.02);}
   /** Win fanfare: arpeggio up the major chord, then a held bell chord. */
   jingle(){[523,659,784,1047].forEach((f,i)=>this.bell(f,.35,.06,i*.09));[523,659,784].forEach(f=>this.bell(f,1.4,.035,.4));}
   private startAmbience(){

@@ -19,7 +19,7 @@ import {hot} from '../../render/actors';
 import {JOBS,rushJob,BLOCKS,BLOCK_RATING,BLOCK_COST,PER_POSITION,HOUSE,read,judge,best,mA,ohms,watts,partsCost,positionR,starZone,TIER_WORD,motorDrive,popWhy,minCost,
   type Block,type Chain,type Job,type Setup,type Reading,type Verdict,type LedColor} from './logic';
 import './arcade.css';
-import {cheer} from '../shared';
+import {cheer,signOff,fault as benchFault} from '../shared';
 import {rng} from '../../render/textures';
 
 /** Arcade Rush (level arcade-rush): three minutes of cabinets, each play-tested for a shorter run. */
@@ -83,7 +83,11 @@ interface Heat {led:number;blocks:number[][];across:number}
 const zeroHeat=(c:Chain):Heat=>({led:0,blocks:c.map(p=>p.map(()=>0)),across:0});
 
 export class ArcadeBench implements Station {
-  readonly view={distance:5.9,pitch:.98,lookY:.3,width:4.4};
+  readonly view:{distance:number;pitch:number;lookY:number;lookX?:number;width:number}={distance:5.9,pitch:.98,lookY:.3,lookX:0,width:4.4};
+  /** While the kid play-tests, the bench camera eases left and back so the cabinet, its marquee and
+   *  the kid are in frame with the board (R5-080); it eases back once the cabinet is signed off. */
+  private static readonly REST={distance:5.9,pitch:.98,lookX:0};private static readonly SOAK={distance:7.2,pitch:.85,lookX:-1.8};
+  private kidStartle=0;private cabMarquee?:T.Object3D;private signedAt=-9;
   readonly limits={time:480,damage:2,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   index=0;setup:Setup;held?:Block;powered=false;soak=0;soakDone=false;verdict?:Verdict;heat:Heat;
@@ -242,7 +246,7 @@ export class ArcadeBench implements Station {
     const head=group(c,0,1.2,-.05);head.rotation.x=.12;part(head,rbox(.95,.7,.7,.08),toon('#ff9fc8'),0,.35,0);
     this.cabScreen=part(head,box(.72,.46,.03),toon('#241a33'),0,.36,.35);
     part(c,rbox(.97,.08,.5,.03),toon(PLUM),0,1.2,.25);for(const [x,col] of [[-.2,'#e5484d'],[0,LEMON],[.2,'#3f7fd6']] as const)part(c,cyl(.05,.05,.04,16),toon(col),x,1.26,.35);
-    const mq=group(c,0,2.02,.05);part(mq,rbox(1,.28,.3,.06),toon(PLUM),0,0,0);const face=part(mq,new T.PlaneGeometry(.92,.23),new T.MeshBasicMaterial({map:this.marquee.tex,toneMapped:false}),0,0,.155,false);(face.material as T.Material).userData.outlineParameters={visible:false};
+    const mq=group(c,0,2.02,.05);this.cabMarquee=mq;part(mq,rbox(1,.28,.3,.06),toon(PLUM),0,0,0);const face=part(mq,new T.PlaneGeometry(.92,.23),new T.MeshBasicMaterial({map:this.marquee.tex,toneMapped:false}),0,0,.155,false);(face.material as T.Material).userData.outlineParameters={visible:false};
     this.cabLamp=part(c,sphere(.07,14,10),toon('#5a4a60'),0,1.02,.41);this.cabHalo=glow(c,'rgba(255,140,150,1)',.9,0);this.cabHalo.position.set(0,1.02,.5);
     // The ribbon cable runs from the cabinet's open back, sags onto the bench top and plugs into a
     // connector on the board's supply edge.
@@ -296,12 +300,12 @@ export class ArcadeBench implements Station {
       case 'slot':{const s=arg as Slot;
         if(s==='across'){
           if(j.load.kind!=='led')return false;
-          if(this.held){if(this.setup.across){this.heat.across=0;if(this.mineAcross)this.spent+=SCRAP;}this.setup.across=this.held;this.mineAcross=true;this.held=undefined;this.edited();a.plug();break;}
+          if(this.held){if(this.setup.across){this.heat.across=0;if(this.mineAcross)this.spent+=SCRAP;}this.setup.across=this.held;this.mineAcross=true;this.held=undefined;this.edited();a.seat();break;}
           if(this.setup.across){this.setup.across=undefined;this.heat.across=0;if(this.mineAcross)this.spent+=SCRAP;this.mineAcross=false;this.edited();a.tone(300,.06,.04,'triangle');break;}
           a.voice('hm',1.4);return false;}
         if(typeof s!=='number'||s<0||s>2)return false;const p=this.setup.chain[s];
         if(this.held){if(p.length>=PER_POSITION){this.say('Two side by side is all a position holds.');a.voice('hm',1.4);return false;}
-          p.push(this.held);this.heat.blocks[s].push(0);this.mine[s].push(true);this.held=undefined;this.edited();a.plug();break;}
+          p.push(this.held);this.heat.blocks[s].push(0);this.mine[s].push(true);this.held=undefined;this.edited();a.seat();break;}
         if(p.length){p.pop();this.heat.blocks[s].pop();if(this.mine[s].pop())this.spent+=SCRAP;this.edited();a.tone(300,.06,.04,'triangle');
           // Lifting the last block out of a live chain would short the LED straight across the
           // supply: the bench switches itself off first (the lever clacks back), so a swap is safe.
@@ -320,7 +324,9 @@ export class ArcadeBench implements Station {
         // that reaches the same tier, so fixing more cabinets never costs grade.
         const v=this.verdict;this.served.push({job:j.id,tier:v.tier,cost:v.cost});this.spent+=this.rush?Math.max(0,v.cost-minCost(j,v.tier)):v.cost;
         this.say(`${j.title}: ${TIER_WORD[v.tier]}${v.tier===3?' ★':''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,LEMON);
+        // The milestone, a hitstop and confetti from the cabinet's own marquee, in the play-test framing (R5-080/093/094).
+        signOff(this.game,this,LEMON,!this.rush&&this.served.length>=JOBS.length);this.signedAt=this.game.time;
+        if(this.cabMarquee){const m=this.cabMarquee.getWorldPosition(new T.Vector3());this.game.burst({x:m.x,y:m.y+.2,z:m.z},LEMON,18,'confetti');this.game.burst({x:m.x,y:m.y,z:m.z},'#fff3c8',1,'flash');}
         // Story: the cabinet's own place on the back wall lights. Rush: the back wall is a progress
         // meter, one cabinet lighting for every two fixed.
         if(!this.rush)this.room?.light(this.index);else if(this.served.length%2===0)this.room?.light(this.served.length/2-1,j.cabinet);
@@ -340,8 +346,8 @@ export class ArcadeBench implements Station {
   private trip(){
     const j=this.current()!,a=this.game.audio,first=!this.faultCounted;this.tripped=true;this.cooling=HOUSE.fuseCool;this.tripT=0;this.soak=0;this.fault(true);
     if(first)this.explain(judge(j,this.setup).problems[0]??'The fuse tripped.');
-    a.noise(.05,.12,1800,'bandpass');a.tone(120,.35,.07,'square');if(first)a.voice('groan',1.1);
-    const at=this.boardWorld(FUSEX,TOPZ);this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#fff3a3',12,'spark');if(first)this.game.alarm({x:this.table.x,z:this.table.z},3);
+    a.ptcTrip();if(first)a.voice('groan',1.1);benchFault(this.game);this.kidStartle=.4;
+    const at=this.boardWorld(FUSEX,TOPZ);this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#fff3a3',12,'spark');if(first)this.game.alarm({x:this.table.x,z:this.table.z},5);
     this.marquee.draw('tilt',(c,w,h)=>drawMarquee(c,w,h,'TILT!',false,true));this.redraw();
   }
   /** A block failed: grossly overloaded it pops at once; a little over its rating it scorches and
@@ -354,8 +360,9 @@ export class ArcadeBench implements Station {
     if(this.touched){this.mistakes++;this.spent+=BLOCK_COST;}this.powerOff();
     this.explain(slow?`The ${v} Ω block turned ${watts(p)} into heat (P = I²R) for ${HOUSE.scorchFail} s. It is a ¼ W part: it scorched and failed.`
       :`The ${v} Ω block turned ${watts(p)} into heat (P = I²R), far past its ¼ W rating: it popped.`);
-    a.noise(.25,.1,900);a.pop();a.tone(150,.3,.05,'sawtooth');a.voice('alarm',1.2);
-    this.game.burst({x:at.x,y:at.y+.08,z:at.z},CANDY[v],8,'debris');this.game.burst({x:at.x,y:at.y+.12,z:at.z},'#8a8a96',8,'smoke');this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();
+    a.noise(.25,.1,900);a.pop();a.tone(150,.3,.05,'sawtooth');a.voice('alarm',1.2);benchFault(this.game);this.kidStartle=.4;
+    // A small, low, short puff that drifts sideways, so it never hides the meter that explains the pop (R5-240).
+    this.game.burst({x:at.x,y:at.y+.08,z:at.z},CANDY[v],8,'debris');this.game.burst({x:at.x,y:at.y+.1,z:at.z},'#8a8a96',3,'puff');this.game.alarm({x:this.table.x,z:this.table.z},5);this.redraw();
   }
   /** An LED driven far past its rating pops; a spare goes in after a moment. */
   private popLed(){
@@ -363,7 +370,8 @@ export class ArcadeBench implements Station {
     if(this.touched){this.mistakes++;this.spent+=BLOCK_COST;}this.ledDead=1.2;this.powerOff();
     this.explain(why);
     a.noise(.15,.12,2600,'bandpass');a.tone(90,.25,.06,'square');a.voice('groan',1.2);
-    const at=this.boardWorld(LEDX,MIDZ);this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#ffffff',1,'flash');this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#8a8a96',10,'smoke');this.game.alarm({x:this.table.x,z:this.table.z},3);
+    benchFault(this.game);this.kidStartle=.4;
+    const at=this.boardWorld(LEDX,MIDZ);this.game.burst({x:at.x,y:at.y+.15,z:at.z},'#ffffff',1,'flash');this.game.burst({x:at.x,y:at.y+.1,z:at.z},'#8a8a96',4,'puff');this.game.alarm({x:this.table.x,z:this.table.z},5);
   }
   private boardWorld(x:number,z:number){return this.top.localToWorld(new T.Vector3(BOARD.x+x,.1,BOARD.z+z));}
 
@@ -412,7 +420,7 @@ export class ArcadeBench implements Station {
     if(m[0]==='slot'&&this.held===undefined)return true;
     this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;if(active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';this.updatePanel();}
+  setActive(active:boolean){this.active=active;if(this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';this.updatePanel();}
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='blocks'||this.trayReady)return;const q=p.body.translation(),pl=this.game.player.translation(),t=this.table;
     if(Math.hypot(q.x-t.x,q.z-t.z)<2.6||Math.hypot(pl.x-this.stand.x,pl.z-this.stand.z)<2.2){
@@ -425,6 +433,10 @@ export class ArcadeBench implements Station {
     this.redraw();}
   update(dt:number){
     if(!this.ready)this.setup0();
+    // The play-test framing (R5-080): only while a play test is running or has passed, and only at the bench.
+    // The framing holds for a 1.2 s beat after a sign-off, so the marquee confetti is seen (R5-087).
+    {const want=(this.soak>0||this.game.time-this.signedAt<1.2)&&this.game.atBench?ArcadeBench.SOAK:ArcadeBench.REST,e=this.game.manual?1:1-Math.exp(-dt*3),v=this.view;
+      v.distance+=(want.distance-v.distance)*e;v.pitch+=(want.pitch-v.pitch)*e;v.lookX=(v.lookX??0)+(want.lookX-(v.lookX??0))*e;}
     if(this.tray&&!this.trayReady){const q=this.tray.body.translation(),r=this.tray.body.rotation();this.trayRide.position.set(q.x,q.y,q.z);this.trayRide.quaternion.set(r.x,r.y,r.z,r.w);this.trayRide.visible=this.tray.mesh.visible;}
     const j=this.current(),r=this.reading(),time=this.game.time,k=1-Math.exp(-dt/HOUSE.tau),kl=1-Math.exp(-dt/HOUSE.ledTau);
     let playing=false;
@@ -472,7 +484,8 @@ export class ArcadeBench implements Station {
     this.flowMain.update(dt,on?r.i:0);
     if(j.load.kind==='led'){const col=LED_HEX[j.load.color];this.ledLight.distance=.8;
       if(level>.02){this.ledOn.color.set(col).multiplyScalar(.6+glowK*.55);this.ledDome.material=this.ledOn;}else this.ledDome.material=toon(tint(col));
-      const halo=Math.min(3,level);(this.ledHalo.material as T.SpriteMaterial).opacity=level>.02?Math.min(.9,.25+halo*.3)*(over?.8+Math.sin(this.flicker)*.2:1):0;this.ledHalo.scale.setScalar(.4+halo*.6);this.ledLight.intensity=Math.min(2,level*2);
+      // Glare stays local (R5-240): the halo is capped at 0.6 m and 0.5 opacity, the light at 1.2.
+      const halo=Math.min(3,level);(this.ledHalo.material as T.SpriteMaterial).opacity=level>.02?Math.min(.5,.2+halo*.15)*(over?.8+Math.sin(this.flicker)*.2:1):0;this.ledHalo.scale.setScalar(Math.min(.6,.3+halo*.15));this.ledLight.intensity=Math.min(1.2,level*1.6);
       if(level>.02){this.cabOn.color.set(col).multiplyScalar(.6+glowK*.55);this.cabLamp.material=this.cabOn;}else this.cabLamp.material=this.lampOff;(this.cabHalo.material as T.SpriteMaterial).color.set(col);(this.cabHalo.material as T.SpriteMaterial).opacity=Math.min(.9,glowK*.7);
     }else{
       // A typical transistor runs the motor fully from 2 mA; a weak one needs 5 mA. In between the
@@ -506,8 +519,9 @@ export class ArcadeBench implements Station {
     // works), slumps at a dark screen.
     const want=playing?1:0,meh=this.soakDone&&(this.verdict?.tier??0)<2,yay=this.soakDone&&!meh;this.hop+=(want-this.hop)*Math.min(1,dt*6);
     const bounce=Math.abs(Math.sin(time*(yay?9:7)))*(yay?.14:meh?.02:.07)*this.hop;
-    this.kidBody.position.y=.42+bounce;this.kidBody.rotation.x=(1-this.hop)*.35;this.kidBody.rotation.z=meh?Math.sin(time*2.2)*.12:0;
-    this.kidArms.forEach((a,i)=>a.rotation.x=yay?-2.8+Math.sin(time*9+i)*.2:meh?-1.5+Math.abs(Math.sin(time*2.2))*.5:-.9-this.hop*.3+Math.sin(time*16+i*2)*.25*this.hop);
+    this.kidStartle=Math.max(0,this.kidStartle-dt);const jump=this.kidStartle>0?Math.sin(this.kidStartle/.4*Math.PI)*.25:0;
+    this.kidBody.position.y=.42+bounce+jump;this.kidBody.rotation.x=(1-this.hop)*.35;this.kidBody.rotation.z=meh?Math.sin(time*2.2)*.12:0;
+    if(this.kidStartle>0)this.kidArms.forEach(a=>a.rotation.x=-2.8);else this.kidArms.forEach((a,i)=>a.rotation.x=yay?-2.8+Math.sin(time*9+i)*.2:meh?-1.5+Math.abs(Math.sin(time*2.2))*.5:-.9-this.hop*.3+Math.sin(time*16+i*2)*.25*this.hop);
   }
 
   // ---------- panels ----------
@@ -565,6 +579,8 @@ export class ArcadeBench implements Station {
     if(this.powered)return this.soak>0?{key:'',text:'Play-testing…'}:{key:'P',text:'Power off'};
     return this.setup.chain.some(p=>p.length)?{key:'P',text:this.touched?'Power on':'Power on to see the fault'}:{key:'1–4',text:'Take a block'};
   }
+  /** The win shot frames Pip with the lit back wall of fixed cabinets (R5-077). */
+  winFocus(){return new T.Vector3(0,1.6,-6.4);}
   complete(){return this.rush?this.game.time>=RUSH_TIME&&!this.overtime():this.served.length>=JOBS.length;}
   /** Rush: cabinets fixed and seconds left, for the HUD clock and the result card. */
   rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}

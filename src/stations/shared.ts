@@ -15,6 +15,17 @@ export function cheer(game:Game,st:{table:T.Vector3;stand:{x:number;z:number}},c
   game.burst(at,color,count,'confetti');
 }
 
+/** A bench milestone (a sign-off, ship, log or send, R5-093/094): the two-note milestone chime (or
+ *  nothing, when this step finishes the job, because the win fanfare plays then), a short hitstop
+ *  and the confetti pop. */
+export function signOff(game:Game,st:{table:T.Vector3;stand:{x:number;z:number}},color:string,last:boolean,at?:Spot,count=24){
+  if(!last)game.audio.milestone();game.freeze(.05);cheer(game,st,color,at,count);
+}
+
+/** A bench fault (a trip, a pop, a failed verdict, R5-094/095): a short hitstop and a quick coral
+ *  flash of the screen edge, kept under 120 ms so the part being taught stays readable. */
+export function fault(game:Game,hold=.07){game.freeze(hold);game.flash('#ff7a6b',.22);}
+
 /** Walking hints for the key pill: retired (the job card and the arrow carry them). */
 export function walkHint(_game:Game,_text:string|undefined):Prompt|null{
   // The job card and the yellow arrow already say where to go; the key pill is kept for actions.

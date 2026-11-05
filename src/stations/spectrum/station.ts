@@ -17,7 +17,7 @@ import * as TXR from '../../render/textures';
 import {JOBS,BANDS,BAND_IDS,DETECTOR_IDS,POWERS,SPEC,PADS,PAD_NAMES,SPOTS,SPOT_IDS,TX,SMOKE,STORE,LAB,QUIET,HATCH,MATERIAL_NAMES,POD_HOME,DOORS,
   walls,openings,read,judge,cost,leanest,budget,lambdaText,freqText,dist,heading,mirrorYaw,idleYaw,type Band,type Detector,type Power,type Pad,type Spot,type Setup,type Verdict,type Job,type Reading,type P,type Aim,type DoorsOpen,type DoorId,type Term} from './logic';
 import './spectrum.css';
-import {cheer} from '../shared';
+import {cheer,signOff,fault as benchFault} from '../shared';
 
 type Prop=Game['props'][number];
 const BEAM_Y=1.25,UP=new T.Vector3(0,1,0);
@@ -265,11 +265,10 @@ export class SpectrumDesk implements Station {
         const known=!!r.route.blocked||!!r.route.missed||this.revealed();
         const c=cost(s,r.route);this.spent+=c;this.firePulse(r,v.tier>0);
         this.tested={key:this.setupKey(),margin:r.margin,terms:budget(r,s),tier:v.tier,at:this.game.time};this.observe(r);
-        if(v.tier===0){if(known)this.mistakes++;this.say(`Not delivered. ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm(PADS[j.pad],3);this.redraw();return true;}
+        if(v.tier===0){if(known)this.mistakes++;this.say(`Not delivered. ${v.problems[0]}`,'bad');a.verdictFail('weak');a.voice('groan',1);benchFault(this.game,.06);this.game.alarm(PADS[j.pad],3);this.redraw();return true;}
         this.delivered.push({job:j.id,verdict:v});this.lastMessage=j.message;
         this.say(`“${j.message}” · ${['','Received','Reliable','Elegant'][v.tier]} (${v.margin} dB)${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);[1568,1976,2349].forEach((f,i)=>a.bell(f,.4,.03,.9+i*.12));
-        const at=PADS[j.pad];cheer(this.game,this,'#ffd66b',{x:at.x,y:1.4,z:at.z});if(!this.game.atBench)this.game.burst({x:at.x,y:1.5,z:at.z},'#fff3c8',6,'star');
+        const at=PADS[j.pad];signOff(this.game,this,'#ffd66b',this.complete(),{x:at.x,y:1.4,z:at.z});if(!this.complete())[1568,1976,2349].forEach((f,i)=>a.bell(f,.4,.03,.9+i*.12));if(!this.game.atBench)this.game.burst({x:at.x,y:1.5,z:at.z},'#fff3c8',6,'star');
         // Hold on this delivery for a beat: the pulse runs the route on the map and the pad flashes;
         // the next job comes up after it (see update()).
         this.hold={until:this.game.time+1.6,start:this.game.time,path:this.drawnPath(r),pad:j.pad};this.redraw();return true;}
@@ -456,7 +455,7 @@ export class SpectrumDesk implements Station {
       ArrowLeft:['turn',-1],ArrowRight:['turn',1],KeyP:['power',next(POWERS,this.power)],KeyH:['hatch'],Enter:['send']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;this.drag=undefined;this.mapHover=false;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
+  setActive(active:boolean){this.active=active;this.drag=undefined;this.mapHover=false;if(!active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
   /** The three room doors swing open as Pip comes near (away from him) and shut on their springs after
    *  he passes. Anything left standing in a doorway props that door open, and the open doorway is a
    *  real opening in the link model. */
@@ -570,6 +569,8 @@ export class SpectrumDesk implements Station {
     return {key:'Enter',text:'Send'};
   }
   complete(){return this.delivered.length>=JOBS.length;}
+  /** The win shot frames Pip with the receiver pod on the last delivery pad (R5-077). */
+  winFocus(){const p=PADS[JOBS[JOBS.length-1].pad];return new T.Vector3(p.x,1,p.z);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const r=this.reading();return {job:this.jobIndex,delivered:this.delivered.map(d=>({job:d.job,tier:d.verdict.tier,margin:d.verdict.margin})),band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,
     podPad:this.podPad,mirrors:[...this.mirrorAt.values()],mistakes:this.mistakes,spent:this.spent,

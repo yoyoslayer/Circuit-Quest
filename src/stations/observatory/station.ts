@@ -11,7 +11,7 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressObservatory,RX} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
-import {cheer} from '../shared';
+import {signOff,fault as benchFault} from '../shared';
 import {JOBS,KINDS,VALUES,DEFAULT,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,REROUTE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,
   part as can,valueText,corner,passes,hz,snap,filterCorner,switchOnText,type Kind,type Part,type RodId,type Slot,type Setup,type Verdict,type Job,type Reading} from './logic';
 
@@ -202,7 +202,7 @@ export class ObservatoryBench implements Station {
       case 'pick':{const k=arg as Kind;if(!KINDS.includes(k))return false;
         if(this.held===k){this.held=undefined;a.tone(380,.05,.03,'triangle');break;}this.held=k;a.pop();break;}
       case 'slot':{const s=arg as Slot;if(s!=='series'&&s!=='shunt')return false;
-        if(this.held){const keep=this[s]?.kind===this.held?this[s]!.value:DEFAULT[this.held];this[s]=can(this.held,keep);this.held=undefined;this.knobSlot=s;a.plug();break;}
+        if(this.held){const keep=this[s]?.kind===this.held?this[s]!.value:DEFAULT[this.held];this[s]=can(this.held,keep);this.held=undefined;this.knobSlot=s;a.seat();break;}
         if(this[s]){this[s]=undefined;if(this.knobSlot===s)this.knobSlot=undefined;a.tone(300,.06,.04,'triangle');break;}
         a.voice('hm',1.4);return false;}
       case 'value':{const {slot,value}=arg as {slot:Slot;value:number};const p=this[slot];if(!p)return false;this[slot]=can(p.kind,snap(p.kind,value));this.knobSlot=slot;this.knobPulse=1;a.tone(380+VALUES[p.kind].indexOf(this[slot]!.value)*22,.03,.025,'triangle');break;}
@@ -221,14 +221,14 @@ export class ObservatoryBench implements Station {
       // The scope already prints the switch-on caption; no toast repeats it (R5-066).
       case 'scope':{const m=arg as 'signal'|'step';this.scopeMode=m==='step'?'step':'signal';this.stepAnim=0;a.tone(m==='step'?700:560,.05,.03);break;}
       case 'log':{const v=judge(j,this.state()),c=cost(this.state());
-        if(v.tier===0){this.mistakes++;this.spent+=c;this.say(`The decode fails: ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);return true;}
+        if(v.tier===0){this.mistakes++;this.spent+=c;this.say(`The decode fails: ${v.problems[0]}`,'bad');a.verdictFail('weak');a.voice('groan',1);benchFault(this.game,.06);this.game.alarm({x:this.table.x,z:this.table.z},5);return true;}
         // A decode that only just gets through doesn't finish a job that needs a clean margin: a near
         // miss, not a mistake (R5-063).
         if(v.tier<(j.minTier??1)){this.nearMisses++;a.voice('hm',1.2);a.tone(420,.12,.04,'triangle');
           this.say(`It decodes, but ${v.snr} dB leaves no margin: the next burst of noise would garble it. Reliable is ${SPEC.reliableSnr} dB.`,'info');return true;}
         this.logged.push({job:j.id,verdict:v});this.spent+=c;
         this.say(`“${j.message}” · ${['','Decodes','Reliable','Elegant'][v.tier]} (S/N ${v.snr} dB)${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,'#ffd66b');
+        signOff(this.game,this,'#ffd66b',this.logged.length>=JOBS.length);
         this.jobIndex++;this.scopeMode='signal';this.knobSlot=undefined;this.turning=undefined;
         const next=this.current();
         // The shutter latch job starts with the last engineer's resistor in series (if the slot is free):
@@ -364,7 +364,7 @@ export class ObservatoryBench implements Station {
       KeyS:['slot','series'],KeyH:['slot','shunt'],KeyR:['route'],KeyO:['orient'],KeyL:['listen'],KeyT:['scope',this.scopeMode==='signal'?'step':'signal'],Enter:['log'],Backspace:['clear']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;this.turning=undefined;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
+  setActive(active:boolean){this.active=active;this.turning=undefined;if(!active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
   update(dt:number){
     if(!this.ready)this.setup();
     // The motor rides on its cart; its noise falls with distance from the receiver.
@@ -455,6 +455,8 @@ export class ObservatoryBench implements Station {
     return {key:'1–3',text:'Take a can'};
   }
   complete(){return this.logged.length>=JOBS.length;}
+  /** The win shot frames Pip with the dome whose sky lights up (R5-077). */
+  winFocus(){return new T.Vector3(-6.1,1.4,-5.3);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const j=this.current();return {job:this.jobIndex,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,snr:l.verdict.snr})),series:this.series??null,shunt:this.shunt??null,held:this.held??null,knob:this.knobSlot??null,rerouted:this.rerouted,rod:this.rod,vertical:this.vertical,
     cartDistance:this.cartDistance,cartMoved:this.cartMoved,mistakes:this.mistakes,spent:this.spent,reading:j?read(j,this.state()):undefined,scope:this.scopeMode,listening:this.listening,

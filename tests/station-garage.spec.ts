@@ -52,7 +52,8 @@ test('robot garage: catch the kick, clamp it, brake fast, star-ground the contro
   await steps(page,[['ground'],['pulse']]);s=await station(page);expect(s.capture.dip).toBeLessThan(.35);
   // The proof is shown where the failure was: the scope stays on the START trace.
   expect(s.scope).toBe('start');
-  await steps(page,[['test']]);s=await station(page);
+  // The last pass holds a beat while its five test cycles run (R5-087), then the robot sets off.
+  await steps(page,[['test']]);s=await station(page);expect(s.driving).toBe(false);await wait(page,3.4);s=await station(page);
   expect(s.logged.map((l:{tier:number})=>l.tier)).toEqual([3,3,3]);expect(s.driving).toBe(true);expect((await snapshot(page)).atBench).toBe(false);
   await wait(page,.2);await expect(page.locator('.prompt-pill')).toContainText('Follow the robot');
   // The payoff: the robot drives its route to the dock.

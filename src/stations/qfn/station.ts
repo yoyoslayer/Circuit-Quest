@@ -21,7 +21,7 @@ import {hot} from '../../render/actors';
 import {BOARDS,HEAT,blank,check,erase,footprint,netOfPin,isNC,partOf,pinCells,pinOrderOk,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,viaProblem,same,
   type Board,type Design,type Layer,type PartDef,type Place,type Report,type Rot,type XY} from './logic';
 import './qfn.css';
-import {cheer} from '../shared';
+import {cheer,signOff,fault as benchFault} from '../shared';
 
 /** Cell size on the bench (world units) and the board's top above the worktop. */
 const S=.15,TOP=.07;
@@ -337,9 +337,9 @@ export class QfnBench implements Station {
       case 'undo':{const prev=this.history.pop();if(!prev){this.say('Nothing to undo on this board.');return false;}this.design=prev;this.syncParts();a.tone(300,.06,.04,'triangle');break;}
       case 'check':{const r=check(b,d);this.checks++;this.showMarks(r);this.burstT=3;if(b.spare&&!pinOrderOk(b,d))this.stuck=true;
         this.say(r.tier===0?`Check: ${r.problems.slice(0,2).join(' ')}`:`${TIERS[r.tier]}. ${r.tier===3?'Reliable, and at or under par.':r.notes[0]??''}`,r.tier===0?'bad':'ok');
-        if(r.tier>0)a.bell(1175,.4,.04);else a.tone(160,.25,.06,'square');this.redraw();return true;}
+        if(r.tier>0)a.bell(1175,.4,.04);else a.verdictFail('layout');this.redraw();return true;}
       case 'ship':{const r=check(b,d);this.spent+=r.cost;
-        if(r.tier===0){this.mistakes++;this.showMarks(r);this.say(`Sent back from test: ${r.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();return true;}
+        if(r.tier===0){this.mistakes++;this.showMarks(r);this.say(`Sent back from test: ${r.problems[0]}`,'bad');a.reject();a.voice('groan',1);benchFault(this.game,.06);this.dropIn();this.game.alarm({x:this.table.x,z:this.table.z},5);this.redraw();return true;}
         // It works: the bring-up test powers it on the bench first, and the flaw (if any) shows there.
         this.shipped.push({board:b.id,tier:r.tier,cost:r.cost});this.stroke=undefined;this.drag=undefined;this.hold=undefined;this.viaArmed=false;this.selected=undefined;
         const flaw=this.flaw(r);this.bringUp={t:0,tier:r.tier};this.burstT=BRING_UP;
@@ -360,7 +360,7 @@ export class QfnBench implements Station {
   /** The bring-up test ends: the board joins the stack and the next one drops in. */
   private finishBringUp(){const bu=this.bringUp!,a=this.game.audio;this.bringUp=undefined;this.burstT=0;
     // Only a reliable board earns the crew's cheer; one that merely works gets a flat chime.
-    if(bu.tier>=2){a.cheer();cheer(this.game,this,'#ffcf52');}else{a.tone(392,.18,.04,'triangle');a.tone(349,.28,.035,'triangle',.16);}
+    if(bu.tier>=2)signOff(this.game,this,'#ffcf52',this.complete());else{a.tone(392,.18,.04,'triangle');a.tone(349,.28,.035,'triangle',.16);}
     this.stackShipped();this.boardIx++;
     if(this.boardIx<BOARDS.length){this.design=blank(this.board());this.loadBoard();this.dropIn();}else this.redraw();}
   /** Finished boards stack up on the side table. */
@@ -456,7 +456,7 @@ export class QfnBench implements Station {
   private updateHover(){const c=this.hoverCell,show=!!c&&this.active&&this.partsReady&&!this.drag&&!this.hoverBody&&(this.viaArmed||!!this.stroke||this.canStart(c));this.hover.visible=show;
     if(c&&show){const p=this.at(c,.03);this.hover.position.copy(p);(this.hover.material as T.MeshBasicMaterial).color.set(this.viaArmed?'#ffe36e':'#ffffff');}}
   key(code:string){const m=KEYS[code];if(!m)return false;this.act(m[0],m[1]);return true;}
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';this.stroke=undefined;this.drag=undefined;this.hold=undefined;this.viaArmed=false;this.hover.visible=false;this.syncParts();this.redraw();}this.shown='';}
+  setActive(active:boolean){this.active=active;if(!active){if(this.toast)this.toast.hidden=true;document.body.style.cursor='';this.stroke=undefined;this.drag=undefined;this.hold=undefined;this.viaArmed=false;this.hover.visible=false;this.syncParts();this.redraw();}this.shown='';}
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='parts'||this.partsReady)return;const q=p.body.translation(),sx=this.table.x+2.55,sz=this.table.z;
     if(Math.hypot(q.x-sx,q.z-sz)<2.2||Math.hypot(q.x-this.stand.x,q.z-this.stand.z)<2.2){

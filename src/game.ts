@@ -7,6 +7,12 @@ import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type
 const GOLD=new T.Color('#ffd451');
 /** How long R is held during play before the job restarts (ms). */
 const RESTART_HOLD=800;
+/** How long a startled coworker stays startled (s): looking at the crash, then glaring at Pip (R5-230). */
+const ALARM=1.6;
+/** Props that break (and cost) when they hit hard; anything else only breaks in a very hard crash (R5-097). */
+const FRAGILE=new Set(['glass','monitor','mug','plant','printer','coffee','lamp']);
+/** Lunch fail spots (lunch-runtime.ts): the oven for a burned tray, the fridge for spoiled food. */
+const LUNCH_OVEN={x:-2.5,z:-7.2},LUNCH_FRIDGE={x:-5.3,z:-2.1};
 /** Samples a rope polyline for drawing: it lies on the floor (sagging a little when slack) and
  *  only rises over the last metre to the end point (a hand or a socket). */
 export function cablePath(route:Point[],end:T.Vector3,startY:number,strain:number){
@@ -39,7 +45,9 @@ import type {Station} from './stations/types';
 import {Lobby} from './hub/lobby';
 
 export interface Prop {spec:PropSpec;body:RAPIER.RigidBody;collider:RAPIER.Collider;mesh:T.Group;damaged:boolean;home:T.Vector3;lastSpeed:number}
-interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.Mesh;startled:T.Mesh;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number}
+interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.Mesh;startled:T.Mesh;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number;
+  /** Where the last fright came from (they look there first), a positive bounce timer and when they last noticed Pip passing. */
+  from?:Point;cheerT:number;noticed:number}
 // Each coworker gets a personality: accessories and a resting mood (look-dev meeting.js).
 const ACCESSORIES:Accessory[][]=[['tuft'],['headphones'],['glasses','tie'],['mug'],['bun'],['cap'],['sprout'],['glasses'],['headphones','tuft'],[],['tie'],['bun','glasses']];
 const MOODS:Mood[]=['calm','calm','happy','calm','sleepy','calm','happy','calm'];
@@ -128,7 +136,8 @@ export class Game {
   addProp(spec:PropSpec){
     const p=prefabs[spec.kind],mesh=makeProp(spec.kind,spec.color,spec.variant),pos=new T.Vector3(spec.x,spec.y??p.size[1]/2+.025,spec.z);
     mesh.position.copy(pos);mesh.rotation.y=spec.rotation??0;this.root.add(mesh);
-    const body=this.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(pos.x,pos.y,pos.z).setRotation(mesh.quaternion).setLinearDamping(.6).setAngularDamping(.8).setCanSleep(true).setCcdEnabled(p.mass<4));
+    // Glass panes stand fixed until something hits them hard enough to shatter them (R5-090).
+    const body=this.world.createRigidBody((spec.kind==='glass'?RAPIER.RigidBodyDesc.fixed():RAPIER.RigidBodyDesc.dynamic()).setTranslation(pos.x,pos.y,pos.z).setRotation(mesh.quaternion).setLinearDamping(.6).setAngularDamping(.8).setCanSleep(true).setCcdEnabled(p.mass<4));
     const collider=this.world.createCollider(RAPIER.ColliderDesc.cuboid(p.size[0]/2,p.size[1]/2,p.size[2]/2).setMass(p.mass).setFriction(.65).setRestitution(.12),body);
     this.props.push({spec,body,collider,mesh,damaged:false,home:pos.clone(),lastSpeed:0});
   }
@@ -139,11 +148,29 @@ export class Game {
     const sweat=new T.Sprite(new T.SpriteMaterial({map:sweatTexture(),toneMapped:false}));sweat.scale.set(.22,.22,1);sweat.position.set(.32,(seated?.35:0)+1.02,.1);sweat.visible=false;g.add(sweat);
     const bubble=new T.Sprite(new T.SpriteMaterial({map:bangTexture(),depthTest:false}));bubble.scale.set(.7,.7,1);bubble.position.y=(seated?.35:0)+1.55;bubble.renderOrder=9;bubble.visible=false;g.add(bubble);
     g.position.set(p.x,0,p.z);const desk=this.props.filter(q=>q.spec.kind==='desk').sort((a,b)=>distance(p,a.spec)-distance(p,b.spec))[0],restYaw=p.yaw??(seated&&desk?Math.atan2(desk.spec.x-p.x,desk.spec.z-p.z):Math.atan2(-p.x,-p.z));g.rotation.y=restYaw;
-    this.npcs.push({group:g,body,bubble,sweat,calm,startled,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0,seated,restYaw});this.root.add(g);
+    this.npcs.push({group:g,body,bubble,sweat,calm,startled,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0,seated,restYaw,cheerT:0,noticed:-9});this.root.add(g);
   }
   /** Coworkers near a crash or snap flinch and show a "!" bubble. */
-  alarm(at:Point,radius=4.5){let startled=0;for(const npc of this.npcs)if(distance(npc.group.position,at)<radius){if(npc.alarm<=0)startled++;npc.alarm=1;}
-    if(startled&&this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',.9+Math.random()*.4);}}
+  alarm(at:Point,radius=4.5){let startled=0;for(const npc of this.npcs)if(distance(npc.group.position,at)<radius){if(npc.alarm<=0)startled++;npc.alarm=ALARM;npc.from={x:at.x,z:at.z};npc.cheerT=0;}
+    if(startled){this.beat('alarm');if(this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',.9+Math.random()*.4);
+      // A bigger fright gets a lower second voice for every three more coworkers startled.
+      for(let k=1;k<=Math.min(2,Math.floor((startled-1)/3));k++)setTimeout(()=>this.audio.voice('alarm',.7-k*.08),120*k);}}}
+  /** Coworkers near a good moment (a plug seated) give a little happy bounce. */
+  cheerNear(at:Point,radius=5){let n=0;for(const npc of this.npcs)if(npc.alarm<=0&&distance(npc.group.position,at)<radius){npc.cheerT=.8;n++;}
+    if(n&&this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('cheer',1+Math.random()*.3);}}
+  /** Hitstop: the world holds still for `s` seconds (camera and particles too). Counted for specs. */
+  hitstops=0;
+  freeze(s:number){this.hitstop=Math.max(this.hitstop,s);this.hitstops++;}
+  /** Juice log for specs (R5-169): what just happened that a player would notice. */
+  beats:{t:number;kind:string}[]=[];
+  beat(kind:'impact'|'break'|'spark'|'confetti'|'alarm'|'slingshot'|'flash'|'win'|'fail'){this.beats.push({t:+this.time.toFixed(2),kind});if(this.beats.length>120)this.beats.shift();}
+  private flashEl?:HTMLElement;
+  /** Full-screen flash (≤120 ms): white for success, coral for a failure (R5-095). */
+  flash(color='#ffffff',peak=.35){
+    if(!this.flashEl){const el=this.flashEl=document.createElement('div');el.className='hud-flash';el.setAttribute('aria-hidden','true');
+      Object.assign(el.style,{position:'fixed',inset:'0',pointerEvents:'none',zIndex:'40',opacity:'0',mixBlendMode:'screen'});document.body.append(el);}
+    const el=this.flashEl;el.style.background=color;this.beat('flash');
+    el.animate?.([{opacity:0},{opacity:peak,offset:.3},{opacity:0}],{duration:120,easing:'ease-out'});}
   batchProps(){
     const groups=new Map<string,{prop:Prop;part:T.Mesh}[]>();
     for(const prop of this.props){prop.mesh.traverse(o=>{if(o instanceof T.Mesh){const key=o.geometry.uuid+(o.material as T.Material).uuid;const list=groups.get(key)??[];list.push({prop,part:o});groups.set(key,list);}});this.root.remove(prop.mesh);}
@@ -235,8 +262,8 @@ export class Game {
     if(!this.station)return;const r=this.view.renderer.domElement.getBoundingClientRect(),ray=new T.Raycaster();
     ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-((clientY-r.top)/r.height)*2+1),this.view.camera);this.station.pointer({kind,ray,button});
   }
-  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);this.audio.strain(0);}
-  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
+  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.audio.paused(this.paused);document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);this.audio.strain(0);}
+  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&p.spec.kind!=='glass'&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. The
    *  Meeting mail cart only carries the job's reel, so the reel on it wins over the cart. */
   reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id&&p.spec.id!=='mail-cart'?2:0);}
@@ -252,7 +279,7 @@ export class Game {
     // Forgiving snap: the held plug only has to look close to the socket.
     if(this.holdingPlug){if(!this.trySeat())this.releasePlug();return;}
     if(this.held){const p=this.held;
-      if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&this.coupler){this.joinExtension(p);this.audio.cheer();}
+      if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&this.coupler){this.joinExtension(p);this.audio.milestone();}
       // Wrong order: the reel's socket doesn't fit the plug without the coupler, so it buzzes and the coupler is flagged.
       else if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&!this.coupler){this.audio.tone(110,.22,.07,'square');this.couplerHint=true;}
       else if(p.spec.id==='coupler'&&distance(pos,this.plugPosition)<2){this.coupler=true;this.consume(p);this.audio.plug();}
@@ -264,7 +291,7 @@ export class Game {
     // Big Meeting's strip: unplug an appliance, or reset the strip's tripped breaker (E).
     if(!cableOnly&&!this.held&&!this.holdingPlug&&this.strip?.interact(pos))return;
     // Machine switch: once powered, the lamp/projector still needs switching on (E).
-    if(!cableOnly&&!this.held&&this.nearSwitch(pos)){this.switchedOn=!this.switchedOn;this.audio.noise(.03,.07,2500,'highpass');this.audio.tone(this.switchedOn?420:200,.09,.04);const s=this.level.switchAt!;this.burst({x:s.x,y:1,z:s.z},'#fff3a3',6,'spark');return;}
+    if(!cableOnly&&!this.held&&this.nearSwitch(pos)){this.switchedOn=!this.switchedOn;this.audio.noise(.03,.07,2500,'highpass');this.audio.tone(this.switchedOn?420:200,.09,.04);const s=this.level.switchAt!;this.burst({x:s.x,y:1,z:s.z},'#fff3a3',6,'spark');this.alarm(s,1.5);return;}
     const nearest=cableOnly?undefined:this.nearest();
     if(!this.lunch&&!this.station&&!this.hub&&distance(pos,this.plugPosition)<1.75&&!(nearest&&this.reach(pos,nearest)<distance(pos,this.plugPosition))){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.pop();return;}
     if(cableOnly){this.shrug();return;}
@@ -287,7 +314,7 @@ export class Game {
     const part=this.props.filter(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(pos,q.body.translation())<1.9).sort((a,b)=>Number(b.spec.id==='coupler')-Number(a.spec.id==='coupler'))[0];if(!part)return false;
     const at=part.body.translation();
     if(part.spec.id==='coupler'){this.coupler=true;this.consume(part);this.audio.plug();this.burst(at,'#fff3a3',12,'spark');}
-    else if(this.coupler){this.joinExtension(part);this.audio.plug();this.audio.jingle();this.burst(at,'#ffcf52',30,'confetti');}
+    else if(this.coupler){this.joinExtension(part);this.audio.plug();this.audio.milestone();this.burst(at,'#ffcf52',30,'confetti');}
     // Wrong order: the reel needs the coupler first, so it wobbles and buzzes.
     else{this.audio.tone(110,.22,.07,'square');part.body.applyImpulse({x:0,y:prefabs[part.spec.kind].mass*2.5,z:0},true);part.body.applyTorqueImpulse({x:0,y:0,z:.4},true);this.couplerHint=true;}
     return true;
@@ -300,15 +327,30 @@ export class Game {
   needsStrip(){return this.props.some(q=>q.spec.id==='strip');}
   stripPlaced(){const q=this.props.find(q=>q.spec.id==='strip');return !q||(q!==this.held&&distance(q.body.translation(),this.level.target)<1.4&&q.body.translation().y<.6);}
   /** Plug-in beat: a short hit-stop, a star flash, sparks and a floor shockwave. */
-  plugFlash(at:{x:number;y:number;z:number}){this.hitstop=.09;this.burst(at,'#fff3a3',16,'spark');this.burst({x:at.x,y:at.y+.35,z:at.z},'#fff3c8',1,'flash');this.burst({x:at.x,y:.05,z:at.z},'#8ff3ea',1,'ring');this.burst(at,'#ffe36e',5,'star');this.shake=Math.max(this.shake,.12);}
+  plugFlash(at:{x:number;y:number;z:number}){this.freeze(.09);this.cheerNear(at);this.beat('spark');this.burst(at,'#fff3a3',16,'spark');this.burst({x:at.x,y:at.y+.35,z:at.z},'#fff3c8',1,'flash');this.burst({x:at.x,y:.05,z:at.z},'#8ff3ea',1,'ring');this.burst(at,'#ffe36e',5,'star');this.shake=Math.max(this.shake,.12);}
   consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);}
+  private knocked=new Map<Prop,number>();
+  /** Impact dust: a small puff at the floor, nudged away from coworkers so it never hides the startle (R5-327). */
+  impactDust(pos:Point&{y?:number}){const at={x:pos.x,y:.1,z:pos.z};for(const n of this.npcs){const d=distance(n.group.position,at);if(d<1){const k=(1-d)*.5/Math.max(d,.05);at.x+=(at.x-n.group.position.x)*k;at.z+=(at.z-n.group.position.z)*k;}}
+    this.burst(at,'#e9e4d6',3,'puff');}
+  /** A glass pane shatters: shards, the smash, the boardroom jumps, and the big repair bill. */
+  shatter(pane:Prop){const at=pane.body.translation();this.consume(pane);this.burst({x:at.x,y:at.y,z:at.z},'#a0dbdf',14);this.burst({x:at.x,y:1.2,z:at.z},'#e8fbff',1,'flash');this.alarm(at,5);this.freeze(.08);this.shake=Math.max(this.shake,.25);this.beat('break');}
+  /** Fixed glass panes break when a fast prop reaches them or Pip sprints into them (R5-090). */
+  private checkGlass(pip:Point,pace:number){
+    for(const g of this.props){if(g.spec.kind!=='glass'||g.damaged||!g.body.isEnabled())continue;const c=g.body.translation(),[w,,d]=prefabs.glass.size,a=(g.spec.rotation??0),ca=Math.abs(Math.cos(a)),sa=Math.abs(Math.sin(a));
+      const hx=ca*w/2+sa*d/2+.15,hz=sa*w/2+ca*d/2+.15,inside=(q:Point,m=0)=>Math.abs(q.x-c.x)<hx+m&&Math.abs(q.z-c.z)<hz+m;
+      const hitBy=pace>5.5&&inside(pip,.45)?'pip':this.props.find(q=>q!==g&&q.body.isEnabled()&&q.body.isDynamic()&&inside(q.body.translation())&&Math.hypot(q.body.linvel().x,q.body.linvel().y,q.body.linvel().z)>3);
+      if(!hitBy)continue;g.damaged=true;this.damage++;this.cost+=prefabs.glass.cost;this.audio.glass();this.shatter(g);}
+  }
   /** Playground pins knocked down: tipped past ~45° or slid half a metre from their spot. */
   pinsDown(){const up=new T.Vector3();return this.props.filter(p=>p.spec.id?.startsWith('pin-')).filter(p=>{const q=p.body.rotation(),t=p.body.translation();
     up.set(0,1,0).applyQuaternion(new T.Quaternion(q.x,q.y,q.z,q.w));return up.y<.7||Math.hypot(t.x-p.spec.x,t.z-p.spec.z)>.5;}).length;}
   private pinsCheered=false;
   slingshot(energy:number){
-    this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.audio.noise(.2,.08,1400);this.alarm(this.plugPosition,6);
-    for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){this.flung=true;const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();const impulse=Math.min(energy*.22,45)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
+    this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.audio.noise(.2,.08,1400);this.alarm(this.plugPosition,6);this.beat('slingshot');
+    // Coworkers along the whipping cable, and next to whatever it flings, jump too (R5-231).
+    for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];this.alarm({x:(a.x+b.x)/2,z:(a.z+b.z)/2},3);}
+    for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){this.flung=true;this.alarm(pos,2);const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();const impulse=Math.min(energy*.22,45)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
   }
   /** Forgiving plug-in (AGENTS 7): close enough to the socket and not overstretched seats the plug. */
   canSeat(){const pos=this.player.translation();return Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12;}
@@ -378,7 +420,7 @@ export class Game {
     const isCorner=(o:Obstacle,b:Point)=>(Math.abs(b.x-o.minX+CORNER)<.05||Math.abs(b.x-o.maxX-CORNER)<.05)&&(Math.abs(b.z-o.minZ+CORNER)<.05||Math.abs(b.z-o.maxZ-CORNER)<.05);
     this.wrapped=new Set(furniture.filter(o=>this.rope.bends.some(b=>isCorner(o,b))).map(o=>o.prop));
     const swungClear=beforeBends.filter(b=>!this.rope.bends.some(a=>distance(a,b)<.01)).some(b=>obstacles.some(o=>isCorner(o,b)));
-    if(this.running&&this.rope.bends.length!==before)this.audio.knock(this.rope.bends.length>before?1:1.5);
+    if(this.running&&this.rope.bends.length!==before){if(this.rope.bends.length>before)this.audio.knock(1);else this.audio.slip();}
     // A taut rope whipping off a corner slingshots whatever lies along it.
     if(this.running&&this.holdingPlug&&swungClear&&this.rope.bends.length<before&&overBefore>.3)this.slingshot(overBefore**2*60*.6);
   }
@@ -411,7 +453,7 @@ export class Game {
         this.joint.position.set(at.x,Math.max(at.y,.12),at.z);this.joint.rotation.set(0,Math.atan2(-tan.z,tan.x),0);}}
     this.audio.strain(this.holdingPlug&&!this.paused&&!this.won?this.rope.strain:0);
   }
-  burst(pos:{x:number;y:number;z:number},color:string,count:number,kind:Fx='debris'){this.fx.spawn(kind,pos,count,color);}
+  burst(pos:{x:number;y:number;z:number},color:string,count:number,kind:Fx='debris'){this.fx.spawn(kind,pos,count,color);if(kind==='confetti')this.beat('confetti');}
   step(dt:number){
     this.time+=dt;const p=this.player.translation();
     let x=Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft'));
@@ -439,12 +481,17 @@ export class Game {
     this.world.timestep=dt;this.world.step();
     if(this.holdingPlug&&this.rope.strain>.88)for(const prop of this.props){const pos=prop.body.translation();if(prefabs[prop.spec.kind].mass<=15&&this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<.65)){const v=new T.Vector3(p.x-pos.x,0,p.z-pos.z).normalize().multiplyScalar(dt*12*(this.rope.strain-.8));prop.body.applyImpulse({x:v.x,y:.015,z:v.z},true);}}
     for(const prop of this.props){if(!prop.body.isEnabled())continue;const pos=prop.body.translation(),v=prop.body.linvel(),speed=Math.hypot(v.x,v.y,v.z);
-      if(this.time>2&&!prop.damaged&&prop!==this.held&&prop.lastSpeed>5.5&&prop.lastSpeed-speed>3.5){prop.damaged=true;this.alarm(pos);this.damage++;this.cost+=prefabs[prop.spec.kind].cost;if(prop.spec.kind==='glass')this.audio.glass();else if(prefabs[prop.spec.kind].mass<1)this.audio.clatter();else this.audio.thud(prefabs[prop.spec.kind].mass);this.burst(pos,'#e1d4b7',3);this.burst(pos,'#e9e4d6',3,'dust');if(prop.spec.kind==='glass'){this.consume(prop);this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#a0dbdf',14);}}
+      // Two tiers (R5-097): a hard knock startles nearby coworkers and costs nothing; only a fragile
+      // prop hit hard, or anything in a very hard crash, breaks (damage and repair cost).
+      const hit=this.time>2&&prop!==this.held&&prop.lastSpeed-speed>3,kind=prefabs[prop.spec.kind];
+      if(hit&&!prop.damaged&&prop.lastSpeed>5.5&&(FRAGILE.has(prop.spec.kind)||prop.lastSpeed>9)&&prop.lastSpeed-speed>3.5){prop.damaged=true;this.alarm(pos);this.damage++;this.cost+=kind.cost;this.beat('break');if(prop.spec.kind==='glass')this.audio.glass();else if(kind.mass<1)this.audio.clatter();else this.audio.thud(kind.mass);this.burst(pos,'#e1d4b7',3);this.impactDust(pos);if(prop.spec.kind==='glass')this.shatter(prop);}
+      else if(hit&&prop.lastSpeed>4&&this.time-(this.knocked.get(prop)??-9)>1){this.knocked.set(prop,this.time);this.alarm(pos,3.5);this.beat('impact');if(kind.mass<1)this.audio.clatter();else this.audio.thud(kind.mass);this.impactDust(pos);}
       prop.lastSpeed=speed;
       // Paper sheets flutter: heavy air drag plus a wobble while airborne.
       if(prop.spec.kind==='paper'&&pos.y>.15&&speed>.3){prop.body.applyImpulse({x:-v.x*.004,y:-v.y*.0045+.0002,z:-v.z*.004},true);const w=this.time*23+prop.body.handle;prop.body.applyTorqueImpulse({x:Math.sin(w)*.00002,y:Math.sin(w*1.7)*.00002,z:Math.cos(w*1.3)*.00002},true);}
       if(pos.y< -3||Math.abs(pos.x)>this.level.width/2+1||Math.abs(pos.z)>this.level.depth/2+1){prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);}
     }
+    this.checkGlass(p,pace);
     // Required items stranded out of reach (on top of tall furniture, or inside a sealed space) go back home.
     if(Math.floor(this.time)!==Math.floor(this.time-dt))for(const prop of this.props){if(!prop.spec.id||prop===this.held||!prop.body.isEnabled()||!prop.body.isDynamic())continue;const q=prop.body.translation();const sealed=this.level.sealed?.some(s=>q.x>s.minX&&q.x<s.maxX&&q.z>s.minZ&&q.z<s.maxZ)||
         // Lunch: an item thrown into the dark storeroom can't be grabbed there, so it comes back (items that live in the store stay).
@@ -453,13 +500,26 @@ export class Game {
     // Past the deadline the meeting waits impatiently; running late only costs time grade.
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
     // All six pins down: a strike.
-    if(this.level.id==='playground'&&!this.pinsCheered&&Math.floor(this.time*4)!==Math.floor((this.time-dt)*4)&&this.pinsDown()>=6){this.pinsCheered=true;this.audio.jingle();this.burst({x:5,y:1.5,z:5.3},'#ffcf52',40,'confetti');}
-    if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
+    if(this.level.id==='playground'&&!this.pinsCheered&&Math.floor(this.time*4)!==Math.floor((this.time-dt)*4)&&this.pinsDown()>=6){this.pinsCheered=true;this.audio.milestone();this.freeze(.06);this.burst({x:5,y:1.5,z:5.3},'#ffcf52',40,'confetti');}
+    if(this.lunch){this.lunch.step(dt);this.lunchWarnings(dt);}else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
   }
-  win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
-    this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');
+  /** Lunch: the fridge is heard warming before the food spoils (R5-088); the beat lands when it fails. */
+  private fridgeT=0;
+  lunchWarnings(dt:number){const j=this.lunch!.job;if(j.failed||j.done||j.cooled)return;this.fridgeT-=dt;
+    if(j.temperature>=.9&&this.fridgeT<=0){this.fridgeT=2;this.audio.fridgeWarn(true);}
+    else if(j.temperature>=.7&&this.fridgeT<=0){this.fridgeT=4;this.audio.fridgeWarn(false);}}
+  /** The Lunch job failed (lunch-runtime sets won): a held, coral beat at the fridge or oven, and the camera goes there. */
+  private lunchFailed(){const j=this.lunch!.job,burned=j.tray==='burned',at=burned?LUNCH_OVEN:LUNCH_FRIDGE;this.failAt=at;this.winShot=undefined;
+    this.audio.fail(burned?'burn':'spoil');this.audio.strain(0);this.freeze(.15);this.flash('#ff7a6b',.3);this.beat('fail');
+    this.burst({x:at.x,y:1.4,z:at.z},'#fff3c8',1,'flash');for(let k=0;k<8;k++){const a=k/8*Math.PI*2;this.burst({x:at.x+Math.cos(a)*.6,y:.1,z:at.z+Math.sin(a)*.6},'#e9e4d6',1,'dust');}}
+  win(){this.won=true;this.winAt=performance.now();this.survey=false;this.winShot=undefined;this.audio.win();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     // Station jobs add their mistakes and process cost to the result card and grade on their own limits.
     if(this.station){if(this.atBench)this.leaveBench();const s=this.station.score();this.damage+=s.mistakes;this.cost+=s.cost;}
+    // The payoff beat (R5-094/095): a hitstop, a soft full-screen flash, and a flash, floor ring, stars
+    // and confetti on the thing that came to life (the station's own payoff, not its bench).
+    const f=this.winFocus(),pp=this.player.translation();this.freeze(.12);this.flash('#fff3c8',.3);this.beat('win');this.beat('confetti');
+    this.burst({x:f.x,y:f.y+.2,z:f.z},'#fff3c8',1,'flash');this.burst({x:f.x,y:.05,z:f.z},'#ffe36e',1,'ring');this.burst(f,'#ffe36e',8,'star');
+    this.burst({x:f.x,y:f.y+.6,z:f.z},'#ffcf52',70,'confetti');this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');
     const g=grade(this.time,this.damage,this.cost,this.station?.limits);
     // Records the best, then lands the result tag once the camera has pushed in (1.4 s).
     gameUI(this)?.won(g);
@@ -478,7 +538,7 @@ export class Game {
     // Keep the stored tilt inside the range the camera can use at this zoom, so dragging back never hits a dead zone.
     if(!this.survey){const base=.68-.24*near;this.pitch=T.MathUtils.clamp(this.pitch,.3-base,1.25-base);}
     let target=room.lerp(pip,this.survey?0:follow),distanceTo=zoom,pitch=T.MathUtils.clamp(.68-.24*near+this.pitch,.3,1.25);
-    const pushing=this.won&&this.winAt>0;
+    const pushing=this.won&&(this.winAt>0||!!this.failAt);
     if(this.atBench&&this.station){const st=this.station,v=st.view,portrait=cam.aspect<1;
       // On a phone the panel sits at the top, so the table stays centred instead of shifted.
       target=st.table.clone().add(new T.Vector3(0,v.lookY,0)).addScaledVector(new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw)),portrait?0:v.lookX??0);
@@ -486,7 +546,9 @@ export class Game {
       // Bench distances are tuned for a 30 degree lens (lensScale), so its half-width at the table is d*tan(15 deg)*aspect.
       const fit=v.width?v.width/2*1.08/(Math.tan(T.MathUtils.degToRad(15))*cam.aspect):0;
       distanceTo=Math.max(v.distance*T.MathUtils.clamp(1.25/cam.aspect,1,2.1),fit);pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
-    if(pushing){const f=this.winFocus(),right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));target=f.clone().addScaledVector(right,2.2);distanceTo=this.station?7:this.level.id==='meeting'?8:9;pitch=this.station?.5:this.level.id==='meeting'?.32:.6;}
+    if(pushing){const shot=this.winFrame();target=shot.target;distanceTo=shot.distance;pitch=shot.pitch;
+      // The camera swings round to the shot for the first moments, then the player's orbit is theirs again.
+      if(performance.now()-this.winAt<1600||this.manual)this.yaw+=Math.atan2(Math.sin(shot.yaw-this.yaw),Math.cos(shot.yaw-this.yaw))*(this.manual?1:Math.min(1,dt*3));}
     // Title: a hero shot of Pip beside the logo (Pip sits in the right half of the frame).
     const titling=!this.running&&document.body.dataset.screen==='title';
     if(titling){const right=new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));const portrait=cam.aspect<1;target=new T.Vector3(p.x,p.y+(portrait?1.5:.3),p.z).addScaledVector(right,portrait?0:-2.6);distanceTo=portrait?10.5:8;pitch=.32;}
@@ -545,20 +607,50 @@ export class Game {
   homeZoom(){return this.level.id==='playground'?17:this.station?18.5:this.hub?23:22;}
   /** Start and reset orbit. The lobby turns a little toward its left wall so those doors clear the job card. */
   homeYaw(){return this.level.hub?.4:.14;}
-  winFocus(){const l=this.level;if(this.station)return this.station.winFocus?.()??this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
+  winShot?:{key:string;target:T.Vector3;distance:number;pitch:number;yaw:number};
+  /** The win (or Lunch fail) shot (R5-077): Pip and the payoff framed together in the part of the
+   *  screen the result card leaves free (the verifier's NDC x -0.85..0.1, y -0.6..0.7, kept inside
+   *  DR-11's centre 70%: x -0.7..0.04, y -0.55..0.62). The view looks across the
+   *  Pip-to-payoff line, a little from Pip's side, on the side nearest the current orbit; then the
+   *  nearest distance that fits both is found, with the target shifted so the pair sits left. */
+  winFrame(){
+    const cam=this.view.camera,key=`${cam.aspect.toFixed(3)}|${this.fov}`;if(this.winShot?.key===key)return this.winShot;
+    const p=this.player.translation(),f=this.winFocus(),id=this.level.id;
+    const pitch=this.station?.5:id==='meeting'?.34:id==='lunch'?.42:.55;
+    const dx=f.x-p.x,dz=f.z-p.z,sep=Math.hypot(dx,dz);let yaw=this.yaw;
+    if(sep>1.2){const along=Math.atan2(dx,dz),wrap=(a:number)=>Math.atan2(Math.sin(a),Math.cos(a)),diff=(a:number)=>Math.abs(wrap(a-this.yaw));
+      const a1=along+Math.PI/2+.45,a2=along-Math.PI/2-.45;yaw=diff(a1)<diff(a2)?a1:a2;}
+    const pts=[new T.Vector3(p.x,p.y-.78,p.z),new T.Vector3(p.x,p.y+.95,p.z),f.clone().setY(f.y+.7),f.clone().setY(Math.max(.1,f.y-.5))];
+    const probe=cam.clone();probe.fov=this.fov;probe.aspect=cam.aspect;probe.updateProjectionMatrix();
+    const dir=new T.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)),right=new T.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+    const mid=new T.Vector3().addVectors(pts[1],pts[2]).multiplyScalar(.5),half=Math.tan(T.MathUtils.degToRad(this.fov/2)),scale=lensScale(this.fov,false);
+    let best={target:mid.clone(),distance:22};
+    for(let d=this.station?7:8;d<=40;d+=.5){const target=mid.clone(),dist=d*scale;
+      for(let k=0;k<5;k++){probe.position.copy(target).addScaledVector(dir,dist);probe.lookAt(target);probe.updateMatrixWorld();
+        let x0=9,x1=-9,y0=9,y1=-9;for(const q of pts){const n=q.clone().project(probe);x0=Math.min(x0,n.x);x1=Math.max(x1,n.x);y0=Math.min(y0,n.y);y1=Math.max(y1,n.y);}
+        if(k===4){if(x0>-.7&&x1<.04&&y0>-.55&&y1<.62){best={target,distance:d};d=99;}break;}
+        target.addScaledVector(right,((x0+x1)/2+.33)*dist*half*probe.aspect).y+=((y0+y1)/2-.035)*dist*half;}}
+    return this.winShot={key,target:best.target,distance:best.distance,pitch,yaw};
+  }
+  /** A Lunch failure (food spoiled or tray burned): where it happened, once seen. */
+  failAt?:Point;
+  winFocus(){const l=this.level;if(this.failAt)return new T.Vector3(this.failAt.x,1.3,this.failAt.z);if(this.station)return this.station.winFocus?.()??this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
   /** Feeds Pip's rig (src/render/pipRig.ts) with movement, poses and what to glance at. */
+  pipSpeed=0;
   animateRig(dt:number){
     if(!this.rig)return;const p=this.player.translation(),speed=dt>0?Math.min(9,Math.hypot(p.x-this.lastPos.x,p.z-this.lastPos.z)/dt):0;this.lastPos.set(p.x,p.y,p.z);
     const lastStride=this.stride;this.stride+=dt*speed*2.2;if(this.grounded&&speed>1&&Math.floor(lastStride/Math.PI)!==Math.floor(this.stride/Math.PI))this.audio.step();
     const turn=dt>0?Math.atan2(Math.sin(this.heading-this.lastHeading),Math.cos(this.heading-this.lastHeading))/dt:0;this.lastHeading=this.heading;
     const titling=!this.running&&document.body.dataset.screen==='title';
-    if(this.won||titling)this.heading+=Math.atan2(Math.sin(this.yaw-this.heading),Math.cos(this.yaw-this.heading))*Math.min(1,dt*6);
+    // On a win Pip turns to the camera; on a Lunch failure Pip turns to look at what went wrong (R5-119).
+    const face=this.failAt?Math.atan2(this.failAt.x-p.x,this.failAt.z-p.z):this.yaw;
+    if(this.won||titling)this.heading+=Math.atan2(Math.sin(face-this.heading),Math.cos(face-this.heading))*Math.min(1,dt*6);this.pipSpeed=speed;
     const held=this.held?prefabs[this.held.spec.kind].mass>=15?'heavy':'light':'none',lunchHeld=this.lunch?.held;
     const near=this.running&&!this.won&&!this.held&&!this.holdingPlug?this.nearest():undefined;
     this.rig.update({dt,time:this.last/1000,speed,grounded:this.grounded,rising:this.vertical>0,airborne:this.airborne,turnRate:turn,carrying:held,holdingPlug:this.holdingPlug,
-      strain:lunchHeld?lunchHeld.cable.rope.strain:this.rope.strain,won:this.won,waving:titling,lookAt:near?new T.Vector3().copy(near.body.translation()):undefined});
+      strain:lunchHeld?lunchHeld.cable.rope.strain:this.rope.strain,won:this.won&&!this.failAt,waving:titling,lookAt:this.failAt?new T.Vector3(this.failAt.x,1.2,this.failAt.z):near?new T.Vector3().copy(near.body.translation()):undefined});
   }
   render(dt:number){
     const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);
@@ -570,14 +662,20 @@ export class Game {
     this.updateBatches();
     // Coworkers breathe, type at their desks, turn to watch Pip when close, and pop a "!" when startled.
     const clock=this.last/1000;
-    for(const npc of this.npcs){const g=npc.group,d=distance(p,g.position),near=d<2;npc.alarm=Math.max(0,npc.alarm-dt);
-      const watch=d<4||npc.alarm>0||this.won,yaw=watch?Math.atan2(p.x-g.position.x,p.z-g.position.z):npc.restYaw;
+    for(const npc of this.npcs){const g=npc.group,d=distance(p,g.position),near=d<2;npc.alarm=Math.max(0,npc.alarm-dt);npc.cheerT=Math.max(0,npc.cheerT-dt);
+      // Pip himself gets a reaction (R5-089): sprinting past makes a coworker jump, strolling past earns an "hm".
+      if(this.running&&!this.won&&!this.atBench&&d<1.4&&npc.alarm<=0&&this.time-npc.noticed>6){npc.noticed=this.time;
+        if(this.pipSpeed>5.5){npc.alarm=ALARM;npc.from={x:p.x,z:p.z};this.beat('alarm');if(this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',1.1);}}
+        else if(this.pipSpeed>1&&this.time-this.lastVoice>1.5){this.lastVoice=this.time;this.audio.voice('hm',.9+npc.seed%1*.3);}}
+      // Startled: first a look at the crash, then a turn to glare at Pip (R5-230).
+      const age=ALARM-npc.alarm,look=npc.alarm>0&&age<.5&&npc.from?npc.from:p;
+      const watch=d<4||npc.alarm>0||this.won||npc.cheerT>0,yaw=watch?Math.atan2(look.x-g.position.x,look.z-g.position.z):npc.restYaw;
       g.rotation.y+=Math.atan2(Math.sin(yaw-g.rotation.y),Math.cos(yaw-g.rotation.y))*Math.min(1,dt*5);
-      const cheer=this.won?Math.abs(Math.sin(clock*9+npc.seed)):0,duck=npc.alarm>0?.72:near?.88:1,breathe=Math.sin(clock*1.3*Math.PI*2+npc.seed)*.025;
+      const cheer=this.won&&!this.failAt?Math.abs(Math.sin(clock*9+npc.seed)):npc.cheerT>0?Math.abs(Math.sin(npc.cheerT*Math.PI*2.5))*.7:0,hop=npc.alarm>0&&age<.3?Math.sin(age/.3*Math.PI)*.25:0,duck=npc.alarm>0?.72:near?.88:1,breathe=Math.sin(clock*1.3*Math.PI*2+npc.seed)*.025;
       const typing=npc.seated&&!watch?Math.abs(Math.sin(clock*16+npc.seed*3))*.03*(Math.sin(clock*.7+npc.seed)>-.3?1:0):0;
       if(npc.seated&&!watch)g.rotation.y=npc.restYaw+Math.sin(clock*.45+npc.seed*2)*Math.max(0,Math.sin(clock*.23+npc.seed))*.6;
-      npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
-      const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
+      npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing+hop;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
+      const shown=npc.alarm>0&&!this.won;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
     if(this.lunch)this.lunch.render(dt);else if(!this.station&&!this.hub){this.drawCable();this.strip?.render(dt);}this.socketCue();
     // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
@@ -585,7 +683,9 @@ export class Game {
     const mark=attach?.mesh.position??(plugFirst?this.plugPosition:!this.holdingPlug&&!this.held?nearest?.mesh.position:undefined);
     this.reticle.visible=this.running&&!this.won&&!this.atBench&&!!mark;if(mark){this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);}
     this.pipRing.position.set(p.x,.03,p.z);
-    this.fx.update(dt);
+    if(this.lunch?.job.failed&&!this.failAt)this.lunchFailed();
+    // A hitstop holds the particles too, so the frame after a big moment still shows it.
+    this.fx.update(this.hitstop>0?0:dt);
     // The meeting clock reads 9:55 and its red minute hand sweeps the four minutes to the meeting.
     if(this.clock){const late=this.level.deadline!==undefined&&this.time>this.level.deadline;this.clock.hand.rotation.z=-(9+55/60)/12*Math.PI*2-this.time/3600/12*Math.PI*2;this.clock.minute.rotation.z=-(55/60)*Math.PI*2-Math.min(this.time,this.level.deadline??240)/60/60*Math.PI*2;this.clock.face.material=toon(late&&Math.floor(this.last/300)%2?'#ff7a6b':'#fbf5ea');}
     // Title: the reel's plug spits a spark every couple of seconds.
@@ -659,5 +759,5 @@ export class Game {
     for(const p of this.props)test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),propName(p),p.collider);
     return found;
   }
-  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
+  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.filter(q=>q!==this.held&&q.body.isEnabled()).map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);})),hitstops:this.hitstops,beats:this.beats.slice(-40),failAt:this.failAt??null};}
 }

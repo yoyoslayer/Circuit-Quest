@@ -5,7 +5,7 @@
 // route, runs the motor once with PULSE and certifies the fix with TEST (five start/stop cycles).
 // Current shows as pulses of light along the copper: when the switch opens they keep circling the
 // motor through whatever gives them a path, fading as the coil empties; with no path they pile up
-// at the switch and arc across it, and the robot's controller reboots. The scope replays the last
+// at the switch, which avalanches (it flashes hot: the coil's energy is dumped in the switch itself), and the robot's controller reboots. The scope replays the last
 // stop (or start). The PTC fuse resets itself once it cools. After the third job the robot drives
 // its delivery route around the garage to the dock. Rules: ./logic.ts.
 import * as T from 'three';
@@ -15,7 +15,7 @@ import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressGarage,robotMesh,STAND,PAD,ROUTE,YELLOW,TEAL,CREAM,type RobotParts} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
-import {cheer} from '../shared';
+import {signOff,fault as benchFault} from '../shared';
 import {JOBS,PARTS,PART_IDS,SPEC,SWITCH,MOTOR,STALL,CTRL,SCOPE_TEXT,START_SPAN,judge,cost,cheapest,shutdownCached,startTrace,startDip,setupKey,placementKey,partCount,orientation,jobCoil,coilRunning,ms,
   type PartId,type SlotId,type Fit,type Setup,type Verdict,type Job,type Trace} from './logic';
 
@@ -126,7 +126,9 @@ export class GarageBench implements Station {
   /** Current pulses on the copper, the arc across the switch, and the robot's dizzy reboot. */
   private dots:T.Mesh[]=[];private dotU:number[]=[];private dotMat=hot('#9ff3ea',2);
   private flow:{loop:Loop;amp:number;decay:number;run:boolean}={loop:runLoop(false),amp:0,decay:0,run:false};
-  private kickT=-1;private kickV?:Verdict;private kickLoop:Loop|null=null;private kickLong=false;private kickBrake=false;private kickShared=0;private kickTrace?:Trace;private arc=new T.Group();private arcSegs:T.Mesh[]=[];private arcGlow!:T.Sprite;private arcT=0;private arcLight!:T.PointLight;private dizzy=0;
+  private kickT=-1;private kickV?:Verdict;private kickLoop:Loop|null=null;private kickLong=false;private kickBrake=false;private kickShared=0;private kickTrace?:Trace;private arc=new T.Group();private arcSegs:T.Mesh[]=[];private arcGlow!:T.Sprite;private arcT=0;private arcMax=.6;private arcLight!:T.PointLight;private dizzy=0;private fetBody!:T.Mesh;private fetHot=hot('#ff8a3d',1.25);private fetCold=toon(INK);
+  /** The bench beat after a TEST pass (R5-087): the passed board stays fitted until the cycles finish. */
+  private beatSlots?:GarageBench['slots'];private beatUntil=0;private pendingDrive=false;private whirrT=0;private headSpin=0;
   private scopeCanvas!:HTMLCanvasElement;private scopeTex!:T.CanvasTexture;private scopeKey='';private sweep=1;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';
   private bot?:Game['props'][number];private robot:RobotParts;private spin=0;private motorOn=0;private resetFlash=0;private cycleT=-1;private cycleFail=false;private ready=false;
@@ -185,7 +187,7 @@ export class GarageBench implements Station {
     // Switch node test point (the scope's probe clips on here) and the MOSFET switch.
     part(board,cyl(.035,.035,.02,14),toon(YELLOW),-.06,y+.01,MAIN);part(board,cyl(.014,.014,.14,8),toon('#dfe3ea'),-.06,y+.08,MAIN);
     sign(board,'NODE',-.06,y+.02,.16,.22,.09,YELLOW,INK,-1.2);
-    const fet=group(board,.34,y,MAIN);part(fet,rbox(.18,.07,.12,.015),toon(INK),0,.035,0);part(fet,box(.18,.014,.07),toon('#dfe3ea'),0,.014,-.09);
+    const fet=group(board,.34,y,MAIN);this.fetBody=part(fet,rbox(.18,.07,.12,.015),this.fetCold,0,.035,0);part(fet,box(.18,.014,.07),toon('#dfe3ea'),0,.014,-.09);
     sign(board,'SWITCH',.34,y+.02,.16,.3,.1,'#fffaf0',INK,-1.2);
     // Controller with its status lamp; the capacitor socket across its supply.
     const ctl=group(board,1.0,y,.04);part(ctl,rbox(.34,.07,.24,.03),toon('#2b2d42'),0,.035,0);for(let k=0;k<4;k++)for(const s of [-1,1])part(ctl,box(.024,.02,.05),toon('#dfe3ea'),-.12+k*.08,.01,s*.13);
@@ -244,14 +246,19 @@ export class GarageBench implements Station {
     // The arc across the switch: a jagged chain of white-hot segments, re-jittered every frame while it burns.
     const arcCore=hot('#e8f8ff',3),arcSeg=cyl(.012,.012,1,6);board.add(this.arc);this.arc.visible=false;
     for(let k=0;k<9;k++){const m=new T.Mesh(arcSeg,arcCore);m.userData.noAO=true;this.arc.add(m);this.arcSegs.push(m);}
-    this.arcGlow=glow(this.arc,'rgba(170,220,255,1)',.7,.8);this.arcGlow.position.set(.14,y+.2,MAIN);
-    this.arcLight=new T.PointLight('#bfe8ff',0,2.2,1.6);this.arcLight.position.set(.34,y+.3,MAIN);board.add(this.arcLight);
+    // R5-029: no air arc across a MOSFET. An unclamped kick avalanches the switch: its body flashes
+    // orange-hot under a small heat glow (kept under the bloom threshold and at most 0.35 opacity),
+    // so the switch, the node and the socket stay readable.
+    this.arcGlow=glow(board,'rgba(255,150,80,1)',.35,0);this.arcGlow.position.set(.34,y+.12,MAIN);
+    this.arcLight=new T.PointLight('#ffb070',0,1,1.6);this.arcLight.position.set(.34,y+.3,MAIN);board.add(this.arcLight);
   }
   private solid(w:number,h:number,d:number,x:number,y:number,z:number){const b=this.game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));this.game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2),b);}
   private click(obj:T.Object3D,act:string,arg?:unknown){this.clickables.push({obj,act,arg});obj.userData.baseScale=obj.scale.clone();}
 
   // ---------- actions ----------
   act(name:string,arg?:unknown):boolean{
+    // Carrying on during the served beat ends it: the passed parts go back to the tray at once.
+    if(this.beatSlots)this.beatSlots=undefined;
     const j=this.current(),a=this.game.audio;if(!j)return false;
     switch(name){
       case 'pick':{const id=arg as PartId;if(!PARTS[id])return false;
@@ -264,7 +271,7 @@ export class GarageBench implements Station {
           if(!p.slots.includes(s)){a.voice('hm',1.4);return false;}
           // The part goes in the way round it is lying; whatever sat there goes back to the tray.
           const old=this.slots[s];if(old)this.trayFlip[old.part]=old.flipped;
-          this.slots[s]={part:this.held,flipped:p.polar&&this.trayFlip[this.held]};this.held=undefined;this.lastSlot=s;a.plug();break;}
+          this.slots[s]={part:this.held,flipped:p.polar&&this.trayFlip[this.held]};this.held=undefined;this.lastSlot=s;a.seat();break;}
         if(this.slots[s]){const old=this.slots[s]!;this.trayFlip[old.part]=old.flipped;delete this.slots[s];a.tone(300,.06,.04,'triangle');break;}
         a.voice('hm',1.4);return false;}
       case 'flip':{
@@ -276,6 +283,7 @@ export class GarageBench implements Station {
       case 'ground':{this.star=!this.star;a.noise(.05,.05,2400,'highpass');a.tone(this.star?520:330,.08,.04,'triangle');break;}
       case 'clear':{if(!Object.keys(this.slots).length&&!this.held)return false;for(const f of Object.values(this.slots))if(f)this.trayFlip[f.part]=f.flipped;this.slots={};this.held=undefined;a.clatter();break;}
       case 'pulse':case 'test':{
+        if(this.pendingDrive)return false;
         if(!this.onStand){this.say('The robot is still on its charging pad.');a.voice('hm',1.4);return false;}
         if(!this.fuse){a.voice('hm',1.2);return false;}
         const s=this.setup(),coil=jobCoil(j),v=judge(j,s),tr=v.fault==='short'||v.fault==='cap'?undefined:shutdownCached(s,coil);
@@ -292,14 +300,18 @@ export class GarageBench implements Station {
         // TEST: five start/stop cycles.
         this.cycleT=0;this.cycleFail=v.tier===0;this.spent+=cost(s);this.kick(v,s,true);
         if(v.tier===0){this.mistakes++;
-          this.say(v.problems[0],'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();return true;}
+          this.say(v.problems[0],'bad');a.verdictFail(v.fault==='stop'||v.fault==='start'?'reset':v.fault==='slow'?'weak':'other');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},5);this.redraw();return true;}
         this.logged.push({job:j.id,verdict:v});
         this.say(`${['','Works','Reliable','Elegant'][v.tier]}${v.notes[0]?`: ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);cheer(this.game,this,YELLOW);
+        signOff(this.game,this,YELLOW,false);
+        // The served beat (R5-087): the passed board stays fitted on screen while its five cycles run;
+        // the parts go back to the tray once they finish (or at once if the player carries on).
+        this.beatSlots={...this.slots};this.beatUntil=this.game.time+SPEC.cycles*.6+.4;
         this.jobIndex++;this.capture=undefined;this.captures=0;this.tried.clear();
         // The next job starts from a bare board: the parts go back to the tray, lying any which way.
         if(this.jobIndex<JOBS.length){this.slots={};this.star=false;this.held=undefined;this.rollTray();}
-        else this.startDrive();
+        // The last pass: the robot sets off once its test cycles have finished.
+        else this.pendingDrive=true;
         this.redraw();return true;}
       default:return false;
     }
@@ -307,7 +319,7 @@ export class GarageBench implements Station {
   }
   /** Dead short: the PTC fuse trips with a bang and a shower of sparks, then cools and resets itself. */
   private tripFuse(){const a=this.game.audio;this.fuse=false;this.cooling=FUSE_COOL;this.flow.run=false;this.flow.amp=0;
-    a.noise(.2,.12,1800,'bandpass');a.tone(120,.3,.06,'square');a.voice('groan',1.1);this.spark(-1.12);this.game.alarm({x:this.table.x,z:this.table.z},3);}
+    a.fuseBang();a.voice('groan',1.1);this.spark(-1.12);benchFault(this.game);this.game.alarm({x:this.table.x,z:this.table.z},5);}
   /** Runs the coil for a moment, then opens the switch: the pulses show where the coil's current goes. */
   private kick(v:Verdict,s:Setup,test=false){
     const j=this.current()!,tr=v.fault==='short'||v.fault==='cap'?undefined:shutdownCached(s,jobCoil(j));
@@ -331,16 +343,18 @@ export class GarageBench implements Station {
   private spark(x:number){const p=this.boardPoint(x,.02);this.game.burst(p,'#fff3a3',14,'spark');this.game.burst(p,'#ffe36e',3,'star');}
   private startDrive(){
     const b=this.bot;if(!b){this.delivered=true;return;}
-    this.driving=true;this.driveT=0;b.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
+    // The test-cycle animation stops before the drive, so its beeps never run under it (R5-096).
+    this.driving=true;this.driveT=0;this.cycleT=-1;this.kickT=-1;this.pendingDrive=false;b.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
     if(this.game.atBench)this.game.leaveBench();
     this.say('All three fixes pass. Off it goes on its delivery route!','ok');
   }
 
   // ---------- drawing ----------
   redraw(){
-    for(const id of PART_IDS){const m=this.parts.get(id)!,slot=(Object.keys(this.slots) as SlotId[]).find(s=>this.slots[s]?.part===id);
+    const slots=this.beatSlots??this.slots;
+    for(const id of PART_IDS){const m=this.parts.get(id)!,slot=(Object.keys(slots) as SlotId[]).find(s=>slots[s]?.part===id);
       const body=m.getObjectByName('body')!;
-      if(slot){const f=this.slots[slot]!;m.position.copy(this.slotAt.get(slot)!.pos);body.rotation.y=f.flipped?Math.PI:0;}
+      if(slot){const f=slots[slot]!;m.position.copy(this.slotAt.get(slot)!.pos);body.rotation.y=f.flipped?Math.PI:0;}
       else{m.position.copy(this.trayAt.get(id)!);body.rotation.y=this.trayFlip[id]?Math.PI:0;}
       if(this.held===id)m.position.y+=.08;}
     // Every socket the part in hand can sit in glows (the choice of place is the player's).
@@ -449,7 +463,8 @@ export class GarageBench implements Station {
       const turn=Math.atan2(Math.sin(yaw-cur.y),Math.cos(yaw-cur.y)),ny=cur.y+turn*Math.min(1,dt*6);
       const yy=d<1.2?STAND.y+(.35-STAND.y)*Math.min(1,d/1.2):.35;
       b.body.setNextKinematicTranslation({x,y:yy,z});b.body.setNextKinematicRotation(new T.Quaternion().setFromEuler(new T.Euler(0,ny,0)));
-      this.motorOn=d<ROUTE_LEN?1:0;if(this.driveT>=DRIVE_TIME&&!this.delivered){this.delivered=true;this.game.audio.bell(1568,.6,.05);this.game.burst({x,y:1.2,z},'#8dffb0',20,'confetti');}
+      this.motorOn=d<ROUTE_LEN?1:0;this.whirrT-=dt;if(this.motorOn&&this.whirrT<=0){this.whirrT=.45;this.game.audio.whirr();}
+      if(this.driveT>=DRIVE_TIME&&!this.delivered){this.delivered=true;this.game.audio.docked();this.game.burst({x,y:1.2,z},'#8dffb0',20,'confetti');}
       // Standing in the lane is funny, not ignored: the robot honks, Pip sees stars, the crew looks up.
       if(this.bumpCool<=0&&d<ROUTE_LEN){const pp=this.game.player.translation();if(Math.hypot(pp.x-x,pp.z-z)<.95){this.bumpCool=1.6;const a=this.game.audio;a.tone(880,.1,.05,'square');a.tone(660,.14,.05,'square',.12);a.voice('alarm',1.6);
         this.game.burst({x:pp.x,y:pp.y+.9,z:pp.z},'#ffe36e',5,'star');this.game.alarm({x,z},4);}}}
@@ -457,11 +472,13 @@ export class GarageBench implements Station {
     // The bench harness is plugged into the robot only while it sits on the stand.
     if(this.harness)this.harness.visible=this.onStand&&!this.driving;
     // Wheels spin while the motor runs; the eyes and antenna show the controller's state.
+    if(this.beatSlots&&this.game.time>=this.beatUntil){this.beatSlots=undefined;this.redraw();}
+    if(this.pendingDrive&&this.cycleT<0)this.startDrive();
     if(this.cycleT>=0){const before=this.motorOn;this.cycleT+=dt;const c=Math.floor(this.cycleT/.6),on=this.cycleT%.6<.4;this.motorOn=(c<SPEC.cycles&&on)||this.stuck?1:0;
       if(this.motorOn&&!before){this.flow={loop:this.stuck?swLoop(this.kickLong):runLoop(this.kickLong),amp:1,decay:0,run:true};this.surge();if(this.kickV?.fault==='start')this.reboot();}
       if(!this.motorOn&&before)this.land(true);
       this.cycleLamps.forEach((l,k)=>l.material=k<Math.min(c+(on?0:1),SPEC.cycles)?(this.cycleFail?m.lampBad:m.lampOn):m.lampOff);
-      if(c>=SPEC.cycles+2)this.cycleT=-1;}
+      if(c>=SPEC.cycles+2||(this.pendingDrive&&c>=SPEC.cycles))this.cycleT=-1;}
     else if(!this.driving&&this.kickT<0&&this.motorOn>0)this.motorOn=Math.max(0,this.motorOn-dt);
     if(this.stuck&&!this.driving)this.motorOn=1;
     // Job 2: the wheels keep turning until the brake coil's current dies and the spring brake grabs.
@@ -473,7 +490,11 @@ export class GarageBench implements Station {
     const resetNow=this.resetFlash>0&&Math.floor(this.resetFlash*6)%2===0,dead=!this.fuse;
     // Until it is on the stand, the job robot's antenna lamp blinks red: it is the broken one.
     const broken=!this.onStand&&!this.driving&&Math.floor(this.game.time*3)%2===0;
-    r.eyes.forEach(e=>e.material=dead?m.eyeDead:resetNow?m.eyeBad:m.eye);r.lamp.material=dead?m.off:resetNow||broken?m.bad:m.ok;
+    r.eyes.forEach(e=>{e.material=dead?m.eyeDead:resetNow?m.eyeBad:m.eye;e.scale.set(.4,1,1).multiplyScalar(this.resetFlash>0?1.4:1);});
+    // On the stand the robot's head turns to look at the bench, so its face (and a reboot) reads from
+    // the bench camera (R5-082); a reboot spins it once round. It faces forward again to drive.
+    const head=r.face.parent;if(head){this.headSpin=Math.max(0,this.headSpin-dt);const want=this.onStand&&!this.driving?-1.2:0;
+      head.rotation.y=want-(this.headSpin>0?(1-this.headSpin/.8)*Math.PI*2:0);}r.lamp.material=dead?m.off:resetNow||broken?m.bad:m.ok;
     this.ctrlLamp.material=dead?m.off:resetNow?m.bad:m.ok;
     // The shared ground wire warms with the start surge (the voltage it drops lifts the controller's ground).
     this.gndHeat=Math.max(0,this.gndHeat-dt*.5);this.gndMat.color.set(COPPER).lerp(GND_HOT,Math.min(1,this.gndHeat));this.gndMat.emissive.set('#ff3b2a');this.gndMat.emissiveIntensity=1.1*this.gndHeat;
@@ -487,15 +508,15 @@ export class GarageBench implements Station {
     this.updatePanel();
   }
   /** The controller reboots: red eyes, a dizzy wobble and stars over the robot's head. */
-  private reboot(){this.resetFlash=1.6;this.dizzy=1.8;const q=this.bot?.body.translation();if(q)this.game.burst({x:q.x,y:q.y+.9,z:q.z},'#ffe36e',6,'star');this.game.audio.voice('alarm',1.4);}
+  private reboot(){this.resetFlash=1.6;this.dizzy=1.8;this.headSpin=.8;const q=this.bot?.body.translation();if(q)this.game.burst({x:q.x,y:q.y+1.1,z:q.z},'#ffe36e',10,'star');this.game.audio.voice('alarm',1.4);}
   /** The switch has just opened: where does the coil's current go? */
   private land(test:boolean){
-    const v=this.kickV;if(!v)return;const tr=this.kickTrace;
+    const v=this.kickV;if(!v||this.driving)return;const tr=this.kickTrace;
     if(v.fault==='stop'){
       // Nowhere to go: the current piles up at the switch and arcs across it, and the controller reboots.
-      this.flow.decay=.12;this.flow.run=false;this.arcT=test?.25:.6;this.reboot();
-      const a=this.game.audio;a.noise(test?.15:.35,.14,4200,'highpass');a.noise(.08,.1,900,'bandpass');
-      const p=this.boardPoint(.34,.02);this.game.burst(p,'#d8f4ff',test?4:8,'spark');return;}
+      this.flow.decay=.12;this.flow.run=false;this.arcT=this.arcMax=test?.3:.6;this.reboot();
+      const a=this.game.audio;a.noise(test?.15:.35,.1,2600,'highpass');a.noise(.08,.1,900,'bandpass');
+      const p=this.boardPoint(.34,.02);this.game.burst(p,'#ffb070',test?3:6,'spark');this.game.burst({x:p.x,y:p.y+.12,z:p.z},'#8a8a96',test?1:2,'puff');return;}
     // Never switched off: the current keeps flowing through the part across the switch, at full speed.
     if(v.fault==='stuck'){this.stuck=true;this.flow={loop:this.kickLoop??swLoop(this.kickLong),amp:1,decay:0,run:true};this.game.audio.tone(140,.6,.035,'sawtooth');return;}
     if(!this.kickLoop){this.flow.decay=.1;this.flow.run=false;return;}
@@ -513,11 +534,10 @@ export class GarageBench implements Station {
     this.dots.forEach((d,k)=>{this.dotU[k]=(this.dotU[k]+speed*dt/len)%1;d.visible=f.amp>0&&this.fuse;if(!d.visible)return;
       along(f.loop,this.dotU[k],w);d.position.set(w.x,.07,w.z);d.scale.setScalar(.5+.7*f.amp);});
     // The arc: a jagged bright line between the switch node and the switch, redrawn every frame.
-    this.arcT=Math.max(0,this.arcT-dt);this.arc.visible=this.arcT>0;this.arcLight.intensity=this.arcT>0?6+Math.random()*10:0;
-    if(this.arcT>0){const n=this.arcSegs.length,pts:T.Vector3[]=[];
-      for(let k=0;k<=n;k++){const t=k/n,j=k===0||k===n?0:.06;pts.push(new T.Vector3(-.06+.4*t,.16+Math.sin(t*Math.PI)*.1+(Math.random()-.5)*j,MAINZ+(Math.random()-.5)*j*1.4));}
-      this.arcSegs.forEach((m,k)=>{const a=pts[k],b=pts[k+1];m.position.copy(a).add(b).multiplyScalar(.5);m.scale.set(1,a.distanceTo(b),1);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize());});
-      (this.arcGlow.material as T.SpriteMaterial).opacity=.5+Math.random()*.5;}
+    // The avalanche: the switch body glows orange-hot and cools over the beat (no air arc, R5-029).
+    this.arcT=Math.max(0,this.arcT-dt);this.arc.visible=false;const heat=this.arcT>0?Math.min(1,this.arcT/this.arcMax*1.4):0;
+    this.fetBody.material=heat>.05?this.fetHot:this.fetCold;this.fetHot.color.set('#ff8a3d').multiplyScalar(.6+.65*heat);
+    this.arcLight.intensity=1.2*heat;(this.arcGlow.material as T.SpriteMaterial).opacity=.35*heat;
   }
 
   // ---------- panels ----------
@@ -582,6 +602,8 @@ export class GarageBench implements Station {
     return {key:'Enter',text:`Test (${SPEC.cycles} cycles)`};
   }
   complete(){return this.delivered;}
+  /** The win shot frames Pip with the robot at its dock (R5-077). */
+  winFocus(){const q=this.bot?.body.translation();return q?new T.Vector3(q.x,q.y+.4,q.z):new T.Vector3(this.table.x,this.table.y+.5,this.table.z);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const j=this.current(),s=this.setup(),v=j?judge(j,s):undefined;
     return {job:this.jobIndex,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,spike:l.verdict.spike,offTime:l.verdict.offTime,parts:l.verdict.parts})),slots:{...this.slots},star:this.star,held:this.held??null,

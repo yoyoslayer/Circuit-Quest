@@ -400,6 +400,36 @@ SHIP) plus UNDO; the board itself is the tool.
 - `tools/debug/look.mjs` screenshots floors with full effects (AO, bloom, grade);
   `tools/debug/audit.mjs` prints prop counts and overlaps.
 
+## Review 5 fixes, round 3 (2026-11-05)
+
+Design review 5 (`mockups/review5/REVIEW.md`, 378 entries) has been worked through: both P0s and every P1 are fixed or logged. The per-entry log is `mockups/review5/FIXED.md` and `mockups/review5/fixlog/*.md`. Two agents now work in parallel: Claude (`claude/nifty-knuth-519jg0`) and Astra (`astra/work`; see `docs/ASTRA_PROMPT.md`).
+
+What a player notices:
+- **The cable is in every room now.**
+  - Each station bench is dead until Pip drags its mains lead (10–12.5 m) round the room and plugs it into the wall.
+  - Yanking it out just drops power.
+  - Coworkers who are standing block the cable, and jump when a taut cable rubs them.
+  - A plug pressed into furniture makes the cable bend round it instead of through it.
+- **Chaos counts.**
+  - A job item thrown onto a bench counts as delivered.
+  - Each station has one physical bonus: knock the prize pyramid over, bowl the parcel stack, toss the crate, roll the motor cart into the far wall, or knock the smoking toaster down (which really clears the smoke).
+- **Truthful electricity.**
+  - The Lunch capacitor charges only from real current, and cable heating follows I².
+  - Arcade Rush stories describe symptoms ("the fuse keeps cutting out"), never the cause.
+  - No two cabinets in a row have the same answer.
+- **Grading has teeth (Astra).**
+  - An idle Rush is graded D.
+  - Bonus stars and previous bests are saved.
+  - Locks need a B.
+- **Look.**
+  - Job yellow is only on job items.
+  - Floors are darker and props are rebuilt.
+  - There's a new Pip rig with recovery animations and glancing coworkers.
+  - Draw calls are 28–45% lower in every room.
+- **Lenses.** Close, Standard and Wide now really change the framing.
+
+Product-owner questions from this round are in `mockups/review5/fixlog/lead2.md`, `stationcable.md` and `astra.md`.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

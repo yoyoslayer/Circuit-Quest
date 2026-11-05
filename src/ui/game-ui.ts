@@ -8,7 +8,7 @@ import type {LunchJob} from '../sim/lunch';
 import {installIcons} from '../render/icons';
 import {levels} from '../levels';
 import {prefabs} from '../props/prefabs';
-import {bestFor,record,flagAutostart,takeAutostart,isLocked} from './store';
+import {bestFor,record,flagAutostart,takeAutostart,isLocked,nextUnfinished,isOptional} from './store';
 import {ObjectivesHUD} from './objectives';
 import {hudMarkup,titleMarkup,jobsMarkup,pauseMarkup,resultMarkup,failMarkup,clock} from './screens';
 
@@ -114,7 +114,7 @@ export class GameUI {
       case 'resume':g.togglePause();break;
       case 'restart':this.restart();break;
       case 'jobs-reload':this.toJobs();break;
-      case 'nextjob':{const next=g.level.next;if(next){flagAutostart(next);location.href=`?level=${next}`;}break;}
+      case 'nextjob':{const next=nextUnfinished(levels.filter(l=>l.id!==g.level.id&&!isOptional(l)&&!isLocked(l)));if(next){flagAutostart(next.id);location.href=`?level=${next.id}`;}break;}
     }
   }
   key(e:KeyboardEvent){
@@ -216,8 +216,8 @@ export class GameUI {
     const rushScore=g.station?.rushStatus?.();
     if(rushScore)result=gradeRush(rushScore.served,g.damage,g.cost);
     const gold=crewGold(result.parts,stars);
-    const {improved,old}=g.practice?{improved:false,old:undefined}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost,stars,crewGold:gold});
-    const next=levels.find(l=>l.id===g.level.next),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next,previous:old,crewGold:gold,served:rushScore?.served};
+    const {improved,old}=g.practice?{improved:false,old:undefined}:record(g.level.id,{grade:result.overall,time:g.time,damage:g.damage,cost:g.cost,stars,crewGold:gold,served:rushScore?.served});
+    const next=nextUnfinished(levels.filter(l=>l.id!==g.level.id&&!isOptional(l)&&!isLocked(l)&&!bestFor(l.id))),view={level:g.level,time:g.time,damage:g.damage,cost:g.cost,parts:result.parts,overall:result.overall,improved,next,previous:old,crewGold:gold,served:rushScore?.served,practice:g.practice};
     // Let the camera push in on the machine coming to life before the card lands.
     setTimeout(()=>{
       g.hud.insertAdjacentHTML('beforeend',resultMarkup(view));this.show('result');document.body.dataset.complete='true';

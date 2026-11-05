@@ -5,7 +5,7 @@ export interface Best {grade:Grade;time:number;damage:number;cost:number;
   /** Bonus stars ever earned, as a bitmask (bit i = bonus i). Kept across runs. */
   stars?:number;
   /** Earned in one run, never synthesized from separate personal bests. */
-  crewGold?:boolean}
+  crewGold?:boolean;served?:number}
 const KEY='circuit-crew:best:v1',AUTOSTART='circuit-crew:autostart';
 // Storage can be missing or throw (private windows, blocked site data); the game never depends on it.
 function read():Partial<Record<LevelId,Best>>{try{const raw=localStorage.getItem(KEY);return raw?JSON.parse(raw)??{}:{};}catch{return {};}}
@@ -14,10 +14,10 @@ export const bestFor=(id:LevelId):Best|undefined=>read()[id];
 /** Merges a finished run into the record; returns the stored best and whether the grade improved. */
 export function record(id:LevelId,run:Best){
   const all=read(),old=all[id];
-  const best:Best=old?{grade:run.grade<old.grade?run.grade:old.grade,time:Math.min(old.time,run.time),damage:Math.min(old.damage,run.damage),cost:Math.min(old.cost,run.cost),stars:(old.stars??0)|(run.stars??0),crewGold:!!old.crewGold||!!run.crewGold}:run;
+  const best:Best=old?{grade:run.grade<old.grade?run.grade:old.grade,time:Math.min(old.time,run.time),damage:Math.min(old.damage,run.damage),cost:Math.min(old.cost,run.cost),stars:(old.stars??0)|(run.stars??0),crewGold:!!old.crewGold||!!run.crewGold,served:Math.max(old.served??0,run.served??0)}:run;
   all[id]=best;write(all);
   // Any better stat or a new star counts as an improvement (the card's star and bell), not only the grade.
-  const improved=!old||!!run.crewGold&&!old.crewGold||run.grade<old.grade||run.time<old.time||run.damage<old.damage||run.cost<old.cost||((run.stars??0)&~(old.stars??0))!==0;
+  const improved=!old||(run.served??0)>(old.served??0)||!!run.crewGold&&!old.crewGold||run.grade<old.grade||run.time<old.time||run.damage<old.damage||run.cost<old.cost||((run.stars??0)&~(old.stars??0))!==0;
   return {best,old,improved,first:!old};
 }
 /** A job with `requires` stays locked until that job has a B or better (a C run doesn't open Rush). */

@@ -176,32 +176,31 @@ export const pauseMarkup=(l:Level)=>`
 
 export interface ResultView {level:Level;time:number;damage:number;cost:number;parts:Grade[];overall:Grade;improved:boolean;next?:Level;
   /** The best before this run, shown under each row so there's something to beat. */
-  previous?:Best;crewGold?:boolean;served?:number}
+  previous?:Best;crewGold?:boolean;served?:number;practice?:boolean}
 export function resultMarkup(r:ResultView){
   const best=Math.max(0,r.parts.indexOf(r.overall)),rows:[string,string,number][]=[[r.served===undefined?'clock':'check',r.served===undefined?'time':'served',r.served??r.time],['mug','damage',r.damage],['coins','cost',r.cost]];
   // The winning stat's cable runs from the end of its row up into the stamp.
   const dy=best*80,feed=`<svg class="feed" viewBox="0 0 120 ${290+dy}" style="height:${290+dy}px" aria-hidden="true">
       <path d="M20 ${265+dy} C 92 ${262+dy}, 104 ${200+dy*.7}, 92 160 S 30 96, -84 108" fill="none" stroke="#262A40" stroke-width="14" stroke-linecap="round"/>
       <path d="M20 ${265+dy} C 92 ${262+dy}, 104 ${200+dy*.7}, 92 160 S 30 96, -84 108" fill="none" stroke="#FFC53D" stroke-width="6" stroke-linecap="round" stroke-dasharray="1 12"/></svg>`;
-  const next=r.next?`<button class="btn primary next" data-ui="nextjob" aria-label="Next job">${icon('next')}<span class="nx">${disc(r.next,'d')}${r.next.number}</span><span class="key">&#9166;</span></button>`
-    :`<button class="btn primary next jobs" data-ui="jobs-reload" aria-label="Jobs">${icon('jobs')}<span class="lbl">Jobs</span></button>`;
+  const next=`<button class="btn primary next jobs" data-ui="jobs-reload" aria-label="Return to HQ">${icon('home')}<span class="lbl">HQ</span><span class="key">&#9166;</span></button>`;
   const confetti=['#FFC53D','#5ED6CC','#E5484D','#FFC53D','#E5484D','#FFC53D','#5ED6CC','#3BB273','#3BB273','#6E9BEA'].map((c,i)=>`<i style="left:${[21,27,17,29,76,72,82,70,87,12][i]}%;top:${[20,47,71,84,23,52,71,88,40,36][i]}%;background:${c};--rot:${[20,-35,60,-12,-25,40,10,-55,75,-70][i]}deg;animation-delay:${(i*.07).toFixed(2)}s"></i>`).join('');
-  return `<section class="screen result-screen" data-screen="result" aria-label="Job done, grade ${r.overall}">
+  return `<section class="screen result-screen" data-screen="result" aria-label="${r.practice?'Practice complete':`Job done, grade ${r.overall}`}">
   <div class="scrim"></div>
   <div class="confetti" aria-hidden="true">${confetti}</div>
   <i class="string"></i>
   <div class="result tag">
     <i class="eyelet"></i><i class="hole"></i>
     <div class="head">${disc(r.level)}<div><small>${r.level.number}</small><h2>${title(r.level)}</h2></div><span class="done">${icon('check')}</span></div>
-    <div class="stampzone"><i class="rays"></i>${r.crewGold?'<strong class="crew-gold">Crew Gold</strong>':''}${medal(r.overall,'stamp')}${r.improved?`<span class="newbest" title="New best">${icon('star')}</span>`:''}</div>
+    <div class="stampzone"><i class="rays"></i>${r.crewGold&&!r.practice?'<strong class="crew-gold">Crew Gold</strong>':''}${r.practice?'<strong class="practice-complete">Practice complete</strong>':medal(r.overall,'stamp')}${r.improved?`<span class="newbest" title="New best">${icon('star')}</span>`:''}</div>
     <div class="rows">
-      ${rows.map(([ic,key,v],i)=>{const was=r.previous?.[key as 'time'|'damage'|'cost'];const prev=was===undefined?'':`<small class="prev ${v<was?'better':v>was?'worse':''}">best ${key==='time'?clock(was):was}</small>`;
-        return `<div class="row ${i===best?'best':''}">${icon(ic)}<span class="val"><b data-count="${v}" data-kind="${key}">${key==='time'?clock(0):0}</b>${prev}</span>${medal(r.parts[i])}</div>`;}).join('')}
-      ${feed}
+      ${rows.map(([ic,key,v],i)=>{const was=r.previous?.[key as 'time'|'damage'|'cost'|'served'];const prev=was===undefined?'':`<small class="prev ${(key==='served'?v>was:v<was)?'better':v!==was?'worse':''}">best ${key==='time'?clock(was):was}</small>`;
+        return `<div class="row ${i===best?'best':''}">${icon(ic)}<span class="val"><b data-count="${v}" data-kind="${key}">${key==='time'?clock(0):0}</b>${prev}</span>${r.practice?'':medal(r.parts[i])}</div>`;}).join('')}
+      ${r.practice?'':feed}
     </div>
     <div class="actions2">
       <button class="btn sq" data-ui="restart" aria-label="Play again">${icon('retry')}<span class="key">R</span></button>
-      ${r.next?`<button class="btn sq" data-ui="jobs-reload" aria-label="Jobs">${icon('jobs')}</button>`:''}
+      ${r.next?`<button class="btn sq" data-ui="nextjob" aria-label="Next unfinished job: ${title(r.next)}">${icon('next')}<span>${r.next.number}</span></button>`:''}
       ${next}
     </div>
   </div>

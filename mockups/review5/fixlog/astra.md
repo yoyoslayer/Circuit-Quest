@@ -38,3 +38,17 @@ Completed browser run: 15 passed, 1 failed in 9.4 minutes. The sole failure was 
 
 Isolated lobby rerun: passed in 20.7 seconds on port 4191. Thus every selected assertion passed, with the original context-setup timeout retained above for traceability. No source changes were made between the combined run and this rerun.
 
+
+## Stage 1 follow-up — progression consistency
+
+| Entry | Change | Files | Verification |
+|---|---|---|---|
+| R5-285 | Every result returns to HQ as its primary action. The optional secondary action targets the next unfinished, unlocked, required job. | ui/screens.ts, ui/game-ui.ts | Markup tests and build; browser checks below. |
+| R5-238 (owned portion) | Practice completion suppresses grade medals and the grade announcement; records remain untouched. Unlimited fuses/sub-job selection require station changes (Needs Claude). | ui/screens.ts | Markup test. |
+| R5-078, R5-251 | Crew Gold rim on the HQ door medal; cabinet-count personal best is persisted and compared higher-is-better. | hub/lobby.ts, ui/store.ts, ui/screens.ts | Unit tests and build. |
+
+Still delegated to Claude: station practice rules (free parts/fuses and sub-job selection), per-level limits and station gameplay changes previously listed. R5-112's remaining hollow-star presentation is handled with Stage 2's HUD work.
+
+Stage 1 follow-up verification: production build passed; the expanded browser run finished with 23 passes (all 10 routes and all 10 layouts included) and three smoke timeouts, not failing state assertions. Exact output: tools/astra-grading/stage1-browser.log. Screenshot meeting-complete.png was inspected; the new HQ primary action is visible (the legacy capture occurs during entrance animation, so it is not proof of settled card layout). The concurrent unit rerun had two existing Arcade timeout failures; the subsequent single-worker rerun also exceeded the existing 30-second 500-cabinet stress-case limit. OS inspection showed only ~1 GB free physical memory, with two other worktrees running browser suites and several capture jobs. Their processes were left untouched. Further verification will run sequentially, with longer browser timeouts. No assertion failure is being waived as a pass.
+
+Stage 1 owned implementation is ready for integration; remaining gameplay/threshold/teaching changes are explicitly delegated in Needs Claude above. Hollow provisional stars are in Stage 2. Human par timing remains unmeasured.

@@ -1,0 +1,144 @@
+
+[WebServer] (node:34020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 26 tests using 1 worker
+
+(node:5052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/26] tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[WebServer] 
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+
+[2/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in the lobby
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[3/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in playground
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[4/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in meeting
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[5/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in lunch
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[6/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[7/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade-rush
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[8/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in garage
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[9/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in qfn
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[10/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in observatory
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[11/26] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in spectrum
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[12/26] tests\routes.spec.ts:25:1 › playground cable physically reaches socket and lights lamp
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[13/26] tests\routes.spec.ts:36:1 › meeting single reel only reaches when overstretched at a sprint
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[14/26] tests\routes.spec.ts:46:1 › meeting clean route joins a second reel using a coupler
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[15/26] tests\routes.spec.ts:54:1 › meeting coffee extension can be reused to power the projector
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[16/26] tests\routes.spec.ts:60:1 › a taut cable slingshots boxes when let go
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[17/26] tests\routes.spec.ts:69:1 › meeting: reset while still overloaded re-trips after the dwell; prompts pick the nearest load
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[18/26] tests\routes.spec.ts:81:1 › meeting: borrowing the coffee reel unplugs the server cable from the strip
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[19/26] tests\routes.spec.ts:88:1 › meeting slingshot topples the paper tower by the aisle end
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[20/26] tests\routes.spec.ts:93:1 › borrowing the coffee extension makes the coffee corner groan
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[21/26] tests\routes.spec.ts:97:1 › holding the plug, F at the mail cart attaches coupler then second reel
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[22/26] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[23/26] tests\smoke.spec.ts:9:1 › player can pick up the plug, move, jump, and release it
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  1) tests\smoke.spec.ts:9:1 › player can pick up the plug, move, jump, and release it ─────────────
+
+    Test timeout of 60000ms exceeded.
+
+    Error Context: test-results\smoke-player-can-pick-up-the-plug-move-jump-and-release-it\error-context.md
+
+
+(node:14440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[24/26] tests\smoke.spec.ts:21:1 › office contains over 300 physics props and renders without errors
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  2) tests\smoke.spec.ts:21:1 › office contains over 300 physics props and renders without errors ──
+
+    Test timeout of 60000ms exceeded.
+
+    Error Context: test-results\smoke-office-contains-over-04089--and-renders-without-errors\error-context.md
+
+
+
+(node:26620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[25/26] tests\smoke.spec.ts:29:1 › Lunch Rush boots with two supplies, four cables and a warming fridge
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[26/26] tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143)
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  3) tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143) 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: page.goto: Test timeout of 60000ms exceeded.
+    Call log:
+      - navigating to "http://127.0.0.1:4191/?level=garage&lowfx", waiting until "load"
+
+
+      35 |   expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().quality)).toBe(2);
+      36 |   await page.evaluate(()=>localStorage.setItem('circuit-crew-quality','2'));
+    > 37 |   await page.goto('/?level=garage&lowfx');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+         |              ^
+      38 |   expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().quality)).toBe(0);
+      39 | });
+      40 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\smoke.spec.ts:37:14
+
+    Error Context: test-results\smoke-a-fresh-player-start-65f2b--with-a-saved-level-R5-143-\error-context.md
+
+
+  Slow test file: tests\routes.spec.ts (11.6m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  3 failed
+    tests\smoke.spec.ts:9:1 › player can pick up the plug, move, jump, and release it ──────────────
+    tests\smoke.spec.ts:21:1 › office contains over 300 physics props and renders without errors ───
+    tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143) 
+  23 passed (20.6m)

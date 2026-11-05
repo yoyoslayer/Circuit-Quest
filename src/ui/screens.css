@@ -311,3 +311,5 @@ body[data-screen="fail"] canvas#game{filter:saturate(.35) brightness(.5) blur(3p
 .job.locked{filter:grayscale(.85);opacity:.6}.job.locked .thumb{position:relative}.job.locked .thumb::after{content:'LOCKED';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:3px 8px;border-radius:8px;background:#262A40;color:#fffaf0;font-size:12px;font-weight:700;letter-spacing:.04em}
 
 .crew-gold{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:16px;color:#805617}.gold-record{border:3px solid #e4ad32;border-radius:50%;display:inline-flex}
+
+.practice-complete{display:block;text-align:center;font-size:26px;line-height:1.2;padding:28px 8px}.result .actions2 .sq span:not(.key){font-size:14px}

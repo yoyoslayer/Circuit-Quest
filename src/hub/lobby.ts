@@ -115,7 +115,7 @@ export class Lobby {
       const tape=part(leaf,box(1.8,.09,.012),toon('#ffffff',{map:TX.hazardStripe()}),.83,1.25,.095,false);tape.rotation.z=.5;
       padlock=part(leaf,rbox(.22,.2,.08,.04),toon(DMETAL),1.2,1.05,.13);part(leaf,new T.TorusGeometry(.07,.018,8,16,Math.PI),toon('#c7ccd6'),1.2,1.15,.13);part(leaf,box(.03,.06,.01),toon(INK),1.2,1.04,.175,false);}
     // Medal on the wall beside the door, big enough to read from the atrium.
-    if(best){part(f,rbox(.5,.5,.025,.06),toon(INK),1.42,1.6,.012);signPlate(f,best.grade,1.42,1.6,.03,.44,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});}
+    if(best){part(f,rbox(.5,.5,.025,.06),toon(best.crewGold?'#e4ad32':INK),1.42,1.6,.012);signPlate(f,best.grade,1.42,1.6,.03,.44,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});}
     // The wing lamp: a sconce beside the lintel, below the wall cap, plus light strips down the post
     // fronts. Dark until the job is done.
     part(f,rbox(.2,.28,.04,.02),toon(DMETAL),-1.3,2.75,.02);part(f,box(.04,.04,.16),toon(DMETAL),-1.3,2.8,.1);part(f,new T.CylinderGeometry(.07,.15,.14,16),toon(color),-1.3,2.8,.2);

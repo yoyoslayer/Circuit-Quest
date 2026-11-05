@@ -6,5 +6,5 @@ test('R5-078: an idle Rush shift records D, never A',async({page})=>{
  await expect(page.locator('.result-screen')).toHaveAttribute('aria-label','Job done, grade D');
  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('circuit-crew:best:v1')??'{}'));
  expect(stored['arcade-rush'].grade).toBe('D');
- await expect(page.locator('.result-served')).toContainText('Cabinets fixed: 0');
+ await expect(page.locator('.result-served')).toContainText(/Cabinets fixed:\s*0/);
 });

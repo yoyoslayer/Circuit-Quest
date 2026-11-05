@@ -510,9 +510,9 @@ export class Game {
       const hx=Math.abs(rotation[0])*w/2+Math.abs(rotation[8])*d/2+.05,hz=Math.abs(rotation[2])*w/2+Math.abs(rotation[10])*d/2+.05;
       return {id:`prop-${p.body.handle}`,minX:pos.x-hx,maxX:pos.x+hx,minZ:pos.z-hz,maxZ:pos.z+hz,prop:p};
     }).filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ)&&!(this.rope.anchor.x>o.minX&&this.rope.anchor.x<o.maxX&&this.rope.anchor.z>o.minZ&&this.rope.anchor.z<o.maxZ));
-    // Standing coworkers are in the way too: the cable bends round them as a 0.9 m box, and a taut
+    // Standing coworkers (the solid ones, with a body) are in the way too: the cable bends round them as a 0.9 m box, and a taut
     // cable rubbing past makes them jump (throttled). Seated ones are left out, or desk pods become mazes.
-    const people=this.npcs.filter(n=>!n.seated&&Math.min(...route.slice(1).map((b,i)=>segmentDistance(n.group.position,route[i],b)))<1.2).map(n=>{const g=n.group.position;return {id:`npc-${n.seed}`,minX:g.x-.45,maxX:g.x+.45,minZ:g.z-.45,maxZ:g.z+.45,npc:n};})
+    const people=this.npcs.filter(n=>!!n.collider&&Math.min(...route.slice(1).map((b,i)=>segmentDistance(n.group.position,route[i],b)))<1.2).map(n=>{const g=n.group.position;return {id:`npc-${n.seed}`,minX:g.x-.45,maxX:g.x+.45,minZ:g.z-.45,maxZ:g.z+.45,npc:n};})
       .filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ));
     const obstacles=[...this.obstacles,...furniture,...people];this.ropePoints=this.rope.update(this.plugPosition,obstacles);
     if(this.rope.strain>.3)for(const o of people){const n=o.npc;if(this.time-(n.cableAt??-9)<.7||n.alarm>0)continue;

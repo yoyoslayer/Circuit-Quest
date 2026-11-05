@@ -28,3 +28,16 @@
 ## Not done
 - R5-164 (cable pull spring and Meeting reel length): it's a P2 and a tuning risk. The 'single reel' spec margin is thin (2.27 m measured against a 2.3 m limit on one run).
 - Lunch cable feel, `furnitureNear`, drum spin and seated Lunch NPCs (R5-086/145/146/302): these wait for the lunch2 merge, because they touch `lunch-runtime.ts`.
+
+## Round 3, later
+| ID | Change | Files | Checked |
+|---|---|---|---|
+| R5-033 (P1) | Story cabinets need different chains: the handheld's band is 3–9 mA, so it needs three 470s (battery about 101 h) instead of repeating the claw's pair. Rush never deals a cabinet whose best chain equals the previous cabinet's. | `src/stations/arcade/logic.ts`, `station.ts`, `logic.test.ts`, `tests/station-arcade.spec.ts` | unit tests (distinct answers, no back-to-back repeats); station-arcade spec |
+| R5-130 follow-up | Only solid coworkers (the ones with a capsule) bend the cable. A coworker knocked off a chair used to become a cable obstacle by the Meeting route and stole the single reel's sprint reach. | `src/game.ts` | routes spec "single reel" |
+| R5-069 (Lunch part) | Already in place: the fridge only starts warming when the kitchen door first opens. The rest of the entry, the job order and concept curve, is a product-owner question (below). | - | code read |
+
+Merged: `lunch3` (bots snag a cable only where their path crosses it; seated Lunch coworkers, R5-302), `perf` (draw calls down 28–45%), and `astra/work` stages 1–3.
+
+## Questions for the product owner
+- R5-069: should the job order change so the concept curve doesn't spike at Lunch (job 02)? The review suggests moving Lunch later and reusing ideas between jobs. Nothing has been reordered yet.
+- Grade pars (time, damage and cost limits) haven't been measured from real play. Both Astra and the lead kept the current limits.

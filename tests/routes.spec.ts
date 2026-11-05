@@ -9,14 +9,19 @@ const complete=async(page:Page)=>{await wait(page,.3);await expect(page.locator(
 async function placeStrip(page:Page){await walk(page,-8.6,-3.9,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('strip');
   await route(page,[[-8,-1.4],[6,-1.2],[11.2,-1.4]]);await page.keyboard.press('KeyE');await wait(page,.2);expect((await snapshot(page)).stripPlaced).toBe(true);}
 const backToReel=(page:Page)=>route(page,[[6,-1.2],[-8,-1.4],[-10,-6.2]]);
-// After plugging in, step into the boardroom and switch the projector on. The kettle and heater
-// already load the strip by the door, so the projector tips it over and its breaker trips:
-// unplug one of them (the boardroom groans) and reset the strip.
-async function switchProjector(page:Page){await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');
-  await wait(page,.3);let s=await snapshot(page);expect(s.strip.tripped).toBe(true);expect(s.won).toBe(false);
+// After plugging in, step into the boardroom and switch the projector on. The urn and heater
+// already load the strip by the door (4.5 A, pulses on the cable), so the projector tips it over:
+// the strip hums past its line for about two seconds, then its thermal breaker trips and reads 0 A
+// with the 5.5 A demand left as a ghost. Unplug one load (the boardroom groans) and reset the strip.
+async function switchProjector(page:Page){
+  await wait(page,.2);let s=await snapshot(page);expect(s.strip.draw).toBeCloseTo(4.5);expect(s.strip.pulses).toBe(true);
+  await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');
+  await wait(page,.3);s=await snapshot(page);expect(s.strip.overloaded).toBe(true);expect(s.strip.tripped).toBe(false);expect(s.won).toBe(false);
+  await wait(page,2.7);s=await snapshot(page);expect(s.strip.tripped).toBe(true);expect(s.won).toBe(false);expect(s.strip.draw).toBe(0);expect(s.strip.demand).toBeCloseTo(5.5);expect(s.strip.pulses).toBe(false);
+  await expect(page.locator('.meeting-toast')).toContainText('cut out');
   await route(page,[[12.3,-1.2],[14.3,-.9]],.4);await page.keyboard.press('KeyE');await wait(page,.2);
-  s=await snapshot(page);expect(s.strip.unplugged).toBe(1);expect(s.alarmed).toBeGreaterThanOrEqual(1);
-  await walk(page,12.4,-1.15,.4);await page.keyboard.press('KeyE');await wait(page,.2);}
+  s=await snapshot(page);expect(s.strip.unplugged).toBe(1);expect(s.alarmed).toBeGreaterThanOrEqual(1);expect(s.strip.demand).toBeCloseTo(3);
+  await walk(page,12.3,-1.45,.3);await expect(page.locator('.prompt-pill')).toContainText('Reset the strip');await page.keyboard.press('KeyE');await wait(page,.2);}
 test('playground cable physically reaches socket and lights lamp',async({page})=>{
   const errors=await open(page,'playground');await page.keyboard.press('KeyF');
   await route(page,[[-5,-1],[-4,-4],[5.8,-5.5]]);
@@ -41,7 +46,7 @@ test('meeting clean route joins a second reel using a coupler',async({page})=>{
   await route(page,[[-9,5.3],[-9,-6.8],[-10.7,-6.8]],.4);await page.keyboard.press('KeyE');
   await route(page,[[-9,-6],[-9,5.3],[-3,5.3]],.3);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('extension');
   await route(page,[[-9,5.3],[-9,-6.8],[-10.7,-6.8]],.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).rope.maxLength).toBe(37.2);
-  await page.keyboard.press('KeyF');await route(page,[[7.8,-7],[8,-1.4],[11.4,-1.4]]);await page.keyboard.press('KeyF');await switchProjector(page);await complete(page);
+  await page.keyboard.press('KeyF');await route(page,[[6.6,-7],[6.6,-1.4],[11.4,-1.4]]);await page.keyboard.press('KeyF');await switchProjector(page);await complete(page);
 });
 test('meeting coffee extension can be reused to power the projector',async({page})=>{
   await open(page,'meeting');await placeStrip(page);
@@ -57,6 +62,30 @@ test('a taut cable slingshots boxes when let go',async({page})=>{
   await page.keyboard.press('KeyQ');await wait(page,.05);const after=await snapshot(page);
   expect(after.holdingPlug).toBe(false);expect(after.fastestProp).toBeGreaterThan(2);
   await page.screenshot({path:'artifacts/playground-slingshot.png'});
+});
+test('meeting: reset while still overloaded re-trips after the dwell; prompts pick the nearest load',async({page})=>{
+  await open(page,'meeting');await placeStrip(page);await backToReel(page);await page.keyboard.press('KeyF');
+  await route(page,[[-9,-6],[-9,5.3],[-3.3,5.5]],.3);await page.keyboard.press('KeyF');await page.keyboard.press('KeyF');
+  await route(page,[[-1,3],[-1,-1.5],[6,-1.2],[11.4,-1.4]]);await page.keyboard.press('KeyF');
+  await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');await wait(page,3);expect((await snapshot(page)).strip.trips).toBe(1);
+  // E at the switch is the switch, not a silent reset of the strip behind Pip.
+  await expect(page.locator('.prompt-pill')).not.toContainText('Reset');
+  await walk(page,12.3,-1.45,.3);await page.keyboard.press('KeyE');await wait(page,.3);let s=await snapshot(page);expect(s.strip.tripped).toBe(false);expect(s.strip.overloaded).toBe(true);
+  await wait(page,3);s=await snapshot(page);expect(s.strip.trips).toBe(2);await expect(page.locator('.meeting-toast')).toContainText('Still too much');
+  await walk(page,15.2,-1.15,.3);await expect(page.locator('.prompt-pill')).toContainText('heater');
+  await walk(page,13.9,-1.15,.3);await expect(page.locator('.prompt-pill')).toContainText('urn');
+});
+test('meeting: borrowing the coffee reel unplugs the server cable from the strip',async({page})=>{
+  await open(page,'meeting');await placeStrip(page);await backToReel(page);await page.keyboard.press('KeyF');
+  await route(page,[[-9,-6],[-9,5.3],[-3.3,5.5]],.3);await page.keyboard.press('KeyF');await page.keyboard.press('KeyF');
+  await route(page,[[-1,3],[-1,-1.5],[6,-1.2],[11.4,-1.4]]);await page.keyboard.press('KeyF');await wait(page,.2);expect((await snapshot(page)).strip.draw).toBeCloseTo(4.5);
+  await route(page,[[6,-1.2],[-8,-1.4],[-10,3.5]]);await walk(page,-12,4.5,.4);await page.keyboard.press('KeyE');await wait(page,.1);
+  const s=await snapshot(page);expect(s.holdingPlug).toBe(true);expect(s.strip.draw).toBe(0);
+});
+test('meeting slingshot topples the paper tower by the aisle end',async({page})=>{
+  await open(page,'meeting');await placeStrip(page);await backToReel(page);await page.keyboard.press('KeyF');
+  await route(page,[[-8,-5],[-1,-1.5],[6,-1.2]]);await wait(page,2,['KeyD','ShiftLeft']);expect((await snapshot(page)).rope.strain).toBeGreaterThan(1);
+  await page.keyboard.press('KeyQ');await wait(page,1.5);expect((await snapshot(page)).strip.towerDown).toBe(true);
 });
 test('borrowing the coffee extension makes the coffee corner groan',async({page})=>{
   await open(page,'meeting');await route(page,[[-10,-5],[-10,3.5]]);await walk(page,-12,4.5,.4);await page.keyboard.press('KeyE');

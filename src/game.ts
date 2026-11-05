@@ -4,7 +4,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon,seeOff,seeThrough,seeProj,seeY,seeClip} from './render/toon';
 import {BLOBC,bangTexture,freeze,glyph,cachedTexture,part,cyl,sphere,box,group,INK} from './render/kit';
 import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type Mood} from './render/actors';
-const GOLD=new T.Color('#ffd451');
+const GOLD=new T.Color('#ffd451'),DULL_GOLD=new T.Color('#b9ad86');
 /** How long R is held during play before the job restarts (ms). */
 const RESTART_HOLD=800;
 /** Samples a rope polyline for drawing: it lies on the floor (sagging a little when slack) and
@@ -92,6 +92,8 @@ export class Game {
     this.plug=makeProp('plug');seeOff(this.plug);this.root.add(this.plug);
     this.target=new T.Mesh(new T.TorusGeometry(.42,.07,8,28),new T.MeshBasicMaterial({color:'#64ddd4'}));this.target.rotation.x=-Math.PI/2;this.target.position.set(level.target.x,.15,level.target.z);this.root.add(this.target);
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
+    // In the Meeting the power strip is the socket, and Lunch wires its own carts (R5-030).
+    if(level.id==='meeting'||level.id==='lunch')socket.visible=false;
     // The anchor reel: its wound cable shrinks as cable pays out, so the length left reads at a glance.
     const anchor=group(this.root,level.anchor.x,.35,level.anchor.z);for(const side of [-1,1])part(anchor,cyl(.336,.336,.056,24,'z'),toon('#ffc94d'),0,0,side*.192);
     part(anchor,cyl(.064,.064,.45,12,'z'),toon('#c7ccd6'));part(anchor,box(.5,.06,.5),toon(INK),0,-.3,0);this.spool=part(anchor,cyl(1,1,.32,28,'z'),toon('#f4efe6'));this.spool.scale.set(.31,.31,1);
@@ -102,7 +104,7 @@ export class Game {
     // Grab cue: four floor-level corner brackets around whatever E would take (UI.md world cues).
     {const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.userData.outlineParameters={visible:false};for(let k=0;k<4;k++){const c=new T.Group();c.rotation.y=k*Math.PI/2;for(const [w,d,x,z] of [[.28,.07,-.4,-.53],[.07,.28,-.53,-.4]] as const){const b=new T.Mesh(new T.BoxGeometry(w,.03,d),m);b.position.set(x,0,z);b.userData.noAO=true;c.add(b);}this.reticle.add(c);}this.reticle.visible=false;this.root.add(this.reticle);}
     // A soft ring under Pip keeps the hero findable among coworkers.
-    this.pipRing=new T.Mesh(new T.RingGeometry(.42,.58,40).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#ffc629',transparent:true,opacity:.55,depthWrite:false}));this.pipRing.userData.outlineParameters={visible:false};this.root.add(this.pipRing);this.reticle.rotation.x=-Math.PI/2;this.reticle.renderOrder=10;this.root.add(this.reticle);
+    this.pipRing=new T.Mesh(new T.RingGeometry(.42,.58,40).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#ffc629',transparent:true,opacity:.55,depthWrite:false}));this.pipRing.userData.outlineParameters={visible:false};this.root.add(this.pipRing);this.reticle.renderOrder=10;this.root.add(this.reticle);
     // Idle hint: glowing dots flowing along the clean route to the socket.
     {const m=new T.MeshBasicMaterial({color:'#9ff3ea'});m.color.multiplyScalar(1.4);m.userData.outlineParameters={visible:false};const dot=new T.SphereGeometry(.07,8,6);for(let k=0;k<40;k++){const d=new T.Mesh(dot,m);d.userData.noAO=true;this.hint.add(d);}this.hint.visible=false;this.root.add(this.hint);}
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
@@ -269,7 +271,8 @@ export class Game {
     if(!this.lunch&&!this.station&&!this.hub&&distance(pos,this.plugPosition)<1.75&&!(nearest&&this.reach(pos,nearest)<distance(pos,this.plugPosition))){if(this.connected){this.connected=false;this.circuit.leads[0].closed=false;}this.holdingPlug=true;this.audio.pop();return;}
     if(cableOnly){this.shrug();return;}
     if(nearest){
-      if(nearest.spec.id==='coffee-reel'&&!this.coffeeReused){this.coffeeReused=true;this.rope.reset({x:-14,z:5},Math.max(30,this.rope.maxLength));this.plugPosition.set(-13,.3,4.5);this.holdingPlug=true;this.consume(nearest);this.audio.tone(100,.6,.06,'triangle');
+      // The server cable can't stay plugged into the strip once its plug is swapped for the coffee reel's (R5-201).
+      if(nearest.spec.id==='coffee-reel'&&!this.coffeeReused){this.coffeeReused=true;this.connected=false;this.circuit.leads[0].closed=false;this.rope.reset({x:-14,z:5},Math.max(30,this.rope.maxLength));this.plugPosition.set(-13,.3,4.5);this.holdingPlug=true;this.consume(nearest);this.audio.tone(100,.6,.06,'triangle');
         // The coffee bar goes dark: nearby coworkers groan.
         this.alarm({x:-13,z:4.5},4.5);for(let i=0;i<3;i++)setTimeout(()=>this.audio.voice('groan',.8+i*.15),150+i*280);return;}
       // A jammed doorstop only comes loose when deliberately picked up.
@@ -312,9 +315,11 @@ export class Game {
   }
   /** Forgiving plug-in (AGENTS 7): close enough to the socket and not overstretched seats the plug. */
   canSeat(){const pos=this.player.translation();return Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12;}
+  /** Where a seated plug sits: the socket, or in the Meeting the power strip's inlet (R5-030). */
+  seatAt(){return this.strip&&this.stripPlaced()?this.strip.seatAt():new T.Vector3(this.level.target.x,.28,this.level.target.z);}
   trySeat(){
     if(!this.holdingPlug||!this.canSeat())return false;
-    this.connected=true;this.holdingPlug=false;this.rope.release();this.plugPosition.set(this.level.target.x,.28,this.level.target.z);this.circuit.leads[0].closed=true;this.audio.plug();this.plugFlash(this.plugPosition);return true;
+    this.connected=true;this.holdingPlug=false;this.rope.release();this.plugPosition.copy(this.seatAt());this.circuit.leads[0].closed=true;this.audio.plug();this.plugFlash(this.plugPosition);return true;
   }
   /** Socket signpost (R5-121): the ring pulses softly on its own; carrying the plug within 3 m it
    *  turns job yellow and grows, and once letting go would seat the plug a ghost plug shows where
@@ -326,6 +331,9 @@ export class Game {
     mat.color.set(near?'#ffd84a':'#64ddd4');ring.scale.setScalar((near?1.3:1)*(1+Math.sin(t*(seat?9:3))*(seat?.16:.12)));
     if(!this.ghost){this.ghost=makeProp('plug');const m=new T.MeshBasicMaterial({color:'#ffd84a',transparent:true,opacity:.45,depthTest:false});m.userData.outlineParameters={visible:false};
       this.ghost.traverse(o=>{if(o instanceof T.Mesh){o.material=m;o.renderOrder=11;o.castShadow=false;}});this.ghost.position.set(this.level.target.x,.28,this.level.target.z);this.root.add(this.ghost);}
+    if(seat)this.ghost.position.copy(this.seatAt());
+    // Meeting: once the plug is in, the ring would read as "go here" again, so it goes (R5-030).
+    if(this.strip)ring.visible=!this.connected;
     this.ghost.visible=seat;if(seat&&!this.wasSeatable)this.audio.tone(1320,.05,.03,'triangle');this.wasSeatable=seat;
   }
   /** The slingshot's visible half: the released plug whips back along the cable toward the anchor
@@ -403,8 +411,12 @@ export class Game {
     if(this.holdingPlug&&this.rope.strain>.9&&Math.floor(this.last/700)!==Math.floor((this.last-16)/700))for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];this.alarm({x:(a.x+b.x)/2,z:(a.z+b.z)/2},2.2);}
     // The hero cable: strain builds from the reel toward Pip's hand; gold once it is plugged in,
     // with current pulses flowing to the load.
-    if(points.length>1){const hose=hoseGeometry(points,{radius:.1,strain:u=>strain*(.6+.4*u),tint:this.connected?GOLD:undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
-      this.pulses.update(hose.curve,hose.length,this.last/1000,this.circuit.loads[0].state==='on');
+    // Pulses mean current, and only that (R5-040): they run whenever the supply carries any (in the
+    // Meeting that is the urn and heater before the projector is on). A plugged-in cable carrying
+    // nothing because the strip tripped goes a dull gold.
+    const live=(this.circuit.draw.get('supply')??0)>0&&!this.circuit.sources[0].tripped;
+    if(points.length>1){const hose=hoseGeometry(points,{radius:.1,strain:u=>strain*(.6+.4*u),tint:this.connected?(this.strip&&!live?DULL_GOLD:GOLD):undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
+      this.pulses.update(hose.curve,hose.length,this.last/1000,live);
       // The joint: the coupler sits on the cable where the second reel was joined.
       if(this.extension){if(!this.joint){this.joint=makeProp('coupler');this.root.add(this.joint);}
         const u=T.MathUtils.clamp(this.joinAt/Math.max(hose.length,.01),0,1),at=hose.curve.getPointAt(u),tan=hose.curve.getTangentAt(u);
@@ -439,7 +451,7 @@ export class Game {
     this.world.timestep=dt;this.world.step();
     if(this.holdingPlug&&this.rope.strain>.88)for(const prop of this.props){const pos=prop.body.translation();if(prefabs[prop.spec.kind].mass<=15&&this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<.65)){const v=new T.Vector3(p.x-pos.x,0,p.z-pos.z).normalize().multiplyScalar(dt*12*(this.rope.strain-.8));prop.body.applyImpulse({x:v.x,y:.015,z:v.z},true);}}
     for(const prop of this.props){if(!prop.body.isEnabled())continue;const pos=prop.body.translation(),v=prop.body.linvel(),speed=Math.hypot(v.x,v.y,v.z);
-      if(this.time>2&&!prop.damaged&&prop!==this.held&&prop.lastSpeed>5.5&&prop.lastSpeed-speed>3.5){prop.damaged=true;this.alarm(pos);this.damage++;this.cost+=prefabs[prop.spec.kind].cost;if(prop.spec.kind==='glass')this.audio.glass();else if(prefabs[prop.spec.kind].mass<1)this.audio.clatter();else this.audio.thud(prefabs[prop.spec.kind].mass);this.burst(pos,'#e1d4b7',3);this.burst(pos,'#e9e4d6',3,'dust');if(prop.spec.kind==='glass'){this.consume(prop);this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#a0dbdf',14);}}
+      if(this.time>2&&!prop.damaged&&prop!==this.held&&!this.strip?.isTower(prop)&&prop.lastSpeed>5.5&&prop.lastSpeed-speed>3.5){prop.damaged=true;this.alarm(pos);this.damage++;this.cost+=prefabs[prop.spec.kind].cost;if(prop.spec.kind==='glass')this.audio.glass();else if(prefabs[prop.spec.kind].mass<1)this.audio.clatter();else this.audio.thud(prefabs[prop.spec.kind].mass);this.burst(pos,'#e1d4b7',3);this.burst(pos,'#e9e4d6',3,'dust');if(prop.spec.kind==='glass'){this.consume(prop);this.burst(new T.Vector3(pos.x,pos.y,pos.z),'#a0dbdf',14);}}
       prop.lastSpeed=speed;
       // Paper sheets flutter: heavy air drag plus a wobble while airborne.
       if(prop.spec.kind==='paper'&&pos.y>.15&&speed>.3){prop.body.applyImpulse({x:-v.x*.004,y:-v.y*.0045+.0002,z:-v.z*.004},true);const w=this.time*23+prop.body.handle;prop.body.applyTorqueImpulse({x:Math.sin(w)*.00002,y:Math.sin(w*1.7)*.00002,z:Math.cos(w*1.3)*.00002},true);}
@@ -454,7 +466,9 @@ export class Game {
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
     // All six pins down: a strike.
     if(this.level.id==='playground'&&!this.pinsCheered&&Math.floor(this.time*4)!==Math.floor((this.time-dt)*4)&&this.pinsDown()>=6){this.pinsCheered=true;this.audio.jingle();this.burst({x:5,y:1.5,z:5.3},'#ffcf52',40,'confetti');}
-    if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
+    if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step(dt);this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);
+      // Meeting: a projector on an overloaded strip only runs until its breaker trips, so it doesn't count (R5-041).
+      if(this.circuit.loads[0].state==='on'&&!this.won&&!this.strip?.overloaded)this.win();}
   }
   win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');
@@ -583,7 +597,11 @@ export class Game {
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
     const plugFirst=!this.lunch&&!this.station&&!this.hub&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));
     const mark=attach?.mesh.position??(plugFirst?this.plugPosition:!this.holdingPlug&&!this.held?nearest?.mesh.position:undefined);
-    this.reticle.visible=this.running&&!this.won&&!this.atBench&&!!mark;if(mark){this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);}
+    // The brackets lie flat on the floor and hug the marked prop's footprint (R5-122).
+    const markKind=attach?.spec.kind??(plugFirst?undefined:nearest?.spec.kind),foot=markKind?prefabs[markKind].size:undefined;
+    this.reticle.visible=this.running&&!this.won&&!this.atBench&&!!mark;if(mark){const hx=foot?Math.max(.3,(foot[0]+.2)/2):.53,hz=foot?Math.max(.3,(foot[2]+.2)/2):.53;this.reticle.position.set(mark.x,.03,mark.z);this.reticle.scale.setScalar(1+Math.sin(this.last*.008)*.1);
+      // Each corner moves out (or in) to the footprint's corner; the bracket arms keep their size.
+      for(const c of this.reticle.children){const s=Math.sin(c.rotation.y),co=Math.cos(c.rotation.y),cx=-.53*co-.53*s,cz=.53*s-.53*co;c.position.set(Math.sign(cx)*(hx-.53),0,Math.sign(cz)*(hz-.53));}}
     this.pipRing.position.set(p.x,.03,p.z);
     this.fx.update(dt);
     // The meeting clock reads 9:55 and its red minute hand sweeps the four minutes to the meeting.

@@ -3,18 +3,22 @@
 // slides and turns them into place, then draws tracks between pads. Board 1 is one copper layer
 // (tracks can't cross), board 2 is about decoupling, board 3 adds layer 2, vias and a thermal pad.
 // Dashed lines are the ratsnest: connections still to route. Input is modeless: drag a part's body
-// to move it (click it again to turn it), drag from a pad or track to draw, tap a track to cut it,
-// V drops a via (mid-stroke it changes layer and the track carries on). Each decoupling loop glows
-// on the copper and current bursts race round it on CHECK; the hot chip glows by temperature.
+// (or press and hold anywhere on it) to move it, click it again to turn it, drag from a pad or track
+// to draw, tap a track to cut it, V drops a via (mid-stroke it changes layer and the track carries on).
+// Board 1's header comes in two pinouts: the spare sits in a tray beside the board (click it to swap).
+// Each decoupling loop is outlined beside its copper (green and solid when short, orange and dashed
+// when too long). CHECK is a power-on test: once the supply reaches the chip, current pulses light the
+// whole loop at once and the chip's status LED shows the result (steady, or stuttering as it resets).
+// SHIP runs the same bring-up test before the board leaves. The chip heats only once it is powered.
 // Rules: ./logic.ts.
 import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressFabBay} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,stripes,INK} from '../../render/kit';
 import {hot} from '../../render/actors';
-import {BOARDS,HEAT,blank,check,erase,footprint,netOfPin,isNC,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,viaProblem,same,
+import {BOARDS,HEAT,blank,check,erase,footprint,netOfPin,isNC,partOf,pinCells,pinOrderOk,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,viaProblem,same,
   type Board,type Design,type Layer,type PartDef,type Place,type Report,type Rot,type XY} from './logic';
 import './qfn.css';
 import {cheer} from '../shared';
@@ -23,7 +27,9 @@ import {cheer} from '../shared';
 const S=.15,TOP=.07;
 const NET_COLORS:Record<string,string>={VDD:'#e5484d',VIN:'#e5484d',GND:'#3f7fd6',OUT:'#f08a24',SIG:'#9b6ee8',RST:'#e063b8',ISET:'#e0a800'};
 const netColor=(n:string)=>isNC(n)?'#cdbf95':NET_COLORS[n]??'#8a8fa3';
-const MASK='#4c9f76',JIG='#aeb4e8',TIERS=['Doesn\'t work','Works','Works reliably','Elegant to manufacture'];
+const MASK='#4c9f76',JIG='#aeb4e8',TIERS=['Doesn\'t work','Works','Works reliably','Elegant'];
+/** How long the bring-up test on SHIP runs (s), and how fast current pulses go round a loop (m/s). */
+const BRING_UP=2.2,PULSE=.3,SUPPLY=/^(VDD|VIN|GND)$/;
 const KEYS:Record<string,[string,unknown?]>={KeyR:['rotate'],KeyL:['layer'],KeyV:['arm'],KeyC:['check'],Enter:['ship'],KeyZ:['undo'],Backspace:['undo']};
 
 /** Rounded label plate texture; the type shrinks until the words fit. */
@@ -61,6 +67,15 @@ export class QfnBench implements Station {
   private stroke?:Stroke;private drag?:{id:string;grab:XY;to:XY;moved:boolean;wasSelected:boolean};private hoverCell?:XY;private hoverBody?:string;
   /** Decoupling loops drawn on the copper, and the current bursts that race round them after CHECK. */
   private loopFx=new T.Group();private beads:{mesh:T.Mesh;path:T.Vector3[];u:number;speed:number}[]=[];private burstT=0;private heatGlow?:T.Sprite;
+  /** The too-long loops' outline material (it pulses), the chip's status LED, and how warm the chip looks. */
+  private badLoop=ownToon('#ff7a1a');private led?:T.Mesh;private warm=0;private qfnTags:T.Mesh[]=[];
+  /** A press on a movable part's pad that hasn't left its cell yet: held long enough, it becomes a move. */
+  private hold?:{id:string;cell:XY;t:number};
+  /** SHIP's bring-up test: the board stays on the bench, powered, for BRING_UP seconds. */
+  private bringUp?:{t:number;tier:number};
+  /** Parts moved on this board (the prompt asks for placement first), and whether a short stopped a
+   *  track while the header's pinout was the wrong way round. */
+  private movedParts=new Set<string>();private stuck=false;private spareRoot=new T.Group();
   private drops:{g:T.Group;t:number}[]=[];private markUntil=0;private outbox:T.Group[]=[];
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';private crate?:Game['props'][number];private ready=false;
   constructor(private game:Game){
@@ -70,7 +85,7 @@ export class QfnBench implements Station {
       steps:[
         {text:'Bring the parts crate from the stock shelf to the bench',done:()=>this.partsReady,at:()=>this.crate?.body.translation()??this.stand},
         {text:'Sit at the layout bench (E)',done:()=>this.active||this.shipped.length>0,at:()=>this.stand},
-        ...BOARDS.map((b,i)=>({text:`Board ${i+1} · ${b.title}: ${['one layer, no crossings','two caps hug their pins','layer 2, vias, thermal pad'][i]}`,done:()=>this.shipped.length>i,at:()=>this.stand}))],
+        ...BOARDS.map((b,i)=>({text:`Board ${i+1} · ${b.title}: ${['one layer, no crossings','keep the MCU from resetting','cross VIN and GND, keep it cool'][i]}`,done:()=>this.shipped.length>i,at:()=>this.stand}))],
       bonuses:[
         {text:'Every board works reliably',ok:()=>this.shipped.length>0&&this.shipped.every(s=>s.tier>=2)},
         {text:'Elegant: every route at or under par',ok:()=>this.shipped.length>0&&this.shipped.every(s=>s.tier===3)},
@@ -104,9 +119,11 @@ export class QfnBench implements Station {
       const p=plate(b,label(name,color,INK,256,128,k),.37,.185,0,.072,0);
       if(act==='layer')this.layerPlate=p;if(act==='arm')this.viaPlate=p;
       this.click(b,act);this.toolPucks.set(act,b);}
+    // The spare header's tray, left of the board (only board 1 has a spare): click it to swap pinouts.
+    const tray=group(top,-1.42,0,-.5);part(tray,rbox(.34,.03,.62,.02),toon('#c7b8ff'),0,.015,0);tray.add(this.spareRoot);this.spareRoot.position.y=.03;this.click(tray,'swap');this.spareRoot.userData.tray=tray;
     const undo=group(top,-1.08,0,1.0);part(undo,rbox(.26,.05,.14,.03),toon('#fffaf0'),0,.025,0);plate(undo,label('UNDO','#fffaf0',INK,256,128,'Z'),.25,.125,0,.052,0);this.click(undo,'undo');
-    // Title and ratsnest legend ride on the jig's near margin (loadBoard sets the depth), where no
-    // part standing on the board can draw over them.
+    // Title and ratsnest legend lie on the mat just past the jig's near edge (loadBoard sets the depth),
+    // beyond the reach of a connector on the board's near edge, so no part can cover them.
     this.boardPlate=plate(this.boardRoot,label('BOARD 1','#fffaf0'),.84,.112,-.2,-.033,0);this.boardPlate.userData.keep=true;
     this.legendPlate=plate(this.boardRoot,label('- - -  still to route','#d9d4f2',INK,384,72),.46,.086,.68,-.033,0);this.legendPlate.userData.keep=true;
   }
@@ -131,18 +148,39 @@ export class QfnBench implements Station {
     const face=part(this.boardRoot,new T.PlaneGeometry(w,h),toon('#ffffff',{map:grid}),0,.0005,0,false);face.rotation.x=-Math.PI/2;face.userData.noAO=true;(face.material as T.Material).userData.outlineParameters={visible:false};
     for(const p of b.parts)this.buildPart(p);
     (this.boardPlate.material as T.MeshBasicMaterial).map=label(`BOARD ${this.boardIx+1} · ${b.title.toUpperCase()}`,'#fffaf0',INK,512,68);
-    const near=h/2+.066;this.boardPlate.position.z=near;this.legendPlate.position.z=near;this.marks.clear();
-    this.layer=1;this.viaArmed=false;this.selected=undefined;this.history=[];this.burstT=0;
+    const near=h/2+.24;this.boardPlate.position.z=near;this.legendPlate.position.z=near;this.marks.clear();
+    this.layer=1;this.viaArmed=false;this.selected=undefined;this.history=[];this.burstT=0;this.warm=0;this.movedParts.clear();this.stuck=false;
     if(this.heatGlow){this.heatGlow.parent?.remove(this.heatGlow);this.heatGlow=undefined;}
-    if(b.thermal){const pid=b.thermal.pin.split('.')[0],g=this.partGroups.get(pid)!;this.heatGlow=glow(g,'rgba(255,90,40,1)',.9,0);this.heatGlow.position.y=.2;}
-    this.syncParts(true);this.redraw();
+    // A modest glow above the chip's edge (it must not wash out the pin names or the vias).
+    if(b.thermal){const pid=b.thermal.pin.split('.')[0],g=this.partGroups.get(pid)!;this.heatGlow=glow(g,'rgba(255,90,40,1)',.7,0);this.heatGlow.position.y=.3;}
+    this.buildSpare();this.syncParts(true);this.redraw();
+  }
+  /** The spare header in its tray: the same connector with the mirrored pinout. */
+  private buildSpare(){
+    const b=this.board(),tray=this.spareRoot.userData.tray as T.Object3D;this.spareRoot.clear();tray.visible=!!b.spare;if(!b.spare)return;
+    const p=partOf(b,b.spare.part),flip=!this.design.place[p.id].flip;
+    for(const q of p.pins)for(const c of q.cells){const z=flip?-c[1]:c[1];part(this.spareRoot,cyl(.05,.05,.012,20),mat(netColor(netOfPin(b,`${p.id}.${q.id}`))),c[0]*S*.9+.05,.006,z*S*.9);}
+    this.header(this.spareRoot,p,flip,.9,.05);
+  }
+  /** A header's shroud (mouth side, pin names on top), its name cap past pin 1, and the chevron. */
+  private header(g:T.Object3D,p:PartDef,flip:boolean,k=1,ox=0){
+    const b=this.board(),tags:{m:T.Mesh;z:number}[]=[],ys=p.pins.map(q=>(flip?-1:1)*q.cells[0][1]),mid=(Math.min(...ys)+Math.max(...ys))/2,n=p.pins.length;
+    const sh=group(g,ox+(-S*.5-.07)*k,0,mid*S*k);sh.scale.setScalar(k);part(sh,rbox(.15,.11,n*S+.04,.025),toon('#3a3d55'),0,.055,0);part(sh,box(.02,.06,n*S-.03),toon('#8a8fb8'),-.075,.06,0);
+    p.pins.forEach((q,i)=>{const t=label(q.label,netColor(netOfPin(b,`${p.id}.${q.id}`)),'#fffaf0',160,72);tags.push({m:plate(sh,t,.115,.052,.0,.112,(ys[i]-mid)*S),z:0});});
+    // An end cap past pin 1 carries the part's name (ink diagonals when the enclosure fixes it).
+    const first=ys[0]<=mid,cap=group(g,ox+(-S*.5-.07)*k,0,(first?(Math.min(...ys)-.5)*S-.07:(Math.max(...ys)+.5)*S+.07)*k);cap.scale.setScalar(k);
+    part(cap,rbox(.15,.11,.14,.025),p.locked?toon('#ffffff',{map:lockedTex()}):toon('#3a3d55'),0,.055,0);
+    tags.push({m:plate(cap,label(p.id,'#fffaf0',INK,160,80),.12,.06,0,.112,0),z:0});
+    // Chevron pointing out of the mouth.
+    const chev=part(sh,new T.ConeGeometry(.035,.06,3),hot('#ffe36e',1.2),-.12,.07,0,false);chev.rotation.z=Math.PI/2;
+    return tags;
   }
   private padTex=new Map<string,T.Texture>();
   private buildPart(p:PartDef){
-    const b=this.board(),g=new T.Group(),tags:{m:T.Mesh;z:number}[]=[];this.partsRoot.add(g);this.partGroups.set(p.id,g);g.userData.part=p.id;
+    const b=this.board(),g=new T.Group(),flip=!!this.design.place[p.id]?.flip;let tags:{m:T.Mesh;z:number}[]=[];this.partsRoot.add(g);this.partGroups.set(p.id,g);g.userData.part=p.id;g.userData.flip=flip;
     for(const pin of p.pins){const net=netOfPin(b,`${p.id}.${pin.id}`),col=netColor(net);
       if(pin.id==='EP'){const m=part(g,box(3*S-.035,.012,3*S-.035),mat(isNC(net)?'#d8cba2':col),0,.006,0);m.userData.pad=true;continue;}
-      for(const c of pin.cells){
+      for(const c0 of pin.cells){const c:XY=flip?[c0[0],-c0[1]]:c0;
         if(p.through){part(g,cyl(.058,.058,.014,20),mat(col),c[0]*S,.007,c[1]*S).userData.pad=true;part(g,cyl(.022,.022,.016,12),mat(INK,1,false),c[0]*S,.008,c[1]*S).userData.pad=true;}
         else part(g,box(.112,.014,.112),mat(col),c[0]*S,.007,c[1]*S).userData.pad=true;}}
     if(p.kind==='qfn'){
@@ -151,34 +189,32 @@ export class QfnBench implements Station {
         c.fillStyle='#fffaf0';c.beginPath();c.arc(70,70,22,0,7);c.fill();c.textAlign='center';c.textBaseline='middle';c.font='700 92px "Fredoka Variable", system-ui, sans-serif';c.fillText(p.id,256,178);
         c.font='600 46px "Fredoka Variable", system-ui, sans-serif';c.fillStyle='#d9d4f2';c.fillText(p.value,256,322);
         const ep=p.pins.find(q=>q.id==='EP')!;c.font='600 30px "Fredoka Variable", system-ui, sans-serif';c.fillStyle='#b9bfeb';c.fillText(ep.label==='NC'?'EP: not connected':`EP: ${ep.label}`,256,368);});
-      const body=part(g,rbox(3*S+.02,.05,3*S+.02,.02),ownToon('#34364d'),0,.04,0);this.qfnBody=body;
+      const body=part(g,rbox(3*S+.02,.05,3*S+.02,.02),ownToon('#34364d'),0,.04,0);this.qfnBody=body;this.qfnTags=[];
+      // Status LED in the corner opposite pin 1: dark until a power-on test (CHECK or SHIP) runs.
+      const led=part(g,sphere(.024,12,8),new T.MeshBasicMaterial({color:'#4a4d66'}),1.2*S,.068,-1.2*S,false);led.scale.y=.55;(led.material as T.Material).userData.outlineParameters={visible:false};this.led=led;
+      part(g,cyl(.034,.034,.008,16),mat(INK,1,false),1.2*S,.064,-1.2*S,false);
       const top=part(g,new T.PlaneGeometry(3*S,3*S),flatMat(tex),0,.0655,0,false);top.rotation.x=-Math.PI/2;body.userData.top=top;
       for(const pin of p.pins){if(pin.id==='EP'||pin.label==='NC')continue;const [x,y]=pin.cells[0],dx=Math.sign(x)*(Math.abs(x)===2?1:0),dy=Math.sign(y)*(Math.abs(y)===2?1:0);
         // The name sits on the body edge next to its pin.
         const key=`pin:${pin.label}`;let t=this.padTex.get(key);if(!t){t=label(pin.label,netColor(netOfPin(b,`${p.id}.${pin.id}`)),'#fffaf0',160,72);this.padTex.set(key,t);}
-        const tag=plate(g,t,.13,.058,(x-dx*.93)*S,.067,(y-dy*.93)*S);tag.renderOrder=2;}
+        const tag=plate(g,t,.13,.058,(x-dx*.93)*S,.067,(y-dy*.93)*S);tag.renderOrder=2;this.qfnTags.push(tag);}
     }else if(p.kind==='conn'){
-      // Shroud on the mouth side (the cable plugs in there), pin names on its top.
-      const n=p.pins.length,ys=p.pins.map(q=>q.cells[0][1]),mid=(Math.min(...ys)+Math.max(...ys))/2;
-      const sh=group(g,-S*.5-.07,0,mid*S);part(sh,rbox(.15,.11,n*S+.04,.025),toon('#3a3d55'),0,.055,0);part(sh,box(.02,.06,n*S-.03),toon('#8a8fb8'),-.075,.06,0);
-      p.pins.forEach(q=>{const t=label(q.label,netColor(netOfPin(b,`${p.id}.${q.id}`)),'#fffaf0',160,72);tags.push({m:plate(sh,t,.115,.052,.0,.112,(q.cells[0][1]-mid)*S),z:0});});
-      // An end cap past pin 1 carries the part's name (striped when the enclosure fixes it).
-      const cap=group(g,-S*.5-.07,0,(Math.min(...ys)-.5)*S-.07);part(cap,rbox(.15,.11,.14,.025),toon(p.locked?'#ffc629':'#3a3d55'),0,.055,0);
-      tags.push({m:plate(cap,label(p.id,'#fffaf0',INK,160,80),.12,.06,0,.112,0),z:0});
-      // Chevron pointing out of the mouth.
-      const chev=part(sh,new T.ConeGeometry(.035,.06,3),hot('#ffe36e',1.2),-.12,.07,0,false);chev.rotation.z=Math.PI/2;
+      tags=this.header(g,p,flip);
     }else{
-      // A slim body between the pads (grab it to move the part); its end caps are the pins (drag from them to draw).
+      // The tall body between the pads is the grip (drag it, or press and hold anywhere on the part, to
+      // move it); the low flat end caps are the solder terminations on the pads (drag from them to draw).
       const col=p.kind==='cap'?'#d8b88c':'#34364d',body=group(g,S/2,0,0);
-      part(body,rbox(.1,.07,.1,.022),toon(col),0,.05,0);p.pins.forEach((q,i)=>{part(body,rbox(.045,.066,.106,.014),toon(netColor(netOfPin(b,`${p.id}.${q.id}`))),(i?1:-1)*.072,.045,0).userData.pad=true;});
-      const tag=plate(body,label(p.id,col,p.kind==='cap'?INK:'#fffaf0',160,80),.09,.045,0,.087,0);tag.renderOrder=2;tags.push({m:tag,z:0});
+      part(body,rbox(.12,.075,.1,.024),toon(col),0,.0455,0);p.pins.forEach((q,i)=>{part(body,rbox(.05,.018,.106,.008),toon(netColor(netOfPin(b,`${p.id}.${q.id}`))),(i?1:-1)*.09,.009,0).userData.pad=true;});
+      const tag=plate(body,label(p.id,col,p.kind==='cap'?INK:'#fffaf0',160,80),.1,.05,0,.085,0);tag.renderOrder=2;tags.push({m:tag,z:0});
     }
-    g.userData.tags=tags;
+    g.userData.tags=tags;return g;
   }
   /** Moves every part group to its placement (and hides parts until the crate arrives). */
   private syncParts(instant=false){
     const b=this.board();
-    for(const p of b.parts){const g=this.partGroups.get(p.id)!,pl=this.design.place[p.id];
+    for(const p of b.parts){let g=this.partGroups.get(p.id)!;const pl=this.design.place[p.id];
+      // A swapped pinout (or an undo of the swap) rebuilds the part, and the spare in the tray.
+      if(!!g.userData.flip!==!!pl.flip){const y=g.position.y;this.partsRoot.remove(g);g=this.buildPart(p);g.position.y=y;this.buildSpare();}
       const pos=this.at(pl.at);g.position.set(pos.x,g.position.y,pos.z);g.rotation.y=-pl.rot*Math.PI/2;
       g.visible=this.partsReady||p.kind==='qfn'||!!p.locked;
       // Flat tags counter-turn so they always read upright from the bench.
@@ -197,8 +233,10 @@ export class QfnBench implements Station {
       const col=act?base:'#'+new T.Color(base).lerp(new T.Color(l1?'#f4efe6':MASK),l1?.62:.35).getHexString(),m=mat(col,1,act);for(let i=1;i<t.cells.length;i++)seg(this.copper,t.cells[i-1],t.cells[i],l1?.07:.052,l1?.006:.002,m);
       if(t.cells.length===1){const p=this.at(t.cells[0]);part(this.copper,box(.07,.008,.07),m,p.x,.006,p.z,false);}}
     for(const v of d.vias){const p=this.at(v.at);part(this.copper,cyl(.05,.05,.018,18),mat(netColor(v.net)),p.x,.012,p.z,false);part(this.copper,cyl(.02,.02,.02,12),mat('#1d1f30',1,false),p.x,.013,p.z,false);}
-    // Ratsnest: thin dashes floating over the board.
-    for(const r of ratsnest(b,d)){const a=this.at(r.a,.09),z=this.at(r.b,.09),len=a.distanceTo(z),n=Math.max(1,Math.floor(len/.05)),dir=z.clone().sub(a).normalize(),yaw=Math.atan2(-dir.z,dir.x);
+    // Ratsnest: thin dashes floating over the board (none before the parts arrive). While a part is
+    // dragged they stretch to where it would land.
+    const dr=this.drag,live=dr?.moved?{...d,place:{...d.place,[dr.id]:{...d.place[dr.id],at:dr.to}}}:d;this.legendPlate.visible=this.partsReady;
+    if(this.partsReady)for(const r of ratsnest(b,live)){const a=this.at(r.a,.09),z=this.at(r.b,.09),len=a.distanceTo(z),n=Math.max(1,Math.floor(len/.05)),dir=z.clone().sub(a).normalize(),yaw=Math.atan2(-dir.z,dir.x);
       const m=mat(shade(netColor(r.net),-.0),1,false);
       for(let i=0;i<n;i++){const p=a.clone().addScaledVector(dir,(i+.5)*len/n);const dash=part(this.rats,box(.026,.008,.012),m,p.x,p.y,p.z,false);dash.rotation.y=yaw;}
       for(const e of [a,z]){const dot=part(this.rats,cyl(.016,.016,.01,10),m,e.x,e.y,e.z,false);dot.userData.noAO=true;}}
@@ -206,7 +244,7 @@ export class QfnBench implements Station {
     this.selFrame.clear();
     if(this.selected){const p=partOf(b,this.selected),cells=footprint(p,d.place[p.id]),xs=cells.map(c=>c[0]),ys=cells.map(c=>c[1]);
       const x0=(Math.min(...xs)-.5-(b.w-1)/2)*S,x1=(Math.max(...xs)+.5-(b.w-1)/2)*S,z0=(Math.min(...ys)-.5-(b.h-1)/2)*S,z1=(Math.max(...ys)+.5-(b.h-1)/2)*S;
-      const bad=this.drag&&placeProblem(b,d,this.drag.id,{at:this.drag.to,rot:d.place[this.drag.id].rot}),m=hot(bad?'#ff6b6b':'#ffe36e',1.3);
+      const bad=this.drag&&placeProblem(b,d,this.drag.id,{...d.place[this.drag.id],at:this.drag.to}),m=hot(bad?'#ff6b6b':'#ffe36e',1.3);
       if(this.drag){const dx=(this.drag.to[0]-d.place[this.drag.id].at[0])*S,dz=(this.drag.to[1]-d.place[this.drag.id].at[1])*S;this.selFrame.position.set(dx,0,dz);}else this.selFrame.position.set(0,0,0);
       for(const [w,h,x,z] of [[x1-x0,.016,(x0+x1)/2,z0],[x1-x0,.016,(x0+x1)/2,z1],[.016,z1-z0,x0,(z0+z1)/2],[.016,z1-z0,x1,(z0+z1)/2]])part(this.selFrame,box(w+.016,.012,h),m,x,.02,z,false);}
     // Tool and layer states.
@@ -214,20 +252,33 @@ export class QfnBench implements Station {
     const L=b.layers===1?'L1 only':`L${this.layer}`;(this.layerPlate.material as T.MeshBasicMaterial).map=this.tex(`layer:${L}`,()=>label(`LAYER ${L}`,this.layer===2?'#8fd6b4':'#c8f0dc',INK,256,128,'L'));
     (this.viaPlate.material as T.MeshBasicMaterial).map=this.tex(`via:${b.layers}`,()=>label('VIA',b.layers===2?'#ffe9a8':'#e3e0d6',b.layers===2?INK:'#8a8a9a',256,128,'V'));
     if(this.qfnBody){const see=b.layers===2&&(this.viaArmed||this.layer===2),m=this.qfnBody.material as T.MeshToonMaterial,top=this.qfnBody.userData.top as T.Mesh;
-      m.transparent=true;m.opacity=see?.28:1;m.depthWrite=!see;(top.material as T.MeshBasicMaterial).opacity=see?.3:1;}
+      m.transparent=true;m.opacity=see?.28:1;m.depthWrite=!see;(top.material as T.MeshBasicMaterial).opacity=see?.3:1;
+      // The pin names fade with the body so the x-ray view reads as one see-through package.
+      for(const t of this.qfnTags)(t.material as T.MeshBasicMaterial).opacity=see?.45:1;}
     this.drawLoops();this.drawPreview();this.shown='';
   }
-  /** Each decoupling loop as a glow over its copper: green when short enough, orange when too long. */
+  /** Whether the supply reaches the chip: every pad of the supply nets (VDD or VIN, and GND, J1's pins
+   *  included) is joined. Only then can a power-on test show current in the loops. */
+  private supplyOn(){const s=this.live.nets.filter(n=>SUPPLY.test(n.net));return s.length>0&&s.every(n=>n.done);}
+  /** Each decoupling loop outlined beside its copper with ink-edged strips (normal colours, not a glow,
+   *  so the track's own colour stays readable between them): solid green when short enough, dashed
+   *  pulsing orange when too long. */
   private drawLoops(){
-    this.loopFx.clear();this.beads=[];const b=this.board();if(!b.decouple)return;
-    for(const l of this.live.loops){if(l.path.length<2)continue;const ok=l.loop<=l.max,m=new T.MeshBasicMaterial({color:new T.Color(ok?'#7dffb0':'#ffa040').multiplyScalar(1.4),transparent:true,opacity:.55,depthWrite:false,blending:T.AdditiveBlending});
-      m.userData.outlineParameters={visible:false};
-      const pts=l.path.map(p=>this.at(p.c,p.l===1?.03:.016));
-      for(let i=1;i<pts.length;i++){const a=pts[i-1],z=pts[i];if(a.distanceTo(z)<1e-6)continue;const v=Math.abs(a.x-z.x)<1e-6,len=a.distanceTo(z)+.03;
-        const seg=part(this.loopFx,box(v?.03:len,.004,v?len:.03),m,(a.x+z.x)/2,Math.max(a.y,z.y),(a.z+z.z)/2,false);seg.userData.noAO=true;seg.renderOrder=4;}
-      // Current bursts: bright beads that run the loop after CHECK (a long loop takes visibly longer).
-      const len=pts.reduce((n,p,i)=>i?n+p.distanceTo(pts[i-1]):0,0);
-      for(let k=0;k<5;k++){const bead=part(this.loopFx,sphere(.024,10,8),hot(ok?'#c8ffe0':'#ffd0a0',2),0,.05,0,false);bead.visible=false;this.beads.push({mesh:bead,path:pts,u:-k*.09,speed:.55/Math.max(.3,len)});}}
+    this.loopFx.clear();this.beads=[];const b=this.board();if(!b.decouple)return;const powered=this.supplyOn();
+    for(const l of this.live.loops){if(l.path.length<2)continue;const ok=l.loop<=l.max,m=ok?mat('#2fbf71'):this.badLoop;
+      const pts=l.path.map(p=>this.at(p.c,p.l===1?.022:.014));
+      for(let i=1;i<pts.length;i++){const a=pts[i-1],z=pts[i];if(Math.abs(a.x-z.x)<1e-6&&Math.abs(a.z-z.z)<1e-6)continue;const v=Math.abs(a.x-z.x)<1e-6,len=Math.hypot(a.x-z.x,a.z-z.z)+.09,y=Math.max(a.y,z.y);
+        for(const o of [-1,1]){const cx=(a.x+z.x)/2+(v?o*.045:0),cz=(a.z+z.z)/2+(v?0:o*.045);
+          // Dashes along a too-long loop (so it reads without colour too), one solid strip along a good one.
+          const n=ok?1:Math.max(1,Math.round(len/.06)),dl=ok?len:len/n*.6;
+          for(let k=0;k<n;k++){const f=ok?0:(k+.5)/n*len-len/2,sx=v?.016:dl,sz=v?dl:.016;
+            const seg=part(this.loopFx,box(sx,.006,sz),m,cx+(v?0:f),y,cz+(v?f:0),false);seg.userData.noAO=true;}}}
+      // Current pulses for the power-on test: spread evenly round the whole loop and all lit at once (a
+      // change in current shows up everywhere in the loop together), at one speed on every loop; a
+      // longer loop just holds more of them. Only once the supply reaches the chip.
+      if(!powered)continue;
+      const len=pts.reduce((n,p,i)=>i?n+p.distanceTo(pts[i-1]):0,0),n=Math.max(4,Math.round(len/.07));
+      for(let k=0;k<n;k++){const bead=part(this.loopFx,sphere(.014,10,8),hot(ok?'#9dffc8':'#ffb070',1.6),0,.05,0,false);bead.visible=false;this.beads.push({mesh:bead,path:pts,u:k/n,speed:PULSE/Math.max(.1,len)});}}
   }
   private texCache=new Map<string,T.Texture>();
   private tex(k:string,make:()=>T.Texture){let t=this.texCache.get(k);if(!t){t=make();this.texCache.set(k,t);}return t;}
@@ -239,8 +290,11 @@ export class QfnBench implements Station {
   /** After CHECK: rings pulse on the pads of nets that are not joined yet. */
   private showMarks(r:Report){
     this.marks.clear();const b=this.board();
-    for(const n of r.nets.filter(n=>!n.done))for(const ref of b.nets[n.net]){const [pid,pin]=ref.split('.'),p=partOf(b,pid);
-      for(const c of pinCells(p,this.design.place[pid]).find(x=>x.pin.id===pin)!.cells.slice(0,1)){const q=this.at(c);const ring=part(this.marks,new T.TorusGeometry(.085,.012,8,24),hot('#ff6b6b',1.4),q.x,.05,q.z,false);ring.rotation.x=Math.PI/2;}}
+    const ring=(ref:string,col:string)=>{const [pid,pin]=ref.split('.'),p=partOf(b,pid);
+      for(const c of pinCells(p,this.design.place[pid]).find(x=>x.pin.id===pin)!.cells.slice(0,1)){const q=this.at(c);const m=part(this.marks,new T.TorusGeometry(.085,.012,8,24),hot(col,1.4),q.x,.05,q.z,false);m.rotation.x=Math.PI/2;}};
+    for(const n of r.nets.filter(n=>!n.done))for(const ref of b.nets[n.net])ring(ref,'#ff6b6b');
+    // A too-long decoupling loop: orange rings on the chip pins it serves.
+    if(!r.problems.length)for(const l of r.loops)if(l.loop>l.max)for(const ref of l.pair)ring(ref,'#ff9a3d');
     this.markUntil=this.game.time+4;
   }
 
@@ -251,18 +305,23 @@ export class QfnBench implements Station {
     const b=this.board(),d=this.design,a=this.game.audio;
     if(this.complete())return false;
     if(!this.partsReady){this.say('No parts yet: bring the parts crate from the stock shelf to the bench.');a.voice('hm',1.4);return false;}
+    // The bring-up test is running: the board is powered and hands stay off it until it leaves.
+    if(this.bringUp)return false;
     switch(name){
+      case 'swap':{const sp=b.spare;if(!sp){this.say('There is no spare part for this board.');return false;}
+        const id=sp.part,cur=d.place[id],to:Place={...cur,flip:!cur.flip},why=placeProblem(b,d,id,to);if(why){this.say(`Can't swap it here: ${why}`,'bad');a.tone(170,.14,.05,'square');return false;}
+        this.commit();d.place[id]=to;this.selected=id;this.movedParts.add(id);a.pop();a.noise(.05,.03,1600,'bandpass');break;}
       case 'arm':{if(b.layers<2){this.say('Vias need a second copper layer. It unlocks on board 3.');a.tone(180,.12,.05,'square');return false;}
         if(this.stroke){this.dropVia();return true;}
         this.viaArmed=!this.viaArmed;a.tone(this.viaArmed?760:520,.05,.03,'triangle');break;}
       case 'select':{const id=arg as string;if(!b.parts.some(p=>p.id===id))return false;this.selected=id;a.pop();break;}
-      case 'move':{const {part:id,at,rot}=arg as {part:string;at:XY;rot?:Rot};const p=b.parts.find(q=>q.id===id);if(!p)return false;const cur=d.place[id],to:Place={at:[at[0],at[1]],rot:rot??cur.rot};
+      case 'move':{const {part:id,at,rot}=arg as {part:string;at:XY;rot?:Rot};const p=b.parts.find(q=>q.id===id);if(!p)return false;const cur=d.place[id],to:Place={...cur,at:[at[0],at[1]],rot:rot??cur.rot};
         if(same(cur.at,to.at)&&cur.rot===to.rot)return false;const why=placeProblem(b,d,id,to);if(why){this.say(why,'bad');a.tone(170,.14,.05,'square');return false;}
-        this.commit();d.place[id]=to;this.selected=id;a.tone(420,.05,.04,'triangle');a.noise(.04,.03,1800,'bandpass');break;}
+        this.commit();d.place[id]=to;this.selected=id;this.movedParts.add(id);a.tone(420,.05,.04,'triangle');a.noise(.04,.03,1800,'bandpass');break;}
       case 'rotate':{const id=(arg as string|undefined)??this.selected;if(!id){a.voice('hm',1.4);return false;}
         const p=partOf(b,id);if(p.kind==='qfn'||p.locked){this.say(`${id} is fixed${p.kind==='qfn'?': the QFN is the anchor everything else fits around':' by the enclosure'}.`);return false;}
-        const cur=d.place[id],to:Place={at:cur.at,rot:((cur.rot+1)%4) as Rot},why=placeProblem(b,d,id,to);if(why){this.say(`Can't turn it here: ${why}`,'bad');a.tone(170,.14,.05,'square');return false;}
-        this.commit();d.place[id]=to;this.selected=id;a.tone(620,.06,.04,'triangle');break;}
+        const cur=d.place[id],to:Place={...cur,rot:((cur.rot+1)%4) as Rot},why=placeProblem(b,d,id,to);if(why){this.say(`Can't turn it here: ${why}`,'bad');a.tone(170,.14,.05,'square');return false;}
+        this.commit();d.place[id]=to;this.selected=id;this.movedParts.add(id);a.tone(620,.06,.04,'triangle');break;}
       case 'layer':{const want=(arg as Layer|undefined)??(this.layer===1?2:1);
         if(want===2&&b.layers<2){this.say('This board has one copper layer. Layer 2 and vias unlock on board 3.');a.tone(180,.12,.05,'square');return false;}
         if(want===this.layer)return false;this.layer=want;a.tone(want===2?380:520,.07,.04,'triangle');break;}
@@ -276,26 +335,38 @@ export class QfnBench implements Station {
         this.commit();d.vias.push({at:[c[0],c[1]],net:v.net!});a.noise(.12,.05,2400,'bandpass');a.tone(900,.05,.03);break;}
       case 'erase':{const c=arg as XY,before=structuredClone(d);if(!erase(d,this.layer,c)){return false;}this.history.push(before);a.noise(.05,.04,3000,'highpass');break;}
       case 'undo':{const prev=this.history.pop();if(!prev){this.say('Nothing to undo on this board.');return false;}this.design=prev;this.syncParts();a.tone(300,.06,.04,'triangle');break;}
-      case 'check':{const r=check(b,d);this.checks++;this.showMarks(r);this.burstT=3;this.beads.forEach((x,k)=>x.u=-k*.09);
+      case 'check':{const r=check(b,d);this.checks++;this.showMarks(r);this.burstT=3;if(b.spare&&!pinOrderOk(b,d))this.stuck=true;
         this.say(r.tier===0?`Check: ${r.problems.slice(0,2).join(' ')}`:`${TIERS[r.tier]}. ${r.tier===3?'Reliable, and at or under par.':r.notes[0]??''}`,r.tier===0?'bad':'ok');
         if(r.tier>0)a.bell(1175,.4,.04);else a.tone(160,.25,.06,'square');this.redraw();return true;}
       case 'ship':{const r=check(b,d);this.spent+=r.cost;
         if(r.tier===0){this.mistakes++;this.showMarks(r);this.say(`Sent back from test: ${r.problems[0]}`,'bad');a.voice('groan',1);this.game.alarm({x:this.table.x,z:this.table.z},3);this.redraw();return true;}
-        this.shipped.push({board:b.id,tier:r.tier,cost:r.cost});
-        this.say(`Shipped · ${TIERS[r.tier]}. ${b.teach}`,'ok');a.cheer();
-        cheer(this.game,this,'#ffcf52');this.stackShipped();
-        this.boardIx++;if(this.boardIx<BOARDS.length){this.design=blank(this.board());this.loadBoard();this.dropIn();}else{this.stroke=undefined;this.redraw();}
-        return true;}
+        // It works: the bring-up test powers it on the bench first, and the flaw (if any) shows there.
+        this.shipped.push({board:b.id,tier:r.tier,cost:r.cost});this.stroke=undefined;this.drag=undefined;this.hold=undefined;this.viaArmed=false;this.selected=undefined;
+        const flaw=this.flaw(r);this.bringUp={t:0,tier:r.tier};this.burstT=BRING_UP;
+        this.say(flaw?`Works, but ${flaw} ${b.teach}`:`Shipped · ${TIERS[r.tier]}. ${b.teach}`,flaw?'info':'ok');a.bell(880,.25,.04);
+        this.redraw();return true;}
       default:return false;
     }
     // Problem rings from the last CHECK or send-back describe the old layout: any edit clears them.
-    if(['move','rotate','trace','via','erase','undo'].includes(name))this.marks.clear();
+    if(['move','rotate','swap','trace','via','erase','undo'].includes(name))this.marks.clear();
     this.syncParts();this.redraw();return true;
   }
+  /** What the bring-up test shows on a board that works but isn't reliable, as the player sees it. */
+  private flaw(r:Report):string|undefined{const b=this.board(),chip=b.parts.find(p=>p.kind==='qfn')!,name=`the ${chip.value.includes('MCU')?'MCU':chip.value}`;
+    const bad=r.loops.find(l=>l.loop>l.max);
+    if(bad)return bad.cap&&bad.loop<Infinity?`${name} resets when it gets busy: ${bad.cap}'s loop to its pins is too long.`:`${name} resets when it gets busy: nothing bypasses its supply pins.`;
+    if(r.thermal&&r.thermal.temp>r.thermal.limit)return `${name} runs at ${r.thermal.temp} °C and throttles itself to cool down.`;
+    return undefined;}
+  /** The bring-up test ends: the board joins the stack and the next one drops in. */
+  private finishBringUp(){const bu=this.bringUp!,a=this.game.audio;this.bringUp=undefined;this.burstT=0;
+    // Only a reliable board earns the crew's cheer; one that merely works gets a flat chime.
+    if(bu.tier>=2){a.cheer();cheer(this.game,this,'#ffcf52');}else{a.tone(392,.18,.04,'triangle');a.tone(349,.28,.035,'triangle',.16);}
+    this.stackShipped();this.boardIx++;
+    if(this.boardIx<BOARDS.length){this.design=blank(this.board());this.loadBoard();this.dropIn();}else this.redraw();}
   /** Finished boards stack up on the side table. */
   private stackShipped(){const t=this.table,n=this.outbox.length,g=group(this.game.root,t.x+2.55,t.y+.02+n*.035,t.z+.4);
     part(g,box(.5,.03,.36),toon(MASK));part(g,box(.12,.035,.12),toon('#34364d'),0,.01,0);this.outbox.push(g);}
-  private dropIn(){for(const p of this.board().parts)if(p.kind!=='qfn'&&!p.locked){const g=this.partGroups.get(p.id)!;g.position.y=.6+Math.random()*.3;this.drops.push({g,t:0});}}
+  private dropIn(){for(const p of this.board().parts)if(p.kind!=='qfn'&&!p.locked){const g=this.partGroups.get(p.id)!;g.position.y=.2+Math.random()*.08;this.drops.push({g,t:0});}}
 
   // ---------- pointer and keys ----------
   private cellFromRay(ray:T.Raycaster):XY|undefined{
@@ -314,7 +385,7 @@ export class QfnBench implements Station {
   /** Copper of some net under a cell on the layer being drawn: a stroke may start there. */
   private canStart(c:XY){const s=strokeNet(this.board(),this.design,this.layer,c);return !s.why;}
   pointer(e:Pointer){
-    const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true);let found:Clickable|undefined;
+    const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true).filter(h=>visible(h.object));let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
     if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.setScalar(1);if(found)found.obj.scale.setScalar(1.08);this.hovered=found;}
     const cell=found?undefined:this.cellFromRay(e.ray),body=found||!this.partsReady||this.stroke?undefined:this.bodyAt(e.ray);
@@ -329,14 +400,19 @@ export class QfnBench implements Station {
         this.drag={id:body,grab:cell?[cell[0]-at[0],cell[1]-at[1]]:[0,0],to:at,moved:false,wasSelected};return;}
       if(!cell)return;
       const st=strokeNet(this.board(),this.design,this.layer,cell);
-      if(!st.why){this.stroke={layer:this.layer,net:st.net!,cells:[cell],warned:false};this.drawPreview();return;}
+      if(!st.why){this.stroke={layer:this.layer,net:st.net!,cells:[cell],warned:false};this.drawPreview();
+        // On a movable part's pad, holding still turns the press into a move (see holdToDrag).
+        const p=this.partAt(cell);if(p&&p.kind!=='qfn'&&!p.locked&&pinCells(p,this.design.place[p.id]).some(x=>x.cells.some(c=>same(c,cell))))this.hold={id:p.id,cell,t:performance.now()};
+        return;}
       // Copper that can't carry a track (an NC pin, the chip body) says why; bare board just deselects.
       const p=this.partAt(cell);if(p){this.act('select',p.id);if(/NC|body/.test(st.why))this.say(st.why);}else{this.selected=undefined;this.redraw();}
       return;}
     if(e.kind==='move'){
+      if(this.hold&&this.stroke&&this.stroke.cells.length===1)this.holdToDrag();
       if(this.drag&&cell){const to:XY=[cell[0]-this.drag.grab[0],cell[1]-this.drag.grab[1]];if(!same(to,this.drag.to)){this.drag.to=to;this.drag.moved=true;this.ghost();}}
-      if(this.stroke&&cell)this.extend(cell);
+      if(this.stroke&&cell){this.extend(cell);if(this.stroke.cells.length>1)this.hold=undefined;}
       return;}
+    this.hold=undefined;
     // up: a drag moves the part; a click on an already selected part turns it.
     if(this.drag){const d=this.drag;this.drag=undefined;
       if(d.moved&&!same(d.to,this.design.place[d.id].at))this.act('move',{part:d.id,at:d.to});else if(!d.moved&&d.wasSelected)this.act('rotate',d.id);
@@ -345,6 +421,11 @@ export class QfnBench implements Station {
     if(this.stroke){const s=this.stroke,c=s.cells[0];this.stroke=undefined;if(s.cells.length>1)this.act('trace',{cells:s.cells,layer:s.layer});
       else if(this.isTrack(c,s.layer))this.act('erase',c);else this.drawPreview();}
   }
+  /** A press on a part's pad that has stayed in its cell for 0.3 s picks the part up instead of starting
+   *  a track: the part can be moved by any of it, not only by its body. */
+  private holdToDrag(){const h=this.hold;if(!h||!this.stroke||this.stroke.cells.length>1||performance.now()-h.t<300)return;
+    this.hold=undefined;this.stroke=undefined;this.drawPreview();const at=this.design.place[h.id].at;this.act('select',h.id);
+    this.drag={id:h.id,grab:[h.cell[0]-at[0],h.cell[1]-at[1]],to:at,moved:false,wasSelected:false};if(this.active)document.body.style.cursor='grabbing';this.ghost();}
   /** Track or via copper (not a pad) at a cell: a tap there cuts it. */
   private isTrack(c:XY,l:Layer){const d=this.design;return d.vias.some(v=>same(v.at,c))||(d.traces.some(t=>t.layer===l&&t.cells.some(x=>same(x,c)))&&netOfCell(this.board(),d,l,c)===undefined);}
   /** Mid-stroke VIA: lays the track so far, drops a via at its head, and carries on from there on the
@@ -365,7 +446,8 @@ export class QfnBench implements Station {
       const dx=target[0]-last[0],dy=target[1]-last[1],next:XY=Math.abs(dx)>=Math.abs(dy)?[last[0]+Math.sign(dx),last[1]]:[last[0],last[1]+Math.sign(dy)];
       const prev=s.cells[s.cells.length-2];if(prev&&same(prev,next)){s.cells.pop();continue;}
       if(s.cells.some(c=>same(c,next)))break;
-      const why=stepProblem(b,this.design,s.layer,s.net,next);if(why){if(!s.warned){s.warned=true;this.say(why,'bad');this.game.audio.tone(170,.1,.04,'square');}break;}
+      const why=stepProblem(b,this.design,s.layer,s.net,next);if(why){if(!s.warned){s.warned=true;this.say(why,'bad');this.game.audio.tone(170,.1,.04,'square');}
+        if(/short/.test(why)&&b.spare&&!pinOrderOk(b,this.design))this.stuck=true;break;}
       s.cells.push(next);this.game.audio.tone(640+s.cells.length*12,.03,.015,'triangle');
       // Reaching a pad of the same net chimes (the stroke may carry on through it).
       if(netOfCell(b,this.design,s.layer,next)===s.net)this.game.audio.bell(1319,.2,.03);}
@@ -374,7 +456,7 @@ export class QfnBench implements Station {
   private updateHover(){const c=this.hoverCell,show=!!c&&this.active&&this.partsReady&&!this.drag&&!this.hoverBody&&(this.viaArmed||!!this.stroke||this.canStart(c));this.hover.visible=show;
     if(c&&show){const p=this.at(c,.03);this.hover.position.copy(p);(this.hover.material as T.MeshBasicMaterial).color.set(this.viaArmed?'#ffe36e':'#ffffff');}}
   key(code:string){const m=KEYS[code];if(!m)return false;this.act(m[0],m[1]);return true;}
-  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';this.stroke=undefined;this.drag=undefined;this.viaArmed=false;this.hover.visible=false;this.syncParts();this.redraw();}this.shown='';}
+  setActive(active:boolean){this.active=active;if(!active){document.body.style.cursor='';this.stroke=undefined;this.drag=undefined;this.hold=undefined;this.viaArmed=false;this.hover.visible=false;this.syncParts();this.redraw();}this.shown='';}
   dropped(p:Game['props'][number]){
     if(p.spec.id!=='parts'||this.partsReady)return;const q=p.body.translation(),sx=this.table.x+2.55,sz=this.table.z;
     if(Math.hypot(q.x-sx,q.z-sz)<2.2||Math.hypot(q.x-this.stand.x,q.z-this.stand.z)<2.2){
@@ -383,17 +465,30 @@ export class QfnBench implements Station {
   }
   update(dt:number){
     if(!this.ready){this.ready=true;this.crate=this.game.props.find(p=>p.spec.id==='parts');}
-    for(const d of this.drops){d.t+=dt;const k=Math.min(1,d.t/.45);d.g.position.y=Math.max(0,(1-k*k)*.7)+(k>=1?0:Math.abs(Math.sin(k*9))*.03*(1-k));}
+    this.holdToDrag();
+    for(const d of this.drops){d.t+=dt;const k=Math.min(1,d.t/.45);d.g.position.y=Math.max(0,(1-k*k)*.22)+(k>=1?0:Math.abs(Math.sin(k*9))*.03*(1-k));}
     if(this.drops.length&&this.drops.every(d=>d.t>=.45)){this.drops=[];this.game.audio.clatter();}
     if(this.marks.children.length){const k=1+Math.sin(this.game.last*.012)*.15;this.marks.children.forEach(m=>m.scale.setScalar(k));if(this.game.time>this.markUntil)this.marks.clear();}
     this.preview.children.forEach(m=>{(m as T.Mesh).position.y=.016+Math.sin(this.game.last*.01)*.002;});
-    // Current bursts run the decoupling loops for a few seconds after CHECK.
-    this.burstT=Math.max(0,this.burstT-dt);
-    for(const bd of this.beads){bd.u+=bd.speed*dt;const on=this.burstT>0&&bd.u>=0;bd.mesh.visible=on;if(!on)continue;const p=bd.path,f=(bd.u%1)*(p.length-1),i=Math.floor(f);bd.mesh.position.lerpVectors(p[i],p[Math.min(p.length-1,i+1)],f-i).setY(.06);}
-    // The hot chip: its body warms toward orange-red with temperature and glows while over the limit.
-    const th=this.live.thermal;if(th&&this.qfnBody){const k=Math.min(1,Math.max(0,(th.temp-HEAT.ambient)/110)),over=th.temp>th.limit;
-      (this.qfnBody.material as T.MeshToonMaterial).color.set('#34364d').lerp(new T.Color(over?'#ff5a2a':'#d9a441'),k*.9);
-      if(this.heatGlow)(this.heatGlow.material as T.SpriteMaterial).opacity=over?.35+.25*Math.sin(this.game.time*5):0;}
+    // Current pulses run the decoupling loops during a power-on test (CHECK, or SHIP's bring-up).
+    this.burstT=Math.max(0,this.burstT-dt);const testing=this.burstT>0,t=this.game.time;
+    for(const bd of this.beads){bd.u+=bd.speed*dt;bd.mesh.visible=testing;if(!testing)continue;const p=bd.path,f=(bd.u%1)*(p.length-1),i=Math.floor(f);bd.mesh.position.lerpVectors(p[i],p[Math.min(p.length-1,i+1)],f-i).setY(.05);}
+    // A too-long loop's outline pulses (2 Hz; faster while the test shows the chip resetting).
+    this.badLoop.color.set('#ff7a1a').lerp(new T.Color('#ffe0b0'),.45*(.5+.5*Math.sin(t*Math.PI*2*(testing?5:2))));
+    // The chip's status LED: dark until a power-on test runs with the supply joined. Then steady green;
+    // a stutter with the chip blinking (it keeps resetting) when a decoupling loop is too long; a slow
+    // blink (throttling) when it runs too hot.
+    const th=this.live.thermal,powered=this.supplyOn(),droop=this.live.loops.some(l=>l.loop>l.max),hotChip=!!th&&th.powered&&th.temp>th.limit;
+    let ledCol='#4a4d66',reset=0;
+    if(testing&&powered){if(droop){const on=Math.sin(t*31)+Math.sin(t*17.3)>.4;ledCol=on?'#ffb347':'#4a4d66';reset=on?0:1;}
+      else if(hotChip)ledCol=Math.sin(t*Math.PI*2*1.2)>0?'#5dff9a':'#4a4d66';else ledCol='#5dff9a';}
+    if(this.led)(this.led.material as T.MeshBasicMaterial).color.set(ledCol).multiplyScalar(ledCol==='#4a4d66'?1:1.5);
+    // The hot chip: it heats only while powered, warming over ~1.5 s, and glows while over the limit.
+    if(this.qfnBody){const goal=th&&th.powered?Math.min(1,Math.max(0,(th.temp-HEAT.ambient)/110)):0;this.warm+=(goal-this.warm)*Math.min(1,dt/1.5*3);
+      const over=hotChip&&this.warm>goal*.6,m=this.qfnBody.material as T.MeshToonMaterial;
+      m.color.set('#34364d').lerp(new T.Color(over?'#ff5a2a':'#d9a441'),this.warm*.9).lerp(new T.Color('#9aa0d0'),reset*.5);
+      if(this.heatGlow)(this.heatGlow.material as T.SpriteMaterial).opacity=over?.28+.17*Math.sin(t*5):0;}
+    if(this.bringUp){this.bringUp.t+=dt;if(this.bringUp.t>=BRING_UP)this.finishBringUp();}
     this.updatePanel();
   }
 
@@ -406,16 +501,18 @@ export class QfnBench implements Station {
   private updatePanel(){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const b=this.board(),r=this.live,done=this.complete();
-    const key=JSON.stringify([this.active,this.boardIx,this.viaArmed,this.layer,this.partsReady,r.tier,r.cost,r.nets,r.loops.map(l=>l.loop),r.thermal,r.problems.length,done]);if(key===this.shown)return;this.shown=key;
+    const key=JSON.stringify([this.active,this.boardIx,this.viaArmed,this.layer,this.partsReady,r.tier,r.cost,r.nets,r.loops.map(l=>l.loop),r.thermal,r.problems.length,done,!!this.bringUp]);if(key===this.shown)return;this.shown=key;
     if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel qfn-panel';this.layerEl()?.append(this.panel);}
     this.panel.hidden=done;if(done)return;
-    const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
+    // A row reads green when met, red when it fails a rule the board grades ('bad'), neutral otherwise.
+    const row=(k:string,v:string,ok?:boolean,bad=false)=>`<li class="${ok===undefined?'':ok?'ok':bad?'bad':'no'}"><span>${k}</span><b>${v}</b></li>`;
     const nets=r.nets.map(n=>`<li class="${n.done?'ok':''}"><i style="--c:${netColor(n.net)}"></i><span>${n.net}</span><b>${n.done?'joined':`${n.joined}/${n.pads} pads`}</b></li>`).join('');
-    const loops=r.loops.map(l=>row(`Loop ${l.cap??''}`,l.loop===Infinity?'not wired':`${l.loop} cells · ≤ ${l.max}`,l.loop<=l.max)).join('');
+    const loops=r.loops.map(l=>row(`${l.cap??'Cap'} loop (shorter = less sag)`,l.loop===Infinity?'not wired':`${l.loop} cells · ≤ ${l.max}`,l.loop<=l.max,l.loop<Infinity)).join('');
+    const chip=r.thermal?row('Chip',r.thermal.powered?`${r.thermal.temp} °C · ≤ ${r.thermal.limit}`:'— (no power)',r.thermal.powered?r.thermal.temp<=r.thermal.limit:undefined,true):'';
     const orient=r.problems.find(p=>/mouth/.test(p));
     this.panel.innerHTML=`<header><small>BOARD ${this.boardIx+1}/${BOARDS.length} · ${b.layers===1?'ONE LAYER':'TWO LAYERS'}</small><h4>${b.title}</h4>${this.active?`<p>${b.ask}</p>`:""}</header>`+
-      (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${b.layers===2?row("Drawing on",this.layer===1?"L1 · top, wide tracks":"L2 · bottom, thin tracks"):""}${orient?row('Connector','edge, mouth out',false):''}${loops}${r.thermal?row('Chip',`${r.thermal.temp} °C · ≤ ${r.thermal.limit}`,r.thermal.temp<=r.thermal.limit):''}`+
-        `${row('Track + vias',`${r.cost} · par ${r.par}`,r.tier===3)}${row('Grade now',TIERS[r.tier],r.tier>0)}</ul>`+
+      (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${b.layers===2?row("Drawing on",this.layer===1?"L1 · top":"L2 · bottom"):""}${orient?row('Connector','edge, mouth out',false,true):''}${loops}${chip}`+
+        `${row('Track + vias',`${r.cost} · par ${r.par}`,r.tier>0?r.cost<=r.par:undefined)}${row('Grade now',this.bringUp?'Testing…':TIERS[r.tier],r.tier>0)}</ul>`+
         `<p class="profile">Teaching grid: cell sizes and loop limits are this bench's rules. A real layout still needs the fab's DRC and an electrical review.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
@@ -425,18 +522,26 @@ export class QfnBench implements Station {
       if(near<1.6)return {key:'E',text:'Work at the bench'};
       return null;}
     if(!this.partsReady)return {key:'E',text:'Fetch the parts crate'};
+    if(this.bringUp)return null;
+    // Placement comes before routing: the prompt asks for it first, then for tracks, then the checks.
+    if(this.drag)return {key:'Drag',text:'Drop it on the board'};
     if(this.stroke)return this.board().layers===2?{key:'V',text:'Via here'}:null;
     if(this.viaArmed)return {key:'Click',text:'Drop the via'};
     if(this.hoverBody)return {key:'Drag',text:this.selected===this.hoverBody?'Move, or click to turn':'Move'};
-    const r=this.live;
+    const r=this.live,b=this.board(),d=this.design;
+    const place=r.problems.find(p=>/mouth facing out|hangs off/.test(p));
+    if(place){const id=place.split(' ')[0];return {key:'Drag',text:/mouth/.test(place)?`Move ${id} to an edge, mouth out`:`Bring ${id} back onto the board`};}
+    if(this.stuck&&b.spare&&!pinOrderOk(b,d))return {key:'Click',text:'Try the spare header'};
+    if(!d.traces.length&&b.parts.some(p=>p.kind!=='qfn'&&!p.locked&&!this.movedParts.has(p.id)))return {key:'Drag',text:'Slide the parts into place'};
     if(r.nets.some(n=>!n.done))return {key:'Drag',text:'Draw from a pad'};
+    if(r.thermal&&r.thermal.powered&&r.thermal.temp>r.thermal.limit)return {key:'V',text:'Cool the chip'};
     if(r.tier<2)return {key:'C',text:'Check'};
     return {key:'Enter',text:'Ship'};
   }
   complete(){return this.shipped.length>=BOARDS.length;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent)};}
   snapshot(){const r=this.live;return {board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,viaArmed:this.viaArmed,layer:this.layer,selected:this.selected,design:this.design,
-    report:{tier:r.tier,problems:r.problems,notes:r.notes,cost:r.cost,par:r.par,nets:r.nets,loops:r.loops,thermal:r.thermal},shipped:this.shipped,mistakes:this.mistakes,spent:this.spent,checks:this.checks,
+    report:{tier:r.tier,problems:r.problems,notes:r.notes,cost:r.cost,par:r.par,nets:r.nets,loops:r.loops,thermal:r.thermal},shipped:this.shipped,mistakes:this.mistakes,spent:this.spent,checks:this.checks,testing:!!this.bringUp,
     hover:this.hoverCell,hoverBody:this.hoverBody??null,drag:this.drag?{id:this.drag.id,grab:this.drag.grab}:null,rings:this.marks.children.length,cells:this.active?this.cellScreens():undefined,bodies:this.active?this.bodyScreens():undefined};}
   /** Page coordinates of each part's body (where a drag picks the part up). */
   private bodyScreens(){const cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect(),out:Record<string,[number,number]>={};
@@ -449,6 +554,9 @@ export class QfnBench implements Station {
     for(let y=0;y<b.h;y++)for(let x=0;x<b.w;x++){const v=this.boardRoot.localToWorld(this.at([x,y])).project(cam);out[`${x},${y}`]=[Math.round(rect.left+(v.x+1)/2*rect.width),Math.round(rect.top+(1-v.y)/2*rect.height)];}
     return out;}
 }
+let locked:T.Texture|undefined;
+/** Periwinkle with ink diagonals: the enclosure fixes this part. */
+const lockedTex=()=>locked??=stripes('#aeb4e8','#2b2d42');
 function visible(o:T.Object3D){for(let p:T.Object3D|null=o;p;p=p.parent)if(!p.visible)return false;return true;}
 function netOfCell(b:Board,d:Design,l:Layer,c:XY){
   for(const p of b.parts)for(const {pin,cells} of pinCells(p,d.place[p.id]))if((l===1||p.through)&&cells.some(x=>same(x,c)))return netOfPin(b,`${p.id}.${pin.id}`);

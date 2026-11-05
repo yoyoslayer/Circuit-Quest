@@ -11,10 +11,14 @@ async function toBench(page:Page){
   expect((await snapshot(page)).station.partsReady).toBe(true);
   await walk(page,0,-.5,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);await wait(page,1.2);
 }
-/** Lays out a board exactly as its reference route: parts, top-layer tracks, vias, then layer 2. */
+/** SHIP on a board that works runs a short bring-up test on the bench before the next board loads. */
+async function ship(page:Page){await ok(page,'ship');expect((await snapshot(page)).station.testing).toBe(true);await wait(page,2.5);expect((await snapshot(page)).station.testing).toBe(false);}
+/** Lays out a board exactly as its reference route: the right header, parts, top-layer tracks, vias, then layer 2. */
 async function playReference(page:Page,ix:number){
   const b=BOARDS[ix],ref=REFERENCE[b.id];
-  for(const [id,pl] of Object.entries(ref.place)){const p=b.parts.find(q=>q.id===id)!;if(p.locked||p.kind==='qfn')continue;await ok(page,'move',{part:id,at:pl.at,rot:pl.rot});}
+  if(b.spare&&!!(await snapshot(page)).station.design.place[b.spare.part].flip!==!!ref.place[b.spare.part].flip)await ok(page,'swap');
+  const now=(await snapshot(page)).station.design.place;
+  for(const [id,pl] of Object.entries(ref.place)){const p=b.parts.find(q=>q.id===id)!;if(p.locked||p.kind==='qfn'||(now[id].at+''===pl.at+''&&now[id].rot===pl.rot))continue;await ok(page,'move',{part:id,at:pl.at,rot:pl.rot});}
   for(const t of ref.traces.filter(t=>t.layer===1))await ok(page,'trace',{cells:t.cells,layer:1});
   for(const v of ref.vias)await ok(page,'via',v.at);
   const l2=ref.traces.filter(t=>t.layer===2);if(l2.length){await ok(page,'layer',2);for(const t of l2)await ok(page,'trace',{cells:t.cells,layer:2});}
@@ -32,8 +36,8 @@ test('QFN bench: three boards laid out, each reliable and at par',async({page})=
     await playReference(page,ix);
     const s=(await snapshot(page)).station;expect(s.report.tier,`${BOARDS[ix].id}: ${s.report.problems.join(' ')} ${s.report.notes.join(' ')}`).toBe(3);
     await ok(page,'check');await expect(page.locator('.station-toast')).toContainText('Elegant');
-    await ok(page,'ship');
-    if(ix<BOARDS.length-1)await expect(page.locator('.station-panel')).toContainText(BOARDS[ix+1].title);
+    // The power-on test lit the chip's status LED steady (nothing resets on a reliable board).
+    if(ix<BOARDS.length-1){await ship(page);await expect(page.locator('.station-panel')).toContainText(BOARDS[ix+1].title);}else await ok(page,'ship');
   }
   await wait(page,.1);const s=await snapshot(page);
   expect(s.station.shipped.map((v:{tier:number})=>v.tier)).toEqual([3,3,3]);
@@ -63,9 +67,36 @@ test('QFN bench: a board shipped with the connector inside is sent back, then fi
   // Undo takes back the last track; the net opens again, then it is redrawn.
   await ok(page,'undo');s=(await snapshot(page)).station;expect(s.report.nets.find((n:{net:string})=>n.net==='SIG').done).toBe(false);
   await ok(page,'trace',{cells:REFERENCE.sensor.traces[3].cells,layer:1});
-  await ok(page,'ship');s=(await snapshot(page)).station;
+  await ship(page);s=(await snapshot(page)).station;
   expect(s.board).toBe(1);expect(s.shipped[0].tier).toBe(3);
   await page.keyboard.press('Escape');expect((await snapshot(page)).atBench).toBe(false);
+});
+
+test('QFN bench: the mirrored header can\'t route on one layer; a board that only works shows its flaw on the bring-up test',async({page})=>{
+  test.setTimeout(120000);
+  await open(page,'qfn');await wait(page,.1);await toBench(page);
+  // Board 1 arrives with the mirrored header: placed on an edge it reports the pin order, and the prompt
+  // points at the spare once a track hits a short.
+  await ok(page,'move',{part:'J1',at:[3,8],rot:3});
+  let s=(await snapshot(page)).station;expect(s.report.problems.join(' ')).toMatch(/pins run the other way round/);
+  await ok(page,'check');await expect(page.locator('.station-toast')).toContainText('spare header');
+  await ok(page,'swap');s=(await snapshot(page)).station;expect(s.design.place.J1.flip).toBe(false);
+  expect(s.report.problems.join(' ')).not.toMatch(/other way round/);
+  await ok(page,'undo');expect((await snapshot(page)).station.design.place.J1.flip).toBe(true);await ok(page,'swap');
+  await playReference(page,0);await ship(page);
+  // Board 2 with C2 down in the far corner: it works, but the bring-up test shows the MCU resetting.
+  const far=structuredClone(REFERENCE.mcu);far.place.C2={at:[11,7],rot:1};far.traces=far.traces.filter(t=>!t.cells.some(c=>c[0]===9&&c[1]===5));
+  far.traces.push({layer:1,net:'GND',cells:[[3,4],[3,5],[3,6],[3,7],[4,7],[5,7],[6,7],[7,7],[8,7],[9,7],[10,7],[10,8],[11,8]]},
+    {layer:1,net:'GND',cells:[[8,5],[9,5],[10,5],[10,6],[10,7]]},{layer:1,net:'VDD',cells:[[9,4],[10,4],[11,4],[11,5],[11,6],[11,7]]});
+  for(const [id,pl] of Object.entries(far.place))if(id!=='U1')await ok(page,'move',{part:id,at:pl.at,rot:pl.rot});
+  for(const t of far.traces)await ok(page,'trace',{cells:t.cells,layer:1});
+  s=(await snapshot(page)).station;expect(s.report.problems).toEqual([]);expect(s.report.tier).toBe(1);
+  await ok(page,'check');await expect(page.locator('.station-toast')).toContainText('inductance');
+  await ok(page,'ship');await expect(page.locator('.station-toast')).toContainText('resets when it gets busy');
+  s=(await snapshot(page)).station;expect(s.testing).toBe(true);expect(s.mistakes).toBe(0);
+  await wait(page,2.5);s=(await snapshot(page)).station;expect(s.board).toBe(2);expect(s.shipped.map((v:{tier:number})=>v.tier)).toEqual([3,1]);
+  // Board 3's chip is cold until VIN and GND reach it.
+  expect(s.report.thermal).toMatchObject({powered:false,temp:25});
 });
 
 test('QFN bench: the real pointer drags a part and draws a track',async({page})=>{
@@ -83,6 +114,11 @@ test('QFN bench: the real pointer drags a part and draws a track',async({page})=
   await page.mouse.down();const [gx,gy]=(await snapshot(page)).station.drag.grab as [number,number];
   for(const k of [[9,6],[6,5],[3,4],[2,4]])await page.mouse.move(...c[`${k[0]+gx},${k[1]+gy}`],{steps:3});await page.mouse.up();
   let s=(await snapshot(page)).station;expect(s.design.place.C1.at).toEqual([2,4]);
+  // Press and hold on R1's far pad (its end cap, not its body), then drag: the part moves and no track is drawn.
+  c=await cells();await page.mouse.move(...c['1,2']);expect((await snapshot(page)).station.hoverBody).toBe(null);
+  await page.mouse.down();await page.waitForTimeout(450);
+  for(const k of ['1,3','1,5','1,7'])await page.mouse.move(...c[k],{steps:3});await page.mouse.up();
+  s=(await snapshot(page)).station;expect(s.design.place.R1.at).toEqual([1,6]);expect(s.design.traces).toHaveLength(0);
   // Dragging from a pad draws: from U1 pin 1 at (4,3) left to (2,3), then down to (2,8).
   c=await cells();
   await page.mouse.move(...c['4,3']);await page.mouse.down();for(const k of ['3,3','2,3','2,5','2,8'])await page.mouse.move(...c[k],{steps:4});await page.mouse.up();

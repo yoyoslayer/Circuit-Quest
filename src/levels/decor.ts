@@ -6,7 +6,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../game';
 import type {Obstacle} from '../sim/cable';
-import {DMETAL,TRIM,WOOD,toon,rbox,box,cyl,sphere,part,group,glow,glyph,cachedTexture} from '../render/kit';
+import {DMETAL,METAL,TRIM,WOOD,toon,rbox,box,cyl,sphere,part,group,glow,glyph,cachedTexture} from '../render/kit';
 import {INK} from '../render/toon';
 import {glossyToon,hot} from '../render/actors';
 import * as TX from '../render/textures';
@@ -121,11 +121,13 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   for(const [px,pz] of [[-6,-4.5],[-1,-4.5],[4,-4.5],[-6,1.5],[-1,1.5],[4,1.5],[-6,7.6],[-.8,7.6]])floor(game,px-2.05,px+2.05,pz-1.75,pz+1.75,TX.carpetTiles('#6c7f99'),2.4,.006);
   floor(game,-l.width/2,-11.9,-l.depth/2,-5.5,TX.concreteFloor('#9aa3b2'),3,.008);
   rug(r,12.4,5.4,4.2,4.2,'#d98c5f','#f6d49b');floor(game,10.4,13.9,-9.2,-3.6,TX.rugTex('#5f7fa8','#bcd3ee'),3.5,.01);
-  backWindows(game,back,x=>x< -11.5,.2);
+  // No windows behind the boardroom's projector screen: their frames drew over the slide (R5-144).
+  backWindows(game,back,x=>x< -11.5||(x>9.3&&x<16.5),.2);
   // Deadline clock between two windows: its red minute hand sweeps the four-minute meeting.
-  const clock=group(back,-3.1,2.55,.18);const face=part(clock,cyl(.3,.3,.06,32,'z'),toon('#fbf5ea'));part(clock,cyl(.34,.34,.05,32,'z'),toon(INK),0,0,-.02);
-  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;part(clock,box(.03,.06,.02),toon(INK),Math.sin(a)*.24,Math.cos(a)*.24,.04,false).rotation.z=-a;}
-  const hand=group(clock,0,0,.05);part(hand,box(.035,.17,.02),toon(INK),0,.075,0,false);const minute=group(clock,0,0,.06);part(minute,box(.025,.25,.02),toon('#e5484d'),0,.12,0,false);
+  // Radius .30 keeps its rim clear of the window frames either side (R5-144).
+  const clock=group(back,-3.1,2.55,.18);const face=part(clock,cyl(.27,.27,.06,32,'z'),toon('#fbf5ea'));part(clock,cyl(.3,.3,.05,32,'z'),toon(INK),0,0,-.02);
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;part(clock,box(.03,.05,.02),toon(INK),Math.sin(a)*.2,Math.cos(a)*.2,.04,false).rotation.z=-a;}
+  const hand=group(clock,0,0,.05);part(hand,box(.035,.14,.02),toon(INK),0,.06,0,false);const minute=group(clock,0,0,.06);part(minute,box(.025,.21,.02),toon('#e5484d'),0,.1,0,false);
   wallArt(back,'graph',15.2,1.9,.18,0,.9);
   // The side wall's local x runs along the level's z axis.
   for(const [kind,wz,s] of [['cork',.2,1.2],['bolt',-3.2,1],['plant',7.6,1],['mountain',2.7,.9],['sun',4.6,.9]] as [WallArt,number,number][])wallArt(side,kind,-wz,1.9,.16,0,s);
@@ -139,21 +141,28 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   solid(game,4,2.3,.9,-14.4,1.15,-9.4);
   part(r,rbox(.8,.5,.6,.06),toon(DMETAL),-14.6,.25,-6.6);solid(game,.8,.5,.6,-14.6,.25,-6.6);
   part(r,rbox(.4,.4,.12,.06).clone().rotateY(Math.PI/2),toon('#f0ece2'),-11.72,.55,-7.8);glow(game.root,'rgba(120,255,160,1)',.9,.5).position.set(-11.55,.55,-7.8);
-  part(r,cyl(.12,.12,.5,14),toon('#e5484d'),-11.6,.3,-5.2);part(r,box(.08,.14,.08),toon(INK),-11.6,.62,-5.2);
+  // Extinguisher by the closet: stands on the floor, with valve, lever, hose and label (R5-329).
+  {const e=group(r,-11.6,0,-5.2);part(e,cyl(.12,.12,.5,14),toon('#e5484d'),0,.25,0);part(e,cyl(.06,.09,.06,12),toon('#e5484d'),0,.53,0);part(e,box(.08,.08,.08),toon(INK),0,.6,0);part(e,box(.14,.02,.03),toon(INK),.05,.66,0,false);
+    part(e,new T.TubeGeometry(new T.CatmullRomCurve3([[.04,.6,.02],[.12,.55,.08],[.13,.35,.12],[.1,.22,.12]].map(p=>new T.Vector3(...p))),12,.016,5),toon(INK),0,0,0,false);part(e,box(.1,.14,.005),toon('#fffaf0'),0,.28,.121,false);}
   // Boardroom: frosted-banded glass front, table with papers, dark projector and screen, pendants.
   for(const [x0,x1] of [[9.3,11],[13.8,l.width/2]]){const w=x1-x0,x=(x0+x1)/2;part(game.root,box(w,2.5,.06),toon('#bfe6f5',{opacity:.24}),x,1.3,-2,false);part(game.root,box(w,.18,.07),toon('#ffffff',{opacity:.55}),x,1.25,-2,false);
     part(r,box(w,.08,.1),toon(DMETAL),x,2.6,-2);part(r,box(w,.1,.1),toon(DMETAL),x,.05,-2);solid(game,w,2.6,.14,x,1.3,-2);}
   for(const x of [11,13.8])part(r,box(.1,2.6,.1),toon(DMETAL),x,1.3,-2);
   part(r,rbox(1.6,.1,4.6,.4),toon('#8a5a2b'),12,.78,-6.4);for(const z of [-8,-4.8])part(r,cyl(.1,.25,.75,12),toon(INK),12,.38,z);solid(game,1.6,.8,4.6,12,.4,-6.4);
   for(let k=0;k<6;k++)part(r,box(.28,.02,.2),toon('#fffaf0'),11.6+(k%2)*.8,.84,-7.8+Math.floor(k/2)*1.3,false).rotation.y=(k*.37)%1-.5;
-  const projector=group(r,12,0,-4.5);part(projector,rbox(.6,.25,.5,.06),toon('#dcdfe6'),0,.96,0);part(projector,cyl(.1,.1,.1,14,'z'),toon(INK),0,.96,-.28);
-  const lead=new T.CatmullRomCurve3([[12.1,.9,-4.3],[12.2,.3,-3.9],[12.4,.05,-3.2],[12.3,.05,-2.4]].map(p=>new T.Vector3(...p)));part(r,new T.TubeGeometry(lead,40,.035,6),toon(INK));
-  part(r,box(4.4,2.5,.08),toon(INK),12.2,1.9,-9.82);
+  // The projector (R5-356): rounded body on feet, lens barrel with a metal ring and glass, side vents,
+  // a focus dial. Its rocker, status LED and lead are on root (MeetingStrip) so they can change.
+  const projector=group(r,12,0,-4.5);part(projector,rbox(.6,.22,.5,.08),toon('#dcdfe6'),0,.97,0);
+  part(projector,cyl(.11,.12,.12,14,'z'),toon(INK),0,.97,-.3);part(projector,cyl(.125,.125,.02,16,'z'),toon(METAL),0,.97,-.36,false);part(projector,cyl(.085,.085,.01,16,'z'),new T.MeshBasicMaterial({color:'#9fd8ff'}),0,.97,-.371,false);
+  for(const s of [-1,1])for(let k=0;k<4;k++)part(projector,box(.01,.015,.12),toon(INK),s*.301,.92+k*.03,.08,false);
+  for(const [x,z] of [[-.22,-.18],[.22,-.18],[-.22,.18],[.22,.18]])part(projector,cyl(.03,.03,.04,10),toon(INK),x,.85,z,false);part(projector,cyl(.04,.04,.03,12),toon(DMETAL),-.17,1.09,-.12,false);
+  // Screen: a white frame with an ink pull bar, its face pulled forward clear of the wall (R5-144/R5-356).
+  part(r,box(4.4,2.5,.04),toon('#f0ece2'),12.2,1.9,-9.78);part(r,cyl(.03,.03,4.3,8,'x'),toon(INK),12.2,.72,-9.72);part(r,rbox(4.5,.16,.18,.05),toon('#e9e4d8'),12.2,3.1,-9.76);
   // Projector screen: a blue "no signal" card until the cable goes in, then a glowing slide.
   const noSignal=cachedTexture('no-signal',()=>glyph(c=>{c.fillStyle='#2a3b7a';c.fillRect(0,0,256,256);c.strokeStyle='#8fb0ff';c.lineWidth=12;c.beginPath();c.arc(128,120,46,0,7);c.stroke();c.beginPath();c.moveTo(96,152);c.lineTo(160,88);c.stroke();c.fillStyle='#8fb0ff';c.fillRect(70,200,116,10);}));
   const slide=cachedTexture('slide',()=>glyph(c=>{c.fillStyle='#fffaf0';c.fillRect(0,0,256,256);c.fillStyle='#ffc629';c.fillRect(0,0,256,34);c.fillStyle='#3f7fd6';for(let i=0;i<5;i++)c.fillRect(34+i*40,200-(i+1)*26,26,(i+1)*26);c.strokeStyle='#e5484d';c.lineWidth=8;c.beginPath();c.moveTo(30,170);c.lineTo(90,130);c.lineTo(140,146);c.lineTo(226,70);c.stroke();c.fillStyle='#2b2d42';c.fillRect(30,12,120,10);}));
-  const screen=part(game.root,new T.PlaneGeometry(4.2,2.3),new T.MeshBasicMaterial({map:noSignal}),12.2,1.9,-9.77,false);(screen.material as T.Material).userData.outlineParameters={visible:false};
-  const beam=part(game.root,new T.CylinderGeometry(1.4,.1,5.1,20,1,true).rotateX(Math.PI/2),new T.MeshBasicMaterial({color:'#fff3c8',transparent:true,opacity:.14,depthWrite:false,side:T.DoubleSide}),12.1,1.4,-7.2,false);
+  const screen=part(game.root,new T.PlaneGeometry(4.2,2.3),new T.MeshBasicMaterial({map:noSignal}),12.2,1.9,-9.7,false);(screen.material as T.Material).userData.outlineParameters={visible:false};
+  const beam=part(game.root,new T.CylinderGeometry(1.4,.1,5.1,20,1,true).rotateX(Math.PI/2),new T.MeshBasicMaterial({color:'#fff3c8',transparent:true,opacity:.07,depthWrite:false,side:T.DoubleSide}),12.1,1.4,-7.2,false);
   (beam.material as T.Material).userData.outlineParameters={visible:false};beam.userData.noAO=true;beam.lookAt(12.2,1.9,-9.8);beam.visible=false;
   pendant(game.root,12,-7.6,{y:2.35,color:'#3f7fd6'});pendant(game.root,12,-5.2,{y:2.35,color:'#3f7fd6',light:false});lampPool(game.root,12,-6.4,2.4,.14);
   // Lounge and coffee corner.
@@ -165,9 +174,9 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   glow(game.root,'rgba(255,210,140,1)',1.3,.35).position.set(15.4,1.72,7.6);lampPool(game.root,15.2,7.4,1.6,.22);
   // Floor clutter: paper drift, stacked boxes.
   for(const [x,z,ry] of [[-8.6,-1.2,.3],[7.2,3.6,-.4],[-2.6,5.1,.8],[2.2,-.8,.2],[-7.8,4.6,1.2],[6.8,-6.9,.5]])part(r,box(.3,.012,.23),toon('#fffaf0'),x,.01,z,false).rotation.y=ry;
-  for(const [x,z] of [[-8.9,9.1],[7.8,9.2]]){part(r,rbox(.7,.6,.7,.05),toon('#c98f5a'),x,.3,z).rotation.y=.3;part(r,rbox(.6,.5,.6,.05),toon('#d7a56d'),x+.1,.85,z-.05).rotation.y=.8;}
-  const lightUp=()=>{const m=new T.MeshBasicMaterial({map:slide});m.color.setScalar(1.25);m.userData.outlineParameters={visible:false};screen.material=m;
-    pointLamp(game.root,12.2,1.9,-9,{color:'#dfe9ff',intensity:7,distance:7});lampPool(game.root,12.2,-8.4,2.4,.25,'#dfe9ff');glow(game.root,'rgba(220,235,255,1)',4,.35).position.set(12.2,1.9,-9.6);};
+  for(const [x,z] of [[-8.9,9.1],[7.8,9.2]]){part(r,rbox(.7,.6,.7,.05),toon('#c98f5a'),x,.3,z).rotation.y=.3;part(r,rbox(.6,.5,.6,.05),toon('#d7a56d'),x+.1,.85,z-.05).rotation.y=.8;solid(game,.75,1.1,.75,x,.55,z,.3);}
+  const lightUp=()=>{const m=new T.MeshBasicMaterial({map:slide});m.color.setScalar(1);m.userData.outlineParameters={visible:false};screen.material=m;
+    pointLamp(game.root,12.2,1.9,-9,{color:'#dfe9ff',intensity:7,distance:7});lampPool(game.root,12.2,-8.4,2.4,.25,'#dfe9ff');glow(game.root,'rgba(220,235,255,1)',1.2,.25).position.set(12,.97,-4.88);};
   return {screen,beam,lightUp,clock:{hand,minute,face}};
 }
 function lunch(game:Game,back:T.Group,side:T.Group):Decor{

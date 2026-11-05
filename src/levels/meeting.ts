@@ -19,9 +19,13 @@ for(const [px,pz] of [[-6,-4.5],[-1,-4.5],[4,-4.5],[-6,1.5],[-1,1.5],[4,1.5],[-6
   }
 }
 for(let i=0;i<18;i++){props.push({kind:'cabinet',x:-9+i*.85,z:-9.2});props.push({kind:'box',x:-9+i*.85,z:-9.2,y:1.9});}
-for(const [x,z] of [[-9,-8],[8,-8],[-9,8],[8,8.6],[14,8],[15.9,-.5],[-3,0]])props.push({kind:'plant',x,z});
+for(const [x,z] of [[-9,-8],[8,-8],[-9,8],[8.6,8.2],[14,8],[15.9,-.5],[-3,0]])props.push({kind:'plant',x,z});
 for(let i=0;i<14;i++)props.push({kind:'box',x:-12+(i%3)*.75,z:-1+Math.floor(i/3)*.72});
 props.push({kind:'printer',x:-10,z:-2},{kind:'vending',x:-14.5,z:2},{kind:'cooler',x:-13.5,z:7},{kind:'whiteboard',x:-10,z:5,rotation:.45});
+// DR-36: the clean route (wall outlet, reel, coupler, second reel, strip) chains leads, which office
+// safety rules forbid (OSHA 1910.303, ESFI). The game reads it as a site setup instead: two heavy-duty
+// reels joined by a rated inline coupler feeding a strip with its own breaker. Never put the Lunch
+// thin-cable lesson on chained leads.
 // The boardroom's power strip is missing from its spot by the door: it sits on the printer stand.
 props.push({kind:'strip',x:-8.6,z:-3.2,id:'strip'});
 props.push({kind:'cart',x:-3,z:4.7,id:'mail-cart',color:'#8c96a8'},{kind:'reel',x:-3,z:4.7,y:1,id:'extension'},{kind:'coupler',x:-3.6,z:4.7,y:.9,id:'coupler'});
@@ -30,6 +34,10 @@ props.push({kind:'sofa',x:12,z:6.4,rotation:Math.PI},{kind:'beanbag',x:10,z:4.6,
 for(let i=0;i<8;i++){const x=i%2?13.2:10.8,z=-7.9+Math.floor(i/2)*1.05;props.push({kind:'chair',x,z,rotation:i%2?-Math.PI/2:Math.PI/2,color:'#3a3d55'});if(i<4)npcs.push({x,z});}
 for(let i=0;i<4;i++)props.push({kind:'box',x:-15.2+(i%2)*.8,z:7.6+Math.floor(i/2)*.8});
 for(let i=0;i<3;i++)props.push({kind:'glass',x:9.3,z:-8.6+i*2.5,id:`glass-${i}`});
+// The chaos target (R5-098): a tower of supply cartons at the aisle end, beside the cable's route to
+// the boardroom. A slingshot, a dragged cable or a shove brings it down (MeetingStrip.towerDown).
+export const TOWER:PropSpec[]=[{kind:'box',x:7.63,z:-2.35,y:.3},{kind:'box',x:8.37,z:-2.35,y:.3},{kind:'box',x:7.63,z:-2.35,y:.91},{kind:'box',x:8.37,z:-2.35,y:.91},{kind:'box',x:8,z:-2.35,y:1.52}];
+props.push(...TOWER);
 export const meeting:Level={id:'meeting',name:'BIG MEETING',number:'01',tagline:'Big meeting. Little technician.',badge:'projector',next:'lunch',deadline:240,width:33,depth:20,spawn:{x:-10,z:-5.8},anchor:{x:-11.4,z:-7.8},target:{x:12.3,z:-2.25},switchAt:{x:12,z:-4.4},length:23.2,props,npcs,
   // The server closet has no door: a strip, coupler or reel thrown over its wall comes back.
   sealed:[{minX:-16.5,maxX:-11.775,minZ:-10,maxZ:-5.375}],

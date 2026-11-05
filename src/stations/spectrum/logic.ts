@@ -19,11 +19,13 @@
 //     mesh with holes much smaller than the wavelength reflects radio and microwaves but lets light
 //     through; smoke scatters short wavelengths most.
 //   * A hole much smaller than half a wavelength does not let that wave through (the 3 m radio wave
-//     cannot use a 30 cm hatch).
+//     cannot use a 60 cm hatch).
 //   * A detector only responds to its own band.
-//   * Mirrors here are optical mirrors for light and IR. The radio and microwave links use the
-//     direct path; reflections of those bands are not modelled (the broadcast antenna spreads the
-//     wave everywhere and the room's echoes are left out).
+//   * A screen only works if it is closed all round: every room has a door that swings shut on a
+//     spring, and an open door (or the open hatch) is an opening the broadcast bands can leak through.
+//   * Mirrors here are optical mirrors for light and IR. The radio and microwave links take the
+//     direct path, or a path through an opening (they spread everywhere, so they find the opening;
+//     only the extra distance is charged). Reflections of those bands are not modelled.
 //   * Not every band is safe to stand beside: UV, X-rays and gamma rays appear only as exhibits.
 //   * Numbers are this game's tuning values, not a real link budget.
 
@@ -70,7 +72,7 @@ export const LOSS:Record<Material,Record<Band,number>>={
   wood:{radio:2,micro:5,thermal:Infinity,nir:Infinity,vis:Infinity},
   glass:{radio:1,micro:2,thermal:Infinity,nir:1,vis:1},
   metal:{radio:Infinity,micro:Infinity,thermal:Infinity,nir:Infinity,vis:Infinity},
-  // The open hatch: a 30 cm hole in the metal shutter. Far smaller than half of radio's 3 m wave.
+  // The open hatch: a 60 cm hole in the metal shutter. Far smaller than half of radio's 3 m wave.
   hatch:{radio:Infinity,micro:8,thermal:0,nir:0,vis:0},
   mesh:{radio:Infinity,micro:Infinity,thermal:3,nir:3,vis:3},
   smoke:{radio:0,micro:0,thermal:1,nir:12,vis:25},
@@ -97,21 +99,46 @@ export interface Wall {id:string;a:P;b:P;mat:Material[];thick:number}
 export const STORE={x0:-11,x1:-4.6,z0:-8,z1:-3.2,door:[-11,-9.4] as [number,number],wood:[-6.4,-5] as [number,number]};
 export const LAB={x0:2,x1:11,z0:-8,z1:-3.2,door:[9.4,11] as [number,number]};
 export const QUIET={x0:5.5,x1:11,z0:1.5,z1:8,door:[9.4,11] as [number,number]};
-export function walls(hatchOpen:boolean):Wall[]{
+/** Each room's doorway has a door that swings shut on a spring once Pip has passed (unless
+ *  something props it open). Shut, it is a wall of its room's material; open, it is an opening. */
+export type DoorId='store'|'lab'|'quiet';
+export type DoorsOpen=Partial<Record<DoorId,boolean>>;
+export const DOORS:Record<DoorId,{a:P;b:P;mat:Material[];
+  /** +1 if the room lies on the +z side of the doorway, −1 if on the −z side. */
+  inside:1|-1}>={
+  store:{a:{x:STORE.door[0],z:STORE.z1},b:{x:STORE.door[1],z:STORE.z1},mat:['wood'],inside:-1},
+  lab:{a:{x:LAB.door[0],z:LAB.z1},b:{x:LAB.door[1],z:LAB.z1},mat:['metal'],inside:-1},
+  quiet:{a:{x:QUIET.door[0],z:QUIET.z0},b:{x:QUIET.door[1],z:QUIET.z0},mat:['mesh'],inside:1},
+};
+export const DOOR_IDS=Object.keys(DOORS) as DoorId[];
+export function walls(hatchOpen:boolean,open:DoorsOpen={}):Wall[]{
   const s=STORE,l=LAB,q=QUIET;
   return [
     {id:'store-front',a:{x:s.door[1],z:s.z1},b:{x:s.x1,z:s.z1},mat:['brick'],thick:.3},
     {id:'store-side-a',a:{x:s.x1,z:s.z0},b:{x:s.x1,z:s.wood[0]},mat:['brick'],thick:.3},
     {id:'store-door',a:{x:s.x1,z:s.wood[0]},b:{x:s.x1,z:s.wood[1]},mat:['wood'],thick:.12},
     {id:'store-side-b',a:{x:s.x1,z:s.wood[1]},b:{x:s.x1,z:s.z1},mat:['brick'],thick:.3},
-    {id:'lab-side',a:{x:l.x0,z:l.z0},b:{x:l.x0,z:l.z1},mat:['brick'],thick:.3},
+    // The lab is a metal-clad clean room: slatted metal over its side wall, the shutter across the front.
+    {id:'lab-side',a:{x:l.x0,z:l.z0},b:{x:l.x0,z:l.z1},mat:['metal','brick'],thick:.3},
     // The shutter hangs on the hall side of the glass, so a beam meets the metal (or hatch) first.
     {id:'lab-front-a',a:{x:l.x0,z:l.z1},b:{x:HATCH.x0,z:l.z1},mat:['metal','glass'],thick:.16},
     {id:'lab-hatch',a:{x:HATCH.x0,z:l.z1},b:{x:HATCH.x1,z:l.z1},mat:[hatchOpen?'hatch':'metal','glass'],thick:.16},
     {id:'lab-front-b',a:{x:HATCH.x1,z:l.z1},b:{x:l.door[0],z:l.z1},mat:['metal','glass'],thick:.16},
     {id:'quiet-side',a:{x:q.x0,z:q.z0},b:{x:q.x0,z:q.z1},mat:['mesh'],thick:.1},
     {id:'quiet-front',a:{x:q.x0,z:q.z0},b:{x:q.door[0],z:q.z0},mat:['mesh'],thick:.1},
+    ...DOOR_IDS.filter(d=>!open[d]).map(d=>({id:`${d}-door`,a:DOORS[d].a,b:DOORS[d].b,mat:DOORS[d].mat,thick:.08})),
   ];
+}
+/** Openings a broadcast can leak through: the open hatch and any open door. The wave comes up to a
+ *  point in front of the opening (`out`, so it rounds the room's corner rather than cutting through
+ *  its wall) and passes to a point just inside (`in`), so that leg records what the opening itself
+ *  costs (the hatch's 8 dB). */
+export function openings(hatchOpen:boolean,open:DoorsOpen={}):{id:string;out:P;in:P}[]{
+  const at=(x:number,z:number,inside:number)=>({out:{x,z:z-inside*.9},in:{x,z:z+inside*.05}});
+  const list:{id:string;out:P;in:P}[]=[];
+  if(hatchOpen)list.push({id:'hatch',...at((HATCH.x0+HATCH.x1)/2,HATCH.z,-1)});
+  for(const d of DOOR_IDS)if(open[d]){const o=DOORS[d];list.push({id:`${d}-door`,...at((o.a.x+o.b.x)/2,o.a.z,o.inside)});}
+  return list;
 }
 
 // ---------- geometry ----------
@@ -130,9 +157,9 @@ export function throughCloud(p:P,q:P,c:{x:number;z:number;r:number}):number|unde
 }
 export interface Hit {mat:Material;at:P;loss:number;wall?:string}
 /** Everything a leg meets, in order along it. */
-export function legHits(p:P,q:P,band:Band,hatchOpen:boolean):Hit[]{
+export function legHits(p:P,q:P,band:Band,hatchOpen:boolean,open:DoorsOpen={}):Hit[]{
   const hits:(Hit&{t:number})[]=[];
-  for(const w of walls(hatchOpen)){const t=crossing(p,q,w.a,w.b);if(t===undefined)continue;const at={x:p.x+(q.x-p.x)*t,z:p.z+(q.z-p.z)*t};
+  for(const w of walls(hatchOpen,open)){const t=crossing(p,q,w.a,w.b);if(t===undefined)continue;const at={x:p.x+(q.x-p.x)*t,z:p.z+(q.z-p.z)*t};
     for(const m of w.mat)hits.push({mat:m,at,loss:LOSS[m][band],wall:w.id,t});}
   const ts=throughCloud(p,q,SMOKE);if(ts!==undefined)hits.push({mat:'smoke',at:{x:p.x+(q.x-p.x)*ts,z:p.z+(q.z-p.z)*ts},loss:LOSS.smoke[band],t:ts});
   return hits.sort((a,b)=>a.t-b.t).map(({t:_t,...h})=>h);
@@ -144,14 +171,16 @@ export interface Job {id:string;pad:Pad;title:string;ask:string;message:string;
    *  near-IR photodiode sits behind a daylight filter that blocks the visible part, so it loses a third. */
   ambient?:number;
   /** The shutter hatch matters for this delivery. */
-  hatch?:boolean}
+  hatch?:boolean;
+  /** The destination is a screened room: its door has to be shut for the room to stay quiet. */
+  screened?:DoorId}
 export const JOBS:Job[]=[
   {id:'store',pad:'store',title:'Through the brick wall',message:'STOCK CHECK AT 4',
     ask:'The storeroom keeper needs a message. The pod sits behind a solid brick wall.'},
   {id:'lab',pad:'lab',title:'Into the shuttered lab',message:'LAB TEA IS READY',ambient:6,hatch:true,
     ask:'The glass lab has its metal shutter down. Only a small hatch opens. The lab is sunny.'},
-  {id:'quiet',pad:'quiet',title:'Past the smoke, into the quiet room',message:'ALL CLEAR, PIP',
-    ask:'Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage. Find a band that gets through both.'},
+  {id:'quiet',pad:'quiet',title:'Past the smoke, into the quiet room',message:'ALL CLEAR, PIP',screened:'quiet',
+    ask:'Burnt toast fills the tea corner with smoke, and the quiet room is a copper-mesh cage.'},
 ];
 
 export interface Setup {band:Band;detector:Detector;power:Power;hatchOpen:boolean;
@@ -160,19 +189,23 @@ export interface Setup {band:Band;detector:Detector;power:Power;hatchOpen:boolea
   /** Where the pod stands (a pad, or loose somewhere). */
   pod:Pad|null;
   /** The player's aim for beams; without it the best aim is assumed. */
-  aim?:Aim}
+  aim?:Aim;
+  /** Doors standing open (all shut when left out). */
+  doors?:DoorsOpen}
 export interface Leg {a:P;b:P;hits:Hit[]}
 export interface Route {path:P[];spots:Spot[];legs:Leg[];length:number;spread:number;loss:number;margin:number;
   /** An aimed beam that ran to the hall's edge without finding the pod. */
   missed?:boolean;
+  /** A broadcast that reaches the pod through an opening (its id), instead of straight through the walls. */
+  via?:string;
   /** The margin with each outright block counted as 1000 dB: ranks blocked routes by how close they came. */
   score:number;
   /** First obstacle that stops it outright (Infinity loss). */
   blocked?:Hit}
 /** Margin along one route (no detector or ambient terms). */
-function along(band:Band,power:Power,path:P[],spots:Spot[],hatchOpen:boolean):Route{
+function along(band:Band,power:Power,path:P[],spots:Spot[],hatchOpen:boolean,open:DoorsOpen={}):Route{
   const b=BANDS[band],legs:Leg[]=[];let length=0,loss=0,capped=0,blocked:Hit|undefined;
-  for(let i=1;i<path.length;i++){const hits=legHits(path[i-1],path[i],band,hatchOpen);legs.push({a:path[i-1],b:path[i],hits});length+=dist(path[i-1],path[i]);
+  for(let i=1;i<path.length;i++){const hits=legHits(path[i-1],path[i],band,hatchOpen,open);legs.push({a:path[i-1],b:path[i],hits});length+=dist(path[i-1],path[i]);
     for(const h of hits){loss+=h.loss;capped+=Math.min(1000,h.loss);if(!blocked&&!Number.isFinite(h.loss))blocked=h;}}
   loss+=spots.length;capped+=spots.length;const spread=b.n*10*Math.log10(Math.max(1,length)),base=dBm(power)+b.k-spread;
   return {path,spots,legs,length,spread,loss,margin:base-loss,score:base-capped,blocked};
@@ -181,13 +214,23 @@ function along(band:Band,power:Power,path:P[],spots:Spot[],hatchOpen:boolean):Ro
 function orders(spots:Spot[]):Spot[][]{
   const out:Spot[][]=[[]];for(const a of spots){out.push([a]);for(const b of spots)if(b!==a)out.push([a,b]);}return out;
 }
+const blocks=(r:Route)=>r.legs.reduce((n,l)=>n+l.hits.filter(h=>!Number.isFinite(h.loss)).length,0);
 /** The best route the transmitter can find for this band. Beams may bounce off standing mirrors
- *  (the tower and the mirror mounts aim themselves); radio and microwave take the direct path. */
-export function bestRoute(job:Job,s:Pick<Setup,'band'|'power'|'hatchOpen'|'mirrors'>,to:P=PADS[job.pad]):Route{
-  const tries=BANDS[s.band].beam?orders(s.mirrors):[[]];let best:Route|undefined;
-  for(const o of tries){const r=along(s.band,s.power,[TX,...o.map(k=>SPOTS[k]),to],o,s.hatchOpen);
-    // Strongest route wins; on a tie, fewer mirrors. Blocked routes rank by how close they came.
-    if(!best||r.score>best.score+1e-9||(Math.abs(r.score-best.score)<1e-9&&r.spots.length<best.spots.length))best=r;}
+ *  (the tower and the mirror mounts aim themselves); radio and microwave take the direct path or
+ *  leak through an opening (the open hatch, an open door). */
+export function bestRoute(job:Job,s:Pick<Setup,'band'|'power'|'hatchOpen'|'mirrors'|'doors'>,to:P=PADS[job.pad]):Route{
+  const open=s.doors??{},beam=BANDS[s.band].beam;
+  const tries:{path:P[];spots:Spot[];via?:string}[]=beam?orders(s.mirrors).map(o=>({path:[TX,...o.map(k=>SPOTS[k]),to],spots:o})):
+    [{path:[TX,to],spots:[]},...openings(s.hatchOpen,open).map(o=>({path:[TX,o.out,o.in,to],spots:[],via:o.id}))];
+  let best:Route|undefined;
+  for(const t of tries){const r:Route={...along(s.band,s.power,t.path,t.spots,s.hatchOpen,open),via:t.via};
+    if(!best){best=r;continue;}
+    // Fewest outright blocks first. Between blocked broadcasts, the one that got as far as an opening
+    // is the closer miss (it says why the opening doesn't help). Then the strongest; on a tie, fewer mirrors.
+    const nb=blocks(r),bb=blocks(best);
+    if(nb!==bb){if(nb<bb)best=r;continue;}
+    if(nb>0&&!beam&&!!r.via!==!!best.via){if(r.via)best=r;continue;}
+    if(r.score>best.score+1e-9||(Math.abs(r.score-best.score)<1e-9&&r.spots.length<best.spots.length))best=r;}
   return best!;
 }
 // ---------- aiming ----------
@@ -207,8 +250,8 @@ export const idleYaw=(s:Spot)=>heading(SPOTS[s],TX);
 /** Traces an aimed beam: out of the tower along its heading, reflecting off any standing mirror board
  *  it meets, until it passes close enough to the pod, stops at an obstacle this band cannot cross, or
  *  reaches the hall's edge. Obstacles it can cross are left for along() to charge. */
-export function traceBeam(band:Band,hatchOpen:boolean,aim:Aim,spots:Spot[],target:P):{path:P[];spots:Spot[];missed:boolean}{
-  const R=60,stops=walls(hatchOpen).filter(w=>w.mat.some(m=>!Number.isFinite(LOSS[m][band])));
+export function traceBeam(band:Band,hatchOpen:boolean,aim:Aim,spots:Spot[],target:P,open:DoorsOpen={}):{path:P[];spots:Spot[];missed:boolean}{
+  const R=60,stops=walls(hatchOpen,open).filter(w=>w.mat.some(m=>!Number.isFinite(LOSS[m][band])));
   let p=TX,d={x:Math.sin(aim.tx),z:Math.cos(aim.tx)},last:Spot|undefined;const path:P[]=[TX],used:Spot[]=[];
   for(let bounce=0;bounce<6;bounce++){
     const far={x:p.x+d.x*R,z:p.z+d.z*R};
@@ -231,8 +274,8 @@ export function traceBeam(band:Band,hatchOpen:boolean,aim:Aim,spots:Spot[],targe
   return {path,spots:used,missed:true};
 }
 /** The route of an aimed beam, priced like any other. */
-export function aimedRoute(job:Job,s:Pick<Setup,'band'|'power'|'hatchOpen'|'mirrors'>&{aim:Aim}):Route{
-  const tr=traceBeam(s.band,s.hatchOpen,s.aim,s.mirrors,PADS[job.pad]),r=along(s.band,s.power,tr.path,tr.spots,s.hatchOpen);
+export function aimedRoute(job:Job,s:Pick<Setup,'band'|'power'|'hatchOpen'|'mirrors'|'doors'>&{aim:Aim}):Route{
+  const tr=traceBeam(s.band,s.hatchOpen,s.aim,s.mirrors,PADS[job.pad],s.doors),r=along(s.band,s.power,tr.path,tr.spots,s.hatchOpen,s.doors);
   return {...r,missed:tr.missed&&!r.blocked};
 }
 
@@ -254,10 +297,19 @@ export function whyBlocked(m:Material,band:Band):string{
     case 'wood':return `Wood is opaque to ${n}.`;
     case 'glass':return 'Window glass lets visible and near-IR light through, but it absorbs 10 µm thermal infrared.';
     case 'metal':return `Metal reflects ${n}: the shutter stops it.`;
-    case 'hatch':return 'The hatch is 30 cm across. Radio\'s 3 m wave can\'t pass a hole much smaller than half a wavelength.';
-    case 'mesh':return `The quiet room is a mesh cage: its holes are far smaller than the ${n} wavelength, so the mesh reflects it. Light passes between the wires.`;
+    case 'hatch':return 'The hatch is 60 cm across. Radio\'s 3 m wave can\'t pass a hole much smaller than half a wavelength.';
+    case 'mesh':return `The quiet room is closed all round by fine copper mesh. Its holes are far smaller than the ${n} wavelength, so the mesh reflects it.`;
     case 'smoke':return 'Smoke scatters it away.';
   }
+}
+/** The link budget, term by term, for the meter's waterfall: what was sent, then each loss. */
+export interface Term {kind:'sent'|'distance'|Material|'mirror'|'sun';db:number}
+export function budget(r:Reading,s:Pick<Setup,'band'|'power'>):Term[]{
+  const out:Term[]=[{kind:'sent',db:dBm(s.power)+BANDS[s.band].k},{kind:'distance',db:-r.route.spread}];
+  for(const l of r.route.legs)for(const h of l.hits)if(Number.isFinite(h.loss)&&h.loss>0)out.push({kind:h.mat,db:-h.loss});
+  for(let k=0;k<r.route.spots.length;k++)out.push({kind:'mirror',db:-1});
+  if(r.ambient)out.push({kind:'sun',db:-r.ambient});
+  return out;
 }
 export interface Verdict {tier:0|1|2|3;problems:string[];notes:string[];margin:number;cost:number}
 export function judge(job:Job,s:Setup):Verdict{
@@ -268,12 +320,18 @@ export function judge(job:Job,s:Setup):Verdict{
   else if(r.route.blocked)problems.push(`${MATERIAL_NAMES[r.route.blocked.mat][0].toUpperCase()+MATERIAL_NAMES[r.route.blocked.mat].slice(1)}: ${whyBlocked(r.route.blocked.mat,s.band)}`);
   else if(r.route.missed)problems.push('The beam misses the pod.');
   else if(r.margin<SPEC.works){const smoke=r.route.legs.some(l=>l.hits.some(h=>h.mat==='smoke'));
-    problems.push(`Too weak: ${margin} dB. ${smoke&&(s.band==='vis'||s.band==='nir')?'Smoke scatters short wavelengths hardest; long-wave thermal IR slips through. ':''}${r.ambient?(s.band==='vis'?'Sunlight swamps the green photodiode here. ':'Sunlight carries near IR too; the daylight filter only blunts it. '):''}`.trim());}
+    problems.push(`Too weak: ${margin} dB. ${smoke&&(s.band==='vis'||s.band==='nir')?'Smoke scatters short wavelengths hardest. ':''}${r.ambient?(s.band==='vis'?'Sunlight swamps the green photodiode here. ':'Sunlight carries near IR too; the daylight filter only blunts it. '):''}`.trim());}
   if(problems.length)return {tier:0,problems,notes,margin,cost:c};
-  if(r.margin<SPEC.reliable){notes.push(`Received, but only ${margin} dB of margin (reliable needs ${SPEC.reliable} dB).`);return {tier:1,problems,notes,margin,cost:c};}
-  const best=leanest(job,s);
-  if(best&&(best.power<s.power||(best.power===s.power&&best.mirrors<r.route.spots.length))){
-    notes.push(best.power<s.power?'Reliable, but it uses more power than this delivery needs.':'Reliable, but the beam bounces off more mirrors than it needs.');return {tier:2,problems,notes,margin,cost:c};}
+  const sun=r.ambient?` Sunlight on the detector is eating ${+r.ambient.toFixed(1)} dB of margin.`:'';
+  if(r.margin<SPEC.reliable){notes.push(`Received, but only ${margin} dB of margin (reliable needs ${SPEC.reliable} dB).${sun}`);return {tier:1,problems,notes,margin,cost:c};}
+  // A screened room with its door standing open: the message gets in, but so does everything else.
+  if(job.screened&&s.doors?.[job.screened]){notes.push('Reliable, but the cage door stands open, so the quiet room isn\'t screened: the reader wakes up.');return {tier:2,problems,notes,margin,cost:c};}
+  // Waste is judged against this band first: more power or mirrors than this band needs is a note
+  // about this setup; if this band is already as lean as it gets, only say another band does better.
+  const more=(x:{power:number;mirrors:number})=>x.power<s.power||(x.power===s.power&&x.mirrors<r.route.spots.length);
+  const all=solutions(job),same=all.find(x=>x.setup.band===s.band),best=all[0];
+  if(same&&more(same)){notes.push(same.power<s.power?`Reliable, but it uses more power than this delivery needs.${sun}`:'Reliable, but the beam bounces off more mirrors than it needs.');return {tier:2,problems,notes,margin,cost:c};}
+  if(best&&more(best)){notes.push(`Reliable. Another band would get here with less.${sun}`);return {tier:2,problems,notes,margin,cost:c};}
   return {tier:3,problems,notes,margin,cost:c};
 }
 

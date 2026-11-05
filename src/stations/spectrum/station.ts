@@ -13,8 +13,9 @@ import {prefabs} from '../../props/prefabs';
 import {dressSpectrum,CREAM,PAPER,COPPER,type SpectrumRoom} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
-import {JOBS,BANDS,BAND_IDS,DETECTOR_IDS,POWERS,SPEC,PADS,PAD_NAMES,SPOTS,SPOT_IDS,TX,SMOKE,STORE,LAB,QUIET,HATCH,MATERIAL_NAMES,POD_HOME,
-  walls,read,judge,cost,leanest,lambdaText,freqText,dist,heading,mirrorYaw,idleYaw,type Band,type Detector,type Power,type Pad,type Spot,type Setup,type Verdict,type Job,type Reading,type P,type Aim} from './logic';
+import * as TXR from '../../render/textures';
+import {JOBS,BANDS,BAND_IDS,DETECTOR_IDS,POWERS,SPEC,PADS,PAD_NAMES,SPOTS,SPOT_IDS,TX,SMOKE,STORE,LAB,QUIET,HATCH,MATERIAL_NAMES,POD_HOME,DOORS,
+  walls,openings,read,judge,cost,leanest,budget,lambdaText,freqText,dist,heading,mirrorYaw,idleYaw,type Band,type Detector,type Power,type Pad,type Spot,type Setup,type Verdict,type Job,type Reading,type P,type Aim,type DoorsOpen,type DoorId,type Term} from './logic';
 import './spectrum.css';
 import {cheer} from '../shared';
 
@@ -66,7 +67,7 @@ export class SpectrumDesk implements Station {
   podPad:Pad|null=null;mirrorAt=new Map<Prop,Spot>();
   /** The player's aim: the tower's heading and each standing mirror's yaw. It starts on the first pad. */
   aim:Aim={tx:heading(TX,PADS[JOBS[0].pad]),mirrors:{}};
-  private drag?:'tx'|Spot;private mapMesh!:T.Mesh;private mapHover=false;private tickT=0;
+  private drag?:'tx'|Spot;private mapMesh!:T.Mesh;private mapHover:false|'aim'|'mirror'|'turn'=false;private tickT=0;
   private room?:SpectrumRoom;private pod?:Prop;private mirrors:Prop[]=[];private ready=false;
   private root=new T.Group();private clickables:Clickable[]=[];private hovered?:Clickable;
   private podTop=new T.Group();private podHeads=new Map<Detector,T.Object3D>();private podLamp!:T.Mesh;private mirrorTops=new Map<Prop,T.Object3D>();
@@ -77,6 +78,13 @@ export class SpectrumDesk implements Station {
   private ribbon!:T.Mesh;private ribbonCycles=BANDS.vis.cycles;private ribbonBase!:Float32Array;
   private bandKeys=new Map<Band,T.Object3D>();private powerKeys=new Map<Power,T.Object3D>();private lever!:T.Object3D;private sendCap!:T.Mesh;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';private lastMessage='';
+  private tower!:T.Group;private glare!:T.Sprite;
+  /** Commit, then reveal: the link's numbers appear only after a SEND, for the setup that was sent. */
+  private tested?:{key:string;margin:number;terms:Term[];tier:number;at:number};
+  /** A delivery that just landed: the route stays on the map and the pulse runs it before the next job. */
+  private hold?:{until:number;start:number;path:P[];pad:Pad};
+  /** Each door's swing (0 shut … 1 open) and which side it opened toward. */
+  private doorOpen:Record<DoorId,number>={store:0,lab:0,quiet:0};private doorSide:Record<DoorId,number>={store:1,lab:1,quiet:1};
   readonly job:StationJob;
   constructor(private game:Game){
     this.limits.cost=Math.ceil(JOBS.reduce((n,j)=>n+(leanest(j)?.cost??0),0)*1.25);
@@ -86,8 +94,8 @@ export class SpectrumDesk implements Station {
         {text:'Carry the receiver pod into the brick storeroom',done:()=>d()>0||this.podPad==='store',at:()=>this.pod&&this.game.held===this.pod?PADS.store:this.podAt()},
         {text:'Sit at the dispatch desk (E)',done:()=>this.active||d()>0,at:()=>this.stand},
         {text:`Delivery 1: ${JOBS[0].title}`,done:()=>d()>0,at:()=>this.stand},
-        {text:'Move the pod into the glass lab, and stand a mirror on a floor mark',done:()=>d()>1||(d()>0&&this.podPad==='lab'&&this.mirrorAt.size>0),
-          at:()=>this.podPad!=='lab'?(this.pod&&this.game.held===this.pod?PADS.lab:this.podAt()):this.freeMirror()??this.stand},
+        {text:'Get the pod into the glass lab',done:()=>d()>1||(d()>0&&this.podPad==='lab'),
+          at:()=>this.pod&&this.game.held===this.pod?PADS.lab:this.podAt()},
         {text:`Delivery 2: ${JOBS[1].title}`,done:()=>d()>1,at:()=>this.stand},
         {text:'Move the pod into the quiet room',done:()=>d()>2||(d()>1&&this.podPad==='quiet'),at:()=>this.pod&&this.game.held===this.pod?PADS.quiet:this.podAt()},
         {text:`Delivery 3: ${JOBS[2].title}`,done:()=>d()>2,at:()=>this.stand}],
@@ -100,10 +108,16 @@ export class SpectrumDesk implements Station {
   }
   dress(kit:RoomKit){this.room=dressSpectrum(this.game,kit);return {lightUp:this.room.lightUp};}
   current():Job|undefined{return JOBS[this.jobIndex];}
-  state():Setup{return {band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,mirrors:[...new Set(this.mirrorAt.values())],pod:this.podPad,aim:this.aim};}
+  state():Setup{return {band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,mirrors:[...new Set(this.mirrorAt.values())],pod:this.podPad,aim:this.aim,doors:this.doorsOpen()};}
   reading():Reading{return read(this.current()??JOBS[JOBS.length-1],this.state());}
+  /** A door counts as open once it has swung far enough to leave a real gap. */
+  doorsOpen():DoorsOpen{const o:DoorsOpen={};for(const d of Object.keys(this.doorOpen) as DoorId[])if(this.doorOpen[d]>.35)o[d]=true;return o;}
   private podAt():P{const p=this.pod?.body.translation();return p?{x:p.x,z:p.z}:POD_HOME;}
-  private freeMirror():P|undefined{const m=this.mirrors.find(p=>!this.mirrorAt.has(p));const q=m?.body.translation();return q&&{x:q.x,z:q.z};}
+  /** The setup a SEND measures: when the player changes any of it, the old numbers no longer apply. */
+  private setupKey(){const s=this.state(),beam=BANDS[s.band].beam;
+    return JSON.stringify([this.jobIndex,s.band,s.power,s.hatchOpen,[...s.mirrors].sort(),s.pod,s.doors,beam?[+this.aim.tx.toFixed(3),Object.entries(this.aim.mirrors).map(([k,v])=>[k,+(v as number).toFixed(3)]).sort()]:0]);}
+  /** The link's numbers for this setup have been measured by a SEND. */
+  revealed(){return !!this.tested&&this.tested.key===this.setupKey();}
 
   // ---------- the desk ----------
   private buildDesk(){
@@ -136,7 +150,7 @@ export class SpectrumDesk implements Station {
     sign(top,'POWER  (P)',1.31,.082,.37,.4,-1.1,CREAM,INK,.1);
     // The hatch switch: a low rocker (tipped back = open), so it doesn't hide the power keys.
     const lever=group(top,1.05,.055,.47);part(lever,rbox(.22,.05,.16,.03),toon(INK),0,.025,0);this.lever=group(lever,0,.06,0);part(this.lever,rbox(.16,.05,.1,.02),toon('#ffc629'),0,.02,0);
-    this.click(lever,'hatch');sign(top,'LAB HATCH',1.4,.082,.5,.4,-1.1,'#ffc629',INK,.1);
+    this.click(lever,'hatch');sign(top,'LAB HATCH (H)',1.4,.082,.5,.4,-1.1,'#ffc629',INK,.1);
     const send=group(top,1.95,.055,.3);part(send,cyl(.14,.16,.06,24),toon(INK),0,.03,0);this.sendCap=part(send,cyl(.12,.12,.06,24),toon('#3fae6a'),0,.08,0);
     this.click(send,'send');sign(top,'SEND',1.95,.082,.54,.3,-1.1,'#3fae6a','#fffaf0',.1);
   }
@@ -146,10 +160,14 @@ export class SpectrumDesk implements Station {
   // ---------- the hall: tower, pads, mirror marks, beam ----------
   private buildHall(){
     const g=this.game,r=g.root;
-    const tower=group(r,TX.x,0,TX.z);part(tower,cyl(.4,.46,.1,24),toon(INK),0,.05,0);part(tower,cyl(.07,.09,1.1,14),toon(PAPER),0,.65,0);
-    BAND_IDS.forEach((b,i)=>part(tower,cyl(.075,.075,.04,14),toon(BANDS[b].color),0,.35+i*.07,0));
+    // The tower: a two-step plinth, the mast with the five band rings standing proud of it, the turret.
+    const tower=this.tower=group(r,TX.x,0,TX.z);part(tower,cyl(.42,.46,.08,24),toon(DMETAL),0,.04,0);part(tower,cyl(.3,.34,.06,24),toon('#6b7385'),0,.11,0);
+    for(let k=0;k<4;k++){const a=k*Math.PI/2+Math.PI/4;part(tower,sphere(.025,8,6),toon(INK),Math.cos(a)*.36,.09,Math.sin(a)*.36);}
+    part(tower,cyl(.07,.09,1.1,14),toon(PAPER),0,.65,0);
+    BAND_IDS.forEach((b,i)=>part(tower,cyl(.105,.105,.045,20),toon(BANDS[b].color),0,.32+i*.075,0));
     tower.add(this.turret);this.turret.position.y=BEAM_Y;part(this.turret,rbox(.3,.22,.34,.06),toon(PAPER),0,0,0);part(this.turret,cyl(.09,.1,.14,18,'z'),toon(INK),0,0,.2);
-    part(this.turret,cyl(.075,.075,.02,18,'z'),glossyToon('#dff3ff',{spec:.9,size:.95}),0,0,.275);for(const s of [-1,1])part(this.turret,cyl(.01,.01,.36,6),toon('#dfe3ea'),s*.11,.25,-.08);
+    part(this.turret,cyl(.075,.075,.02,18,'z'),glossyToon('#dff3ff',{spec:.9,size:.95}),0,0,.275);for(const s of [-1,1]){part(this.turret,cyl(.018,.018,.36,8),toon('#dfe3ea'),s*.11,.25,-.08);part(this.turret,sphere(.03,10,8),toon(INK),s*.11,.44,-.08);}
+    for(const y of [-.06,0,.06])part(this.turret,box(.2,.025,.01),toon(INK),0,y,-.175,false);
     this.beacon=part(tower,sphere(.07,12,10),hot(BANDS.vis.color,1.6),0,1.52,0,false);
     this.solid(.6,2,.6,TX.x,1,TX.z);
     // Destination pads: a ring that glows on the current delivery's pad.
@@ -169,10 +187,14 @@ export class SpectrumDesk implements Station {
   private setup(){
     this.ready=true;const g=this.game;this.pod=g.props.find(p=>p.spec.id==='pod');this.mirrors=g.props.filter(p=>p.spec.id?.startsWith('mirror'));
     // The pod: a mast with the fitted detector head and a status lamp, riding on the case.
-    const t=this.podTop;g.root.add(t);part(t,cyl(.03,.03,.36,8),toon(DMETAL),.2,.48,0);part(t,rbox(.36,.05,.3,.03),toon(INK),.2,.32,0);
-    for(const d of DETECTOR_IDS){const h=headMesh(d,1.5);h.position.set(.2,.64,0);t.add(h);this.podHeads.set(d,h);}
+    // (Mast and plate sit clear of the case's carry handle, which spans x ±0.15 on the lid.)
+    const t=this.podTop;g.root.add(t);part(t,cyl(.03,.03,.36,8),toon(DMETAL),.28,.48,0);part(t,rbox(.22,.05,.24,.03),toon(INK),.28,.32,0);
+    for(const d of DETECTOR_IDS){const h=headMesh(d,1.5);h.position.set(.28,.64,0);t.add(h);this.podHeads.set(d,h);}
     this.podLamp=part(t,sphere(.06,12,10),toon('#6b7385'),-.25,.36,.1,false);
-    const tag=part(t,new T.PlaneGeometry(.5,.16),flatMat(label('RX POD','#3fae6a','#fffaf0',256,82)),-.12,.02,.331,false);tag.userData.noAO=true;
+    const tag=part(t,new T.PlaneGeometry(.44,.15),flatMat(label('RX POD','#3fae6a','#fffaf0',256,82)),.06,.02,.331,false);tag.userData.noAO=true;
+    // Sun glare on the detector: big on the green photodiode, small on the filtered near-IR one.
+    this.glare=new T.Sprite(new T.SpriteMaterial({map:TXR.radial('glare','rgba(255,246,214,1)','rgba(255,236,170,0)',.2),transparent:true,opacity:.85,depthWrite:false,blending:T.AdditiveBlending}));
+    this.glare.position.set(.28,.84,.05);this.glare.visible=false;this.glare.userData.noAO=true;t.add(this.glare);
     // Mirror boards: a silvered pane over the board, both faces.
     // (Props are drawn batched, so the panes ride along as their own groups, like the pod's mast.)
     const glassTex=canvasTex(256,160,c=>{const gr=c.createLinearGradient(0,0,256,160);gr.addColorStop(0,'#f4fbff');gr.addColorStop(.5,'#a9d4f0');gr.addColorStop(1,'#6fa9d6');c.fillStyle=gr;c.fillRect(0,0,256,160);
@@ -196,7 +218,8 @@ export class SpectrumDesk implements Station {
   private aimYaw(s:Spot){return this.aim.mirrors[s]??idleYaw(s);}
   /** Points the tower at a spot on the map, or turns a mirror so its reflection heads there. */
   private aimTo(what:'tx'|Spot,at:P){
-    if(what==='tx'){if(dist(at,TX)<.3)return false;this.aim.tx=heading(TX,at);}
+    // Pointing the tower near a standing mirror points it at the board's centre.
+    if(what==='tx'){const m=this.handleNear(at);if(m)at=SPOTS[m];if(dist(at,TX)<.3)return false;this.aim.tx=heading(TX,at);}
     else{if(![...this.mirrorAt.values()].includes(what))return false;const r=this.reading().route,i=r.spots.indexOf(what),from=i>=0?r.path[i]:TX;
       if(dist(at,SPOTS[what])<.3)return false;this.aim.mirrors[what]=mirrorYaw(SPOTS[what],from,at);}
     if(this.game.time>this.tickT){this.tickT=this.game.time+.06;this.game.audio.tone(what==='tx'?700:900,.02,.015,'triangle');}
@@ -208,8 +231,14 @@ export class SpectrumDesk implements Station {
     const L=this.game.level,w=this.map.canvas.width,hh=this.map.canvas.height,sx=(w-60)/L.width;
     return {x:(h.uv.x*w-30)/sx-L.width/2,z:((1-h.uv.y)*hh-28)/sx-L.depth/2};
   }
-  /** The tower or a standing mirror under a map point, if the pointer is on one. */
-  private handleNear(at:P):'tx'|Spot|undefined{
+  /** Where a plan point is drawn on the desk's map, in page pixels (for tests that click the map). */
+  private mapScreen(p:P):[number,number]{
+    const L=this.game.level,w=this.map.canvas.width,h=this.map.canvas.height,sx=(w-60)/L.width,u=(30+(p.x+L.width/2)*sx)/w,v=1-(28+(p.z+L.depth/2)*sx)/h;
+    const g=this.mapMesh.geometry as T.PlaneGeometry,{width,height}=g.parameters,cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect();
+    const s=this.mapMesh.localToWorld(new T.Vector3((u-.5)*width,(v-.5)*height,0)).project(cam);return [Math.round(rect.left+(s.x+1)/2*rect.width),Math.round(rect.top+(1-s.y)/2*rect.height)];
+  }
+  /** A standing mirror under a map point, if the pointer is on one. */
+  private handleNear(at:P):Spot|undefined{
     for(const s of this.mirrorAt.values())if(dist(at,SPOTS[s])<1.2)return s;
     return undefined;
   }
@@ -217,6 +246,8 @@ export class SpectrumDesk implements Station {
   // ---------- actions ----------
   act(name:string,arg?:unknown):boolean{
     const j=this.current(),a=this.game.audio;if(!j)return false;
+    // While a delivery lands (the pulse runs the map, the pad flashes), the desk waits for the next job.
+    if(this.hold)return false;
     switch(name){
       case 'band':{const b=arg as Band;if(!BANDS[b])return false;this.band=b;this.detector=BANDS[b].detector;a.tone(300+BAND_IDS.indexOf(b)*140,.08,.04,'triangle');
         this.say(`${BANDS[b].name}: λ = ${lambdaText(b)}, f = ${freqText(b)}. Every band obeys c = f × λ.`);break;}
@@ -225,19 +256,36 @@ export class SpectrumDesk implements Station {
       case 'turn':{this.aim.tx+=Number(arg)*Math.PI/90;a.tone(700,.02,.015,'triangle');break;}
       case 'power':{const p=Number(arg) as Power;if(!POWERS.includes(p))return false;this.power=p;a.tone(420+POWERS.indexOf(p)*180,.07,.04,'triangle');break;}
       case 'hatch':{this.hatchOpen=typeof arg==='boolean'?arg:!this.hatchOpen;a.noise(.12,.05,900,'lowpass');a.tone(this.hatchOpen?520:300,.1,.04,'triangle');
-        this.say(this.hatchOpen?'Hatch open: a 30 cm hole in the lab\'s metal shutter.':'Hatch shut: the shutter is solid metal again.');break;}
-      case 'send':{const v=judge(j,this.state()),r=this.reading();
+        this.say(this.hatchOpen?'Hatch open: a 60 cm hole in the lab\'s metal shutter.':'Hatch shut: the shutter is solid metal again.');break;}
+      case 'send':{const s=this.state(),v=judge(j,s),r=this.reading();
         if(!r.podOk){this.say(`The receiver pod isn't on the ${PAD_NAMES[j.pad]} pad yet. Step back (E) and carry it there.`);a.voice('hm',1.4);return false;}
-        const c=cost(this.state(),r.route);this.spent+=c;this.firePulse(r,v.tier>0);
-        if(v.tier===0){this.mistakes++;this.say(`Not delivered. ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm(PADS[j.pad],3);return true;}
+        // A failed send only counts as a mistake when the failure was already on show: the path drawn
+        // stopping or missing, or this exact setup measured before. A link too weak to work, sent
+        // before its numbers were ever shown, is the measurement itself: it costs energy, not a mistake.
+        const known=!!r.route.blocked||!!r.route.missed||this.revealed();
+        const c=cost(s,r.route);this.spent+=c;this.firePulse(r,v.tier>0);
+        this.tested={key:this.setupKey(),margin:r.margin,terms:budget(r,s),tier:v.tier,at:this.game.time};this.observe(r);
+        if(v.tier===0){if(known)this.mistakes++;this.say(`Not delivered. ${v.problems[0]}`,'bad');a.tone(160,.25,.06,'square');a.voice('groan',1);this.game.alarm(PADS[j.pad],3);this.redraw();return true;}
         this.delivered.push({job:j.id,verdict:v});this.lastMessage=j.message;
         this.say(`“${j.message}” · ${['','Received','Reliable','Elegant'][v.tier]} (${v.margin} dB)${v.notes[0]?` · ${v.notes[0]}`:''}`,'ok');
-        a.cheer();a.bell(1319,.5,.05);const at=PADS[j.pad];cheer(this.game,this,'#ffd66b',{x:at.x,y:1.4,z:at.z});if(!this.game.atBench)this.game.burst({x:at.x,y:1.5,z:at.z},'#fff3c8',6,'star');
-        this.jobIndex++;const next=this.current();if(next)this.aim.tx=heading(TX,PADS[next.pad]);this.redraw();return true;}
+        a.cheer();a.bell(1319,.5,.05);[1568,1976,2349].forEach((f,i)=>a.bell(f,.4,.03,.9+i*.12));
+        const at=PADS[j.pad];cheer(this.game,this,'#ffd66b',{x:at.x,y:1.4,z:at.z});if(!this.game.atBench)this.game.burst({x:at.x,y:1.5,z:at.z},'#fff3c8',6,'star');
+        // Hold on this delivery for a beat: the pulse runs the route on the map and the pad flashes;
+        // the next job comes up after it (see update()).
+        this.hold={until:this.game.time+1.6,start:this.game.time,path:this.drawnPath(r),pad:j.pad};this.redraw();return true;}
       default:return false;
     }
     this.redraw();return true;
   }
+  /** A send shows what this band did at each material it met (up to where it stopped): the wall chart
+   *  fills in those cells. */
+  private observe(r:Reading){
+    if(!this.room)return;let fresh=false;
+    for(const leg of r.route.legs){for(const h of leg.hits){fresh=this.room.chart.mark(this.band,h.mat,h.loss)||fresh;if(!Number.isFinite(h.loss))break;}if(leg.hits.some(h=>!Number.isFinite(h.loss)))break;}
+    if(fresh)this.game.audio.tone(1200,.05,.025,'triangle',.3);
+  }
+  /** The delivery hold is over: the next job comes up and the tower turns toward its pad. */
+  private endHold(){this.hold=undefined;this.tested=undefined;this.jobIndex++;const next=this.current();if(next)this.aim.tx=heading(TX,PADS[next.pad]);this.redraw();}
   private firePulse(r:Reading,ok:boolean){
     const pts=this.drawnPath(r);this.pulsePath=pts.map(p=>new T.Vector3(p.x,BEAM_Y,p.z));this.pulseT=0;this.pulseOk=ok;this.pulse.visible=true;
     ((this.pulse.material as T.MeshBasicMaterial).color).set(BANDS[this.band].color).multiplyScalar(2);
@@ -255,7 +303,7 @@ export class SpectrumDesk implements Station {
     this.bandKeys.forEach((k,b)=>k.position.y=b===this.band?.075:.055);
     this.powerKeys.forEach((k,p)=>{k.position.y=p===this.power?.07:.055;(k.children[0] as T.Mesh).material=toon(p===this.power?'#ffd66b':'#fffaf0');});
     this.lever.rotation.x=this.hatchOpen?-.35:.35;
-    this.sendCap.material=toon(r.podOk?'#3fae6a':'#9aa0ad');
+    this.sendCap.material=toon(r.podOk&&!this.hold?'#3fae6a':'#9aa0ad');
     (this.ribbon.material as T.MeshBasicMaterial).color.set(BANDS[this.band].color);
     this.podHeads.forEach((h,d)=>h.visible=d===this.detector);
     if(this.ready){for(const [m,s] of this.mirrorAt)m.body.setRotation(yawQuat(this.aimYaw(s)),true);}
@@ -270,7 +318,9 @@ export class SpectrumDesk implements Station {
     const halo=new T.MeshBasicMaterial({color:col,transparent:true,opacity:.26,depthWrite:false,blending:T.AdditiveBlending});halo.userData.outlineParameters={visible:false};
     for(let i=1;i<pts.length;i++){const a=new T.Vector3(pts[i-1].x,BEAM_Y,pts[i-1].z),c=new T.Vector3(pts[i].x,BEAM_Y,pts[i].z),len=a.distanceTo(c),mid=a.clone().add(c).multiplyScalar(.5),q=new T.Quaternion().setFromUnitVectors(UP,c.clone().sub(a).normalize());
       if(b.beam){for(const [rad,m] of [[.045,core],[.16,halo]] as const){const t=new T.Mesh(new T.CylinderGeometry(rad,rad,len,10,1,true),m);t.position.copy(mid);t.quaternion.copy(q);t.userData.noAO=true;this.beam.add(t);}}
-      else{const n=Math.floor(len/.45);for(let k=0;k<n;k++){const d=new T.Mesh(new T.CylinderGeometry(.03,.03,.22,8),core);d.position.lerpVectors(a,c,(k+.5)/n);d.quaternion.copy(q);d.userData.noAO=true;this.beam.add(d);}}}
+      // Radio and microwave spread everywhere (the rings show it): no straight ray is drawn for them,
+      // only where they are stopped.
+    }
     if(blocked){const end=pts[pts.length-1],prev=pts[pts.length-2],dir=new T.Vector3(end.x-prev.x,0,end.z-prev.z).normalize();
       const stop=new T.Mesh(new T.CircleGeometry(.24,28),new T.MeshBasicMaterial({color:new T.Color('#ff5a5a').multiplyScalar(1.4),transparent:true,opacity:.85,side:T.DoubleSide,depthWrite:false}));
       (stop.material as T.Material).userData.outlineParameters={visible:false};stop.position.set(end.x-dir.x*.2,BEAM_Y,end.z-dir.z*.2);stop.lookAt(stop.position.clone().add(dir));stop.userData.noAO=true;this.beam.add(stop);}
@@ -278,7 +328,8 @@ export class SpectrumDesk implements Station {
   }
   /** The hall map on the desk: walls by material, the smoke, marks, pads, pod and the beam. */
   private drawMap(r:Reading){
-    const pod=this.podAt(),key=JSON.stringify([this.band,this.hatchOpen,[...this.mirrorAt.values()],this.podPad,Math.round(pod.x*4),Math.round(pod.z*4),this.jobIndex,this.drawnPath(r),r.margin>=SPEC.works,this.aim,this.drag??'',this.mapHover]);
+    const pod=this.podAt(),doors=this.doorsOpen(),hold=this.hold,hu=hold?Math.min(1,(this.game.time-hold.start)/(hold.until-hold.start)):-1;
+    const key=JSON.stringify([this.band,this.hatchOpen,[...this.mirrorAt.values()],this.podPad,Math.round(pod.x*4),Math.round(pod.z*4),this.jobIndex,this.drawnPath(r),r.route.via??'',doors,this.aim,this.drag??'',this.mapHover,hold?Math.round(hu*40):-1]);
     this.map.draw(key,(c,w,h)=>{
       const L=this.game.level,sx=(w-60)/L.width,X=(x:number)=>30+(x+L.width/2)*sx,Z=(z:number)=>28+(z+L.depth/2)*sx;
       c.fillStyle=INK;c.beginPath();c.roundRect(0,0,w,h,26);c.fill();c.fillStyle='#fbf6ec';c.beginPath();c.roundRect(12,12,w-24,h-24,18);c.fill();
@@ -290,27 +341,38 @@ export class SpectrumDesk implements Station {
       c.fillStyle='#f4c9c3';c.fillRect(X(1.3),Z(4.54),2.2*sx,.62*sx);c.fillStyle='rgba(43,45,66,.7)';c.font=FONT(36);c.fillText('SMOKE',X(SMOKE.x),Z(SMOKE.z)+12);
       // Walls, coloured by what they are made of.
       const style:{[k:string]:[string,number,number[]]}={brick:['#c8674a',22,[]],wood:['#9c6d42',18,[]],glass:['#7fc3ea',12,[]],metal:['#5f6c84',20,[]],hatch:['#ffc629',14,[]],mesh:[COPPER,11,[14,9]]};
-      for(const wl of walls(this.hatchOpen)){const m=wl.mat[0],[col,lw,dash]=style[m];c.setLineDash(dash);c.strokeStyle=col;c.lineWidth=lw;c.lineCap='butt';c.beginPath();c.moveTo(X(wl.a.x),Z(wl.a.z));c.lineTo(X(wl.b.x),Z(wl.b.z));c.stroke();
+      for(const wl of walls(this.hatchOpen,doors)){const m=wl.mat[0],[col,lw,dash]=style[m];c.setLineDash(dash);c.strokeStyle=col;c.lineWidth=wl.id.endsWith('-door')?lw*.6:lw;c.lineCap='butt';c.beginPath();c.moveTo(X(wl.a.x),Z(wl.a.z));c.lineTo(X(wl.b.x),Z(wl.b.z));c.stroke();
         if(wl.mat.includes('glass')){c.strokeStyle='#7fc3ea';c.lineWidth=7;c.setLineDash([]);c.beginPath();c.moveTo(X(wl.a.x),Z(wl.a.z)-15);c.lineTo(X(wl.b.x),Z(wl.b.z)-15);c.stroke();}}
-      c.setLineDash([]);if(this.hatchOpen){c.strokeStyle='#ffc629';c.lineWidth=6;c.strokeRect(X(HATCH.x0)-3,Z(HATCH.z)-14,(HATCH.x1-HATCH.x0)*sx+6,28);}
+      // Doors: a small hinge dot at the wall end of each doorway (an open door leaves a gap).
+      for(const d of Object.keys(DOORS) as DoorId[]){const o=DOORS[d],hx=d==='store'?o.a.x:o.b.x;c.fillStyle=INK;c.beginPath();c.arc(X(hx),Z(o.a.z),7,0,7);c.fill();}
+      // The hatch is always framed in yellow, like its frame in the room: dashed while shut, solid when open.
+      c.strokeStyle='#ffc629';c.lineWidth=6;c.setLineDash(this.hatchOpen?[]:[10,7]);c.strokeRect(X(HATCH.x0)-3,Z(HATCH.z)-14,(HATCH.x1-HATCH.x0)*sx+6,28);c.setLineDash([]);
       // Desk, tower, marks, mirrors.
       c.fillStyle='#e7c89a';c.fillRect(X(this.table.x-2.2),Z(this.table.z-.65),4.4*sx,1.3*sx);c.fillStyle='rgba(43,45,66,.7)';c.font=FONT(34);c.fillText('DESK',X(this.table.x),Z(this.table.z)+12);
       const taken=new Map([...this.mirrorAt.entries()].map(([m,s])=>[s,m]));
       for(const s of SPOT_IDS){const p=SPOTS[s];c.setLineDash([8,6]);c.strokeStyle='#8b7be8';c.lineWidth=5;c.beginPath();c.arc(X(p.x),Z(p.z),24,0,7);c.stroke();c.setLineDash([]);
-        const m=taken.get(s);if(m){const yaw=this.aimYaw(s),dx=Math.cos(yaw)*.8*sx,dz=-Math.sin(yaw)*.8*sx;
-          // A grab ring: mirrors turn by dragging them on the map.
-          c.strokeStyle=this.drag===s?'#ffb020':'rgba(43,45,66,.35)';c.lineWidth=this.drag===s?6:3;c.beginPath();c.arc(X(p.x),Z(p.z),1.05*sx,0,7);c.stroke();c.strokeStyle='#5b6d8a';c.lineWidth=14;c.beginPath();c.moveTo(X(p.x)-dx,Z(p.z)-dz);c.lineTo(X(p.x)+dx,Z(p.z)+dz);c.stroke();
+        const m=taken.get(s);if(m){const yaw=this.aimYaw(s),dx=Math.cos(yaw)*.8*sx,dz=-Math.sin(yaw)*.8*sx,i=r.route.spots.indexOf(s);
+          // Once the beam reaches a mirror, its ring gets a turn knob (on the reflected leg): drag to turn the board.
+          if(i>=0){const nxt=r.route.path[i+2],dir=nxt?Math.atan2(nxt.z-p.z,nxt.x-p.x):Math.atan2(Math.cos(yaw),Math.sin(yaw));
+            c.strokeStyle=this.drag===s?'#ffb020':'rgba(43,45,66,.35)';c.lineWidth=this.drag===s?6:3;c.beginPath();c.arc(X(p.x),Z(p.z),1.05*sx,0,7);c.stroke();
+            const kx=X(p.x)+Math.cos(dir)*1.05*sx,kz=Z(p.z)+Math.sin(dir)*1.05*sx;c.fillStyle=this.drag===s||this.mapHover==='turn'?'#ffb020':'#ffd66b';c.strokeStyle=INK;c.lineWidth=4;c.beginPath();c.arc(kx,kz,14,0,7);c.fill();c.stroke();}
+          c.strokeStyle='#5b6d8a';c.lineWidth=14;c.beginPath();c.moveTo(X(p.x)-dx,Z(p.z)-dz);c.lineTo(X(p.x)+dx,Z(p.z)+dz);c.stroke();
           c.strokeStyle='#dff3ff';c.lineWidth=6;c.beginPath();c.moveTo(X(p.x)-dx,Z(p.z)-dz);c.lineTo(X(p.x)+dx,Z(p.z)+dz);c.stroke();}
         c.fillStyle='#6a5bd0';c.font=FONT(36);c.fillText(s,X(p.x)+34,Z(p.z)-20);}
       // Pads: the current one glows.
       const job=this.current();
-      for(const k of Object.keys(PADS) as Pad[]){const p=PADS[k],now=job?.pad===k;c.fillStyle=now?'rgba(63,174,106,.25)':'rgba(43,45,66,.06)';c.beginPath();c.arc(X(p.x),Z(p.z),.75*sx,0,7);c.fill();
-        c.strokeStyle=now?'#3fae6a':'#b8b2a4';c.lineWidth=now?6:3;c.beginPath();c.arc(X(p.x),Z(p.z),.75*sx,0,7);c.stroke();}
-      // The beam (or broadcast), as far as it gets.
-      const b=BANDS[this.band],pts=this.drawnPath(r);
-      if(!b.beam){c.strokeStyle=b.color;c.globalAlpha=.25;c.lineWidth=4;for(let k=1;k<=4;k++){c.beginPath();c.arc(X(TX.x),Z(TX.z),k*2.2*sx,0,7);c.stroke();}c.globalAlpha=1;}
-      c.strokeStyle=b.color;c.lineWidth=16;c.lineCap='round';c.lineJoin='round';c.setLineDash(b.beam?[]:[16,12]);c.beginPath();pts.forEach((p,i)=>i?c.lineTo(X(p.x),Z(p.z)):c.moveTo(X(p.x),Z(p.z)));c.stroke();c.setLineDash([]);
-      if(r.route.blocked){const e=pts[pts.length-1];c.strokeStyle='#e5484d';c.lineWidth=12;for(const s of [-1,1]){c.beginPath();c.moveTo(X(e.x)-22,Z(e.z)-22*s);c.lineTo(X(e.x)+22,Z(e.z)+22*s);c.stroke();}}
+      for(const k of Object.keys(PADS) as Pad[]){const p=PADS[k],now=job?.pad===k,flash=hold?.pad===k&&hu>.55&&Math.floor(hu*14)%2===0;c.fillStyle=flash?'rgba(61,255,122,.75)':now?'rgba(63,174,106,.25)':'rgba(43,45,66,.06)';c.beginPath();c.arc(X(p.x),Z(p.z),.75*sx,0,7);c.fill();
+        c.strokeStyle=now||flash?'#3fae6a':'#b8b2a4';c.lineWidth=now?6:3;c.beginPath();c.arc(X(p.x),Z(p.z),.75*sx,0,7);c.stroke();}
+      // The beam, as far as it gets. Radio and microwave spread everywhere: rings, no ray, with the
+      // opening they leak through ringed in yellow and a red X where they're stopped.
+      const b=BANDS[this.band],pts=hold?hold.path:this.drawnPath(r);
+      if(!b.beam){c.strokeStyle=b.color;c.globalAlpha=.3;c.lineWidth=5;for(let k=1;k<=5;k++){c.beginPath();c.arc(X(TX.x),Z(TX.z),k*2.2*sx,0,7);c.stroke();}c.globalAlpha=1;
+        const via=r.route.via&&openings(this.hatchOpen,doors).find(o=>o.id===r.route.via);if(via){c.strokeStyle='#ffc629';c.lineWidth=7;c.beginPath();c.arc(X(via.in.x),Z(via.in.z),26,0,7);c.stroke();}}
+      else{c.strokeStyle=b.color;c.lineWidth=16;c.lineCap='round';c.lineJoin='round';c.beginPath();pts.forEach((p,i)=>i?c.lineTo(X(p.x),Z(p.z)):c.moveTo(X(p.x),Z(p.z)));c.stroke();}
+      if(r.route.blocked&&!hold){const e=pts[pts.length-1];c.strokeStyle='#e5484d';c.lineWidth=12;for(const s of [-1,1]){c.beginPath();c.moveTo(X(e.x)-22,Z(e.z)-22*s);c.lineTo(X(e.x)+22,Z(e.z)+22*s);c.stroke();}}
+      // The delivered message: a bright pulse running the route.
+      if(hold&&pts.length>1){const lens=pts.slice(1).map((p,i)=>dist(pts[i],p)),total=lens.reduce((a,x)=>a+x,0);let d=Math.min(1,hu/.55)*total,i=0;while(i<lens.length-1&&d>lens[i]){d-=lens[i];i++;}
+        const f=lens[i]?d/lens[i]:1,px=pts[i].x+(pts[i+1].x-pts[i].x)*f,pz=pts[i].z+(pts[i+1].z-pts[i].z)*f;c.fillStyle='#fffaf0';c.strokeStyle=b.color;c.lineWidth=8;c.beginPath();c.arc(X(px),Z(pz),18,0,7);c.fill();c.stroke();}
       // Tower and pod.
       c.fillStyle=INK;c.beginPath();c.arc(X(TX.x),Z(TX.z),22,0,7);c.fill();c.fillStyle=b.color;c.beginPath();c.arc(X(TX.x),Z(TX.z),13,0,7);c.fill();
       // The tower's pointer: a short arrow along its heading (beams only).
@@ -326,18 +388,43 @@ export class SpectrumDesk implements Station {
       c.font=FONT(62);c.fillStyle='#ffd66b';c.fillText(`λ ${lambdaText(this.band)}`,40,150);c.fillStyle='#8fe3ff';c.fillText(`f ${freqText(this.band)}`,40,228);
       c.fillStyle='rgba(255,250,240,.8)';c.font=FONT(32,600);c.fillText('c = f × λ = 3×10⁸ m/s',40,290);c.fillStyle='rgba(255,250,240,.5)';c.font=FONT(24,600);c.fillText(`${b.example} · ribbon not to scale`,40,336);});
   }
+  /** The link screen. Before a SEND it shows only the inputs and where the path goes (reaches the pod,
+   *  stopped at a material, misses); the dB numbers come from the send itself: a waterfall from the
+   *  level sent, one step down per loss (distance, each obstacle, each mirror, sunlight), against the
+   *  works and reliable lines. */
   private drawLink(r:Reading){
-    const job=this.current(),m=r.margin,key=JSON.stringify([Number.isFinite(m)?Math.round(m*10):String(m),r.detectorOk,r.podOk,!!r.route.blocked,this.lastMessage,this.jobIndex]);
+    const job=this.current(),shown=this.revealed()?this.tested:undefined,grow=shown?Math.min(1,(this.game.time-shown.at)/.6):0,b=BANDS[this.band];
+    const key=JSON.stringify([shown?shown.key:'',Math.round(grow*20),r.podOk,r.route.blocked?.mat??'',!!r.route.missed,this.lastMessage,this.jobIndex,this.band,this.power,!!this.hold]);
     this.link.draw(key,(c,w,h)=>{c.fillStyle='#1d2238';c.fillRect(0,0,w,h);
-      const col=m>=SPEC.reliable?'#8dffb0':m>=SPEC.works?'#ffd66b':'#ff7a8a';
-      c.fillStyle='#fffaf0';c.font=FONT(40);c.textAlign='left';c.fillText('LINK',30,58);
-      c.textAlign='right';c.font=FONT(58);c.fillStyle=col;c.fillText(Number.isFinite(m)?`${m.toFixed(1)} dB`:'no signal',w-30,62);
-      const lo=-20,hi=30,bx=30,bw=w-60,by=96,bh=62,xOf=(v:number)=>bx+(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*bw;
-      c.fillStyle='#2e3656';c.fillRect(bx,by,bw,bh);if(Number.isFinite(m)){c.fillStyle=col;c.fillRect(bx,by,xOf(m)-bx,bh);}
-      for(const [v,t] of [[0,'works'],[10,'reliable']] as const){c.fillStyle='#fffaf0';c.fillRect(xOf(v)-3,by-10,6,bh+20);c.font=FONT(28,600);c.textAlign='center';c.fillText(t,xOf(v),by+bh+40);}
-      const status=!r.podOk?['POD NOT ON THE PAD','#ffd66b']:!r.detectorOk?['WRONG DETECTOR','#ff7a8a']:r.route.blocked?[`BLOCKED: ${MATERIAL_NAMES[r.route.blocked.mat].toUpperCase()}`,'#ff7a8a']:m<SPEC.works?['TOO WEAK','#ff7a8a']:m<SPEC.reliable?['WEAK','#ffd66b']:['CLEAR LINK','#8dffb0'];
-      c.textAlign='left';let size=42;c.font=FONT(size);while(size>20&&c.measureText(status[0]).width>w-60){size--;c.font=FONT(size);}
-      c.fillStyle=status[1];c.fillText(status[0],30,h-66);c.fillStyle='rgba(255,250,240,.7)';c.font=FONT(28,600);c.fillText(this.lastMessage?`got “${this.lastMessage}”`:job?`to the ${PAD_NAMES[job.pad]}`:'',30,h-22);});
+      c.fillStyle='#fffaf0';c.font=FONT(40);c.textAlign='left';c.fillText('LINK',30,54);
+      c.fillStyle=b.color;c.beginPath();c.roundRect(140,22,190,42,12);c.fill();c.fillStyle='#fffaf0';c.font=FONT(24);c.textAlign='center';c.fillText(b.short,235,51);
+      c.fillStyle='rgba(255,250,240,.85)';c.font=FONT(30,600);c.fillText(`${this.power} mW`,385,52);
+      const path:[string,string]=!r.podOk?['POD NOT ON THE PAD','#ffd66b']:r.route.blocked?[`STOPPED: ${MATERIAL_NAMES[r.route.blocked.mat].toUpperCase()}`,'#ff7a8a']:r.route.missed?['MISSES THE POD','#ffd66b']:['PATH REACHES THE POD','#8fe3ff'];
+      if(!shown){
+        // Before the send: where the path goes, and nothing about strength.
+        c.textAlign='left';let size=40;c.font=FONT(size);while(size>20&&c.measureText(path[0]).width>w-60){size--;c.font=FONT(size);}c.fillStyle=path[1];c.fillText(path[0],30,150);
+        c.fillStyle='#2e3656';c.fillRect(30,180,w-60,56);c.fillStyle='rgba(255,250,240,.55)';c.font=FONT(28,600);c.textAlign='center';
+        c.fillText(r.podOk&&!r.route.blocked&&!r.route.missed?'SEND to measure the link':'no signal to measure',w/2,218);
+      }else{
+        // After the send: the budget, step by step.
+        const m=shown.margin,terms=shown.terms,lo=-20,hi=Math.max(40,Math.ceil((terms[0]?.db??40)/10)*10),gx=30,gw=w-60,gy=76,gh=176,yOf=(v:number)=>gy+gh-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*gh;
+        c.fillStyle='#252c48';c.fillRect(gx,gy,gw,gh);
+        for(const [v,t,col] of [[SPEC.works,'works','#ffd66b'],[SPEC.reliable,'reliable','#8dffb0']] as const){c.strokeStyle=col;c.globalAlpha=.6;c.lineWidth=2;c.setLineDash([8,6]);c.beginPath();c.moveTo(gx,yOf(v));c.lineTo(gx+gw,yOf(v));c.stroke();c.setLineDash([]);c.globalAlpha=1;
+          c.fillStyle=col;c.font=FONT(18,600);c.textAlign='right';c.fillText(t,gx+gw-6,yOf(v)-5);}
+        const ICON:Record<string,string>={sent:'sent',distance:'distance',brick:'brick',wood:'wood',glass:'glass',hatch:'hatch',mesh:'mesh',smoke:'smoke',mirror:'mirror',sun:'sun'};
+        const n=terms.length+1,cw=gw/n;let level=0;
+        terms.forEach((t,i)=>{const from=level,to=level+t.db*Math.min(1,grow*n-i<0?0:grow*n-i);level+=t.db;const x=gx+i*cw+6;
+          c.fillStyle=t.kind==='sent'?b.color:t.kind==='sun'?'#ffd66b':t.kind==='distance'?'#8fa0c8':'#ff9a8a';const y0=yOf(Math.max(from,to)),y1=yOf(Math.min(from,to));c.fillRect(x,y0,cw-12,Math.max(3,y1-y0));
+          c.fillStyle='rgba(255,250,240,.85)';c.font=FONT(17,600);c.textAlign='center';c.fillText(ICON[t.kind]??t.kind,x+(cw-12)/2,gy+gh+20);
+          if(grow>=1){c.font=FONT(17,700);c.fillText(`${t.db>0?'+':''}${Math.round(t.db)}`,x+(cw-12)/2,Math.max(gy+16,y0-5));}});
+        const col=m>=SPEC.reliable?'#8dffb0':m>=SPEC.works?'#ffd66b':'#ff7a8a',x=gx+(n-1)*cw+6;
+        if(grow>=1&&Number.isFinite(m)){c.fillStyle=col;const y0=yOf(Math.max(0,m)),y1=yOf(Math.min(0,m));c.fillRect(x,y0,cw-12,Math.max(3,y1-y0));}
+        c.fillStyle='rgba(255,250,240,.85)';c.font=FONT(17,600);c.textAlign='center';c.fillText('got',x+(cw-12)/2,gy+gh+20);
+        c.textAlign='right';c.font=FONT(44);c.fillStyle=col;c.fillText(Number.isFinite(m)?`${m.toFixed(1)} dB`:'no signal',w-30,54);
+        const status:[string,string]=this.hold?['DELIVERED','#8dffb0']:r.route.blocked?[path[0],path[1]]:r.route.missed?path:m<SPEC.works?['TOO WEAK','#ff7a8a']:m<SPEC.reliable?['WEAK','#ffd66b']:['CLEAR LINK','#8dffb0'];
+        c.textAlign='left';let size=34;c.font=FONT(size);while(size>18&&c.measureText(status[0]).width>w-60){size--;c.font=FONT(size);}c.fillStyle=status[1];c.fillText(status[0],30,h-52);
+      }
+      c.textAlign='left';c.fillStyle='rgba(255,250,240,.7)';c.font=FONT(26,600);c.fillText(this.lastMessage&&!job?`got “${this.lastMessage}”`:this.hold&&this.lastMessage?`got “${this.lastMessage}”`:job?`to the ${PAD_NAMES[job.pad]}`:'',30,h-16);});
   }
   /** The ribbon's wave stretches or squeezes smoothly toward the band's cycle count. */
   private shapeRibbon(dt:number){
@@ -349,12 +436,14 @@ export class SpectrumDesk implements Station {
   }
 
   pointer(e:Pointer){
-    // The map: drag a mirror to turn it, or click or drag anywhere else to point the tower.
+    // The map: click or drag to point the tower (a click on a standing mirror points the tower at it);
+    // once the beam reaches a mirror, drag that mirror to turn its board.
     const at=this.active?this.mapPoint(e.ray):undefined;
-    if(this.drag){if(at&&e.kind!=='up')this.aimTo(this.drag,at);if(e.kind==='up'){this.drag=undefined;this.redraw();}return;}
-    this.mapHover=!!at;
-    if(at){if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}document.body.style.cursor=this.handleNear(at)?'grab':'crosshair';
-      if(e.kind==='down'&&e.button===0&&BANDS[this.band].beam){this.drag=this.handleNear(at)??'tx';this.aimTo(this.drag,at);}return;}
+    if(this.drag){if(at&&e.kind==='move')this.aimTo(this.drag,at);if(e.kind==='up'){this.drag=undefined;this.redraw();}return;}
+    const near=at&&this.handleNear(at),turn=!!near&&this.reading().route.spots.includes(near);
+    this.mapHover=!at?false:turn?'turn':near?'mirror':'aim';
+    if(at){if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}document.body.style.cursor=turn?'grab':near?'pointer':'crosshair';
+      if(e.kind==='down'&&e.button===0&&BANDS[this.band].beam&&!this.hold){if(turn)this.drag=near;else{this.drag='tx';this.aimTo('tx',near?SPOTS[near]:at);}this.redraw();}return;}
     const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true);let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
     if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);if(found)found.obj.scale.copy(found.obj.userData.baseScale).multiplyScalar(1.12);this.hovered=found;}
@@ -368,19 +457,39 @@ export class SpectrumDesk implements Station {
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
   setActive(active:boolean){this.active=active;this.drag=undefined;this.mapHover=false;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
+  /** The three room doors swing open as Pip comes near (away from him) and shut on their springs after
+   *  he passes. Anything left standing in a doorway props that door open, and the open doorway is a
+   *  real opening in the link model. */
+  private swingDoors(dt:number){
+    if(!this.room)return;const g=this.game,me=g.player.translation(),Y=new T.Vector3(0,1,0);
+    for(const d of this.room.doors){const o=DOORS[d.id],mx=(o.a.x+o.b.x)/2,z=o.a.z,half=Math.abs(o.b.x-o.a.x)/2;
+      const pip=Math.hypot(me.x-mx,me.z-z)<2.4,propped=g.props.some(p=>{if(p===g.held)return false;const q=p.body.translation();return Math.abs(q.x-mx)<half-.05&&Math.abs(q.z-z)<.55&&q.y<1.6;});
+      const was=this.doorOpen[d.id];if(was<.05&&!propped)this.doorSide[d.id]=me.z<z?1:-1;
+      // A quick open, a softer spring close.
+      const target=pip||propped?1:0;this.doorOpen[d.id]=T.MathUtils.lerp(was,target,Math.min(1,dt*(target?7:4)));const now=this.doorOpen[d.id];
+      if((was>.35)!==(now>.35)){g.audio.noise(.2,.035,now>.35?700:260);if(now<=.35)g.audio.knock(.8);this.redraw();}
+      const angle=d.closed+d.sign*this.doorSide[d.id]*Math.PI*.47*now;d.pivot.rotation.y=angle;
+      const c=new T.Vector3(d.width/2,1.05,0).applyAxisAngle(Y,angle).add(d.pivot.position);d.body.setNextKinematicTranslation(c);d.body.setNextKinematicRotation(new T.Quaternion().setFromAxisAngle(Y,angle));}
+  }
   update(dt:number){
     // At the desk the hall map shows the beam and the marks; the room's own copies would only cross the
     // close camera (over the detector knobs and SEND), so they step aside until Pip stands up.
-    const desk=this.game.atBench;this.beam.visible=!desk;for(const m of this.markMeshes)m.visible=!desk;
+    // The tower stands just past the desk's right end; at the desk it would crowd SEND (the map shows it).
+    const desk=this.game.atBench;this.beam.visible=!desk;for(const m of this.markMeshes)m.visible=!desk;this.tower.visible=!desk;
     if(!this.ready){this.setup();this.redraw();}
     const g=this.game;
+    if(this.hold&&g.time>=this.hold.until)this.endHold();
+    this.swingDoors(dt);
     // Picking a parked pod or mirror up frees it again.
     if(g.held&&g.held===this.pod&&this.podPad){this.unpark(this.pod);this.podPad=null;this.redraw();}
     if(g.held&&this.mirrorAt.has(g.held)){delete this.aim.mirrors[this.mirrorAt.get(g.held)!];this.unpark(g.held);this.mirrorAt.delete(g.held);this.redraw();}
     const r=this.reading();
     // The pod's mast rides on the case; its lamp shows whether the link is up.
     if(this.pod){const p=this.pod.body.translation(),q=this.pod.body.rotation();this.podTop.position.set(p.x,p.y,p.z);this.podTop.quaternion.set(q.x,q.y,q.z,q.w);
-      this.podLamp.material=r.podOk&&r.margin>=SPEC.works?LAMP_OK:r.podOk?LAMP_BAD:LAMP_OFF;}
+      // Its lamp shows what the last send measured (nothing until then): green if it got through.
+      const shown=this.revealed()?this.tested:undefined;this.podLamp.material=this.hold||(r.podOk&&shown&&shown.margin>=SPEC.works)?LAMP_OK:r.podOk&&shown?LAMP_BAD:LAMP_OFF;
+      // Sunlight in the lab glares on the detector: strongly on the green photodiode, a little on the filtered near-IR one.
+      const sun=this.podPad==='lab'&&(this.band==='vis'||this.band==='nir');this.glare.visible=sun;if(sun){const s=(this.band==='vis'?.95:.4)*(1+.08*Math.sin(g.time*3));this.glare.scale.set(s,s,1);}}
     for(const [m,top] of this.mirrorTops){const p=m.body.translation(),q=m.body.rotation();top.position.set(p.x,p.y,p.z);top.quaternion.set(q.x,q.y,q.z,q.w);}
     // The tower aims at the first point of the route; its beacon wears the band's colour.
     const want=BANDS[this.band].beam?this.aim.tx:heading(TX,PADS[this.current()?.pad??'store']);
@@ -398,9 +507,12 @@ export class SpectrumDesk implements Station {
     // Current pad ring pulses; the hatch slides; the smoke drifts.
     const job=this.current();PAD_ON.color.set('#3dff7a').multiplyScalar(1.1+.35*Math.sin(t*4));this.padRings.forEach((m,p)=>{m.material=job?.pad===p?PAD_ON:PAD_OFF;});
     this.hatchT+=((this.hatchOpen?1:0)-this.hatchT)*Math.min(1,dt*5);if(this.room)this.room.hatchDoor.position.y=1.25+this.hatchT*.62;
-    // Puffs rise from the toaster, spread into the cloud and fade, then start again.
-    this.room?.smoke.forEach(m=>{const k=m.userData.seed as number,u=(t*.12+k/14)%1,a=k*2.4;m.position.set(SMOKE.x-.3+Math.cos(a)*u*SMOKE.r*.9,1.1+u*1.1,SMOKE.z+1.2-u*1.3+Math.sin(a)*u*SMOKE.r*.6);
-      const s=.8+u*1.9;m.scale.set(s,s,1);(m.material as T.SpriteMaterial).opacity=.5*Math.sin(Math.PI*Math.min(1,u*1.25));});
+    // Puffs rise from the toaster slots, spread over the cloud (at beam height) and fade, then start
+    // again. Near Pip they thin out, so the smoke never veils him.
+    const me=g.player.translation();
+    this.room?.smoke.forEach(m=>{const k=m.userData.seed as number,u=(t*.12+k/12)%1,a=k*2.4;m.position.set(SMOKE.x-.3+Math.cos(a)*u*SMOKE.r*.9,1.05+u*.85,SMOKE.z+1.45-u*1.3+Math.sin(a)*u*SMOKE.r*.6);
+      const s=.45+u*1.1,near=Math.min(1,Math.max(.35,(Math.hypot(m.position.x-me.x,m.position.z-me.z)-.5)/1.2));m.scale.set(s,s,1);
+      (m.material as T.SpriteMaterial).opacity=.5*near*Math.min(1,u/.15)*(u>.6?Math.max(0,(1-u)/.4):1);});
     this.shapeRibbon(dt);this.drawWave();this.drawLink(r);this.drawMap(r);
     this.updatePanel(r);
   }
@@ -414,17 +526,22 @@ export class SpectrumDesk implements Station {
   private updatePanel(r:Reading){
     if(this.toast&&!this.toast.hidden&&this.game.time>this.toastUntil&&this.game.running)this.toast.hidden=true;
     const j=this.current(),s=this.state();
-    const key=JSON.stringify([this.active,this.jobIndex,s,Number.isFinite(r.margin)?r.margin.toFixed(1):'x',r.route.spots,r.route.blocked?.mat]);if(key===this.shown)return;this.shown=key;
+    const shown=this.revealed()?this.tested:undefined;
+    const key=JSON.stringify([this.active,this.jobIndex,s,shown?.key??'',r.route.spots,r.route.blocked?.mat,!!r.route.missed,r.route.via??'']);if(key===this.shown)return;this.shown=key;
     if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel spectrum-panel';this.layer()?.append(this.panel);}
     this.panel.hidden=!j;if(!j)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
-    const m=r.margin,b=BANDS[this.band];
+    const b=BANDS[this.band];
+    // The path row: where it goes before a send; after it, each loss it met (smoke −25 · mesh −3).
+    const NAME:Record<string,string>={distance:'distance',brick:'brick',wood:'wood',glass:'glass',hatch:'hatch',mesh:'mesh',smoke:'smoke',mirror:'mirror',sun:'sunlight'};
+    const losses=shown?shown.terms.filter(t=>t.kind!=='sent'&&t.kind!=='distance').map(t=>`${NAME[t.kind]??t.kind} ${Math.round(t.db)}`.replace('-','−')):[];
+    const path=r.route.blocked?`stopped: ${MATERIAL_NAMES[r.route.blocked.mat]}`:r.route.missed?'misses the pod':shown?(losses.length?losses.join(' · '):'clear'):'reaches the pod';
     this.panel.innerHTML=`<header><small>DELIVERY ${this.jobIndex+1}/${JOBS.length} · TO THE ${PAD_NAMES[j.pad].toUpperCase()}</small><h4>${j.title}</h4>${this.active?`<p>${j.ask}</p>`:""}</header>`+
       (this.active?`<ul class="build">${row('Pod',r.podOk?`on the ${PAD_NAMES[j.pad]} pad`:'not on the pad',r.podOk)}`+
         `${row('Band',`<i class="sp-chip" style="--c:${b.color}"></i>${b.name}`)}${row('Power',`${this.power} mW`)}`+
         (j.hatch||this.hatchOpen?row('Lab hatch',this.hatchOpen?'open':'shut'):'')+
-        (j.hatch||r.route.spots.length?row('Mirrors in beam',String(r.route.spots.length)):'')+`${row('Path',r.route.blocked?`blocked: ${MATERIAL_NAMES[r.route.blocked.mat]}`:r.route.missed?'misses the pod':'clear',!r.route.blocked&&!r.route.missed)}`+
-        `${row('Link margin',Number.isFinite(m)?`${m.toFixed(1)} dB`:'no signal',m>=SPEC.reliable)}</ul>`+
+        (j.hatch||r.route.spots.length?row('Mirrors in beam',String(r.route.spots.length)):'')+`${row('Path',path,!r.route.blocked&&!r.route.missed)}`+
+        (shown?row('Link margin',Number.isFinite(shown.margin)?`${shown.margin.toFixed(1)} dB`:'no signal',shown.margin>=SPEC.reliable):row('Link margin','SEND to measure'))+`</ul>`+
         `<p class="profile">Simplified link model: ≥ ${SPEC.works} dB works, ≥ ${SPEC.reliable} dB is reliable. Game values, not a real link budget. Light links use wide LED beams, not lasers.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
@@ -432,21 +549,31 @@ export class SpectrumDesk implements Station {
     if(!atBench){const p=g.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
       if(g.held&&g.held===this.pod){const pad=(Object.keys(PADS) as Pad[]).find(k=>dist(p,PADS[k])<2.2);return pad?{key:'E',text:'Set the pod on the pad'}:{key:'E',text:'Carry the pod'};}
       if(g.held&&this.mirrors.includes(g.held)){const s=SPOT_IDS.find(k=>dist(p,SPOTS[k])<2.1&&![...this.mirrorAt.values()].includes(k));return s?{key:'E',text:'Stand the mirror on the mark'}:{key:'E',text:'Carry the mirror'};}
-      const grab=g.held?undefined:g.nearest();if(grab&&grab===this.pod)return {key:'E',text:'Pick up the pod'};if(grab&&this.mirrors.includes(grab))return {key:'E',text:'Pick up the mirror'};
+      // A pod set on this delivery's pad, or a mirror stood on a mark, is placed: the pill doesn't offer
+      // to pick it straight back up (E still does; a pod on the wrong pad still offers).
+      const grab=g.held?undefined:g.nearest(),placed=(grab===this.pod&&this.podPad===j.pad)||(!!grab&&this.mirrorAt.has(grab));
+      if(grab&&!placed&&grab===this.pod)return {key:'E',text:'Pick up the pod'};if(grab&&!placed&&this.mirrors.includes(grab))return {key:'E',text:'Pick up the mirror'};
       if(near)return {key:'E',text:'Work at the desk'};
+      // (A null here would let the HUD's generic "Grab the …" pill through, so point at the next step.)
+      if(placed)return {key:'Walk',text:'To the dispatch desk'};
       return null;}
+    if(this.hold)return null;
     const r=this.reading(),beam=BANDS[this.band].beam;
     if(this.drag)return {key:'Drag',text:this.drag==='tx'?'Aim the tower':'Turn the mirror'};
-    if(this.mapHover&&beam)return {key:'Drag',text:'Aim the beam'};
+    if(this.mapHover&&beam)return this.mapHover==='turn'?{key:'Drag',text:'Turn the mirror'}:this.mapHover==='mirror'?{key:'Click',text:'Aim the tower at the mirror'}:{key:'Drag',text:'Aim the beam'};
     if(!r.podOk)return {key:'E',text:'Fetch the pod'};
-    if(r.route.blocked||r.route.missed)return beam?{key:'Drag',text:'Aim, or another band'}:{key:'1–5',text:'Another band'};
-    if(r.margin<SPEC.reliable)return {key:'P',text:'Power'};
+    if(r.route.blocked){
+      // The beam is on the shut hatch: the lab hatch lever is the control that matters.
+      if(beam&&r.route.blocked.wall==='lab-hatch'&&!this.hatchOpen)return {key:'H',text:'Lab hatch'};
+      return beam&&this.mirrorAt.size?{key:'Drag',text:'Aim'}:{key:'1–5',text:'Another band'};}
+    if(r.route.missed)return beam?{key:'Drag',text:'Aim'}:{key:'1–5',text:'Another band'};
     return {key:'Enter',text:'Send'};
   }
   complete(){return this.delivered.length>=JOBS.length;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const r=this.reading();return {job:this.jobIndex,delivered:this.delivered.map(d=>({job:d.job,tier:d.verdict.tier,margin:d.verdict.margin})),band:this.band,detector:this.detector,power:this.power,hatchOpen:this.hatchOpen,
     podPad:this.podPad,mirrors:[...this.mirrorAt.values()],mistakes:this.mistakes,spent:this.spent,
-    aim:{tx:+this.aim.tx.toFixed(4),mirrors:{...this.aim.mirrors}},
+    aim:{tx:+this.aim.tx.toFixed(4),mirrors:{...this.aim.mirrors}},doors:this.doorsOpen(),revealed:this.revealed(),holding:!!this.hold,
+    map:this.active?Object.fromEntries([...SPOT_IDS.map(s=>[s,this.mapScreen(SPOTS[s])]),...(Object.keys(PADS) as Pad[]).map(p=>[p,this.mapScreen(PADS[p])])]):undefined,
     reading:{margin:Number.isFinite(r.margin)?+r.margin.toFixed(2):null,blocked:r.route.blocked?.mat??null,missed:!!r.route.missed,spots:r.route.spots,detectorOk:r.detectorOk,podOk:r.podOk}};}
 }

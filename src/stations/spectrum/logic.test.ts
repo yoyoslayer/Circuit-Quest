@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {JOBS,BANDS,BAND_IDS,LOSS,SPOTS,PADS,HATCH,TX,C_LIGHT,frequency,read,judge,bestRoute,solutions,leanest,legHits,crossing,lambdaText,freqText,traceBeam,heading,mirrorYaw,
+import {JOBS,BANDS,BAND_IDS,LOSS,SPOTS,PADS,HATCH,TX,C_LIGHT,frequency,read,judge,bestRoute,solutions,leanest,legHits,crossing,lambdaText,freqText,traceBeam,heading,mirrorYaw,budget,
   type Setup,type Band,type Aim} from './logic';
 
 const job=(id:string)=>JOBS.find(j=>j.id===id)!;
@@ -20,7 +20,7 @@ describe('spectrum delivery rules',()=>{
     expect(LOSS.mesh.radio).toBe(Infinity);expect(LOSS.mesh.micro).toBe(Infinity);expect(LOSS.mesh.vis).toBeLessThan(5);
     // Smoke scatters short wavelengths hardest.
     expect(LOSS.smoke.vis).toBeGreaterThan(LOSS.smoke.nir);expect(LOSS.smoke.nir).toBeGreaterThan(LOSS.smoke.thermal);
-    // A 30 cm hatch is far below half of radio's 3 m wavelength: no radio through it.
+    // A 60 cm hatch is far below half of radio's 3 m wavelength: no radio through it.
     expect(LOSS.hatch.radio).toBe(Infinity);expect(LOSS.hatch.vis).toBe(0);
   });
   it('segment geometry: crossings, and mirror A lines up with the hatch and the lab pad',()=>{
@@ -40,7 +40,8 @@ describe('spectrum delivery rules',()=>{
     let v=judge(j,setup('vis',{pod:'store',power:100}));expect(v.tier).toBe(0);expect(v.problems[0]).toMatch(/^Brick wall/);
     expect(judge(j,setup('radio',{pod:'store'})).tier).toBe(3);
     v=judge(j,setup('micro',{pod:'store'}));expect(v.tier).toBe(1);
-    v=judge(j,setup('micro',{pod:'store',power:10}));expect(v.tier).toBe(2);expect(v.notes[0]).toContain('more power');
+    // 10 mW is the least microwave can do here, so the note points at another band (without naming it).
+    v=judge(j,setup('micro',{pod:'store',power:10}));expect(v.tier).toBe(2);expect(v.notes[0]).toContain('Another band');expect(v.notes[0]).not.toMatch(/Radio/);
     // Radio at more power than needed is reliable but not elegant.
     expect(judge(j,setup('radio',{pod:'store',power:10})).tier).toBe(2);
     // The pod has to be on the storeroom pad.
@@ -48,7 +49,8 @@ describe('spectrum delivery rules',()=>{
   });
   it('job 2: metal stops everything until the hatch opens and a mirror turns the beam through it',()=>{
     const j=job('lab');
-    expect(read(j,setup('radio',{pod:'lab',hatchOpen:true,power:100})).route.blocked?.mat).toBe('metal');
+    // Radio reaches the open hatch, but its 3 m wave can't pass a 60 cm hole.
+    expect(read(j,setup('radio',{pod:'lab',hatchOpen:true,power:100})).route.blocked?.mat).toBe('hatch');
     expect(read(j,setup('nir',{pod:'lab',mirrors:['A']})).route.blocked?.mat).toBe('metal'); // hatch still shut
     let r=read(j,setup('nir',{pod:'lab',hatchOpen:true,mirrors:['A']}));expect(r.route.blocked).toBeUndefined();expect(r.route.spots).toEqual(['A']);
     expect(judge(j,setup('nir',{pod:'lab',hatchOpen:true,mirrors:['A']})).tier).toBe(3);
@@ -105,5 +107,50 @@ describe('aiming the beam by hand',()=>{
   it('radio and microwave broadcast: aim makes no difference to them',()=>{
     const st=job('store'),a=setup('radio',{pod:'store'}),b=setup('radio',{pod:'store',aim:{tx:2,mirrors:{}}});
     expect(read(st,b).margin).toBeCloseTo(read(st,a).margin,9);
+  });
+});
+
+describe('openings: a screen only works closed all round',()=>{
+  it('the lab is a metal box: radio meets metal, and with the hatch open the 60 cm hole is too small for its 3 m wave',()=>{
+    const lab=job('lab');
+    expect(read(lab,setup('radio',{pod:'lab',power:100})).route.blocked?.mat).toBe('metal');
+    const v=judge(lab,setup('radio',{pod:'lab',hatchOpen:true,power:100}));expect(v.problems[0]).toMatch(/^Shutter hatch/);expect(v.problems[0]).toContain('60 cm');
+    // Microwave's 12.5 cm wave does squeeze through the open hatch (8 dB), with no mirror.
+    const r=read(lab,setup('micro',{pod:'lab',hatchOpen:true,power:10}));expect(r.route.via).toBe('hatch');expect(r.route.blocked).toBeUndefined();expect(r.margin).toBeGreaterThanOrEqual(10);
+    expect(r.route.legs.flatMap(l=>l.hits.map(h=>h.mat))).toContain('hatch');
+    // Near IR with one mirror at 1 mW is still the leanest way in.
+    expect(leanest(lab)?.hint).toBe('Near IR 850 nm at 1 mW with 1 mirror');
+  });
+  it('the quiet room\'s cage door: open, Wi-Fi gets in through the doorway; shut, the mesh stops it',()=>{
+    const q=job('quiet');
+    expect(read(q,setup('micro',{pod:'quiet',power:10})).route.blocked?.mat).toBe('mesh');
+    const open=read(q,setup('micro',{pod:'quiet',power:10,doors:{quiet:true}}));expect(open.route.blocked).toBeUndefined();expect(open.route.via).toBe('quiet-door');expect(open.margin).toBeGreaterThanOrEqual(10);
+    // The message lands, but the room isn't quiet any more: not elegant.
+    const v=judge(q,setup('radio',{pod:'quiet',doors:{quiet:true}}));expect(v.tier).toBe(2);expect(v.notes[0]).toContain('cage door');
+  });
+  it('the storeroom door shuts behind Pip: light still stops at wood and brick, radio passes',()=>{
+    const st=job('store');
+    expect(read(st,setup('vis',{pod:'store',power:100})).route.blocked).toBeDefined();
+    expect(judge(st,setup('radio',{pod:'store'})).tier).toBe(3);
+  });
+});
+
+describe('verdict notes name the cause, not the fix',()=>{
+  it('a mirror the near-IR beam needs is not called waste; the note says another band does better',()=>{
+    const v=judge(job('quiet'),setup('nir',{pod:'quiet',mirrors:['A']}));
+    expect(v.tier).toBe(2);expect(v.notes[0]).not.toContain('mirrors than it needs');expect(v.notes[0]).toContain('Another band');
+  });
+  it('sunlight on the green photodiode is named in the verdict',()=>{
+    const v=judge(job('lab'),setup('vis',{pod:'lab',hatchOpen:true,mirrors:['A']}));expect(v.tier).toBe(1);expect(v.notes[0]).toContain('Sunlight');
+  });
+  it('the smoke message no longer prints the answer',()=>{
+    const v=judge(job('quiet'),setup('vis',{pod:'quiet',power:10}));expect(v.problems[0]).toContain('Smoke scatters');expect(v.problems[0]).not.toMatch(/thermal/i);
+    expect(judge(job('quiet'),setup('micro',{pod:'quiet',power:100})).problems[0]).not.toMatch(/Light passes/);
+    expect(JOBS.find(j=>j.id==='quiet')!.ask).not.toMatch(/Find a band/);
+  });
+  it('the link budget lists each term: smoke and mesh show up as their own losses',()=>{
+    const s=setup('vis',{pod:'quiet',power:10}),r=read(job('quiet'),s),t=budget(r,s);
+    expect(t.map(x=>x.kind)).toEqual(expect.arrayContaining(['sent','distance','smoke','mesh']));
+    expect(t.reduce((n,x)=>n+x.db,0)).toBeCloseTo(r.margin,6);
   });
 });

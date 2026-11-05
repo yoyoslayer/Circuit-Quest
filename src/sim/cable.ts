@@ -51,6 +51,9 @@ export function sweptCorner(pivot:Point,from:Point,to:Point,obstacles:Obstacle[]
 }
 export class Rope {
   bends:Point[]=[];length=0;strain=0;energy=0;lastEnd?:Point;
+  /** The stretch energy of the last moment (decays over ~0.35 s at 60 updates a second): letting go
+   *  just after easing off still flings, and the HUD offers the slingshot only when this is above 1. */
+  peak=0;
   constructor(public anchor:Point,public maxLength:number){}
   // Bends wrap the corner the moving end actually swept past, so a cable dragged down
   // one corridor never jumps through a door on the other side of a wall.
@@ -68,17 +71,17 @@ export class Rope {
     routed.push(end);this.lastEnd={x:end.x,z:end.z};
     this.bends=routed.slice(1,-1);this.length=pathLength(routed);this.strain=this.length/this.maxLength;
     // Elastic energy is what the slingshot throws: a sprint can stretch the rope ~0.85 m past its length.
-    this.energy=Math.max(0,this.length-this.maxLength)**2*60;
+    this.energy=Math.max(0,this.length-this.maxLength)**2*60;this.peak=Math.max(this.peak*.953,this.energy);
     return routed;
   }
   /** Swap which end is anchored (e.g. the player picks up the other plug). */
   flip(anchor:Point){this.anchor=anchor;this.bends.reverse();this.lastEnd=undefined;}
-  reset(anchor:Point,maxLength=this.maxLength){this.anchor=anchor;this.maxLength=maxLength;this.bends=[];this.lastEnd=undefined;}
+  reset(anchor:Point,maxLength=this.maxLength){this.anchor=anchor;this.maxLength=maxLength;this.bends=[];this.lastEnd=undefined;this.peak=0;}
   pull(end:Point):Point {
     const p=this.bends.at(-1)??this.anchor,d=Math.max(.01,distance(p,end)),force=Math.min(35,Math.max(0,this.length-this.maxLength)*8);
     return {x:(p.x-end.x)/d*force,z:(p.z-end.z)/d*force};
   }
-  release(){const energy=this.energy;this.energy=0;return energy;}
+  release(){const energy=Math.max(this.energy,this.peak);this.energy=0;this.peak=0;return energy;}
 }
 export const strainColor=(ratio:number)=>ratio<.7?'#f5f1dc':ratio<.85?'#ffd451':ratio<.97?'#ff922f':'#f34e56';
 export function segmentDistance(p:Point,a:Point,b:Point){

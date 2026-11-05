@@ -24,7 +24,7 @@ for(let i=0;i<14;i++)props.push({kind:'box',x:-12+(i%3)*.75,z:-1+Math.floor(i/3)
 props.push({kind:'printer',x:-10,z:-2},{kind:'vending',x:-14.5,z:2},{kind:'cooler',x:-13.5,z:7},{kind:'whiteboard',x:-10,z:5,rotation:.45});
 // The boardroom's power strip is missing from its spot by the door: it sits on the printer stand.
 props.push({kind:'strip',x:-8.6,z:-3.2,id:'strip'});
-props.push({kind:'cart',x:-3,z:4.7,id:'mail-cart'},{kind:'reel',x:-3,z:4.7,y:1,id:'extension'},{kind:'coupler',x:-3.6,z:4.7,y:.9,id:'coupler'});
+props.push({kind:'cart',x:-3,z:4.7,id:'mail-cart',color:'#8c96a8'},{kind:'reel',x:-3,z:4.7,y:1,id:'extension'},{kind:'coupler',x:-3.6,z:4.7,y:.9,id:'coupler'});
 props.push({kind:'desk',x:-14,z:5},{kind:'coffee',x:-14,z:5,y:1.3,id:'coffee'},{kind:'reel',x:-12.7,z:4.5,id:'coffee-reel'});
 props.push({kind:'sofa',x:12,z:6.4,rotation:Math.PI},{kind:'beanbag',x:10,z:4.6,color:'#ffc94d'},{kind:'beanbag',x:14.6,z:4.4,color:'#5b9cf0'},{kind:'desk',x:12.5,z:4.2,color:'#b98552'},{kind:'pingpong',x:6,z:7.3},{kind:'bookshelf',x:9,z:3,rotation:Math.PI/2});
 for(let i=0;i<8;i++){const x=i%2?13.2:10.8,z=-7.9+Math.floor(i/2)*1.05;props.push({kind:'chair',x,z,rotation:i%2?-Math.PI/2:Math.PI/2,color:'#3a3d55'});if(i<4)npcs.push({x,z});}

@@ -98,8 +98,15 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       part(g,cyl(w*.43,w*.43,.01,12),toon('#1d1f2b'),0,h/2-.04,0,false);
       for(const [x,z,r] of [[-.05,.03,.07],[.06,-.04,.06],[.01,.07,.05]] as const)part(g,ico(r),toon('#fffaf0'),x,h/2-.03,z);break;
     case 'reel':reel(g,0,0,0,'#f4efe6',c,.8);break;
-    case 'coupler':case 'plug':
-      part(g,cyl(.11,.13,.3,14,'x'),m);for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),.2,0,dz);break;
+    case 'plug':
+      // The cable's male plug: an ink body with a job-yellow band and two brass prongs.
+      part(g,cyl(.11,.13,.3,14,'x'),toon(INK));part(g,cyl(.135,.135,.06,14,'x'),toon('#ffc94d'),-.04);for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),.2,0,dz);break;
+    case 'coupler':
+      // A female-to-male joiner: a yellow barrel with ink bands, a socket face (two slots) on one
+      // end and prongs on the other, so it reads as the part that lets two cables meet.
+      part(g,cyl(.12,.12,.34,14,'x'),m);for(const x of [-.1,.1])part(g,cyl(.125,.125,.025,14,'x'),toon(INK),x);
+      part(g,cyl(.1,.1,.02,14,'x'),toon('#fff6e6'),-.18);for(const dz of [-.04,.04])part(g,box(.012,.05,.02),toon(INK),-.19,0,dz,false);
+      for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),.24,0,dz);break;
     case 'splitter':
       // Three-way splitter: one inlet, three outlets, a socket face on top and a power lamp.
       part(g,rbox(w,h,d,.06),m);part(g,cyl(.06,.06,.08,10,'x'),toon(INK),-w/2-.02);for(const dz of [-.12,0,.12])part(g,cyl(.045,.045,.08,10,'x'),toon(INK),w/2+.02,0,dz);

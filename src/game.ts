@@ -89,7 +89,7 @@ export class Game {
     this.controller=this.world.createCharacterController(.025);this.controller.enableAutostep(.25,.2,true);this.controller.enableSnapToGround(.2);this.controller.setApplyImpulsesToDynamicBodies(true);this.controller.setCharacterMass(65);
     this.buildAvatar();
     this.plugPosition=new T.Vector3(level.anchor.x+.7,.3,level.anchor.z+.7);
-    this.plug=makeProp('coupler','#ffcc52');seeOff(this.plug);this.root.add(this.plug);
+    this.plug=makeProp('plug');seeOff(this.plug);this.root.add(this.plug);
     this.target=new T.Mesh(new T.TorusGeometry(.42,.07,8,28),new T.MeshBasicMaterial({color:'#64ddd4'}));this.target.rotation.x=-Math.PI/2;this.target.position.set(level.target.x,.15,level.target.z);this.root.add(this.target);
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
     // The anchor reel: its wound cable shrinks as cable pays out, so the length left reads at a glance.
@@ -250,9 +250,11 @@ export class Game {
     // With the plug in hand, E or F next to the coupler or second reel attaches it (coupler first).
     if(this.holdingPlug&&this.attachNear(pos))return;
     // Forgiving snap: the held plug only has to look close to the socket.
-    if(this.holdingPlug){if(Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12){this.connected=true;this.holdingPlug=false;this.plugPosition.set(this.level.target.x,.28,this.level.target.z);this.circuit.leads[0].closed=true;this.audio.plug();this.plugFlash(this.plugPosition);}else this.releasePlug();return;}
+    if(this.holdingPlug){if(!this.trySeat())this.releasePlug();return;}
     if(this.held){const p=this.held;
-      if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&this.coupler){this.extension=true;this.rope.maxLength=this.level.length+14;this.consume(p);this.audio.cheer();}
+      if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&this.coupler){this.joinExtension(p);this.audio.cheer();}
+      // Wrong order: the reel's socket doesn't fit the plug without the coupler, so it buzzes and the coupler is flagged.
+      else if(p.spec.id==='extension'&&distance(pos,this.plugPosition)<2&&!this.coupler){this.audio.tone(110,.22,.07,'square');this.couplerHint=true;}
       else if(p.spec.id==='coupler'&&distance(pos,this.plugPosition)<2){this.coupler=true;this.consume(p);this.audio.plug();}
       p.body.setLinvel({x:0,y:0,z:0},true);p.body.setAngvel({x:0,y:0,z:0},true);
       this.lunch?.dropped(p);this.station?.dropped?.(p);
@@ -277,11 +279,15 @@ export class Game {
   }
   /** Nothing in reach: a little puff and a questioning chirp instead of silence. */
   shrug(){const p=this.player.translation();this.burst({x:p.x+Math.sin(this.heading)*.6,y:.2,z:p.z+Math.cos(this.heading)*.6},'#efe8d8',4,'dust');this.audio.voice('hm',1.5);this.squash=.25;}
+  /** The second reel joins at the plug through the coupler: the cable gains 14 m, and the joint
+   *  stays on the cable where it was made (drawn by drawCable). */
+  joinAt=0;private joint?:T.Group;
+  joinExtension(part:Prop){this.extension=true;this.joinAt=this.rope.length;this.rope.maxLength=this.level.length+14;this.consume(part);}
   attachNear(pos:Point){
     const part=this.props.filter(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(pos,q.body.translation())<1.9).sort((a,b)=>Number(b.spec.id==='coupler')-Number(a.spec.id==='coupler'))[0];if(!part)return false;
     const at=part.body.translation();
     if(part.spec.id==='coupler'){this.coupler=true;this.consume(part);this.audio.plug();this.burst(at,'#fff3a3',12,'spark');}
-    else if(this.coupler){this.extension=true;this.rope.maxLength=this.level.length+14;this.consume(part);this.audio.plug();this.audio.jingle();this.burst(at,'#ffcf52',30,'confetti');}
+    else if(this.coupler){this.joinExtension(part);this.audio.plug();this.audio.jingle();this.burst(at,'#ffcf52',30,'confetti');}
     // Wrong order: the reel needs the coupler first, so it wobbles and buzzes.
     else{this.audio.tone(110,.22,.07,'square');part.body.applyImpulse({x:0,y:prefabs[part.spec.kind].mass*2.5,z:0},true);part.body.applyTorqueImpulse({x:0,y:0,z:.4},true);this.couplerHint=true;}
     return true;
@@ -304,12 +310,49 @@ export class Game {
     this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.audio.noise(.2,.08,1400);this.alarm(this.plugPosition,6);
     for(const p of this.props){const pos=p.body.translation();if(this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<1.1)){this.flung=true;const v=new T.Vector3(pos.x-this.rope.anchor.x,0,pos.z-this.rope.anchor.z).normalize();const impulse=Math.min(energy*.22,45)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:v.x*impulse,y:impulse*.65,z:v.z*impulse},true);}}
   }
+  /** Forgiving plug-in (AGENTS 7): close enough to the socket and not overstretched seats the plug. */
+  canSeat(){const pos=this.player.translation();return Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12;}
+  trySeat(){
+    if(!this.holdingPlug||!this.canSeat())return false;
+    this.connected=true;this.holdingPlug=false;this.rope.release();this.plugPosition.set(this.level.target.x,.28,this.level.target.z);this.circuit.leads[0].closed=true;this.audio.plug();this.plugFlash(this.plugPosition);return true;
+  }
+  /** Socket signpost (R5-121): the ring pulses softly on its own; carrying the plug within 3 m it
+   *  turns job yellow and grows, and once letting go would seat the plug a ghost plug shows where
+   *  it will sit, with a soft tick on entering. */
+  private ghost?:T.Group;private wasSeatable=false;
+  socketCue(){
+    const ring=this.target,mat=ring.material as T.MeshBasicMaterial,t=this.time;
+    const holding=this.holdingPlug&&!this.connected,near=holding&&distance(this.plugPosition,this.level.target)<3,seat=holding&&this.canSeat();
+    mat.color.set(near?'#ffd84a':'#64ddd4');ring.scale.setScalar((near?1.3:1)*(1+Math.sin(t*(seat?9:3))*(seat?.16:.12)));
+    if(!this.ghost){this.ghost=makeProp('plug');const m=new T.MeshBasicMaterial({color:'#ffd84a',transparent:true,opacity:.45,depthTest:false});m.userData.outlineParameters={visible:false};
+      this.ghost.traverse(o=>{if(o instanceof T.Mesh){o.material=m;o.renderOrder=11;o.castShadow=false;}});this.ghost.position.set(this.level.target.x,.28,this.level.target.z);this.root.add(this.ghost);}
+    this.ghost.visible=seat;if(seat&&!this.wasSeatable)this.audio.tone(1320,.05,.03,'triangle');this.wasSeatable=seat;
+  }
+  /** The slingshot's visible half: the released plug whips back along the cable toward the anchor
+   *  and bowls over what it meets. */
+  recoil?:{path:Point[];travel:number;t:number;energy:number;hit:Set<Prop>};
   releasePlug(){
+    // Letting go with the plug at the socket seats it, unless the cable is loaded for a slingshot.
+    if(this.rope.peak<=1&&this.rope.energy<=1&&this.trySeat())return;
     const energy=this.rope.release();this.holdingPlug=false;
-    if(energy>1){this.slingshot(energy);
-      const last=this.rope.bends.at(-1)??this.rope.anchor;this.plugPosition.x=T.MathUtils.lerp(this.plugPosition.x,last.x,.15);this.plugPosition.z=T.MathUtils.lerp(this.plugPosition.z,last.z,.15);this.burst(this.plugPosition,'#ffdf94',12);
+    if(energy>1){this.slingshot(energy);this.hitstop=Math.max(this.hitstop,.06);this.audio.noise(.15,.1,2500);
+      const over=Math.sqrt(energy/60),path=[{x:this.plugPosition.x,z:this.plugPosition.z},...[...this.rope.bends].reverse(),this.rope.anchor];
+      this.recoil={path,travel:Math.min(3,over*4+1.5),t:0,energy,hit:new Set()};this.burst(this.plugPosition,'#ffdf94',12);
     }else this.audio.thud(.5);
     this.plugPosition.y=.22;
+  }
+  stepRecoil(dt:number){
+    const r=this.recoil;if(!r)return;if(this.holdingPlug||this.connected){this.recoil=undefined;return;}
+    const prev=this.plugPosition.clone();r.t=Math.min(1,r.t+dt/.35);
+    // Ease out along the cable's route from the plug back toward the anchor.
+    let left=(1-(1-r.t)**3)*r.travel,at=r.path[0];
+    for(let i=1;i<r.path.length;i++){const a=r.path[i-1],b=r.path[i],len=distance(a,b);if(left<=len){const k=len?left/len:0;at={x:a.x+(b.x-a.x)*k,z:a.z+(b.z-a.z)*k};left=-1;break;}left-=len;at=b;}
+    this.plugPosition.set(at.x,.22,at.z);
+    const dir=new T.Vector3(this.plugPosition.x-prev.x,0,this.plugPosition.z-prev.z);if(dir.lengthSq()>1e-6)dir.normalize();
+    for(const p of this.props){if(r.hit.has(p)||!p.mesh.visible||p===this.held)continue;const q=p.body.translation();
+      if(segmentDistance(q,prev,this.plugPosition)<.6&&q.y<1.4){r.hit.add(p);const k=T.MathUtils.clamp(r.energy*.22,4,30)*Math.min(1,prefabs[p.spec.kind].mass/4+.25);p.body.applyImpulse({x:dir.x*k,y:k*.5,z:dir.z*k},true);this.flung=true;}}
+    if(Math.floor(r.t*6)!==Math.floor((r.t-dt/.35)*6))this.burst({x:at.x,y:.1,z:at.z},'#e9e4d6',2,'dust');
+    if(r.t>=1)this.recoil=undefined;
   }
   simulateCable(){
     if(this.holdingPlug){const pos=this.player.translation();this.plugPosition.set(pos.x+Math.sin(this.heading)*.65,pos.y+.05,pos.z+Math.cos(this.heading)*.65);}
@@ -319,7 +362,13 @@ export class Game {
     const route=this.ropePoints.length>1?this.ropePoints:[this.rope.anchor,this.plugPosition];
     // Props the rope is wrapped on always stay in; the rest are the nearest twenty.
     const near=this.props.filter(p=>p.mesh.visible&&p!==this.held&&prefabs[p.spec.kind].mass>=3&&p.body.translation().y<1.8).map(p=>({p,d:Math.min(...route.slice(1).map((b,i)=>segmentDistance(p.body.translation(),route[i],b)))})).filter(v=>v.d<1.2||this.wrapped.has(v.p));
-    near.sort((a,b)=>Number(this.wrapped.has(b.p))-Number(this.wrapped.has(a.p))||a.d-b.d);const chosen=near.slice(0,20).map(v=>v.p);
+    near.sort((a,b)=>Number(this.wrapped.has(b.p))-Number(this.wrapped.has(a.p))||a.d-b.d);const chosen=near.slice(0,30).map(v=>v.p);
+    // Light clutter (bins, cones, small crates, plants) doesn't stop the cable; a dragged cable
+    // sweeps it aside instead of passing through it.
+    if(this.holdingPlug&&this.rope.strain>.4&&this.ropePoints.length>1)for(const p of this.props){if(!p.mesh.visible||p===this.held||prefabs[p.spec.kind].mass>=3)continue;const q=p.body.translation();if(q.y>.8)continue;
+      for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];if(segmentDistance(q,a,b)>.28)continue;
+        const sx=b.x-a.x,sz=b.z-a.z,len=Math.hypot(sx,sz)||1,side=Math.sign((q.x-a.x)*-sz/len+(q.z-a.z)*sx/len)||1,m=prefabs[p.spec.kind].mass;
+        p.body.applyImpulse({x:-sz/len*side*m*.06,y:0,z:sx/len*side*m*.06},true);break;}}
     const furniture=chosen.map(p=>{
       const pos=p.body.translation(),[w,,d]=prefabs[p.spec.kind].size,rotation=new T.Matrix4().makeRotationFromQuaternion(p.mesh.quaternion).elements;
       const hx=Math.abs(rotation[0])*w/2+Math.abs(rotation[8])*d/2+.05,hz=Math.abs(rotation[2])*w/2+Math.abs(rotation[10])*d/2+.05;
@@ -340,6 +389,11 @@ export class Game {
     if(this.spool){const left=this.coffeeReused?1:Math.max(0,1-this.rope.length/this.rope.maxLength),r=Math.sqrt(.07*.07+(.31*.31-.07*.07)*left);this.spool.scale.set(r,r,1);}
     const end=this.holdingPlug?this.handPosition():this.plugPosition.clone();this.plug.position.copy(end);
     const strain=this.holdingPlug?this.rope.strain:.3,points=cablePath(this.ropePoints,end,.5,strain);
+    // The cable goes round Pip, not through him: samples inside his body (a 0.38 m capsule up to
+    // 1.45 m) are pushed out sideways. The last half metre into the glove is left alone.
+    {const pip=this.player.translation(),R=.38;let fromEnd=0;
+      for(let i=points.length-2;i>=1;i--){fromEnd+=points[i].distanceTo(points[i+1]);if(fromEnd<.45)continue;const q=points[i];if(q.y>1.45)continue;
+        let dx=q.x-pip.x,dz=q.z-pip.z;const d=Math.hypot(dx,dz);if(d>=R)continue;if(d<1e-3){dx=-Math.sin(this.heading);dz=-Math.cos(this.heading);}else{dx/=d;dz/=d;}q.x=pip.x+dx*R;q.z=pip.z+dz*R;}}
     // Near its limit the cable buzzes: it jitters, sparks and twangs at the corner it is biting,
     // and coworkers along it flinch.
     const bite=this.rope.bends.at(-1),frantic=this.holdingPlug&&this.rope.strain>.97;
@@ -350,7 +404,11 @@ export class Game {
     // The hero cable: strain builds from the reel toward Pip's hand; gold once it is plugged in,
     // with current pulses flowing to the load.
     if(points.length>1){const hose=hoseGeometry(points,{radius:.1,strain:u=>strain*(.6+.4*u),tint:this.connected?GOLD:undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
-      this.pulses.update(hose.curve,hose.length,this.last/1000,this.circuit.loads[0].state==='on');}
+      this.pulses.update(hose.curve,hose.length,this.last/1000,this.circuit.loads[0].state==='on');
+      // The joint: the coupler sits on the cable where the second reel was joined.
+      if(this.extension){if(!this.joint){this.joint=makeProp('coupler');this.root.add(this.joint);}
+        const u=T.MathUtils.clamp(this.joinAt/Math.max(hose.length,.01),0,1),at=hose.curve.getPointAt(u),tan=hose.curve.getTangentAt(u);
+        this.joint.position.set(at.x,Math.max(at.y,.12),at.z);this.joint.rotation.set(0,Math.atan2(-tan.z,tan.x),0);}}
     this.audio.strain(this.holdingPlug&&!this.paused&&!this.won?this.rope.strain:0);
   }
   burst(pos:{x:number;y:number;z:number},color:string,count:number,kind:Fx='debris'){this.fx.spawn(kind,pos,count,color);}
@@ -396,7 +454,7 @@ export class Game {
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
     // All six pins down: a strike.
     if(this.level.id==='playground'&&!this.pinsCheered&&Math.floor(this.time*4)!==Math.floor((this.time-dt)*4)&&this.pinsDown()>=6){this.pinsCheered=true;this.audio.jingle();this.burst({x:5,y:1.5,z:5.3},'#ffcf52',40,'confetti');}
-    if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.simulateCable();this.strip?.step();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
+    if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
   }
   win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');
@@ -520,7 +578,7 @@ export class Game {
       if(npc.seated&&!watch)g.rotation.y=npc.restYaw+Math.sin(clock*.45+npc.seed*2)*Math.max(0,Math.sin(clock*.23+npc.seed))*.6;
       npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
       const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
-    if(this.lunch)this.lunch.render(dt);else if(!this.station&&!this.hub){this.drawCable();this.strip?.render(dt);}this.target.scale.setScalar(1+Math.sin(this.time*3)*.12);
+    if(this.lunch)this.lunch.render(dt);else if(!this.station&&!this.hub){this.drawCable();this.strip?.render(dt);}this.socketCue();
     // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
     const plugFirst=!this.lunch&&!this.station&&!this.hub&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));

@@ -45,6 +45,23 @@ Not done from these entries:
 - R5-004's optional key remaps for QFN and Observatory (R stays a bench verb there; it is harmless now because the bench owns its keys).
 - R5-015's pad glyphs in bench prompts (prompts still show keyboard keys).
 
+## Batch B7: the cable (lead's part; the Lunch cable entries R5-086/145/146 went to the Lunch agent)
+
+| ID | Fix | Files |
+|---|---|---|
+| R5-081 (P1) | `Rope.peak` keeps the stretch energy for ~0.35 s; Q prompt and the Q button light only when `peak>1` (a real fling), and letting go just after easing off still flings. | `src/sim/cable.ts`, `src/ui/objectives.ts`, `src/ui/game-ui.ts` |
+| R5-013 (P1) | Letting go (Q, or F) with the plug at the socket seats it whenever the cable isn't loaded for a slingshot (`canSeat`/`trySeat`). | `src/game.ts` |
+| R5-092 (P1) | Slingshot recoil: the released plug whips 1.5–3 m back along the cable route over 0.35 s (ease-out), with a 0.06 s hitstop, a whip noise and dust, and kicks every prop it sweeps (impulse 4–30 by energy). | `src/game.ts` (`recoil`, `stepRecoil`) |
+| R5-121 (P1) | Socket signpost: carrying the plug within 3 m turns the ring job-yellow and larger; when letting go would seat it, a ghost plug shows in the socket with a soft tick. | `src/game.ts` (`socketCue`) |
+| R5-139 (P1) | The drawn cable goes round Pip: samples inside a 0.38 m capsule (to 1.45 m) are pushed out sideways; the last 0.45 m into the glove is untouched. | `src/game.ts` drawCable |
+| R5-130 (P1, partial) | A dragged cable now sweeps light clutter (mass < 3) aside instead of passing through it; up to 30 nearby heavy props (was 20) count as wrap corners. Coworkers still don't block the cable. | `src/game.ts` simulateCable |
+| R5-106 (P1, partial) | The plug and the coupler are now different models: the plug is an ink body with a yellow band; the coupler is a teal female-to-male joiner (socket face with slots, bands, prongs). Carrying the second reel to the plug before the coupler buzzes and flags the coupler. The mail cart is neutral grey. | `src/props/prefabs.ts`, `src/game.ts`, `src/levels/meeting.ts` |
+| R5-118 (P1) | After joining, the coupler stays visible on the cable at the joint (arc length where it was made). | `src/game.ts` (`joinExtension`, drawCable) |
+
+Verified with `tools/fix-b7/cable.mjs` and `joint.mjs`: sprinting past the limit then Q flings props (fastest 2.9 m/s) and the plug recoils; Q at the socket gives `connected=true`; [socket cue](shots/fix-b7-socket-cue.jpg); [joint on the cable](shots/fix-b7-meeting-joint-close.jpg). routes, objectives, smoke and layout specs pass. Note: the coupler can't move to x −3.3 as one verifier suggested, because it then overlaps the reel (layout spec).
+
+Not done (P1): R5-130's coworker blocking. P2s in B7 are still open. Known flaky: `objectives.spec.ts` playground test sometimes fails in long full runs and passes on rerun.
+
 ## Batch B3: camera, occlusion and framing
 
 | ID | Fix | Files |

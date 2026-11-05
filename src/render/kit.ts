@@ -62,6 +62,14 @@ export function flat(map:T.Texture,opts:T.MeshBasicMaterialParameters={}){const 
 export function decal(parent:T.Object3D,map:T.Texture,w:number,h:number,x:number,y:number,z:number,ry=0,floor=false){
   const g=new T.PlaneGeometry(w,h);if(floor)g.rotateX(-Math.PI/2);const m=part(parent,g,flat(map),x,y,z,false);m.rotation.y=ry;return m;
 }
+/** A mounted sign: the text on a board with thickness (never a bare floating plane), readable
+ *  from both sides unless `back` is false (wall-mounted). Returns the board group. */
+export function plaqueBoard(parent:T.Object3D,map:T.Texture,w:number,h:number,x:number,y:number,z:number,{ry=0,rx=0,board=INK,depth=.04,back=true}:{ry?:number;rx?:number;board?:string;depth?:number;back?:boolean}={}){
+  const g=group(parent,x,y,z,ry);g.rotation.x=rx;part(g,rbox(w+.05,h+.05,depth,.015),toon(board));const material=flat(map);
+  const f=part(g,new T.PlaneGeometry(w,h),material,0,0,depth/2+.003,false);f.userData.noAO=true;
+  if(back){const b=part(g,new T.PlaneGeometry(w,h),material,0,0,-depth/2-.003,false);b.rotation.y=Math.PI;b.userData.noAO=true;}
+  return g;
+}
 const glowTextures=new Map<string,T.Texture>();
 export function glow(parent:T.Object3D,color:string,size:number,opacity=.5){
   let map=glowTextures.get(color);
@@ -105,7 +113,11 @@ export class Gauge{
     for(const [a,b,col] of this.zones){c.strokeStyle=col;c.lineWidth=24;c.beginPath();c.arc(128,140,96,Math.PI*(1+a),Math.PI*(1+b));c.stroke();}
     const a=Math.PI*(1+v);c.strokeStyle=INK;c.lineWidth=9;c.beginPath();c.moveTo(128,140);c.lineTo(128+Math.cos(a)*88,140+Math.sin(a)*88);c.stroke();
     c.fillStyle=INK;c.beginPath();c.arc(128,140,13,0,7);c.fill();this.texture.needsUpdate=true;}
-  mount(parent:T.Object3D,x:number,y:number,z:number,s=1,ry=0){const g=group(parent,x,y,z,ry);part(g,box(.7*s,.46*s,.06),toon(INK),0,0,-.02);decal(g,this.texture,.64*s,.4*s,0,0,.02);return g;}
+  /** The dial in a housing: an ink bezel on a metal back shell with screws (finished from behind);
+   *  `stem` adds a short post under it for free-standing gauges (cart tops). */
+  mount(parent:T.Object3D,x:number,y:number,z:number,s=1,ry=0,stem=false){const g=group(parent,x,y,z,ry);part(g,box(.7*s,.46*s,.06),toon(INK),0,0,-.02);decal(g,this.texture,.64*s,.4*s,0,0,.02);
+    part(g,rbox(.66*s,.42*s,.08,.03),toon(DMETAL),0,0,-.09);for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]])part(g,cyl(.012,.012,.01,8,'z'),toon(METAL),sx*.27*s,sy*.16*s,-.134,false);
+    if(stem)part(g,box(.05,.12,.05),toon(DMETAL),0,-.23*s-.06,-.07);return g;}
 }
 export function wheels(parent:T.Object3D,w:number,d:number,r=.15,y=r){for(const [x,z] of [[-w,-d],[w,-d],[-w,d],[w,d]])part(parent,cyl(r,r,.1,14,'z'),toon(INK),x,y,z);}
 export function handle(parent:T.Object3D,x:number,y0:number,y1:number,d:number){
@@ -115,8 +127,10 @@ export function handle(parent:T.Object3D,x:number,y0:number,y1:number,d:number){
 export function reel(parent:T.Object3D,x:number,y:number,z:number,drum:string,flange:string,s=1){
   const g=group(parent,x,y,z);
   for(const side of [-1,1])part(g,cyl(.42*s,.42*s,.07*s,24,'z'),toon(flange),0,0,side*.24*s);
-  part(g,cyl(.31*s,.31*s,.42*s,24,'z'),toon(drum));part(g,cyl(.08*s,.08*s,.56*s,12,'z'),toon('#c7ccd6'));return g;
+  // The drum shows wound cable (diagonal turns), so the reel reads as full, not an empty spool.
+  part(g,cyl(.31*s,.31*s,.42*s,24,'z'),toon(drum,{map:woundTexture()}));part(g,cyl(.08*s,.08*s,.56*s,12,'z'),toon('#c7ccd6'));return g;
 }
+const woundTexture=()=>cachedTexture('wound',()=>repeat(canvasTex(256,64,c=>{c.fillStyle='#ffffff';c.fillRect(0,0,256,64);c.strokeStyle='rgba(43,45,66,.38)';c.lineWidth=5;for(let x=-64;x<320;x+=16){c.beginPath();c.moveTo(x,0);c.lineTo(x+10,64);c.stroke();}}),6,1));
 /** Startled "!" bubble texture shared by coworker reactions. */
 export const bangTexture=()=>cachedTexture('bang',()=>glyph(c=>{c.fillStyle='#fffaf0';c.beginPath();c.arc(128,128,110,0,7);c.fill();c.lineWidth=14;c.stroke();c.fillStyle='#e5484d';c.fillRect(112,50,32,100);c.beginPath();c.arc(128,190,18,0,7);c.fill();}));
 const textures=new Map<string,T.Texture>();

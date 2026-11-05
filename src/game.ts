@@ -39,7 +39,9 @@ import type {Station} from './stations/types';
 import {Lobby} from './hub/lobby';
 
 export interface Prop {spec:PropSpec;body:RAPIER.RigidBody;collider:RAPIER.Collider;mesh:T.Group;damaged:boolean;home:T.Vector3;lastSpeed:number}
-interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.Mesh;startled:T.Mesh;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number}
+interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.Mesh;startled:T.Mesh;alarm:number;seed:number;baseY:number;seated:boolean;restYaw:number;
+  /** The chair a seated coworker sits on; when it is taken or knocked away they drop to the floor. */
+  chair?:Prop;collider?:RAPIER.Collider;bang:boolean}
 // Each coworker gets a personality: accessories and a resting mood (look-dev meeting.js).
 const ACCESSORIES:Accessory[][]=[['tuft'],['headphones'],['glasses','tie'],['mug'],['bun'],['cap'],['sprout'],['glasses'],['headphones','tuft'],[],['tie'],['bun','glasses']];
 const MOODS:Mood[]=['calm','calm','happy','calm','sleepy','calm','happy','calm'];
@@ -129,20 +131,39 @@ export class Game {
     const p=prefabs[spec.kind],mesh=makeProp(spec.kind,spec.color,spec.variant),pos=new T.Vector3(spec.x,spec.y??p.size[1]/2+.025,spec.z);
     mesh.position.copy(pos);mesh.rotation.y=spec.rotation??0;this.root.add(mesh);
     const body=this.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(pos.x,pos.y,pos.z).setRotation(mesh.quaternion).setLinearDamping(.6).setAngularDamping(.8).setCanSleep(true).setCcdEnabled(p.mass<4));
-    const collider=this.world.createCollider(RAPIER.ColliderDesc.cuboid(p.size[0]/2,p.size[1]/2,p.size[2]/2).setMass(p.mass).setFriction(.65).setRestitution(.12),body);
+    // Round and hollow props use their own shapes (prefabs.ts collider); the rest are one box.
+    const shapes=(p.collider??[{shape:'box',half:[p.size[0]/2,p.size[1]/2,p.size[2]/2]}]).map(c=>{
+      const d=c.shape==='box'?RAPIER.ColliderDesc.cuboid(...c.half):c.shape==='cyl'?RAPIER.ColliderDesc.cylinder(c.hh,c.r):c.shape==='rcyl'?RAPIER.ColliderDesc.roundCylinder(c.hh-c.round,c.r-c.round,c.round):RAPIER.ColliderDesc.cone(c.hh,c.r);
+      if(c.at)d.setTranslation(...c.at);if('axis' in c&&c.axis)d.setRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(c.axis==='z'?1:0,0,c.axis==='x'?1:0),Math.PI/2));
+      return this.world.createCollider(d.setMass(p.mass/(p.collider?.length??1)).setFriction(.65).setRestitution(.12),body);});
+    const collider=shapes[0];
     this.props.push({spec,body,collider,mesh,damaged:false,home:pos.clone(),lastSpeed:0});
   }
   addNpc(p:NpcSpot){
-    const g=new T.Group(),seated=this.level.id==='meeting'&&!p.standing,body=new T.Group();body.position.y=seated?.35:0;g.add(body);
+    // Seated coworkers sit on the chair at their spot (body at the seat top, a little forward of the
+    // backrest); standing ones get a fixed capsule so Pip and thrown props bump into them.
+    const g=new T.Group(),seated=this.level.id==='meeting'&&!p.standing,body=new T.Group(),SEAT=.47;body.position.set(0,seated?SEAT:0,seated?.12:0);g.add(body);
     const i=this.npcs.length,color=p.color??BLOBC[i%BLOBC.length],acc=p.acc??ACCESSORIES[i%ACCESSORIES.length],calm=blob(color,p.mood??MOODS[i%MOODS.length],acc),startled=blob(color,'alarm',acc);
     if(p.chef){const hat=new T.Group();hat.position.y=1.05;body.add(hat);part(hat,cyl(.2,.18,.22,16),toon('#ffffff'),0,.1,0);part(hat,sphere(.24,14,10),toon('#ffffff'),0,.28,0).scale.y=.6;}startled.visible=false;body.add(calm,startled);
-    const sweat=new T.Sprite(new T.SpriteMaterial({map:sweatTexture(),toneMapped:false}));sweat.scale.set(.22,.22,1);sweat.position.set(.32,(seated?.35:0)+1.02,.1);sweat.visible=false;g.add(sweat);
-    const bubble=new T.Sprite(new T.SpriteMaterial({map:bangTexture(),depthTest:false}));bubble.scale.set(.7,.7,1);bubble.position.y=(seated?.35:0)+1.55;bubble.renderOrder=9;bubble.visible=false;g.add(bubble);
-    g.position.set(p.x,0,p.z);const desk=this.props.filter(q=>q.spec.kind==='desk').sort((a,b)=>distance(p,a.spec)-distance(p,b.spec))[0],restYaw=p.yaw??(seated&&desk?Math.atan2(desk.spec.x-p.x,desk.spec.z-p.z):Math.atan2(-p.x,-p.z));g.rotation.y=restYaw;
-    this.npcs.push({group:g,body,bubble,sweat,calm,startled,alarm:0,seed:this.npcs.length*1.7,baseY:seated?.35:0,seated,restYaw});this.root.add(g);
+    const sweat=new T.Sprite(new T.SpriteMaterial({map:sweatTexture(),toneMapped:false}));sweat.scale.set(.2,.2,1);sweat.position.set(.3,body.position.y+1.0,.1);sweat.visible=false;g.add(sweat);
+    const bubble=new T.Sprite(new T.SpriteMaterial({map:bangTexture(),depthTest:false,transparent:true}));bubble.scale.set(.45,.45,1);bubble.position.y=body.position.y+1.35;bubble.renderOrder=9;bubble.visible=false;g.add(bubble);
+    g.position.set(p.x,0,p.z);const near=(kind:string,r:number)=>this.props.filter(q=>q.spec.kind===kind&&distance(p,q.spec)<r).sort((a,b)=>distance(p,a.spec)-distance(p,b.spec))[0];
+    // Face the desk the chair is pulled up to; with no desk (the boardroom) face the way the chair does.
+    const desk=seated?near('desk',1.3):undefined,chair=seated?near('chair',.4):undefined;
+    const restYaw=p.yaw??(desk?Math.atan2(desk.spec.x-p.x,desk.spec.z-p.z):chair?chair.spec.rotation??0:Math.atan2(-p.x,-p.z));g.rotation.y=restYaw;
+    // The chair turns to match, so its backrest is behind the coworker and its seat faces the desk.
+    if(chair){const q=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),restYaw);chair.body.setRotation(q,false);chair.mesh.quaternion.copy(q);}
+    let collider:RAPIER.Collider|undefined;
+    if(!seated){const b=this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(p.x,.55,p.z));collider=this.world.createCollider(RAPIER.ColliderDesc.capsule(.2,.34).setFriction(.5),b);}
+    this.npcs.push({group:g,body,bubble,sweat,calm,startled,alarm:0,seed:this.npcs.length*1.7,baseY:body.position.y,seated,restYaw,chair,collider,bang:false});this.root.add(g);
   }
+  /** Coworkers turn to watch Pip when close, when startled, and at the win. */
+  private watching(npc:Npc,d:number){return d<4||npc.alarm>0||this.won;}
   /** Coworkers near a crash or snap flinch and show a "!" bubble. */
-  alarm(at:Point,radius=4.5){let startled=0;for(const npc of this.npcs)if(distance(npc.group.position,at)<radius){if(npc.alarm<=0)startled++;npc.alarm=1;}
+  alarm(at:Point,radius=4.5){let startled=0;
+    // Only the three coworkers nearest the impact pop a "!"; the rest just sweat and flinch.
+    const hit=this.npcs.filter(n=>distance(n.group.position,at)<radius).sort((a,b)=>distance(a.group.position,at)-distance(b.group.position,at));
+    hit.forEach((npc,k)=>{if(npc.alarm<=0){startled++;npc.bang=k<3;}else npc.bang||=k<3;npc.alarm=1;});
     if(startled&&this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',.9+Math.random()*.4);}}
   batchProps(){
     const groups=new Map<string,{prop:Prop;part:T.Mesh}[]>();
@@ -202,9 +223,9 @@ export class Game {
     if(action==='restart'){const ui=gameUI(this);if(ui)ui.restart();else location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='lens'){this.fov=FOVS[(FOVS.indexOf(this.fov as Lens)+1)%FOVS.length];try{localStorage.setItem('circuit-crew-fov',String(this.fov));}catch{/* storage unavailable */}return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=this.homeYaw();return;}
     if(!this.running||this.paused||this.won)return;
     if(action==='throw'&&this.lunch?.held){this.lunch.release();return;}
-    if(action==='jump'&&this.grounded&&(!this.held||prefabs[this.held.spec.kind].mass<15)){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
+    if(action==='jump'&&this.grounded&&(!this.held||!this.heavy(this.held))){this.vertical=7;this.grounded=false;this.squash=-.6;this.audio.tone(310,.1,.025);this.audio.noise(.06,.03,1200);}
     if(action==='grab'||action==='cable')this.interact(action==='cable');
-    if(action==='throw'){if(this.holdingPlug)this.releasePlug();else if(this.held){const p=this.held;this.held=undefined;p.body.applyImpulse({x:Math.sin(this.heading)*prefabs[p.spec.kind].mass*8,y:prefabs[p.spec.kind].mass*5,z:Math.cos(this.heading)*prefabs[p.spec.kind].mass*8},true);this.audio.tone(240,.1,.06,'triangle');}}
+    if(action==='throw'){if(this.holdingPlug)this.releasePlug();else if(this.held){const p=this.held;this.held=undefined;this.thrownAt=this.time;p.body.applyImpulse({x:Math.sin(this.heading)*prefabs[p.spec.kind].mass*8,y:prefabs[p.spec.kind].mass*5,z:Math.cos(this.heading)*prefabs[p.spec.kind].mass*8},true);this.audio.tone(240,.1,.06,'triangle');}}
   }
   begin(){if(this.running)return;const ui=gameUI(this);if(ui?.beforeBegin())return;this.running=true;this.survey=false;this.audio.start();ui?.started();}
   /** Gamepad buttons are read every frame so Start/A also work on the intro card and while paused. */
@@ -236,7 +257,7 @@ export class Game {
     ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-((clientY-r.top)/r.height)*2+1),this.view.camera);this.station.pointer({kind,ray,button});
   }
   togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);this.audio.strain(0);}
-  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
+  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&!p.spec.id?.startsWith('pin-')&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. The
    *  Meeting mail cart only carries the job's reel, so the reel on it wins over the cart. */
   reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id&&p.spec.id!=='mail-cart'?2:0);}
@@ -277,6 +298,10 @@ export class Game {
       this.held=nearest;this.audio.pop();
     }else this.shrug();
   }
+  /** Heavy furniture, and carts (the Garage robot, the Observatory motor), are pushed along the floor. */
+  heavy(p:Prop){return prefabs[p.spec.kind].mass>=15||this.isCart(p);}
+  isCart(p:Prop){return p.spec.kind==='cart'&&(p.spec.id==='robot'||p.spec.id==='motor');}
+  thrownAt=-9;releasedAt=-9;
   /** Nothing in reach: a little puff and a questioning chirp instead of silence. */
   shrug(){const p=this.player.translation();this.burst({x:p.x+Math.sin(this.heading)*.6,y:.2,z:p.z+Math.cos(this.heading)*.6},'#efe8d8',4,'dust');this.audio.voice('hm',1.5);this.squash=.25;}
   /** The second reel joins at the plug through the coupler: the cable gains 14 m, and the joint
@@ -302,9 +327,12 @@ export class Game {
   /** Plug-in beat: a short hit-stop, a star flash, sparks and a floor shockwave. */
   plugFlash(at:{x:number;y:number;z:number}){this.hitstop=.09;this.burst(at,'#fff3a3',16,'spark');this.burst({x:at.x,y:at.y+.35,z:at.z},'#fff3c8',1,'flash');this.burst({x:at.x,y:.05,z:at.z},'#8ff3ea',1,'ring');this.burst(at,'#ffe36e',5,'star');this.shake=Math.max(this.shake,.12);}
   consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);}
-  /** Playground pins knocked down: tipped past ~45° or slid half a metre from their spot. */
-  pinsDown(){const up=new T.Vector3();return this.props.filter(p=>p.spec.id?.startsWith('pin-')).filter(p=>{const q=p.body.rotation(),t=p.body.translation();
-    up.set(0,1,0).applyQuaternion(new T.Quaternion(q.x,q.y,q.z,q.w));return up.y<.7||Math.hypot(t.x-p.spec.x,t.z-p.spec.z)>.5;}).length;}
+  /** Playground pins knocked down: tipped past ~45° (or shoved 1.2 m) by the slingshot or a flung
+   *  prop. A pin that goes over while Pip is right beside it (walked or bumped over) doesn't count. */
+  pinsDown(){return this.pinsFair.size;}
+  private pinsFair=new Set<Prop>();private pinsSeen=new Set<Prop>();
+  trackPins(){const p=this.player.translation();for(const pin of this.props){if(!pin.spec.id?.startsWith('pin-')||this.pinsSeen.has(pin))continue;const q=pin.body.rotation(),t=pin.body.translation(),up=1-2*(q.x*q.x+q.z*q.z);
+    if(up<.7||Math.hypot(t.x-pin.spec.x,t.z-pin.spec.z)>1.2){this.pinsSeen.add(pin);if(Math.hypot(p.x-t.x,p.z-t.z)>1.1)this.pinsFair.add(pin);}}}
   private pinsCheered=false;
   slingshot(energy:number){
     this.shake=Math.min(.5,energy*.006);this.audio.tone(90,.3,.12,'sawtooth');this.audio.noise(.2,.08,1400);this.alarm(this.plugPosition,6);
@@ -334,7 +362,7 @@ export class Game {
   releasePlug(){
     // Letting go with the plug at the socket seats it, unless the cable is loaded for a slingshot.
     if(this.rope.peak<=1&&this.rope.energy<=1&&this.trySeat())return;
-    const energy=this.rope.release();this.holdingPlug=false;
+    const energy=this.rope.release();this.holdingPlug=false;if(energy>1)this.releasedAt=this.time;
     if(energy>1){this.slingshot(energy);this.hitstop=Math.max(this.hitstop,.06);this.audio.noise(.15,.1,2500);
       const over=Math.sqrt(energy/60),path=[{x:this.plugPosition.x,z:this.plugPosition.z},...[...this.rope.bends].reverse(),this.rope.anchor];
       this.recoil={path,travel:Math.min(3,over*4+1.5),t:0,energy,hit:new Set()};this.burst(this.plugPosition,'#ffdf94',12);
@@ -425,7 +453,7 @@ export class Game {
     let speed=this.keys.has('ShiftLeft')?6.8:4.2;if(this.held)speed/=1+prefabs[this.held.spec.kind].mass/25;if(this.lunch?.held?.cable.rating===10)speed*=.65;
     const pull=this.lunch?this.lunch.pull():this.holdingPlug?this.rope.pull(p):{x:0,z:0};
     this.vertical=Math.max(-20,this.vertical-18*dt);
-    this.controller.computeColliderMovement(this.playerCollider,{x:(move.x*speed+pull.x)*dt,y:this.vertical*dt,z:(move.z*speed+pull.z)*dt},undefined,undefined,c=>c.handle!==this.held?.collider.handle);
+    this.controller.computeColliderMovement(this.playerCollider,{x:(move.x*speed+pull.x)*dt,y:this.vertical*dt,z:(move.z*speed+pull.z)*dt},undefined,undefined,c=>!this.held||c.parent()?.handle!==this.held.body.handle);
     const delta=this.controller.computedMovement(),wasGrounded=this.grounded;this.grounded=this.controller.computedGrounded();
     if(this.grounded&&!wasGrounded&&this.airborne>.25){this.squash=Math.min(1,this.airborne*1.4);this.burst({x:p.x,y:.1,z:p.z},'#d9d2c3',5,'dust');this.audio.thud(3);}
     this.airborne=this.grounded?0:this.airborne+dt;if(this.grounded&&this.vertical<0)this.vertical=-.1;
@@ -435,7 +463,13 @@ export class Game {
       this.burst({x:p.x-hx*.25+hz*.13*this.stepSide,y:.06,z:p.z-hz*.25-hx*.13*this.stepSide},'#e6dfd2',1,'dust');}}else this.stepT=.12;
     this.player.setNextKinematicTranslation({x:T.MathUtils.clamp(p.x+delta.x,-this.level.width/2+.5,this.level.width/2-.5),y:p.y+delta.y,z:T.MathUtils.clamp(p.z+delta.z,-this.level.depth/2+.5,this.level.depth/2-.5)});
     // Light things are carried at chest height; heavy furniture is pushed along the floor so it stays upright.
-    if(this.held){const b=this.held.body,pos=b.translation(),kind=prefabs[this.held.spec.kind],heavy=kind.mass>=15,ahead=heavy?.5+Math.max(kind.size[0],kind.size[2])/2:1.05,target={x:p.x+Math.sin(this.heading)*ahead,y:heavy?kind.size[1]/2+.03:p.y+.55,z:p.z+Math.cos(this.heading)*ahead};b.setLinvel({x:(target.x-pos.x)*12,y:(target.y-pos.y)*12,z:(target.z-pos.z)*12},true);b.setAngvel({x:0,y:0,z:0},true);}
+    // Light things are held level and square in front of the chest, between both mitts (tall flat
+    // boards edge-on, low); carts and heavy things roll along upright, handle towards Pip.
+    if(this.held){const b=this.held.body,pos=b.translation(),kind=prefabs[this.held.spec.kind],heavy=this.heavy(this.held),[w,h,d]=kind.size,board=h>1.2&&d<.3,cart=this.isCart(this.held);
+      const ahead=heavy?.45+(cart?w:Math.max(w,d))/2:.42+(board?w:d)/2,y=heavy?h/2+.03:Math.max(p.y+.2,p.y-.78+.3+h/2),target={x:p.x+Math.sin(this.heading)*ahead,y,z:p.z+Math.cos(this.heading)*ahead};
+      b.setLinvel({x:(target.x-pos.x)*12,y:(target.y-pos.y)*12,z:(target.z-pos.z)*12},true);b.setAngvel({x:0,y:0,z:0},true);
+      const r=b.rotation(),cur=new T.Quaternion(r.x,r.y,r.z,r.w),e=new T.Euler().setFromQuaternion(cur,'YXZ');
+      const want=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),cart?this.heading-Math.PI/2:board?this.heading+Math.PI/2:heavy?e.y:this.heading);b.setRotation(cur.slerp(want,Math.min(1,dt*(heavy?6:14))),true);}
     this.world.timestep=dt;this.world.step();
     if(this.holdingPlug&&this.rope.strain>.88)for(const prop of this.props){const pos=prop.body.translation();if(prefabs[prop.spec.kind].mass<=15&&this.ropePoints.slice(1).some((b,i)=>segmentDistance(pos,this.ropePoints[i],b)<.65)){const v=new T.Vector3(p.x-pos.x,0,p.z-pos.z).normalize().multiplyScalar(dt*12*(this.rope.strain-.8));prop.body.applyImpulse({x:v.x,y:.015,z:v.z},true);}}
     for(const prop of this.props){if(!prop.body.isEnabled())continue;const pos=prop.body.translation(),v=prop.body.linvel(),speed=Math.hypot(v.x,v.y,v.z);
@@ -453,6 +487,7 @@ export class Game {
     // Past the deadline the meeting waits impatiently; running late only costs time grade.
     if(this.level.deadline&&this.time>this.level.deadline&&Math.floor(this.time/3)!==Math.floor((this.time-dt)/3))this.alarm(this.level.target,6);
     // All six pins down: a strike.
+    if(this.level.id==='playground')this.trackPins();
     if(this.level.id==='playground'&&!this.pinsCheered&&Math.floor(this.time*4)!==Math.floor((this.time-dt)*4)&&this.pinsDown()>=6){this.pinsCheered=true;this.audio.jingle();this.burst({x:5,y:1.5,z:5.3},'#ffcf52',40,'confetti');}
     if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step();this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);if(this.circuit.loads[0].state==='on'&&!this.won)this.win();}
   }
@@ -555,9 +590,9 @@ export class Game {
     const turn=dt>0?Math.atan2(Math.sin(this.heading-this.lastHeading),Math.cos(this.heading-this.lastHeading))/dt:0;this.lastHeading=this.heading;
     const titling=!this.running&&document.body.dataset.screen==='title';
     if(this.won||titling)this.heading+=Math.atan2(Math.sin(this.yaw-this.heading),Math.cos(this.yaw-this.heading))*Math.min(1,dt*6);
-    const held=this.held?prefabs[this.held.spec.kind].mass>=15?'heavy':'light':'none',lunchHeld=this.lunch?.held;
+    const held=this.held?this.heavy(this.held)?'heavy':'light':'none',lunchHeld=this.lunch?.held,hk=this.held?prefabs[this.held.spec.kind].size:undefined;
     const near=this.running&&!this.won&&!this.held&&!this.holdingPlug?this.nearest():undefined;
-    this.rig.update({dt,time:this.last/1000,speed,grounded:this.grounded,rising:this.vertical>0,airborne:this.airborne,turnRate:turn,carrying:held,holdingPlug:this.holdingPlug,
+    this.rig.update({dt,time:this.last/1000,speed,grounded:this.grounded,rising:this.vertical>0,airborne:this.airborne,turnRate:turn,carrying:held,carryWidth:hk?(hk[1]>1.2&&hk[2]<.3?hk[2]:hk[0]):0,sinceThrow:this.time-this.thrownAt,sinceRelease:this.time-this.releasedAt,holdingPlug:this.holdingPlug,
       strain:lunchHeld?lunchHeld.cable.rope.strain:this.rope.strain,won:this.won,waving:titling,lookAt:near?new T.Vector3().copy(near.body.translation()):undefined});
   }
   render(dt:number){
@@ -570,14 +605,27 @@ export class Game {
     this.updateBatches();
     // Coworkers breathe, type at their desks, turn to watch Pip when close, and pop a "!" when startled.
     const clock=this.last/1000;
+    const head=new T.Vector3(p.x,p.y+.75,p.z).project(this.view.camera),px=innerWidth/2,py=innerHeight/2,dot=new T.Vector3();
     for(const npc of this.npcs){const g=npc.group,d=distance(p,g.position),near=d<2;npc.alarm=Math.max(0,npc.alarm-dt);
-      const watch=d<4||npc.alarm>0||this.won,yaw=watch?Math.atan2(p.x-g.position.x,p.z-g.position.z):npc.restYaw;
+      // A seated coworker whose chair is taken, moved or tipped drops to the floor with a yelp.
+      if(npc.seated&&npc.chair){const c=npc.chair,t=c.body.translation(),r=c.body.rotation(),up=1-2*(r.x*r.x+r.z*r.z);
+        if(c===this.held||!c.mesh.visible||Math.hypot(t.x-g.position.x,t.z-g.position.z)>.35||up<.9){npc.seated=false;npc.alarm=1;npc.bang=true;if(this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',.9+Math.random()*.4);}}}
+      if(!npc.seated&&npc.baseY>0){npc.baseY=Math.max(0,npc.baseY-dt*3.2);npc.body.position.z*=Math.max(0,1-dt*8);}
+      let yaw=this.watching(npc,d)?Math.atan2(p.x-g.position.x,p.z-g.position.z):npc.restYaw;
+      // Seated, they look round within the chair rather than spinning through its backrest.
+      if(npc.seated){const off=Math.atan2(Math.sin(yaw-npc.restYaw),Math.cos(yaw-npc.restYaw));yaw=npc.restYaw+T.MathUtils.clamp(off,-.6,.6);}
       g.rotation.y+=Math.atan2(Math.sin(yaw-g.rotation.y),Math.cos(yaw-g.rotation.y))*Math.min(1,dt*5);
-      const cheer=this.won?Math.abs(Math.sin(clock*9+npc.seed)):0,duck=npc.alarm>0?.72:near?.88:1,breathe=Math.sin(clock*1.3*Math.PI*2+npc.seed)*.025;
-      const typing=npc.seated&&!watch?Math.abs(Math.sin(clock*16+npc.seed*3))*.03*(Math.sin(clock*.7+npc.seed)>-.3?1:0):0;
-      if(npc.seated&&!watch)g.rotation.y=npc.restYaw+Math.sin(clock*.45+npc.seed*2)*Math.max(0,Math.sin(clock*.23+npc.seed))*.6;
-      npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
-      const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
+      const age=1-npc.alarm,hop=npc.alarm>0&&age<.3,breathe=Math.sin(clock*1.3*Math.PI*2+npc.seed)*.025;
+      const cheer=this.won?Math.abs(Math.sin(clock*9+npc.seed)):0,typing=npc.seated&&!this.watching(npc,d)?Math.abs(Math.sin(clock*16+npc.seed*3))*.03*(Math.sin(clock*.7+npc.seed)>-.3?1:0):0;
+      if(npc.seated&&!this.watching(npc,d))g.rotation.y=npc.restYaw+Math.sin(clock*.45+npc.seed*2)*Math.max(0,Math.sin(clock*.23+npc.seed))*.6;
+      // Startled: a quick stretched hop, then a wobble (never squashed flat into a bun).
+      const sy=hop?1.15:npc.alarm>0?.97:near?.92:1,sxz=hop?.93:2-sy;
+      npc.body.scale.set(sxz-breathe,sy+breathe,sxz-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing+(hop?Math.sin(age*Math.PI/.3)*.25:0);npc.body.rotation.z=npc.alarm>0&&!hop?Math.sin(npc.alarm*20)*.12:0;
+      const shown=npc.alarm>0&&!this.won,top=npc.body.position.y+1.055*npc.body.scale.y;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;
+      npc.sweat.position.y=top-.08;npc.bubble.position.y=top+.3;npc.bubble.visible=shown&&npc.bang;
+      if(npc.bubble.visible){const s=age<.12?age/.12*1.2:age<.25?1.2-(age-.12)/.13*.2:1;npc.bubble.scale.setScalar(.45*s);
+        // Bubbles over Pip's head fade so the hero stays readable.
+        npc.bubble.getWorldPosition(dot).project(this.view.camera);(npc.bubble.material as T.SpriteMaterial).opacity=Math.hypot((dot.x-head.x)*px,(dot.y-head.y)*py)<80?.35:1;}}
     if(this.lunch)this.lunch.render(dt);else if(!this.station&&!this.hub){this.drawCable();this.strip?.render(dt);}this.socketCue();
     // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
@@ -642,22 +690,25 @@ export class Game {
    *  than `min` metres. Props against fixed colliders and each other, standing coworkers and Pip's
    *  spawn against both. Call it before advancing time, while everything is where the level put it. */
   audit(min=.04){
-    const fixed:RAPIER.Collider[]=[];this.world.forEachCollider(c=>{if(c.parent()?.isFixed())fixed.push(c);});
+    const npcs=new Set(this.npcs.map(n=>n.collider?.handle)),fixed:RAPIER.Collider[]=[];this.world.forEachCollider(c=>{if(c.parent()?.isFixed()&&!npcs.has(c.handle))fixed.push(c);});
+    const parts=(p:Prop)=>Array.from({length:p.body.numColliders()},(_,i)=>p.body.collider(i));
     const r=(v:number)=>Math.round(v*100)/100;
     const fixedName=(c:RAPIER.Collider)=>{const t=c.translation(),h=(c.shape as RAPIER.Cuboid).halfExtents;return `fixed ${h?`${r(h.x*2)}×${r(h.z*2)}`:'shape'} @${r(t.x)},${r(t.z)}`;};
     const propName=(p:Prop)=>{const t=p.body.translation();return `${p.spec.id??p.spec.kind} @${r(t.x)},${r(t.z)}`;};
     const found:{a:string;b:string;depth:number}[]=[];
     const test=(a:string,sa:RAPIER.Shape,pa:RAPIER.Vector,ra:RAPIER.Rotation,b:string,c:RAPIER.Collider)=>{
       const k=sa.contactShape(pa,ra,c.shape,c.translation(),c.rotation(),0);if(k&&k.distance< -min)found.push({a,b,depth:r(-k.distance)});};
-    this.props.forEach((p,i)=>{const c=p.collider,a=propName(p);
-      for(const f of fixed)test(a,c.shape,c.translation(),c.rotation(),fixedName(f),f);
-      for(const q of this.props.slice(i+1))test(a,c.shape,c.translation(),c.rotation(),propName(q),q.collider);});
+    const once=(a:string,b:string,depth:number)=>{const k=found.findIndex(f=>f.a===a&&f.b===b);if(k<0)found.push({a,b,depth});else found[k].depth=Math.max(found[k].depth,depth);};
+    const test2=(a:string,c:RAPIER.Collider,b:string,o:RAPIER.Collider)=>{const k=c.shape.contactShape(c.translation(),c.rotation(),o.shape,o.translation(),o.rotation(),0);if(k&&k.distance< -min)once(a,b,r(-k.distance));};
+    this.props.forEach((p,i)=>{const a=propName(p);for(const c of parts(p)){
+      for(const f of fixed)test2(a,c,fixedName(f),f);
+      for(const q of this.props.slice(i+1))for(const o of parts(q))test2(a,c,propName(q),o);}});
     const ball=new RAPIER.Ball(.36),still={x:0,y:0,z:0,w:1};
     for(const n of this.npcs){if(n.seated)continue;const at=n.group.position,pos={x:at.x,y:.6,z:at.z},a=`coworker @${r(at.x)},${r(at.z)}`;
-      for(const f of fixed)test(a,ball,pos,still,fixedName(f),f);for(const p of this.props)test(a,ball,pos,still,propName(p),p.collider);}
+      for(const f of fixed)test(a,ball,pos,still,fixedName(f),f);for(const p of this.props)for(const c of parts(p))test(a,ball,pos,still,propName(p),c);}
     const pc=this.playerCollider;for(const f of fixed)test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),fixedName(f),f);
-    for(const p of this.props)test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),propName(p),p.collider);
+    for(const p of this.props)for(const c of parts(p))test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),propName(p),c);
     return found;
   }
-  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
+  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,npcs:this.npcs.map(n=>({seated:n.seated,y:+n.body.position.y.toFixed(2),x:+n.group.position.x.toFixed(2),z:+n.group.position.z.toFixed(2)})),stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
 }

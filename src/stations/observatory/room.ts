@@ -5,7 +5,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,DMETAL,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,DMETAL,INK,plaqueBoard} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pointLamp,lampPool,rug} from '../../levels/dressing';
@@ -110,7 +110,10 @@ export function dressObservatory(game:Game,kit:RoomKit){
     for(let n=0;n<3;n++)part(game.root,sphere(.022,8,6),hot(['#8dffb0','#ffd66b','#7fd8ff'][(k+n)%3],1.8),RX.x-.3+.05+n*.1,.4+k*.38,RX.z-.2+.37,false);}
   part(rack,cyl(.04,.05,2.4,10),toon(DMETAL),.25,2.7,-.2);for(const [y,w] of [[3.2,.7],[3.5,.5],[3.75,.34]] as const)part(rack,cyl(.012,.012,w,6,'x'),toon('#dfe3ea'),.25,y,-.2);
   part(rack,sphere(.05,10,8),hot('#ff6b6b',2),.25,3.92,-.2);solid(game,.9,1.6,.7,RX.x-.3,.8,RX.z-.2);
-  const plaq=part(r,new T.PlaneGeometry(.8,.2),flat(plaque('ROOF RECEIVER',512,128,'#ffd66b')),RX.x-.3,1.72,RX.z+.16,false);plaq.rotation.x=-.3;
+  plaqueBoard(rack,plaque('ROOF RECEIVER',512,128,'#ffd66b'),.74,.14,0,1.405,.37,{back:false,depth:.03});
+  // Finished sides and back: vent slots, front rack ears with screws, rear panel seams and a cable gland.
+  for(const s of [-1,1]){for(let k=0;k<6;k++)part(rack,box(.012,.04,.42),toon(INK),s*.455,.35+k*.16,0,false);part(rack,box(.04,1.36,.02),toon(BRASS),s*.4,.75,.36);}
+  for(const y of [.35,.75,1.15])part(rack,box(.8,.02,.012),toon(INK),0,y,-.356,false);part(rack,cyl(.05,.05,.04,12,'z'),toon(INK),.25,1.3,-.37);
   // ---- Spectrum gallery on the back wall: radio → gamma, one panel per band, with c = fλ.
   const x0=.4,step=1.28;
   BANDS.forEach((b,i)=>{const x=x0+i*step;part(kit.back,box(1.1,1.52,.05),toon(INK),x,1.9,.17);const f=new T.Mesh(new T.PlaneGeometry(1.02,1.44),flat(bandPanel(b,i)));f.position.set(x,1.9,.2);kit.back.add(f);
@@ -118,7 +121,9 @@ export function dressObservatory(game:Game,kit:RoomKit){
   const head=new T.Mesh(new T.PlaneGeometry(4.6,.42),flat(plaque('THE SPECTRUM: ONE WAVE, c = f × λ',1024,96,VIOLET,'#fffaf0')));head.position.set(x0+3*step,2.95,.2);kit.back.add(head);
   const warn=new T.Mesh(new T.PlaneGeometry(5.6,.34),flat(plaque('Not every band is safe: UV, X-rays and gamma rays damage living cells.',1400,84,'#ffe1dc','#7a1f22')));warn.position.set(x0+3*step,.9,.2);kit.back.add(warn);
   // A light rail over the gallery.
-  part(r,box(9,.06,.1),toon(BRASS),x0+3*step,3.2,-D+.4);for(let i=0;i<7;i++)part(game.root,cyl(.05,.07,.1,10),hot('#fff1d6',1.6),x0+i*step,3.12,-D+.45,false);
+  // It hangs off the back wall on three brackets and folds away with it in the cutaway.
+  part(kit.back,box(9,.06,.1),toon(BRASS),x0+3*step,3.2,.4);for(const k of [0,3,6])part(kit.back,box(.05,.05,.26),toon(BRASS),x0+k*step,3.2,.27);
+  for(let i=0;i<7;i++)part(kit.back,cyl(.05,.07,.1,10),hot('#fff1d6',1.6),x0+i*step,3.12,.45,false).rotation.x=.5;
   pointLamp(game.root,x0+1.5*step,2.6,-D+1.8,{color:'#fff1d6',intensity:4,distance:5.5});pointLamp(game.root,x0+5*step,2.6,-D+1.8,{color:'#fff1d6',intensity:4,distance:5.5});
   // Exhibit plinths in front of the gallery: a dish, a prism with its rainbow, a lead-lined box.
   const plinth=(x:number,z:number)=>{const g=group(r,x,0,z);part(g,rbox(.7,.9,.7,.06),toon(CREAM),0,.45,0);part(g,box(.74,.05,.74),toon(BRASS),0,.92,0);solid(game,.7,1,.7,x,.5,z);return g;};

@@ -70,6 +70,15 @@ export function corner(slot:Slot,p:Part):number|undefined{
   const {rs,rl}=CIRCUIT,r=slot==='series'?rs+rl:rs*rl/(rs+rl);
   if(p.kind==='C')return 1/(2*Math.PI*r*p.value);if(p.kind==='L')return (r+dcr(p.value))/(2*Math.PI*p.value);return undefined;
 }
+/** The corner a two-part low-pass sets as a whole. A series coil and a shunt capacitor act
+ *  together at their resonance f0 = 1/(2π√(LC)) (not at either part's own corner); a series
+ *  resistor and a shunt capacitor at 1/(2π·((Rs+R)∥Rload)·C). Undefined for other pairs. */
+export function filterCorner(f:Filter):number|undefined{
+  const {rs,rl}=CIRCUIT,s=f.series,p=f.shunt;if(!s||p?.kind!=='C')return undefined;
+  if(s.kind==='L')return 1/(2*Math.PI*Math.sqrt(s.value*p.value));
+  if(s.kind==='R'){const r=(rs+s.value)*rl/(rs+s.value+rl);return 1/(2*Math.PI*r*p.value);}
+  return undefined;
+}
 /** Low-pass or high-pass: what a can in a slot does to the frequencies above its corner. */
 export const passes=(slot:Slot,p:Part):'low'|'high'|undefined=>p.kind==='R'?undefined:(slot==='series')===(p.kind==='L')?'low':'high';
 /** Voltage at the decoder over the open-circuit receiver voltage, H(f) (complex). */
@@ -98,7 +107,8 @@ export const quarterWave=(hz:number)=>wavelength(hz)/4;
  *  most of the signal reflects. Cross-polarised (horizontal rod, vertical beacon) loses ~20 dB. */
 export function antennaFactor(rod:RodId,vertical:boolean,hz:number){
   const r=Math.log(RODS[rod].length/quarterWave(hz))/.35;
-  return Math.exp(-r*r)*(vertical?1:.1);
+  // Floor at -40 dB: even a badly matched, cross-polarised rod catches a trace of the beacon.
+  return Math.max(.01,Math.exp(-r*r)*(vertical?1:.1));
 }
 
 // ---------- the jobs ----------
@@ -115,22 +125,36 @@ export interface Job {
   latch?:boolean;
   /** The beacon's carrier frequency (Hz): the antenna rod and its orientation matter. */
   beacon?:number;
+  /** The lowest verdict tier that finishes the job (default 1). Below it, a decode that only just
+   *  gets through is a near miss: not a mistake, but the job stays open. */
+  minTier?:1|2|3;
 }
 /** Commutator (brush) noise: a fundamental and falling harmonics. */
 const brush=(f:number,a:number,n=5):Tone[]=>Array.from({length:n},(_,k)=>({f:f*(k+1),a:a/(k+1)}));
 export const JOBS:Job[]=[
-  {id:'garble',title:'Clean up the garbled message',ask:'Motor noise buries the Morse. Move the cart, reroute the cable, filter the line.',
-    message:'CQ CQ DE PIP',fs:700,noise:brush(9000,3.2),cart:true},
-  {id:'latch',title:'Keep the shutter latch powered',ask:'The dome motor whines at 4 kHz. Filter it out, but the 12 V latch on the same line must still hold.',
-    message:'DOME OPEN',fs:700,noise:brush(4000,1.4,4),latch:true},
-  {id:'beacon',title:'Tune the antenna to the 100 MHz beacon',ask:'A new beacon transmits at 100 MHz, vertically polarised. Fit and orient the right whip.',
+  // Job asks state the situation, never the method (DR-39).
+  {id:'garble',title:'Clean up the garbled message',ask:'Motor noise from the cart buries the Morse from the roof. The decoder needs a clean margin.',
+    message:'CQ CQ DE PIP',fs:700,noise:brush(9000,3.2),cart:true,minTier:2},
+  {id:'latch',title:'Keep the shutter latch powered',ask:'The dome motor whines at 4 kHz, and the 12 V shutter latch shares the line.',
+    message:'DOME OPEN',fs:700,noise:brush(4000,1.4,4),latch:true,minTier:2},
+  {id:'beacon',title:'Tune the antenna to the 100 MHz beacon',ask:'A new beacon: 100 MHz, vertically polarised.',
     message:'STARS CLEAR',fs:700,noise:brush(4000,1.4,4),latch:true,beacon:100e6},
 ];
 /** Decoding thresholds at the decoder (signal-to-noise, and the tone must still be loud enough). */
 export const SPEC={decodeSnr:6,reliableSnr:12,minLevel:.5};
-/** Noise picked up from the motor cart: falls off with distance (tuning, not a field model) and
- *  halves (−6 dB) when the cable is rerouted away from the motor. */
-export function cartCoupling(distance:number,rerouted:boolean){return Math.min(1,1.2/Math.max(.3,distance))*(rerouted?.5:1);}
+/** Noise picked up from the motor cart (tuning, not a field model). `distance` is from the rack,
+ *  where the receiver's cable leaves it. Pickup falls with distance, but only out to about 6 m: past
+ *  that, the rest of the room's wiring hums as much as the cart does, so the line still needs a filter.
+ *  The cable's front route runs past the cart's parking bay; moving it behind the rack halves the
+ *  pickup (−6 dB) while the cart sits near that bay, and makes no difference once the cart is far
+ *  from both routes (from 2 m to 4.5 m the benefit fades out). */
+export const REROUTE={near:2,far:4.5};
+export function cartCoupling(distance:number,rerouted:boolean){
+  const base=Math.min(1,1.2/Math.max(.3,Math.min(distance,6)));
+  if(!rerouted)return base;
+  const t=Math.min(1,Math.max(0,(distance-REROUTE.near)/(REROUTE.far-REROUTE.near)));return base*(.5+.5*t);
+}
+/** The room step: the cart this far from the rack counts as moved (and the lean answer assumes it). */
 export const CART_SAFE=4;
 
 export interface Setup extends Filter {rerouted:boolean;cartDistance:number;rod:RodId;vertical:boolean}
@@ -148,10 +172,15 @@ export const cost=(f:Filter)=>(f.series?partCost(f.series):0)+(f.shunt?partCost(
 
 export interface Verdict {tier:0|1|2|3;problems:string[];notes:string[];snr:number;cost:number}
 function describe(f:Filter){
-  const s=f.series,p=f.shunt;
-  if(s?.kind==='L'&&p?.kind==='C')return 'LC low-pass';if(s?.kind==='R'&&p?.kind==='C')return 'RC low-pass';
-  if(!s&&p?.kind==='C')return 'shunt-C low-pass';if(s?.kind==='C')return 'high-pass (series C)';if(p?.kind==='L')return 'high-pass (shunt L)';
-  if(!s&&!p)return 'none (wire link)';return 'filter';
+  const s=f.series?.kind,p=f.shunt?.kind;
+  if(!s&&!p)return 'none (wire link)';
+  if(s==='L'&&p==='C')return 'LC low-pass';if(s==='R'&&p==='C')return 'RC low-pass';
+  // A series and a shunt part that cut opposite ends of the spectrum make a band-pass.
+  if(s==='C'&&p==='C')return 'band-pass (series C + shunt C)';if(s==='L'&&p==='L')return 'band-pass (series L + shunt L)';
+  if(s==='C'&&p==='L')return 'high-pass (2-part)';if(s==='R'&&p==='L')return 'high-pass (RL)';
+  if(!s&&p==='C')return 'shunt-C low-pass';if(s==='L'&&!p)return 'series-L low-pass';
+  if(s==='C')return 'high-pass (series C)';if(p==='L')return 'high-pass (shunt L)';
+  return 'divider (resistors only)';
 }
 export const filterName=describe;
 /** Judges the decode against the job: tier 0 = not decoded, 1 = decodes, 2 = decodes with margin
@@ -160,7 +189,7 @@ export function judge(job:Job,s:Setup):Verdict{
   const r=read(job,s),problems:string[]=[],notes:string[]=[],c=cost(s);
   const sm=s.series,pm=s.shunt;
   if(job.beacon&&r.antenna<.3)problems.push(s.vertical||RODS[s.rod].length/quarterWave(job.beacon)<.7||RODS[s.rod].length/quarterWave(job.beacon)>1.4
-    ?`A ${RODS[s.rod].label} whip is far from a quarter wave at ${job.beacon/1e6} MHz (λ = c/f = ${wavelength(job.beacon).toFixed(1)} m, so λ/4 ≈ ${quarterWave(job.beacon).toFixed(2)} m). Most of the signal reflects.`
+    ?`A ${RODS[s.rod].label} whip is a poor match for ${job.beacon/1e6} MHz: most of the signal reflects back down the line.`
     :'The beacon is vertically polarised; a horizontal whip catches only a sliver of it.');
   if(job.latch&&!r.latchOk)problems.push(sm?.kind==='C'
     ?`The latch dropped out: a series capacitor passes changes but no steady DC, so only ${r.latch} V reaches it (needs ${CIRCUIT.latchMin} V).`
@@ -174,9 +203,10 @@ export function judge(job:Job,s:Setup):Verdict{
     :`Signal/noise is ${r.snr} dB; the decoder needs ${SPEC.decodeSnr} dB. The motor noise sits at ${hz(job.noise[0].f)} and up, above the ${job.fs} Hz tone.`);
   if(problems.length)return {tier:0,problems,notes,snr:r.snr,cost:c};
   if(r.snr<SPEC.reliableSnr){notes.push(`It decodes, but ${r.snr} dB leaves little margin (reliable is ${SPEC.reliableSnr} dB).`);return {tier:1,problems,notes,snr:r.snr,cost:c};}
-  // The lean answer assumes the room step was done (the motor cart moved away).
-  const best=cheapest(job,{cartDistance:Math.max(s.cartDistance,CART_SAFE)});
-  if(best&&c>best.cost){notes.push(`Reliable. Cheaper parts can do it too (cost ${best.cost} vs ${c}).`);return {tier:2,problems,notes,snr:r.snr,cost:c};}
+  // The lean answer is fixed per job: it assumes the room step was done (the cart at the safe
+  // distance), however far the cart actually went, so a long throw never moves the target.
+  const best=cheapest(job,{cartDistance:CART_SAFE});
+  if(best&&c>best.cost){notes.push(best.cost===0?'Reliable. A cleaner setup needs no cans at all here.':`Reliable. Cheaper parts can do it too (cost ${best.cost} vs ${c}).`);return {tier:2,problems,notes,snr:r.snr,cost:c};}
   return {tier:3,problems,notes,snr:r.snr,cost:c};
 }
 /** Every filter, route and antenna the bench offers that passes this job reliably, cheapest
@@ -233,6 +263,22 @@ export function stepSpan(f:Filter){
   return Math.min(.04,Math.max(1e-3,5*Math.max(...taus)));
 }
 
+/** What the switch-on trace shows, in words, derived from the simulated response itself (not from
+ *  the part kinds): whether the coil's ramp rings, and how much DC reaches the latch. */
+export function switchOnText(f:Filter){
+  const s=f.series,p=f.shunt;
+  if(s?.kind==='C')return 'Series C: a brief charging current, then no DC reaches the latch at all.';
+  const d=stepResponse(f),fin=d[d.length-1].v,peak=Math.max(...d.map(q=>q.v)),ring=fin>.05&&peak/fin-1>.05,v=`${fin.toFixed(1)} V`;
+  if(fin<CIRCUIT.latchMin){
+    if(p?.kind==='L')return `The shunt coil settles into carrying the DC to ground: only ${v} reaches the latch.`;
+    if(s?.kind==='R')return `Series R: the current jumps, but the resistor and the load split the 12 V: ${v} at the latch.`;
+    return `Only ${v} reaches the latch.`;}
+  if(s?.kind==='L')return ring?`The coil's current can't jump: it ramps up, overshoots and rings as the capacitor charges, then settles at ${v}.`
+    :`The coil's current can't jump: it ramps up smoothly, then carries steady DC (${v}) to the latch.`;
+  if(p?.kind==='C')return `The shunt capacitor charges through the cable: the latch voltage rises smoothly to ${v}.`;
+  return `No coil or capacitor in the way: the current jumps straight to its final value (${v}).`;
+}
+
 // ---------- Morse, for the decoder readout and the speaker ----------
 const MORSE:Record<string,string>={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..'};
 /** Key-down intervals in dot units: [start, length] pairs, plus the total length of the loop. */
@@ -242,10 +288,17 @@ export function morse(text:string){
     for(const s of code){const len=s==='.'?1:3;marks.push([t,len]);t+=len+1;}t+=2;}
   return {marks,length:t+6};
 }
-/** What the decoder prints: each character is right or garbled depending on the SNR (stable per
- *  `epoch` so the readout flickers slowly rather than every frame). */
-export function decoded(text:string,snr:number,epoch:number){
-  const bad=Math.min(1,Math.max(0,(SPEC.reliableSnr-snr)/(SPEC.reliableSnr-SPEC.decodeSnr+6)));
+/** How often the decoder drops a letter, on the same thresholds the judge uses: never at the
+ *  reliable S/N, now and then between decode and reliable, mostly junk below decode. A tone too quiet
+ *  to key the decoder (level under SPEC.minLevel) garbles it however clean the S/N is. */
+export function garbleRate(snr:number,level=1){
+  const {reliableSnr:hi,decodeSnr:lo,minLevel}=SPEC,eff=level<minLevel?Math.min(snr,lo-1-12*(1-level/minLevel)):snr;
+  return eff>=hi?0:eff>=lo?.12*(hi-eff)/(hi-lo):.5+.5*Math.min(1,(lo-eff)/12);
+}
+/** What the decoder prints: each character right or garbled at garbleRate (stable per `epoch`, so
+ *  the readout flickers slowly rather than every frame). */
+export function decoded(text:string,snr:number,epoch:number,level=1){
+  const bad=garbleRate(snr,level);
   const junk='#?%*~';let out='';
   for(let i=0;i<text.length;i++){const ch=text[i];if(ch===' '){out+=' ';continue;}
     const h=Math.sin((i+1)*12.9898+epoch*78.233)*43758.5453,r=h-Math.floor(h);out+=r<bad?junk[Math.floor(r*997)%junk.length]:ch;}

@@ -96,3 +96,35 @@ Verification: all 19 selected browser checks passed in 9.7 minutes on port 4191.
 - No blocking design questions. Desktop HTML's 14 CSS px minimum is independently testable; actual 3D cap height remains a station render/camera task, not a claim made by this pass.
 
 Stage 2 final verification: **155 unit tests pass**, strict production build passes, **19/19 browser checks pass**. This also rechecked the earlier new-test import failure and the existing Arcade stress-test timeouts successfully. Selected browser run used port 4191; capture server for Stage 3 is reserved on 4192.
+
+## Stage 3 — Pip and coworker animation
+
+Prerequisite `ddfed31` is merged in Claude's branch and was merged into `astra/work` before this pass. Only `src/render/pipRig.ts`, `src/render/actors.ts`, new tests, and Astra's capture tools were edited for animation. **No game.ts edits or model exports were made.**
+
+| Entry / brief goal | Change | Files | How checked |
+|---|---|---|---|
+| Pickup anticipation | Detect the change into carry/plug holding; a brief volume-preserving dip precedes settling into the existing grip. | render/pipRig.ts | Carry transition test and matched before/after capture. |
+| Throw and slingshot follow-through | Preserve the models branch's release poses, then let the torso settle over another fraction of a second. | render/pipRig.ts | Before/after throw/release fixture views; finite-joint test. |
+| Landing | Add a restrained shoulder/knee settle to the game's existing avatar squash, rather than replacing or doubling its full motion. | render/pipRig.ts | Landing/recovery unit test and visual before/after. |
+| Bump / stop | A sudden grounded stop has a small balance-catching response. Optional `bumped` input supports explicit contact impulses. | render/pipRig.ts | Reaction/recovery test; bumped fixture. |
+| Celebration / idle | Add celebration anticipation and bent-elbow softness; a long idle relaxes shoulders and eyes, and attention returns immediately when carrying resumes. | render/pipRig.ts | Tired-to-work and celebration tests, visual captures. |
+| Failure (shared juice request R5-119) | Optional `failed` pose has lowered arms, a bowed head, and a single small settle instead of cheering. | render/pipRig.ts | Separate failure/celebration unit test and capture. Runtime field request below. |
+| Coworker head motion | Faces and head accessories glance toward Pip independently of the torso, with head lag on the existing startled hop/happy bounce. Existing breath, typing, alarms and cheering are retained. | render/actors.ts | Independent-pose and neighbour-isolation tests; same one-mesh/zero-child count; idle/alarm/cheer captures. |
+| Rendering cost / toon consistency | Pose only head vertex ranges before render upload; retain vertex colours, normals, one draw call, and identical geometry for toon/outline passes. Quantised settled poses do not upload again. | render/actors.ts | Unchanged settled-buffer version and finite-normal tests; runtime captures collect errors. |
+| Hat stability | Integrate the hat spring in small steps so slow software-rendered frames do not destabilize it. | render/pipRig.ts | Low-frame-rate joint-finiteness test. |
+
+Already fixed and intentionally retained from the models merge: R5-324's two-handed low cable pull, R5-337's new arm pivots/helmet/boots, R5-349's distance-based gait, R5-227's strain/air/win face, and the carry-width grip. No re-export of `public/models` was needed.
+
+Capture tools: `tools/astra-animation/capture.mjs before|after` and `coworkers.mjs before|after`, with BASE on 4192 and SWIFT=1. They use explicit lowfx for matched pose comparisons, independently of the full-quality smoke checks. These are presentation fixtures, not evidence of completing a game route. The first default-30-second capture attempt timed out without a saved image; the explicit-lowfx/120-second capture completed with 12 before images and zero runtime errors. Before haul, landing, tired and alarm-coworker images were opened. After Pip images (12) completed with zero runtime errors; landing, tired and bump were opened and compared: the settle is small, eyes remain visible, and boots remain planted. Raw screenshots stay in ignored shots-full/; compact pose metrics and reproducible scripts are committed.
+
+### Needs Claude — animation signals
+
+- In `game.ts` `animateRig()`'s existing `rig.update({...})` call, add **`failed: !!this.failAt`**. The optional pose is implemented and tested, but the caller currently only passes `won:false` on failure; that cannot uniquely identify a failure.
+- Optional stronger contact response: pass **`bumped: <a newly registered horizontal player-contact event>`**, clearing the flag after the pose receives it. The current grounded hard-stop response already handles moving into an obstacle; the explicit input adds reactions to impacts while stationary. Do not set it from every floor contact.
+- R5-325 remains a shared Game/NPC bubble-placement item: bubble/sweat anchors should follow actual head height when ducked, not an arbitrary world y. No broad Game edits were made here.
+
+### Questions for the product owner
+
+- None blocking. These motions affect presentation only; electricity, grade rules, camera control, collider placement and required items are unchanged.
+
+Stage 3 final verification: **164 unit tests pass**, production build passes. The first browser batch passed 14/16; Meeting layout and the second navigation in the render-quality smoke check exceeded the original five-second ready wait. The first isolated rerun also exceeded Vite's 60-second cold-start allowance. The Astra-only config in `tools/astra-review/playwright.config.ts` gives cold startup 180 seconds and assertions 30 seconds on this shared host; it retains the original software renderer, viewport, routes, and state assertions. Both isolated checks then passed (2/2, 2.9 minutes). Exact outputs are in `tools/astra-animation/stage3-browser*.log`. The full-toon coworker tracking/no-runtime-error test passed in the initial batch. After coworker captures (idle/alarm/cheer) also completed without runtime errors; idle/alarm were inspected. The celebration capture was inspected separately: face visible, hands clear the helmet. No FPS claim is made from screenshots.

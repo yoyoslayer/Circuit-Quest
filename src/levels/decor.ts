@@ -186,14 +186,18 @@ function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   for(let k=0;k<4;k++)part(r,cyl(.16,.14,.22,14),toon(k%2?'#c7ccd6':'#e5484d'),-6.7+k*.5,1.12,-8.5);
   for(const x of [-5.5,-1,3.5])pendant(game.root,x,-5.2,{y:2.3,color:'#e9f0f2',light:x===-1});
   // Storeroom rack with stock boxes, lift room coolboxes waiting to go up.
-  const rack=group(r,-16.1,0,5,Math.PI/2);part(rack,box(3.4,.08,.5),toon(TRIM),0,1,.1);part(rack,box(3.4,.08,.5),toon(TRIM),0,2.1,.1);for(const sx of [-1.6,1.6])part(rack,box(.08,2.2,.08),toon(DMETAL),sx,1.1,.3);
-  for(let k=0;k<6;k++)part(r,rbox(.6,.5,.6,.05),toon(k%2?'#d7a56d':'#c98f5a'),-15.8,k<3?1.3:2.4,3.6+(k%3)*1.1).rotation.y=(k*.13)%.4;
+  // Four uprights at the plank ends (front and back), crates sitting squarely on the planks between them.
+  const rack=group(r,-16.1,0,5,Math.PI/2);part(rack,box(3.4,.08,.5),toon(TRIM),0,1,.1);part(rack,box(3.4,.08,.5),toon(TRIM),0,2.1,.1);for(const sx of [-1.66,1.66])for(const sz of [-.13,.33])part(rack,box(.08,2.2,.08),toon(DMETAL),sx,1.1,sz);
+  solid(game,.5,.08,3.4,-16,2.1,5);
+  for(let k=0;k<6;k++){const y=k<3?1.3:2.4,z=3.75+(k%3)*1.25;part(r,rbox(.6,.5,.6,.05),toon(k%2?'#d7a56d':'#c98f5a'),-16,y,z).rotation.y=(k*.13)%.4*.3;solid(game,.6,.5,.6,-16,y,z);}
   // Corridor: vending machine, water cooler, benches, a dining table with chairs, rugs, plants.
   part(r,rbox(1,2,.8,.08),toon('#e5484d'),-6.9,1,9.3);part(r,box(.66,1.24,.05),toon('#bfeaf5'),-6.98,1.12,9.72);for(let k=0;k<9;k++)part(r,box(.14,.14,.02),toon(['#ffc94d','#6cc58a','#3f7fd6','#f08a4b'][k%4]),-7.18+(k%3)*.2,.8+Math.floor(k/3)*.3,9.76,false);solid(game,1,2,.8,-6.9,1,9.3);
   part(r,rbox(.5,1,.5,.06),toon('#f4efe6'),-5.6,.5,9.4);part(r,cyl(.2,.2,.55,16),toon('#8fd0f0'),-5.6,1.3,9.4);solid(game,.5,1.5,.5,-5.6,.75,9.4);
-  for(const x of [-4.2,-2.6]){part(r,rbox(1.3,.1,.45,.06),toon('#c98a55'),x,.46,9.45);for(const s of [-.5,.5])part(r,box(.08,.44,.36),toon(INK),x+s,.22,9.45);}
+  for(const x of [-4.2,-2.6]){part(r,rbox(1.3,.1,.45,.06),toon('#c98a55'),x,.46,9.45);for(const s of [-.5,.5])part(r,box(.08,.44,.36),toon(INK),x+s,.22,9.45);solid(game,1.3,.5,.45,x,.25,9.45);}
   rug(r,13.2,8.1,3.4,3.2,'#d98c5f','#f6d49b');part(r,cyl(.7,.7,.06,24),toon('#f4efe6'),13.2,.76,8.1);part(r,cyl(.08,.3,.74,12),toon(INK),13.2,.38,8.1);solid(game,1.4,.8,1.4,13.2,.4,8.1);
-  for(let k=0;k<3;k++){const a=k*2.1+.4,cx=13.2+Math.cos(a)*1.1,cz=8.1+Math.sin(a)*1.1,chair=group(r,cx,0,cz,-a-Math.PI/2);part(chair,rbox(.55,.1,.55,.1),toon(['#e5484d','#3f7fd6','#ffc94d'][k]),0,.48,0);part(chair,rbox(.55,.5,.1,.08),toon(['#e5484d','#3f7fd6','#ffc94d'][k]),0,.78,-.24);part(chair,cyl(.03,.03,.4,8),toon(INK),0,.26,0);}
-  for(const [x,z] of [[15.6,5.2],[-7.2,1.2],[15.8,-1.5]]){part(r,cyl(.26,.2,.42,14),toon('#e07a4f'),x,.21,z);for(const [dx,dy,dz,rr] of [[0,.66,0,.3],[.16,.5,.08,.24],[-.16,.54,-.05,.25]])part(r,sphere(rr,10,8),toon('#5cbf6a'),x+dx,dy,z+dz);}
+  // Café chairs on four legs, each with a collider.
+  for(let k=0;k<3;k++){const a=k*2.1+.4,cx=13.2+Math.cos(a)*1.1,cz=8.1+Math.sin(a)*1.1,chair=group(r,cx,0,cz,-a-Math.PI/2),c=['#e5484d','#3f7fd6','#ffc94d'][k];part(chair,rbox(.5,.08,.5,.08),toon(c),0,.46,0);part(chair,rbox(.4,.03,.4,.08),toon('#f6d49b'),0,.51,0);
+    part(chair,rbox(.46,.42,.07,.08),toon(c),0,.74,-.22).rotation.x=-.1;for(const [lx,lz] of [[-.2,-.2],[.2,-.2],[-.2,.2],[.2,.2]])part(chair,box(.04,.44,.04),toon(INK),lx,.22,lz);solid(game,.55,.9,.55,cx,.45,cz,-a-Math.PI/2);}
+  for(const [x,z] of [[15.6,5.2],[-7.2,1.2],[15.8,-1.5]]){part(r,cyl(.26,.2,.42,14),toon('#e07a4f'),x,.21,z);solid(game,.52,.9,.52,x,.45,z);for(const [dx,dy,dz,rr] of [[0,.66,0,.3],[.16,.5,.08,.24],[-.16,.54,-.05,.25]])part(r,sphere(rr,10,8),toon('#5cbf6a'),x+dx,dy,z+dz);}
   return {};
 }

@@ -41,3 +41,6 @@ Merged: `lunch3` (bots snag a cable only where their path crosses it; seated Lun
 ## Questions for the product owner
 - R5-069: should the job order change so the concept curve doesn't spike at Lunch (job 02)? The review suggests moving Lunch later and reusing ideas between jobs. Nothing has been reordered yet.
 - Grade pars (time, damage and cost limits) haven't been measured from real play. Both Astra and the lead kept the current limits.
+| R5-257 (lead part) | One strain ramp, `STRAIN_RAMP`/`STRAIN_WARN`/`STRAIN_HOT` in `sim/cable.ts`: the hose and `strainColor` both use it, and the whole hose shows the strain (`.85+.15u`). The HUD bar and hum are Astra's files (see FIXED.md). | `src/sim/cable.ts`, `src/render/actors.ts`, `src/game.ts` | unit tests |
+| R5-321 | A held plug pressed into furniture is pulled back toward Pip until it's outside every box, so the prop stays in the cable route and the cable bends round it. Footprints include the height axis. | `src/game.ts` | routes, smoke, objectives specs |
+| R5-166 | New `tests/respawn.spec.ts`: the strip stranded in the sealed closet goes home, and a job item knocked out of the room comes straight back. | `tests/respawn.spec.ts` | 2 passed |

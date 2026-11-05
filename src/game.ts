@@ -50,6 +50,8 @@ export class Game {
   props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];switchedOn=false;flung=false;lastHeading=0;twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:PipRig;stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
+  /** Playground lamp (R5-031/067): the decor's switch lever, pilots and lamp, and how long the lamp has been lit. */
+  pg?:Decor['playground'];litFor=0;lampLit=false;
   circuit:Circuit;strip?:MeetingStrip;keys=new Set<string>();held?:Prop;holdingPlug=false;connected=false;extension=false;coupler=false;coffeeReused=false;
   /** The second reel was tried before the coupler: a badge now floats over the coupler. */
   couplerHint=false;
@@ -92,8 +94,8 @@ export class Game {
     this.plug=makeProp('plug');seeOff(this.plug);this.root.add(this.plug);
     this.target=new T.Mesh(new T.TorusGeometry(.42,.07,8,28),new T.MeshBasicMaterial({color:'#64ddd4'}));this.target.rotation.x=-Math.PI/2;this.target.position.set(level.target.x,.15,level.target.z);this.root.add(this.target);
     const socket=new T.Mesh(new T.BoxGeometry(.48,.38,.3),toon('#384454'));socket.position.set(level.target.x,.25,level.target.z);this.root.add(socket);
-    // In the Meeting the power strip is the socket, and Lunch wires its own carts (R5-030).
-    if(level.id==='meeting'||level.id==='lunch')socket.visible=false;
+    // The Meeting strip and Lunch carts are their own sockets, and the Playground builds one with a face plate (R5-030, R5-152).
+    if(level.id==='meeting'||level.id==='lunch'||this.pg)socket.visible=false;
     // The anchor reel: its wound cable shrinks as cable pays out, so the length left reads at a glance.
     const anchor=group(this.root,level.anchor.x,.35,level.anchor.z);for(const side of [-1,1])part(anchor,cyl(.336,.336,.056,24,'z'),toon('#ffc94d'),0,0,side*.192);
     part(anchor,cyl(.064,.064,.45,12,'z'),toon('#c7ccd6'));part(anchor,box(.5,.06,.5),toon(INK),0,-.3,0);this.spool=part(anchor,cyl(1,1,.32,28,'z'),toon('#f4efe6'));this.spool.scale.set(.31,.31,1);
@@ -105,8 +107,9 @@ export class Game {
     {const m=new T.MeshBasicMaterial({color:'#ffd84a'});m.userData.outlineParameters={visible:false};for(let k=0;k<4;k++){const c=new T.Group();c.rotation.y=k*Math.PI/2;for(const [w,d,x,z] of [[.28,.07,-.4,-.53],[.07,.28,-.53,-.4]] as const){const b=new T.Mesh(new T.BoxGeometry(w,.03,d),m);b.position.set(x,0,z);b.userData.noAO=true;c.add(b);}this.reticle.add(c);}this.reticle.visible=false;this.root.add(this.reticle);}
     // A soft ring under Pip keeps the hero findable among coworkers.
     this.pipRing=new T.Mesh(new T.RingGeometry(.42,.58,40).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#ffc629',transparent:true,opacity:.55,depthWrite:false}));this.pipRing.userData.outlineParameters={visible:false};this.root.add(this.pipRing);this.reticle.renderOrder=10;this.root.add(this.reticle);
-    // Idle hint: glowing dots flowing along the clean route to the socket.
-    {const m=new T.MeshBasicMaterial({color:'#9ff3ea'});m.color.multiplyScalar(1.4);m.userData.outlineParameters={visible:false};const dot=new T.SphereGeometry(.07,8,6);for(let k=0;k<40;k++){const d=new T.Mesh(dot,m);d.userData.noAO=true;this.hint.add(d);}this.hint.visible=false;this.root.add(this.hint);}
+    // Idle hint (R5-032): flat job-yellow floor chevrons along the clean route, never moving beads,
+    // so nothing that looks like current shows on an open circuit.
+    {const m=toon('#ffc629'),arm=new T.BoxGeometry(.26,.012,.07);for(let k=0;k<32;k++){const c=new T.Group();for(const s of [-1,1]){const b=new T.Mesh(arm,m);b.rotation.y=s*2.5;b.translateX(.12);b.userData.noAO=true;c.add(b);}this.hint.add(c);}this.hint.visible=false;this.root.add(this.hint);}
     this.circuit=new Circuit([{id:'supply',limit:5,tripped:false}],[{id:'reel',from:'supply',to:'projector',rating:3,closed:false,heat:0,dead:false}],[{id:'projector',steady:1,enabled:true,state:'off',started:0}]);
     if(level.id==='meeting')this.strip=new MeetingStrip(this);
     this.setupUI();this.setupInput();if(level.id==='lunch')this.lunch=new LunchRuntime(this);else if(!this.station&&!this.hub){this.simulateCable();this.drawCable();}
@@ -125,7 +128,7 @@ export class Game {
   buildRoom(){
     const l=this.level;
     solid(this,l.width,.35,l.depth,0,-.2,0);
-    const decor=decorate(this);this.screen=decor.screen;this.beam=decor.beam;this.clock=decor.clock;this.lightUp=decor.lightUp;
+    const decor=decorate(this);this.screen=decor.screen;this.beam=decor.beam;this.clock=decor.clock;this.lightUp=decor.lightUp;this.pg=decor.playground;
   }
   addProp(spec:PropSpec){
     const p=prefabs[spec.kind],mesh=makeProp(spec.kind,spec.color,spec.variant),pos=new T.Vector3(spec.x,spec.y??p.size[1]/2+.025,spec.z);
@@ -298,7 +301,20 @@ export class Game {
   nearBench(pos:Point){return !!this.station&&distance(pos,this.station.stand)<1.6;}
   enterBench(){if(!this.station)return;this.atBench=true;document.body.dataset.bench='true';this.survey=false;this.station.setActive(true);this.audio.pop();this.keys.clear();this.stick=undefined;}
   leaveBench(){if(!this.station)return;this.atBench=false;if(this.padCursor){if(this.padCursor.down)this.benchPointerAt('up',this.padCursor.x,this.padCursor.y);this.padCursor.down=false;this.padCursor.el.hidden=true;}delete document.body.dataset.bench;this.station.setActive(false);this.audio.tone(260,.08,.03,'triangle');}
-  nearSwitch(pos:Point){return !this.lunch&&!this.holdingPlug&&!!this.level.switchAt&&distance(pos,this.level.switchAt)<1.9;}
+  private hintPath?:Point[];private hintAt=-1;
+  /** The idle hint's route: the plug to the socket along the level's clean lane when it declares one,
+   *  else round the pillars and heavy furniture; to the strip first while the Meeting needs it. */
+  hintRoute():Point[]{
+    const pip=this.player.translation(),strip=this.needsStrip()&&!this.stripPlaced()?this.props.find(q=>q.spec.id==='strip'&&q!==this.held):undefined;
+    const from=strip?{x:pip.x,z:pip.z}:{x:this.plugPosition.x,z:this.plugPosition.z},to=strip?{x:strip.body.translation().x,z:strip.body.translation().z}:this.level.target;
+    const lane=strip?undefined:this.level.clutter?.lanes?.find(l=>{const e=l.points[l.points.length-1];return distance({x:e[0],z:e[1]},to)<1.5;});
+    if(lane){const pts=lane.points.map(([x,z])=>({x,z}));let k=0;pts.forEach((q,i)=>{if(distance(q,from)<distance(pts[k],from))k=i;});return [from,...pts.slice(k+1)];}
+    const heavy=this.props.filter(q=>q.mesh.visible&&q!==this.held&&prefabs[q.spec.kind].mass>=3&&segmentDistance(q.body.translation(),from,to)<2).slice(0,30).map(q=>{const t=q.body.translation(),[w,,d]=prefabs[q.spec.kind].size,h=Math.max(w,d)/2+.05;return {id:'hint',minX:t.x-h,maxX:t.x+h,minZ:t.z-h,maxZ:t.z+h};})
+      .filter(o=>!(from.x>o.minX&&from.x<o.maxX&&from.z>o.minZ&&from.z<o.maxZ)&&!(to.x>o.minX&&to.x<o.maxX&&to.z>o.minZ&&to.z<o.maxZ));
+    return detour(from,to,[...this.obstacles,...heavy]);
+  }
+  /** A loose plug in reach wins over the switch (R5-262): E/F and the prompt then pick it up. */
+  nearSwitch(pos:Point){return !this.lunch&&!this.holdingPlug&&!!this.level.switchAt&&distance(pos,this.level.switchAt)<1.9&&(this.connected||distance(pos,this.plugPosition)>=1.75);}
   /** The power strip must sit by the boardroom door before the reel can feed the projector. */
   needsStrip(){return this.props.some(q=>q.spec.id==='strip');}
   stripPlaced(){const q=this.props.find(q=>q.spec.id==='strip');return !q||(q!==this.held&&distance(q.body.translation(),this.level.target)<1.4&&q.body.translation().y<.6);}
@@ -315,8 +331,9 @@ export class Game {
   }
   /** Forgiving plug-in (AGENTS 7): close enough to the socket and not overstretched seats the plug. */
   canSeat(){const pos=this.player.translation();return Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12;}
-  /** Where a seated plug sits: the socket, or in the Meeting the power strip's inlet (R5-030). */
-  seatAt(){return this.strip&&this.stripPlaced()?this.strip.seatAt():new T.Vector3(this.level.target.x,.28,this.level.target.z);}
+  /** Where a seated plug sits: the Meeting strip's inlet (R5-030), the Playground socket's face plate (R5-152), or the socket. */
+  seatAt(){return this.strip&&this.stripPlaced()?this.strip.seatAt():this.pg?.seat.clone()??new T.Vector3(this.level.target.x,.28,this.level.target.z);}
+  seat(){return this.seatAt();}
   trySeat(){
     if(!this.holdingPlug||!this.canSeat())return false;
     this.connected=true;this.holdingPlug=false;this.rope.release();this.plugPosition.copy(this.seatAt());this.circuit.leads[0].closed=true;this.audio.plug();this.plugFlash(this.plugPosition);return true;
@@ -467,8 +484,9 @@ export class Game {
     // All six pins down: a strike.
     if(this.level.id==='playground'&&!this.pinsCheered&&Math.floor(this.time*4)!==Math.floor((this.time-dt)*4)&&this.pinsDown()>=6){this.pinsCheered=true;this.audio.jingle();this.burst({x:5,y:1.5,z:5.3},'#ffcf52',40,'confetti');}
     if(this.lunch)this.lunch.step(dt);else if(this.station){this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step(dt);this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);
-      // Meeting: a projector on an overloaded strip only runs until its breaker trips, so it doesn't count (R5-041).
-      if(this.circuit.loads[0].state==='on'&&!this.won&&!this.strip?.overloaded)this.win();}
+      // The lamp/projector follows the circuit. The Playground lets the lamp burn 1.2 s before the win (R5-067);
+      // a Meeting projector on an overloaded strip only runs until its breaker trips, so it doesn't count (R5-041).
+      this.lampLit=this.circuit.loads[0].state==='on';this.litFor=this.lampLit?this.litFor+dt:0;if(this.lampLit&&!this.won&&!this.strip?.overloaded&&this.litFor>=(this.pg?1.2:0))this.win();}
   }
   win(){this.won=true;this.winAt=performance.now();this.survey=false;this.audio.cheer();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
     this.burst({x:this.level.target.x,y:2,z:this.level.target.z},'#ffcf52',90,'confetti');const pp=this.player.translation();this.burst({x:pp.x,y:2,z:pp.z},'#ffcf52',40,'confetti');
@@ -592,7 +610,7 @@ export class Game {
       if(npc.seated&&!watch)g.rotation.y=npc.restYaw+Math.sin(clock*.45+npc.seed*2)*Math.max(0,Math.sin(clock*.23+npc.seed))*.6;
       npc.body.scale.set(2-duck-breathe,duck+breathe,2-duck-breathe);npc.body.position.y=npc.baseY+cheer*.35+typing;npc.body.rotation.z=npc.alarm>0?Math.sin(npc.alarm*20)*.12:0;
       const shown=npc.alarm>0&&!this.won,age=1-npc.alarm;npc.bubble.visible=shown;npc.sweat.visible=shown;npc.calm.visible=!shown;npc.startled.visible=shown;if(shown){const s=age<.12?age/.12*1.3:age<.25?1.3-(age-.12)/.13*.3:1;npc.bubble.scale.setScalar(.7*s);}}
-    if(this.lunch)this.lunch.render(dt);else if(!this.station&&!this.hub){this.drawCable();this.strip?.render(dt);}this.socketCue();
+    if(this.lunch)this.lunch.render(dt);else if(!this.station&&!this.hub){this.drawCable();this.strip?.render(dt);}this.socketCue();this.pg?.update(dt,this.switchedOn,this.lampLit||this.won,this.connected);
     // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
     const plugFirst=!this.lunch&&!this.station&&!this.hub&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));
@@ -611,8 +629,12 @@ export class Game {
     // Steam from the coffee machine until its extension is borrowed.
     const coffee=this.level.id==='meeting'&&!this.coffeeReused?this.props.find(q=>q.spec.id==='coffee'):undefined;if(coffee&&Math.floor(this.last/450)!==Math.floor((this.last-dt*1000)/450)){const c=coffee.body.translation();this.burst({x:c.x,y:c.y+.5,z:c.z},'#fffaf0',1,'smoke');}
     // After a while a dotted ghost line traces the clean way round walls and pillars to the socket.
-    if(this.time>35&&!this.connected&&!this.lunch&&!this.station&&!this.hub&&!this.won){this.hint.visible=true;const path=detour({x:p.x,z:p.z},this.level.target,this.obstacles),total=path.slice(1).reduce((n,b,k)=>n+distance(path[k],b),0),shift=(this.last*.0012)%.6;
-      this.hint.children.forEach((d,k)=>{let along=k*.6+shift;d.visible=along<total&&along>.8;for(let q=1;q<path.length&&d.visible;q++){const len=distance(path[q-1],path[q]);if(along<=len){d.position.set(T.MathUtils.lerp(path[q-1].x,path[q].x,along/len),.1,T.MathUtils.lerp(path[q-1].z,path[q].z,along/len));break;}along-=len;}});}
+    // It shows for 12 s at a time after 45 s without a connection, from the plug (or, before the
+    // Meeting strip is placed, from Pip to the strip), and steps in one chevron at a time.
+    const idle=this.time-45;
+    if(idle>0&&idle%40<12&&!this.connected&&!this.lunch&&!this.station&&!this.hub&&!this.won){this.hint.visible=true;if(Math.floor(this.time)!==this.hintAt||!this.hintPath){this.hintAt=Math.floor(this.time);this.hintPath=this.hintRoute();}
+      const path=this.hintPath,shown=(idle%40)*6;
+      this.hint.children.forEach((d,k)=>{let along=.9+k*.8;d.visible=k<shown;for(let q=1;q<path.length&&d.visible;q++){const len=distance(path[q-1],path[q]);if(along<=len){d.position.set(T.MathUtils.lerp(path[q-1].x,path[q].x,along/len),.014,T.MathUtils.lerp(path[q-1].z,path[q].z,along/len));d.rotation.y=-Math.atan2(path[q].z-path[q-1].z,path[q].x-path[q-1].x);break;}along-=len;if(q===path.length-1)d.visible=false;}});}
     else this.hint.visible=false;
     gameUI(this)?.update();
     // Count every pass of the frame (composer + outlines) for snapshot().drawCalls.
@@ -677,5 +699,5 @@ export class Game {
     for(const p of this.props)test('Pip spawn',pc.shape,pc.translation(),pc.rotation(),propName(p),p.collider);
     return found;
   }
-  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
+  snapshot(){return {level:this.level.id,running:this.running,paused:this.paused,won:this.won,player:{...this.player.translation()},props:this.props.length,items:this.props.filter(p=>p.spec.id).map(p=>({id:p.spec.id,pos:{...p.body.translation()},visible:p.mesh.visible})),holdingPlug:this.holdingPlug,held:this.held?.spec.id??this.held?.spec.kind,rope:{length:this.rope.length,maxLength:this.rope.maxLength,bends:this.rope.bends,strain:this.rope.strain},time:this.time,damage:this.damage,cost:this.cost,fps:this.fps,drawCalls:this.view.renderer.info.render.calls,electrical:this.circuit.loads[0].state,lunch:this.lunch?.snapshot(),strip:this.strip?.snapshot(),station:this.station?.snapshot(),hub:this.hub?.snapshot(),atBench:this.atBench,alarmed:this.npcs.filter(n=>n.alarm>0).length,stripPlaced:this.stripPlaced(),pinsDown:this.level.id==='playground'?this.pinsDown():undefined,switchedOn:this.switchedOn,lampLit:this.lampLit,pose:this.rig?{arms:this.rig.arms.map(a=>+a.rotation.x.toFixed(2)),legs:this.rig.legs.map(l=>+l.rotation.x.toFixed(2)),torso:+this.rig.torso.rotation.x.toFixed(2),grounded:this.grounded,airborne:+this.airborne.toFixed(2)}:null,profile:this.profile,fastestProp:Math.max(0,...this.props.map(q=>{const v=q.body.linvel();return Math.hypot(v.x,v.y,v.z);}))};}
 }

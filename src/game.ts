@@ -652,7 +652,7 @@ export class Game {
       prop.lastSpeed=speed;
       // Paper sheets flutter: heavy air drag plus a wobble while airborne.
       if(prop.spec.kind==='paper'&&pos.y>.15&&speed>.3){prop.body.applyImpulse({x:-v.x*.004,y:-v.y*.0045+.0002,z:-v.z*.004},true);const w=this.time*23+prop.body.handle;prop.body.applyTorqueImpulse({x:Math.sin(w)*.00002,y:Math.sin(w*1.7)*.00002,z:Math.cos(w*1.3)*.00002},true);}
-      if(pos.y< -3||Math.abs(pos.x)>this.level.width/2+.3||Math.abs(pos.z)>this.level.depth/2+.3)this.respawn(prop);
+      if(pos.y< -3||Math.abs(pos.x)>this.level.width/2+1||Math.abs(pos.z)>this.level.depth/2+1)this.respawn(prop);
     }
     this.checkGlass(p,pace);
     // Required items stranded out of reach (on top of tall furniture, or inside a sealed space) go back home.

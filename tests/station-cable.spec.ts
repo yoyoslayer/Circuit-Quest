@@ -118,7 +118,8 @@ test('spectrum delivery: the smoking toaster knocked off the counter stops smoki
   const errors=await open(page,'spectrum');await wait(page,.1);
   // A cone from the lab corridor, lobbed at the toaster from two metres.
   await route(page,[[-6.3,3.6],[-6.4,1.2],[0,-1.4],[4.2,.6]]);await walk(page,4.6,1,.9);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('cone');
-  await walk(page,2.1,1.5,.3);await walk(page,2.1,2.9,.12);await page.keyboard.press('KeyQ');await wait(page,2.5);
+  // Line up on the toaster: the last leg runs straight at it, so Pip faces it when he throws.
+  await walk(page,2.15,1.5,.3);await walk(page,2.15,2.4,.08);await walk(page,2.15,2.9,.06);await page.keyboard.press('KeyQ');await wait(page,2.5);
   expect((await station(page)).toasterDown).toBe(true);expect((await bonus(page,0)).ok).toBe(true);
   // No toaster, no smoke: the cloud is gone from the rules, not just the picture.
   expect((await station(page)).smoke).toBe(0);

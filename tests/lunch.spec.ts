@@ -25,12 +25,13 @@ test('intended Lunch Rush solution delivers the tray upstairs',async({page})=>{
   await route(page,[[-8.8,-5],[-11.2,-6.8]]);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('capacitor');
   await route(page,[[-8.8,-5],[-5,-5],[.3,-1.3],[.3,2.4],[10,1],[11.3,-4.4]]);await page.keyboard.press('KeyE');await wait(page,.1);
   s=await snapshot(page);expect(s.lunch.capDocked).toBe(true);expect(load(s,'lift').capacitor.atLoad).toBe(false);
-  // Cable bridges where the lift feed will cross the bots' line: one on the west edge, and two along the
-  // bottom edge, which the feed runs close beside from x 1.7 to 3.5 on its way round the kitchen wall's end.
+  // A cable bridge on each place the lift feed will cross the bots' line: the west edge, and the bottom edge
+  // at x 1.7. (The feed then runs close beside that edge round the kitchen wall's end, but a bot only
+  // catches a cable where its path crosses it.)
   // Pip walks to and from them along z 2.4, clear of the edge, so he doesn't kick the light bridges off it.
-  for(const [bx,drop] of [[7,[-1.4,1.8]],[9,[1.5,.9]],[11,[3.6,.9]]] as const){await route(page,[[(await snapshot(page)).player.x,2.4],[10,2.4],[bx,7.3]],.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toMatch(/bridge/);await walk(page,drop[0],drop[1],.4);await page.keyboard.press('KeyE');}
+  for(const [bx,drop] of [[7,[-1.4,1.8]],[9,[1.5,.9]]] as const){await route(page,[[(await snapshot(page)).player.x,2.4],[10,2.4],[bx,7.3]],.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toMatch(/bridge/);await walk(page,drop[0],drop[1],.4);await page.keyboard.press('KeyE');}
   // Conveyor first, then move the fridge feed over to the lift.
-  await route(page,[[3.6,2.4],[10,2.4],[-9.8,3.5]]);await page.keyboard.press('KeyF');expect((await snapshot(page)).lunch.held.id).toBe('thin-2');
+  await route(page,[[1.5,2.4],[10,2.4],[-9.8,3.5]]);await page.keyboard.press('KeyF');expect((await snapshot(page)).lunch.held.id).toBe('thin-2');
   await route(page,[[.3,2.4],[.3,-1.3],[4.7,-4.8]]);await page.keyboard.press('KeyF');await page.keyboard.press('KeyE');
   await wait(page,1.3);await expectLoad(page,'conveyor','on');
   await walk(page,-3.8,-1.7,.4);await page.keyboard.press('KeyF');expect((await snapshot(page)).lunch.held.id).toBe('thin-1');

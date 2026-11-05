@@ -22,7 +22,10 @@ test('playground cable physically reaches socket and lights lamp',async({page})=
   await route(page,[[-5,-1],[-4,-4],[5.8,-5.5]]);
   await page.keyboard.press('KeyF');await wait(page,.3);expect((await snapshot(page)).won).toBe(false);
   // Powered but still off: flip the lamp's switch.
-  await walk(page,6.6,-5.9,.4);await page.keyboard.press('KeyE');await complete(page);expect((await snapshot(page)).electrical).toBe('on');expect(errors).toEqual([]);
+  // The lamp lights at once and burns a moment before the win, so the switch can be tried both ways.
+  await walk(page,6.6,-5.9,.4);await page.keyboard.press('KeyE');await wait(page,.5);let s=await snapshot(page);expect(s.lampLit).toBe(true);expect(s.won).toBe(false);
+  await page.keyboard.press('KeyE');await wait(page,.2);s=await snapshot(page);expect(s.electrical).toBe('off');expect(s.lampLit).toBe(false);expect(s.won).toBe(false);
+  await page.keyboard.press('KeyE');await wait(page,1.3);await complete(page);expect((await snapshot(page)).electrical).toBe('on');expect(errors).toEqual([]);
   await page.screenshot({path:'artifacts/playground-complete.png'});
 });
 test('meeting single reel only reaches when overstretched at a sprint',async({page})=>{

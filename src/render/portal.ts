@@ -46,9 +46,16 @@ void main(){
     float strip=smoothstep(.06,.0,abs(fract(h.z*1.6)-.5)-.18);
     col=mix(wall*.45,vec3(1.,.96,.85),strip*(.15+.75*uOpen)*(.85+.15*sin(uTime*3.)));
   }else{
-    // Side walls: the wing colour, panelled, darker further in.
+    // Side walls: the wing colour, panelled, with a dark skirting and a row of wall lamps, getting
+    // darker further in, and catching the destination's light near the far end, so a grazing view
+    // still reads as a hallway rather than a flat panel.
     float panel=step(.06,fract(h.z*1.4))*step(.06,fract((h.y+half_.y)*1.1));
     col=wall*mix(.62,.82,panel)*(d.x>0.?.9:1.);
+    col=mix(col,wall*.3,step(h.y+half_.y,.12));
+    vec2 lampAt=vec2(fract(-h.z*.9)-.5,(h.y+half_.y)-uSize.y*.72);
+    col=mix(col,vec3(1.,.93,.75),smoothstep(.05,.02,length(lampAt*vec2(1.,1.6)))*(.35+.55*uOpen));
+    col*=mix(1.,.55,depth);
+    if(uHasView>.5)col=mix(col,texture2D(uView,vec2(.5,.5),4.).rgb,.25*depth);
   }
   // Depth fog toward the room's dark backdrop; opening pushes the fog back.
   vec3 fog=mix(vec3(.08,.08,.14),wall*.25,.5);

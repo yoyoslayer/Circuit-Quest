@@ -17,14 +17,19 @@ import * as TX from '../render/textures';
 import {wallArt,pendant,lampPool,pointLamp,rug} from '../levels/dressing';
 import {solid} from '../levels/decor';
 
-interface Door {level:Level;at:Point;leaf:T.Group;open:number;vel:number;lamp:T.Mesh;done:boolean;locked:boolean;portal:ReturnType<typeof portal>;spill:T.Mesh}
+interface Door {level:Level;at:Point;leaf:T.Group;open:number;vel:number;lamp:T.Mesh;done:boolean;locked:boolean;portal:ReturnType<typeof portal>;spill:T.Mesh;rattle:number;padlock?:T.Mesh;color:string;strips:T.Mesh[]}
+/** sessionStorage: the door Pip went through, so coming back puts him there (R5-235). */
+const FROM_KEY='circuit-crew:from';
+const LOCK_IDLE=toon(DMETAL),LOCK_FLASH=toon('#e5484d'),STRIP_ON=hot('#ffe7a0',1.6),STRIP_OFF=toon('#3a3d55');
 const views=new Map<string,T.Texture>();
 const viewOf=(id:Level['id'])=>{let t=views.get(id);if(!t){t=new T.TextureLoader().load(thumbUrl(id));t.colorSpace=T.SRGBColorSpace;views.set(id,t);}return t;};
-/** Door slots: along the back wall, then the left wall, then free-standing arches on the right. */
+/** Door slots: seven along the back wall, then two on the left wall near the back corner, then
+ *  free-standing arches on the right. The start view (yaw .4) shows the back wall to x≈9.5 and the
+ *  left wall to z≈-3; this keeps all nine doors in it and clear of the job card (R5-241). */
 function slots(width:number,depth:number){
   const out:{wall:'back'|'side'|'free';x:number;z:number}[]=[];
-  for(let k=0;k<6;k++)out.push({wall:'back',x:-width/2+3.4+k*((width-6.8)/5),z:-depth/2});
-  for(let k=0;k<3;k++)out.push({wall:'side',x:-width/2,z:-depth/2+4.5+k*4.6});
+  for(let k=0;k<7;k++)out.push({wall:'back',x:-width/2+2.6+k*3.3,z:-depth/2});
+  for(let k=0;k<2;k++)out.push({wall:'side',x:-width/2,z:-depth/2+2.6+k*3.2});
   for(let k=0;k<6;k++)out.push({wall:'free',x:width/2-2.2,z:-depth/2+4.5+k*2.9});
   return out;
 }
@@ -57,19 +62,27 @@ export class Lobby {
     part(desk,box(3.6,.5,.06),toon('#5ED6CC'),0,.55,.57);signPlate(desk,'CIRCUIT CREW HQ',0,.6,.61,2.2,{bg:'#ffc629'});solid(g,4,1.05,1.1,0,.52,-.6);
     for(const x of [-1.2,1.2])part(desk,rbox(.5,.35,.4,.05),toon(INK),x,1.25,-.1);
     // Directory board: every job with its number, on the reception's back.
-    const board=group(r,0,0,-1.3),rows=Math.ceil(levels.length/2),h=.3+rows*.26;part(board,box(3.3,h,.08),toon(INK),0,1.25+h/2,0);
-    levels.forEach((lv,i)=>signPlate(board,`${lv.number}  ${title(lv)}`,(i%2?.8:-.8),1.25+h-.28-Math.floor(i/2)*.26,.05,1.5,{bg:LOOK[lv.id]?.color??'#fffaf0',h:64}));
+    // Read top to bottom, left column then right; rows clear each other and stand on two posts.
+    const board=group(r,0,0,-1.3),rows=Math.ceil(levels.length/2),pitch=.27,h=.3+rows*pitch,y0=1.15;part(board,box(3.3,h,.08),toon(INK),0,y0+h/2,0);
+    part(board,rbox(3.42,h+.12,.06,.03),toon('#c98a55'),0,y0+h/2,-.03);for(const x of [-1.5,1.5])part(board,box(.08,y0,.08),toon(DMETAL),x,y0/2,-.02);solid(g,3.4,y0+h,.12,0,(y0+h)/2,-1.3);
+    levels.forEach((lv,i)=>{const col=i<rows?0:1,row=i%rows;signPlate(board,`${lv.number}  ${title(lv)}`,col?.775:-.775,y0+h-.28-row*pitch,.05+row*.0015+col*.0007,1.45,{bg:LOOK[lv.id]?.color??'#fffaf0',w:512,h:88});});
     pendant(g.root,-3,.2,{y:2.8,color:'#ffc94d'});pendant(g.root,3,.2,{y:2.8,color:'#ffc94d',light:false});lampPool(g.root,0,.2,4,.16);
     // Benches, plants and a water cooler around the ring.
-    for(const [x,z,ry] of [[-6.5,3.6,0],[6.5,3.6,0]] as const){const b=group(r,x,0,z,ry);part(b,rbox(2,.12,.6,.05),toon('#c98a55'),0,.46,0);for(const s of [-.8,.8])part(b,box(.1,.44,.5),toon(INK),s,.22,0);solid(g,2,.5,.6,x,.25,z);}
-    wallArt(kit.back,'bolt',-W+1.4,1.9,.18,0,.8);wallArt(kit.side,'mountain',-(D-1.6),1.9,.16,0,.8);
+    // The right bench stays clear of the Workshop arch.
+    for(const [x,z,ry] of [[-4.6,3.6,0],[4.6,3.6,0]] as const){const b=group(r,x,0,z,ry);part(b,rbox(2,.12,.6,.05),toon('#c98a55'),0,.46,0);for(const s of [-.8,.8])part(b,box(.1,.44,.5),toon(INK),s,.22,0);solid(g,2,.5,.6,x,.25,z);}
+    wallArt(kit.side,'bolt',1,1.9,.16,0,.8);wallArt(kit.side,'mountain',-(D-1.6),1.9,.16,0,.8);
     // The Workshop arch, free-standing on the right of the atrium.
     this.workshop();
     // The doors.
     const sl=slots(l.width,l.depth);
     levels.forEach((lv,i)=>{const s=sl[i];if(!s)return;this.doors.push(this.door(kit,lv,s));});
+    // Back from a job: Pip starts at the door he went through, and a finished wing lights up as he arrives.
+    let from:string|null=null;try{from=sessionStorage.getItem(FROM_KEY);sessionStorage.removeItem(FROM_KEY);}catch{/* storage unavailable */}
+    const back=this.doors.find(d=>d.level.id===from);if(back){l.spawn={x:back.at.x,z:back.at.z};if(back.done){this.ignite={door:back,t:0};back.lamp.scale.setScalar(0);for(const s of back.strips)s.material=STRIP_OFF;}}
     return {};
   }
+  /** The return beat: the wing's lamp and post strips flick on with sparks and confetti. */
+  private ignite?:{door:Door;t:number};
   private door(kit:RoomKit,level:Level,s:{wall:'back'|'side'|'free';x:number;z:number}):Door{
     const g=this.game,color=LOOK[level.id]?.color??'#5ED6CC',done=!!bestFor(level.id),best=bestFor(level.id),locked=isLocked(level);
     // Wall-local frames: the back wall's local x is world x; the side wall's local x is -world z.
@@ -79,33 +92,56 @@ export class Lobby {
     // Free-standing doors turn 45° toward the default camera so their signs read from the atrium.
     else{parent=group(g.root,s.x,0,s.z,-Math.PI/4);lx=0;at={x:s.x-.8,z:s.z+.8};part(parent,box(2.5,3,.3),toon('#efe2c8'),0,1.5,-.2);solid(g,2.5,3,.3,s.x+.14,1.5,s.z-.14,-Math.PI/4);}
     const f=group(parent,lx,0,.14);
-    // Side-wall doors face across the room: a blade sign sticks out from the wall toward the camera.
-    if(s.wall==='side'){const blade=group(g.root,s.x+.95,0,s.z);part(blade,box(.06,.5,.06),toon('#8a8fa6'),-.62,2.95,0);part(blade,box(1.3,.05,.05),toon('#8a8fa6'),0,3.18,0);signPlate(blade,`${level.number} · ${title(level)}`,0,2.86,.03,1.7,{bg:color,h:72});}
+    // Side-wall doors face across the room: a blade sign on an arm out of the wall carries the number
+    // on both faces (the name stays on the lintel). It hangs from the wall's upper part, so it folds
+    // away with the cutaway.
+    if(s.wall==='side'){part(parent,box(.05,.05,1.5),toon('#8a8fa6'),lx,2.95,.75);for(const z of [.68,1.32])part(parent,box(.02,.13,.02),toon(DMETAL),lx,2.86,z,false);
+      for(const k of [-1,1]){const p=signPlate(parent,level.number,lx+k*.006,2.7,1,.8,{bg:color,w:256,h:72});p.rotation.y=k*Math.PI/2;}}
+    // A locked door shows it from across the room: a greyed frame, hazard tape and a padlock.
+    const frame=locked?'#'+new T.Color(color).lerp(new T.Color('#8a8fa6'),.6).getHexString():color;
     // Frame, the door leaf on a hinge, a threshold, the name sign and a medal.
-    for(const x of [-.95,.95])part(f,rbox(.22,2.5,.26,.05),toon(color),x,1.25,0);part(f,rbox(2.12,.26,.28,.06),toon(color),0,2.55,0);
+    for(const x of [-.95,.95])part(f,rbox(.22,2.5,.26,.05),toon(frame),x,1.25,0);part(f,rbox(2.12,.26,.28,.06),toon(frame),0,2.55,0);
     // The doorway: a corridor into the wing with the destination room at its end (src/render/portal.ts).
-    const way=portal({color,width:1.7,height:2.3,depth:2.8,view:viewOf(level.id),locked});way.mesh.position.set(0,1.15,.05);f.add(way.mesh);
+    const way=portal({color,width:1.7,height:2.3,depth:2,view:viewOf(level.id),locked});way.mesh.position.set(0,1.15,.05);f.add(way.mesh);
     // Light that spills from the corridor onto the lobby floor as the door opens.
     const spill=new T.Mesh(new T.PlaneGeometry(1.9,1.6),new T.MeshBasicMaterial({map:spillTex(),color,transparent:true,opacity:0,depthWrite:false,blending:T.AdditiveBlending}));
     spill.rotation.x=-Math.PI/2;spill.position.set(0,.025,.85);spill.userData.noAO=true;(spill.material as T.Material).userData.outlineParameters={visible:false};f.add(spill);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
+    // The leaf swings in, into the corridor (never out through Pip), and is gone once it is open.
     const leaf=group(f,-.84,0,.1);part(leaf,rbox(1.66,2.26,.08,.03),glossyToon('#fffaf0',{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.07);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.1);
     signPlate(leaf,level.number,.83,1.55,.085,.7,{bg:color,h:80,w:160});
     signPlate(f,title(level),0,2.56,.16,1.95,{bg:'#fffaf0'});
-    if(locked){signPlate(leaf,'LOCKED',.83,.95,.085,.9,{bg:'#262A40',fg:'#fffaf0',w:200,h:64});part(leaf,rbox(.3,.26,.08,.05),toon('#ffc629'),.83,1.2,.1);}
-    if(best)signPlate(f,best.grade,1.08,2.12,.18,.34,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});
-    // The wing lamp: dark until the job is done.
-    const lamp=part(f,sphere(.13,14,10),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),0,3.35,.12,false);part(f,cyl(.05,.07,.12,10),toon(DMETAL),0,3.5,.1,false);
-    if(done){const w=f.getWorldPosition(new T.Vector3());glow(g.root,'rgba(255,220,140,1)',1.4,.35).position.set(w.x,3.35,w.z+(s.wall==='back'?.4:0));}
-    return {level,at,leaf,open:0,vel:0,lamp,done,locked,portal:way,spill};
+    let padlock:T.Mesh|undefined;
+    if(locked){signPlate(leaf,'LOCKED',.83,2.1,.085,.9,{bg:'#262A40',fg:'#fffaf0',w:256,h:56});
+      const tape=part(leaf,box(1.8,.09,.012),toon('#ffffff',{map:TX.hazardStripe()}),.83,1.25,.095,false);tape.rotation.z=.5;
+      padlock=part(leaf,rbox(.22,.2,.08,.04),toon(DMETAL),1.2,1.05,.13);part(leaf,new T.TorusGeometry(.07,.018,8,16,Math.PI),toon('#c7ccd6'),1.2,1.15,.13);part(leaf,box(.03,.06,.01),toon(INK),1.2,1.04,.175,false);}
+    // Medal on the wall beside the door, big enough to read from the atrium.
+    if(best){part(f,rbox(.5,.5,.025,.06),toon(INK),1.42,1.6,.012);signPlate(f,best.grade,1.42,1.6,.03,.44,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});}
+    // The wing lamp: a sconce beside the lintel, below the wall cap, plus light strips down the post
+    // fronts. Dark until the job is done.
+    part(f,rbox(.2,.28,.04,.02),toon(DMETAL),-1.3,2.75,.02);part(f,box(.04,.04,.16),toon(DMETAL),-1.3,2.8,.1);part(f,new T.CylinderGeometry(.07,.15,.14,16),toon(color),-1.3,2.8,.2);
+    const lamp=part(f,sphere(.07,12,8),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),-1.3,2.69,.2,false);
+    const strips=[-.95,.95].map(x=>part(f,box(.07,2.2,.02),done?STRIP_ON:STRIP_OFF,x,1.2,.14,false));
+    if(done)glow(lamp,'rgba(255,220,140,1)',.4,.45).position.set(0,0,.08);
+    return {level,at,leaf,open:0,vel:0,lamp,done,locked,portal:way,spill,rattle:0,padlock,color,strips};
   }
   private workshop(){
     const g=this.game,w=this.workshopAt,a=group(g.root,w.x,0,w.z-1.2);
-    for(const x of [-1,1])part(a,rbox(.3,2.6,.4,.06),toon('#5ED6CC'),x,1.3,0);part(a,rbox(2.4,.36,.44,.08),toon('#5ED6CC'),0,2.7,0);
-    signPlate(a,'WORKSHOP',0,2.7,.23,1.8,{bg:'#ffc629'});signPlate(a,'practise any station',0,2.35,.23,1.5,{bg:'#fffaf0',h:56});
-    part(a,box(1.7,.02,1.2),toon('#e3d5bd'),0,.01,.4,false);for(const [x,c] of [[-.5,'#e98a42'],[0,'#7B6FE0'],[.5,'#43B8C4']] as const)part(a,rbox(.36,.3,.3,.05),toon(c),x,.15,-.5);
-    solid(g,.3,2.6,.4,w.x-1,1.3,w.z-1.2);solid(g,.3,2.6,.4,w.x+1,1.3,w.z-1.2);
+    for(const x of [-1,1]){part(a,rbox(.3,2.6,.4,.06),toon('#5ED6CC'),x,1.3,0);part(a,rbox(.34,.12,.44,.03),toon('#3aa79f'),x,.06,0);for(const y of [.7,1.9])part(a,cyl(.025,.025,.02,8,'z'),toon(DMETAL),x,y,.205,false);}
+    part(a,rbox(2.4,.36,.44,.08),toon('#5ED6CC'),0,2.7,0);
+    signPlate(a,'WORKSHOP',0,2.7,.23,1.8,{bg:'#ffc629'});signPlate(a,'practise any station',0,2.24,.235,1.5,{bg:'#fffaf0',h:56});
+    part(a,box(1.7,.02,1.2),toon('#e3d5bd'),0,.01,.4,false);
+    // A practice bench beside the arch (not in its walk-through): a vice, a mini reel and parts to try.
+    const b=group(g.root,w.x+2.4,0,w.z-1.2);part(b,rbox(1.3,.07,.62,.03),toon('#c98a55'),0,.86,0);for(const x of [-.55,.55])part(b,box(.08,.84,.5),toon(INK),x,.42,0);
+    part(b,box(1.1,.05,.45),toon(INK),0,.25,0);part(b,box(1.3,.5,.03),toon('#d9c3a0'),0,1.16,-.3);
+    for(let k=0;k<4;k++)part(b,cyl(.015,.015,.02,6,'z'),toon(INK),-.45+k*.3,1.3,-.28,false);
+    part(b,box(.05,.22,.02),toon(DMETAL),-.3,1.14,-.27,false);part(b,box(.04,.26,.02),toon('#e5484d'),.1,1.12,-.27,false);
+    part(b,box(.2,.12,.16),toon(DMETAL),-.42,.95,.05);part(b,box(.06,.06,.22),toon(INK),-.42,.98,.18);
+    const reel=group(b,.05,1.0,.05);for(const s of [-1,1])part(reel,cyl(.13,.13,.025,16,'z'),toon('#ffc94d'),0,0,s*.07);part(reel,cyl(.09,.09,.12,16,'z'),toon('#f4efe6'));
+    for(const [x,c] of [[.3,'#e98a42'],[.43,'#7B6FE0'],[.56,'#43B8C4']] as const)part(b,rbox(.11,.1,.1,.02),toon(c),x,.945,.15);
+    solid(g,.3,2.6,.4,w.x-1,1.3,w.z-1.2);solid(g,.3,2.6,.4,w.x+1,1.3,w.z-1.2);solid(g,1.3,.9,.62,w.x+2.4,.45,w.z-1.2);
   }
-  nearWorkshop(pos:Point){return Math.hypot(pos.x-this.workshopAt.x,pos.z-this.workshopAt.z)<1.6;}
+  /** E opens the Workshop only right at the arch, so the props around it stay grabbable. */
+  nearWorkshop(pos:Point){return Math.hypot(pos.x-this.workshopAt.x,pos.z-this.workshopAt.z)<1.2;}
   /** A small picker of every station job, opened at the Workshop arch. */
   /** The picker is a modal: while it is open the game ignores walking, survey and action keys. */
   get pickerOpen(){return !!this.picker&&!this.picker.hidden;}
@@ -131,18 +167,35 @@ export class Lobby {
     document.querySelector('[data-layer="hud"]')?.append(el);this.picker=el;this.pickerButtons()[0]?.focus();
   }
   near(pos:Point){return this.doors.find(d=>Math.hypot(pos.x-d.at.x,pos.z-d.at.z)<1.5);}
-  /** E at a door walks through it into that job. */
-  interact(pos:Point){if(this.nearWorkshop(pos)){this.game.audio.pop();this.openPicker();return true;}const d=this.near(pos);if(!d)return false;
-    if(d.locked){this.game.audio.tone(140,.2,.06,'square');d.leaf.rotation.y=-.08;return true;}
+  /** E at a door walks through it into that job. A locked door rattles, its padlock flashes red and Pip shrugs. */
+  interact(pos:Point){if(this.leaving)return true;if(this.nearWorkshop(pos)){this.game.audio.pop();this.openPicker();return true;}const d=this.near(pos);if(!d)return false;
+    if(d.locked){this.game.audio.tone(140,.2,.06,'square');this.game.audio.knock(1.2);d.rattle=.4;this.game.shrug();return true;}
     this.game.audio.pop();this.enter(d.level);return true;}
-  enter(level:Level){flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;location.href=`?level=${level.id}`;}
+  private leaving=false;
+  /** Through the door: the corridor brightens and the screen fades to the wing colour, then black,
+   *  before the job loads (R5-235). Input is held meanwhile. */
+  enter(level:Level){
+    if(this.leaving)return;this.leaving=true;flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;try{sessionStorage.setItem(FROM_KEY,level.id);}catch{/* storage unavailable */}
+    const g=this.game;g.menu=true;g.keys.clear();g.stick=undefined;const d=this.doors.find(d=>d.level===level);
+    const veil=document.createElement('div');Object.assign(veil.style,{position:'fixed',inset:'0',zIndex:'50',pointerEvents:'none',background:d?.color??'#000',opacity:'0',transition:'opacity .25s ease-in, background-color .2s linear .22s'});
+    document.body.append(veil);requestAnimationFrame(()=>{veil.style.opacity='1';veil.style.background='#0b0b14';});
+    setTimeout(()=>{location.href=`?level=${level.id}`;},420);
+  }
   update(dt:number){
     const p=this.game.player.translation();
-    // Doors swing on a damped spring: a quick open that overshoots a touch and settles, a softer close.
+    // Doors swing in on a damped spring: a quick open that overshoots a touch and settles, a softer close.
+    // The leaf turns into the corridor and is hidden once it is clear of the frame, so it never crosses Pip.
     const t=this.game.time;
     for(const d of this.doors){const want=!d.locked&&Math.hypot(p.x-d.at.x,p.z-d.at.z)<2.6?1:0;
-      const k=want?60:34,c=want?9:10;d.vel+=((want-d.open)*k-d.vel*c)*dt;d.open+=d.vel*dt;
-      d.leaf.rotation.y=-d.open*1.25;d.portal.set(T.MathUtils.clamp(d.open,0,1),t);(d.spill.material as T.MeshBasicMaterial).opacity=.45*T.MathUtils.clamp(d.open,0,1);}
+      const k=want?60:34,c=want?9:10;d.vel+=((want-d.open)*k-d.vel*c)*dt;d.open+=d.vel*dt;d.rattle=Math.max(0,d.rattle-dt);
+      d.leaf.rotation.y=Math.max(0,d.open)*1.25-Math.sin(t*45)*.06*d.rattle/.4;d.leaf.visible=d.open<.25;
+      if(d.padlock)d.padlock.material=d.rattle>0&&Math.sin(t*30)>0?LOCK_FLASH:LOCK_IDLE;
+      d.portal.set(T.MathUtils.clamp(d.open,0,1),t);(d.spill.material as T.MeshBasicMaterial).opacity=.45*T.MathUtils.clamp(d.open,0,1);}
+    // The return beat: after a short pause the wing lamp pops in, sparks, confetti and a jingle.
+    const ig=this.ignite;if(ig){const before=ig.t;ig.t+=dt;const u=Math.max(0,ig.t-.5);
+      ig.door.lamp.scale.setScalar(u<=0?0:u<.18?u/.18*1.5:u<.4?1.5-(u-.18)/.22*.5:1);
+      if(before<.5&&ig.t>=.5){const w=ig.door.lamp.getWorldPosition(new T.Vector3());this.game.burst(w,'#fff3a3',14,'spark');this.game.burst({x:ig.door.at.x,y:2.4,z:ig.door.at.z},'#ffcf52',50,'confetti');this.game.audio.jingle();for(const s of ig.door.strips)s.material=STRIP_ON;}
+      if(u>=.4)this.ignite=undefined;}
   }
   prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practise any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: get a B on ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
   snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}

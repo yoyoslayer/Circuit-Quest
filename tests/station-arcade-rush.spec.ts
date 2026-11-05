@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,route,wait,snapshot} from './navigation';
+import {plugBench} from './station-lead';
 
 test.describe.configure({timeout:300000});
 const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);
@@ -10,6 +11,8 @@ test('arcade rush: generated cabinets, a shorter play test, a running count, and
   const errors=await open(page,'arcade-rush');await wait(page,.1);
   await route(page,[[-5.5,6.6],[-7.2,5.8]]);await walk(page,-8.3,4.4,.3);await page.keyboard.press('KeyE');
   await route(page,[[-7.2,5.8],[-5.5,6.4]]);await walk(page,1.2,-1.3,.5);await page.keyboard.press('KeyE');await wait(page,.2);
+  // Plug the bench's mains lead in at the back wall first (R5-079).
+  await plugBench(page,[],[[2.9,-4],[2.9,-1.2]]);
   await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
   await expect(page.locator('.station-panel')).toContainText('RUSH');
   for(let k=0;k<2;k++){

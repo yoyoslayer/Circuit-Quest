@@ -125,15 +125,19 @@ export class ArcadeBench implements Station {
     if(this.rush){this.limits.time=RUSH_TIME+10;this.limits.damage=3;}
     const carry={text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.game.held===this.tray?this.stand:this.tray?.body.translation()??this.stand};
     const step={text:'Step up to the service bench (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand};
+    // The bench's mains lead (R5-079): the bench can't power a cabinet until it is plugged in.
+    const lead=game.leadStep();
+    // The prize pyramid on the shelf behind the bench (R5-079): a chaos bonus anyone can see from the door.
+    const pyramid={text:'Knock the prize pyramid over',ok:()=>this.prizesDown>=3};
     this.job=this.rush?{goal:`Arcade Rush: fix as many cabinets as you can in ${RUSH_TIME/60} minutes`,
-      steps:[carry,step,{text:'Fix cabinets until the clock runs out',done:()=>this.complete(),at:()=>this.stand}],
+      steps:[carry,...lead,step,{text:'Fix cabinets until the clock runs out',done:()=>this.complete(),at:()=>this.stand}],
       bonuses:[
         {text:'Eight cabinets or more',ok:()=>this.served.length>=8},
         {text:'Every one reliable',ok:()=>this.served.length>0&&this.served.every(s=>s.tier>=2)},
-        {text:'Fuse tripped no more than once',ok:()=>this.trips<=1}]}:{goal:'Fix five arcade cabinets with candy resistors',
-      steps:[carry,step,...JOBS.map((j,i)=>({text:`${j.title} — ${j.ask.replace(':',' ·')}`,done:()=>this.served.length>i,at:()=>this.stand}))],
+        pyramid]}:{goal:'Fix five arcade cabinets with candy resistors',
+      steps:[carry,...lead,step,...JOBS.map((j,i)=>({text:`${j.title} — ${j.ask.replace(':',' ·')}`,done:()=>this.served.length>i,at:()=>this.stand}))],
       bonuses:[
-        {text:'Every cabinet reliable',ok:()=>this.served.every(s=>s.tier>=2)},
+        pyramid,
         {text:'Every cabinet in the ★ zone',ok:()=>this.served.every(s=>s.tier===3)},
         {text:'Fuse tripped no more than once',ok:()=>this.trips<=1}]};
     game.root.add(this.top);this.top.position.copy(this.table).add(new T.Vector3(OX,0,0));
@@ -317,6 +321,8 @@ export class ArcadeBench implements Station {
         // Tripped, the PTC fuse comes back by itself once it cools, so P leaves the power on.
         if(this.powered&&this.tripped){a.voice('hm',1.4);return false;}
         if(this.powered){this.powerOff();a.noise(.03,.07,2500,'highpass');a.tone(220,.09,.04);break;}
+        // No mains, no power: the lever clacks but nothing lights (the bench lead is unplugged).
+        if(this.game.benchDead()){this.say("No power: the bench lead isn't plugged in.",'bad');return false;}
         this.powered=true;this.changed();a.noise(.03,.07,2500,'highpass');a.tone(420,.09,.04);break;}
       case 'signoff':{
         if(!this.soakDone||!this.verdict){a.voice('hm',1.4);return false;}
@@ -431,8 +437,14 @@ export class ArcadeBench implements Station {
     // A few blocks ride on the tray until it reaches the bench.
     this.game.root.add(this.trayRide);([47,100,220,470,220,100] as Block[]).forEach((v,k)=>{const b=blockMesh(v);b.position.set(-.24+(k%3)*.24,.02,k<3?-.1:.1);this.trayRide.add(b);});
     this.redraw();}
+  /** Prize boxes knocked off their spot (R5-079): counted once each, never back. Three or more is the
+   *  pyramid knocked over (the stack settles a few cm into itself at rest, so the margins are generous). */
+  prizesDown=0;private prizeGone=new Set<number>();
   update(dt:number){
     if(!this.ready)this.setup0();
+    // The bench lead was pulled out: the bench loses power (a harmless bit of chaos, no mistake).
+    if(this.powered&&!this.game.benchLive()){this.powerOff();this.game.audio.tone(160,.3,.05,'triangle');}
+    this.updatePrizes();
     // The play-test framing (R5-080): only while a play test is running or has passed, and only at the bench.
     // The framing holds for a 1.2 s beat after a sign-off, so the marquee confetti is seen (R5-087).
     {const want=(this.soak>0||this.game.time-this.signedAt<1.2)&&this.game.atBench?ArcadeBench.SOAK:ArcadeBench.REST,e=this.game.manual?1:1-Math.exp(-dt*3),v=this.view;
@@ -563,7 +575,13 @@ export class ArcadeBench implements Station {
     }
     return null;
   }
+  private updatePrizes(){const prizes=this.room?.prizes??[];
+    prizes.forEach((p,k)=>{const t=p.body.translation(),r=p.body.rotation();p.mesh.position.set(t.x,t.y,t.z);p.mesh.quaternion.set(r.x,r.y,r.z,r.w);
+      if(!this.prizeGone.has(k)&&(t.y<p.home.y-.3||Math.hypot(t.x-p.home.x,t.z-p.home.z)>.35)){this.prizeGone.add(k);this.prizesDown++;
+        // The pyramid goes over: a ticket-machine jingle, confetti from the shelf, and the nearest players cheer.
+        if(this.prizesDown===3){const g=this.game;g.audio.bell(1319,.3,.05);g.audio.bell(1568,.35,.05);g.burst({x:p.home.x,y:1.6,z:p.home.z},'#ffcf52',30,'confetti');g.cheerNear(p.home,7);}}});}
   prompt(atBench:boolean):Prompt|null{
+    {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}
     const j=this.current();if(!j||this.game.won)return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z);
       if(this.game.held?.spec.id==='blocks')return {key:'E',text:near<2.4?'Set the tray on the bench':'Carry the tray'};
@@ -585,7 +603,7 @@ export class ArcadeBench implements Station {
   /** Rush: cabinets fixed and seconds left, for the HUD clock and the result card. */
   rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
-  snapshot(){const j=this.current();return {index:this.index,job:j?.id??null,fix:j?best(j)??null:null,rush:this.rush,setup:clone(this.setup),held:this.held??null,powered:this.powered,live:this.live,
+  snapshot(){const j=this.current();return {index:this.index,prizesDown:this.prizesDown,job:j?.id??null,fix:j?best(j)??null:null,rush:this.rush,setup:clone(this.setup),held:this.held??null,powered:this.powered,live:this.live,
     tripped:this.tripped,cooling:+this.cooling.toFixed(2),soak:+this.soak.toFixed(2),soakDone:this.soakDone,verdict:this.verdict?{tier:this.verdict.tier,notes:this.verdict.notes}:null,
     served:this.served,mistakes:this.mistakes,trips:this.trips,spent:this.spent,trayReady:this.trayReady,reading:j?read(j,this.setup):null,
     heat:{led:this.heat.led,blocks:this.heat.blocks.map(p=>[...p]),across:this.heat.across}};}

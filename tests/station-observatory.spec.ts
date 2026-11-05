@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot} from './navigation';
+import {plugBench} from './station-lead';
 
 // The rooms carry 100+ physics props; under software rendering give each test room, like the other stations.
 test.describe.configure({timeout:180000});
@@ -12,7 +13,8 @@ async function moveCart(page:Page){
   await walk(page,-6,3.5,.6);await page.keyboard.press('KeyE');await wait(page,.3);
   const s=(await snapshot(page)).station;expect(s.cartMoved).toBe(true);expect(s.cartDistance).toBeGreaterThanOrEqual(4);
 }
-async function toBench(page:Page){await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);}
+/** Plugs the bench's mains lead in at the back wall (R5-079), then sits at the bench. */
+async function toBench(page:Page){await plugBench(page,[[-.5,-.9]],[[2.95,-3.8],[2.95,-1.5]]);await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);}
 
 test('signal observatory: move the motor, filter the line, keep the latch, tune the whip',async({page})=>{
   const errors=await open(page,'observatory');await wait(page,.1);
@@ -49,7 +51,8 @@ test('signal observatory: move the motor, filter the line, keep the latch, tune 
   expect(s.station.logged.map((l:{tier:number})=>l.tier)).toEqual([3,3,3]);
   expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
-  await expect(page.locator('.result-bonus li.ok')).toHaveCount(3);
+  // Two of three: the tidy run skips the room's chaos bonus (earned in station-cable.spec).
+  await expect(page.locator('.result-bonus li.ok')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 

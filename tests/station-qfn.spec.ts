@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot} from './navigation';
+import {plugBench} from './station-lead';
 import {BOARDS,REFERENCE} from '../src/stations/qfn/logic';
 
 // Presses the same buttons a player clicks at the bench (drive.act).
@@ -9,6 +10,8 @@ async function toBench(page:Page){
   await walk(page,-8.8,2.95,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('parts');
   await walk(page,1.3,-.6,.5);await page.keyboard.press('KeyE');await wait(page,.2);
   expect((await snapshot(page)).station.partsReady).toBe(true);
+  // SHIP's bring-up test needs the bench lead plugged in at the back wall (R5-079).
+  await plugBench(page,[],[[9,-5],[8.6,-3],[6.2,-2.6],[3.3,0],[1.3,-.4]]);
   await walk(page,0,-.5,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);await wait(page,1.2);
 }
 /** SHIP on a board that works runs a short bring-up test on the bench before the next board loads. */
@@ -43,7 +46,8 @@ test('QFN bench: three boards laid out, each reliable and at par',async({page})=
   expect(s.station.shipped.map((v:{tier:number})=>v.tier)).toEqual([3,3,3]);
   expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
-  await expect(page.locator('.result-bonus li.ok')).toHaveCount(3);
+  // Two of three: the tidy run skips the room's chaos bonus (earned in station-cable.spec).
+  await expect(page.locator('.result-bonus li.ok')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 

@@ -13,18 +13,21 @@ const props:PropSpec[]=[
   {kind:'mug',x:-2.8,z:3},{kind:'paper',x:-5.6,z:1.3},{kind:'paper',x:1.4,z:3.2},{kind:'paper',x:5.1,z:6.1},{kind:'paper',x:-1.2,z:6.6},
   {kind:'box',x:-9.3,z:-3.4,color:'#b9875a'},{kind:'box',x:9.1,z:-4.4,rotation:.3,color:'#e0b47a'},
 ];
+// The bench's mains lead (R5-079): its reel stands at the bench's right end; the wall socket is under
+// the bolt sign on the back wall, tucked behind the inspection box, so the lead bends round the AOI.
+const lead={anchor:{x:2.6,z:-.6},plug:{x:3.3,z:0},target:{x:9.3,z:-7.6},length:12,route:[[3.3,0],[6.2,-2.6],[8.6,-3],[9,-5],[9.2,-6.9]] as [number,number][]};
 // Crew at the machines and the layout desks.
 const npcs:NpcSpot[]=[
   {x:-4.6,z:-5.6,standing:true,acc:['glasses'],yaw:Math.PI},{x:4.6,z:-5.6,standing:true,acc:['cap'],yaw:Math.PI,mood:'happy'},
   {x:6.6,z:5.6,standing:true,acc:['headphones'],yaw:Math.PI},{x:-6.8,z:.6,standing:true,acc:['bun'],yaw:-Math.PI/2,mood:'sleepy'},
 ];
 export const qfn:Level={id:'qfn',name:'FABRICATION BAY',number:'05',tagline:'Slide the parts, draw the tracks, ship three boards.',badge:'qfn',station:'qfn',
-  width:22,depth:16,spawn:{x:-6.6,z:3.2},anchor:{x:-10,z:6},target:{x:0,z:-.5},length:10,obstacles:[],props,npcs,
+  width:22,depth:16,spawn:{x:-6.6,z:3.2},anchor:{x:-10,z:6},target:{x:0,z:-.5},length:10,stationCable:lead,obstacles:[],props,npcs,
   // Fab bay clutter: parts carts, reels and crates around the bench (no office desks, bookshelves or
   // filing towers: the room's own ESD benches, reel towers and drawers carry the fab look); the walk
   // from the door to the stock shelf and the bench stays clear.
   clutter:{seed:5,fill:['crates','box','litter','bin'],max:220,step:1.9,jitter:.7,fillSkip:.15,recipes:['crates','cart','parts','crates','cart','crates'],colors:['#8f96d8','#e5484d','#3f7fd6','#e9e7f7'],families:{cart:['#9aa3dc','#8f96d8']},
-    lanes:[{points:[[-6.6,3.2],[-8.8,2.95],[1.3,-.6],[0,-.5]],r:1.05},
+    lanes:[{points:lead.route,r:.8},{points:[[-6.6,3.2],[-8.8,2.95],[1.3,-.6],[0,-.5]],r:1.05},
       // Keep-outs: the machine apron in front of the pick-and-place, oven and AOI (the room's showpieces), and the bench
       // with its camera view (R5-312). Side-wall fill can still sit at x < -9.5 and x > 9.5.
       {points:[[-9,-4.6],[9,-4.6]],r:1.4},{points:[[-2.6,-2.2],[3.6,-2.2]],r:2.3}]}};

@@ -66,7 +66,10 @@ export interface SwingDoor {id:DoorId;pivot:T.Group;body:RAPIER.RigidBody;hinge:
   sign:1|-1;width:number}
 /** The wave-versus-material notebook on the wall: a cell fills in the first time a send shows it. */
 export interface Chart {mark(band:Band,mat:Material,loss:number):boolean}
-export interface SpectrumRoom {hatchDoor:T.Object3D;smoke:T.Sprite[];doors:SwingDoor[];chart:Chart;lightUp:()=>void}
+/** The smoking toaster is a real (asleep) physics body on the tea counter: something thrown hard at it
+ *  knocks it off, and then the smoke stops (R5-079). The station keeps the mesh on the body. */
+export interface Toaster {mesh:T.Object3D;body:RAPIER.RigidBody;home:T.Vector3}
+export interface SpectrumRoom {hatchDoor:T.Object3D;smoke:T.Sprite[];doors:SwingDoor[];chart:Chart;lightUp:()=>void;toaster:Toaster}
 export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   const l=game.level,r=game.decorRoot,W=l.width/2,D=l.depth/2;
   // ---- Floors: pale research-hall tiles; warm oak in the storeroom; pale blue lino in the lab; a rug in the quiet room.
@@ -169,8 +172,13 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
 
   // ---- Tea corner: a counter with the smoking toaster and a kettle.
   const tea=group(r,2.4,0,4.85);part(tea,rbox(2.2,.9,.62,.05),toon('#f4c9c3'),0,.45,0);part(tea,box(2.3,.05,.7),toon(PAPER),0,.92,0);
-  const toaster=group(tea,-.3,.95,0);part(toaster,rbox(.36,.24,.22,.06),glossyToon('#dfe3ea',{spec:.8,size:.96}),0,.12,0);for(const dx of [-.07,.07])part(toaster,box(.04,.02,.16),toon(INK),dx,.245,0);
+  // The toaster lives in the room root (not the frozen decor) so it can be knocked off; its body rests on
+  // the counter's collider top (1.0 m), the mesh a little lower so it sits on the visible counter.
+  const toastAt=new T.Vector3(2.1,1.125,4.85),toasterMesh=group(game.root,toastAt.x,toastAt.y,toastAt.z),toaster=group(toasterMesh,0,-.175,0);
+  part(toaster,rbox(.36,.24,.22,.06),glossyToon('#dfe3ea',{spec:.8,size:.96}),0,.12,0);for(const dx of [-.07,.07])part(toaster,box(.04,.02,.16),toon(INK),dx,.245,0);
   for(const dx of [-.07,.07])part(toaster,box(.03,.1,.13),toon('#3a2a20'),dx,.28,0);
+  const toastBody=game.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(toastAt.x,toastAt.y,toastAt.z).setLinearDamping(.3).setAngularDamping(.5).setCanSleep(true).setSleeping(true).setCcdEnabled(true));
+  game.world.createCollider(RAPIER.ColliderDesc.cuboid(.18,.12,.11).setMass(1.2).setFriction(.7).setRestitution(.1),toastBody);
   const kettle=group(tea,.5,.95,.05);part(kettle,cyl(.12,.15,.22,16),toon('#e5484d'),0,.11,0);part(kettle,cyl(.03,.02,.16,8),toon('#e5484d'),.15,.14,0).rotation.z=-1;
   part(tea,cyl(.05,.045,.1,10),toon('#ffc94d'),.85,1,-.1);solid(game,2.2,1,.62,2.4,.5,4.85);
   part(tea,cyl(.02,.02,.62,8),toon(DMETAL),0,1.25,-.26);standingSign(tea,'TEA',0,1.6,-.26,.5,'#f4c9c3');
@@ -214,5 +222,5 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   pointLamp(game.root,8.2,2.4,4.8,{color:'#e8dcff',intensity:4,distance:5.5});pointLamp(game.root,2.4,2.4,3.8,{color:'#ffe2c8',intensity:3,distance:5});
   // When the last message lands, the rainbow stripes glow.
   const lightUp=()=>{stripes.forEach((m,i)=>{m.material=hot(RAINBOW[i],1.6);});glow(game.root,'rgba(255,240,200,1)',6,.25).position.set(1,2,0);};
-  return {hatchDoor,smoke,doors,chart:chartApi,lightUp};
+  return {hatchDoor,smoke,doors,chart:chartApi,lightUp,toaster:{mesh:toasterMesh,body:toastBody,home:toastAt.clone()}};
 }

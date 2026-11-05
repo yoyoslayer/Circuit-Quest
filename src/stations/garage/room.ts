@@ -105,7 +105,7 @@ export function dressGarage(game:Game,kit:RoomKit){
   // ---- Pegboards with tools on the back wall and the side wall; a red tool chest; wheel stacks.
   for(const [x,seed] of [[-4,9]] as const){part(bw,box(3.3,1.55,.05),toon('#b99f71'),x,1.75,.16);const pb=new T.Mesh(new T.PlaneGeometry(3.2,1.45),toon('#ffffff',{map:pegboard(seed)}));pb.position.set(x,1.75,.2);bw.add(pb);}
   const sd=kit.side;part(sd,box(4.2,1.55,.05),toon('#b99f71'),1.2,1.75,.16);const pb2=new T.Mesh(new T.PlaneGeometry(4.1,1.45),toon('#ffffff',{map:pegboard(17)}));pb2.position.set(1.2,1.75,.2);sd.add(pb2);
-  wallArt(sd,'bolt',-3.4,1.9,.16);wallArt(sd,'graph',5.6,1.9,.16,0,.9);
+  wallArt(sd,'bolt',-5.75,1.6,.16);wallArt(sd,'graph',5.6,1.9,.16,0,.9);
   const chest=group(r,-3.6,0,-7.3);part(chest,rbox(1.3,1,.6,.05),glossyToon('#e5484d',{spec:.7,size:.97}),0,.55,0);for(let k=0;k<4;k++)part(chest,box(1.1,.03,.02),toon(INK),0,.25+k*.2,.31);
   for(const x of [-.5,.5])part(chest,cyl(.06,.06,.06,10,'z'),toon(INK),x,.03,.2);part(chest,rbox(1.34,.06,.64,.03),toon(DMETAL),0,1.08,0);solid(game,1.3,1.1,.6,-3.6,.55,-7.3);
   for(const [x,z,n] of [[9.8,-2.8,4],[9.9,-1.7,3],[-9.9,4.6,5]] as const){const st=group(r,x,0,z);for(let k=0;k<n;k++){part(st,new T.TorusGeometry(.3,.13,10,24),toon('#2e3036'),0,.13+k*.26,0).rotation.x=Math.PI/2;part(st,cyl(.18,.18,.2,16),toon('#b8bfcc'),0,.13+k*.26,0);}solid(game,.85,n*.26,.85,x,n*.13,z);}

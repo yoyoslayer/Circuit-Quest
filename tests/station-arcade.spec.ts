@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,route,wait,snapshot} from './navigation';
+import {plugBench} from './station-lead';
 
 // Each cabinet is play-tested for three simulated seconds, and the machine is busy: give the specs room.
 test.describe.configure({timeout:300000});
@@ -13,6 +14,9 @@ async function toBench(page:Page){
   await route(page,[[-5.5,6.6],[-7.2,5.8]]);await walk(page,-8.3,4.4,.3);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('blocks');
   await route(page,[[-7.2,5.8],[-5.5,6.4]]);await walk(page,1.2,-1.3,.5);await page.keyboard.press('KeyE');await wait(page,.2);
   expect((await station(page)).trayReady).toBe(true);
+  // The bench is dead until its mains lead is plugged in at the back wall (R5-079).
+  expect((await act(page,'power')).ok).toBe(false);expect((await station(page)).powered).toBe(false);expect((await station(page)).mistakes).toBe(0);
+  await plugBench(page,[],[[2.9,-4],[2.9,-1.2]]);
   await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
 }
 
@@ -64,7 +68,8 @@ test('arcade: five cabinets fixed in the ★ zone; powering them on as found to 
   expect(s.station.served.map((v:{tier:number})=>v.tier)).toEqual([3,3,3,3,3]);
   expect(s.won).toBe(true);expect(s.station.trips).toBe(0);expect(s.station.mistakes).toBe(0);expect(s.station.spent).toBe(9);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
-  await expect(page.locator('.result-bonus li.ok')).toHaveCount(3);
+  // Two of three: the tidy run leaves the prize pyramid standing (its chaos bonus is station-cable.spec).
+  await expect(page.locator('.result-bonus li.ok')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 

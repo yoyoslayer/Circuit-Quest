@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {BOARDS,REFERENCE,blank,check,cost,erase,footprint,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,turn,viaProblem,netAt,chipTemp,viasNeeded,HEAT,type Design,type XY} from './logic';
+import {BOARDS,REFERENCE,blank,check,cost,erase,footprint,partOf,pinCells,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,turn,viaProblem,netAt,chipTemp,viasNeeded,pinOrderOk,HEAT,type Design,type XY} from './logic';
 
 const board=(id:string)=>BOARDS.find(b=>b.id===id)!;
 const ref=(id:string):Design=>structuredClone(REFERENCE[id]);
@@ -62,15 +62,34 @@ describe('QFN layout rules',()=>{
     const r=check(b,d);expect(r.problems).toEqual([]);expect(r.tier).toBe(1);
     expect(r.notes.join()).toMatch(/C2's loop .* cells/);
   });
-  it('a cap on the rails but down by the connector is not decoupling',()=>{
+  it('a cap on the rails but down by the connector is not decoupling (board 2 grades it)',()=>{
     // Same rails, same nets: only the loop to the chip's pins gets longer.
-    const b=board('sensor'),d=ref('sensor');d.place.C1={at:[2,7],rot:0};
-    const r=check(b,d);expect(r.problems).toEqual([]);expect(r.tier).toBe(1);expect(r.loops[0].loop).toBe(10);
+    const b=board('mcu'),d=ref('mcu');d.place.C1={at:[1,3],rot:1};
+    const r=check(b,d);expect(r.problems).toEqual([]);expect(r.tier).toBe(1);expect(r.loops[0].loop).toBeGreaterThan(4);
+    // The note gives the real cause (loop inductance), and names the pins as the bench shows them.
+    const note=r.notes.join(' ');expect(note).toMatch(/inductance/);expect(note).not.toMatch(/travel|in time/);expect(note).toMatch(/U1's left-hand VDD\/GND pins/);
+    // Board 1 introduces one thing at a time: it doesn't grade decoupling yet.
+    const s=board('sensor'),e=ref('sensor');e.place.C1={at:[2,7],rot:0};expect(check(s,e).loops).toEqual([]);expect(check(s,e).tier).toBe(3);
+  });
+  it('board 1: the header comes in two pinouts, and only the one whose pins run the chip’s way round can route on one layer',()=>{
+    const b=board('sensor'),d=ref('sensor');
+    expect(b.start.J1.flip).toBe(true);expect(pinOrderOk(b,d)).toBe(true);
+    const flipped={...d,place:{...d.place,J1:{...d.place.J1,flip:true}}},r=check(b,flipped);
+    expect(r.problems.join(' ')).toMatch(/J1's pins run the other way round/);
+    // Mirroring swaps the outer pins: pin 1 (VDD) moves to the other end of the row.
+    expect(pinCells(partOf(b,'J1'),flipped.place.J1).map(p=>p.cells[0])).toEqual([[4,8],[3,8],[2,8]]);
+    // Rotation keeps the order, so the right header fits any edge (mouth out); the mirrored one none.
+    const edges:{at:XY;rot:0|1|2|3}[]=[{at:[3,8],rot:3},{at:[8,8],rot:3},{at:[0,2],rot:0},{at:[0,6],rot:0},{at:[12,4],rot:2},{at:[5,0],rot:1},{at:[10,0],rot:1}];
+    for(const e of edges){expect(pinOrderOk(b,{...d,place:{...d.place,J1:e}}),JSON.stringify(e)).toBe(true);expect(pinOrderOk(b,{...d,place:{...d.place,J1:{...e,flip:true}}}),JSON.stringify(e)).toBe(false);}
+  });
+  it('an unpowered chip sits at room temperature; it heats once VIN and GND reach it',()=>{
+    const b=board('driver');expect(check(b,blank(b)).thermal).toEqual({vias:0,temp:HEAT.ambient,limit:HEAT.limit,powered:false});
+    const d=ref('driver');d.vias=[];expect(check(b,d).thermal?.powered).toBe(true);expect(check(b,d).thermal!.temp).toBeGreaterThan(HEAT.limit);
   });
   it('the thermal pad needs its vias, and they may sit inside the pad',()=>{
     const b=board('driver'),d=ref('driver');
     d.vias=d.vias.filter(v=>!(v.at[0]===6&&v.at[1]===5));
-    let r=check(b,d);expect(r.tier).toBe(1);expect(r.thermal).toEqual({vias:3,temp:77,limit:70});expect(r.notes.join()).toMatch(/77 °C/);
+    let r=check(b,d);expect(r.tier).toBe(1);expect(r.thermal).toEqual({vias:3,temp:109,limit:100,powered:true});expect(r.notes.join()).toMatch(/109 °C.*100 °C/);
     expect(viaProblem(b,d,[6,5]).net).toBe('GND');
     d.vias.push({at:[6,5],net:'GND'});r=check(b,d);expect(r.tier).toBe(3);
   });
@@ -79,7 +98,7 @@ describe('QFN layout rules',()=>{
     expect(viasNeeded()).toBe(4);expect(chipTemp(4)).toBeLessThanOrEqual(HEAT.limit);expect(chipTemp(3)).toBeGreaterThan(HEAT.limit);
   });
   it('a decoupling loop reports the copper it runs along, cap to chip and back',()=>{
-    const b=board('sensor'),d=ref('sensor'),l=check(b,d).loops[0];expect(l.path.length).toBeGreaterThan(1);
+    const b=board('mcu'),d=ref('mcu'),l=check(b,d).loops[0];expect(l.path.length).toBeGreaterThan(1);
     // Consecutive cells touch (or are the same cell on the other layer).
     for(let i=1;i<l.path.length;i++){const a=l.path[i-1].c,z=l.path[i].c;expect(Math.abs(a[0]-z[0])+Math.abs(a[1]-z[1])).toBeLessThanOrEqual(1);}
   });

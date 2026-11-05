@@ -9,7 +9,10 @@
 // - reliability: a bypass capacitor only helps if the current loop from its pads to the chip's
 //   supply and ground pins is short (a capacitor "somewhere on the net" is not decoupling), and a
 //   hot QFN's exposed pad needs vias to carry heat into the other copper layer: each via is one more
-//   heat path in parallel, so the chip's temperature falls as they go in (stop when it is cool enough);
+//   heat path in parallel, so the chip's temperature falls as they go in (stop when it is cool enough).
+//   A chip only heats while power flows through it, so an unpowered chip sits at room temperature;
+// - pin order: on one copper layer tracks can't cross, so a connector's pins must run round the board
+//   in the same order as the chip pins they join (a mirrored pinout can't be routed on one layer);
 // - elegance: total track length plus vias at or under the reference route (par).
 // Guardrail: this is a teaching grid. Real layouts must pass the fab house's DRC and an electrical
 // review; cell sizes, loop limits and via counts here are this bench's rules, not universal values.
@@ -39,7 +42,9 @@ export interface PartDef {
   /** Fixed by the enclosure (can't be moved or turned). */
   locked?:boolean;
 }
-export interface Place {at:XY;rot:Rot}
+/** A placement. `flip` is the mirrored pinout (the spare header in the crate): the same part with
+ *  its pins in the reverse order along the row. */
+export interface Place {at:XY;rot:Rot;flip?:boolean}
 export interface Trace {layer:Layer;net:string;cells:XY[]}
 export interface Via {at:XY;net:string}
 export interface Design {place:Record<string,Place>;traces:Trace[];vias:Via[]}
@@ -48,8 +53,12 @@ export interface Board {
   parts:PartDef[];start:Record<string,Place>;nets:Record<string,string[]>;
   /** Supply pin pairs [supply, ground] that each need their own bypass cap within `max` cells of loop. */
   decouple?:{caps:string[];pairs:[string,string][];max:number};
-  /** The exposed pad of a chip that runs hot (see HEAT): vias in it carry heat into layer 2. */
-  thermal?:{pin:string};
+  /** The exposed pad of a chip that runs hot (see HEAT): vias in it carry heat into layer 2. The
+   *  chip is powered (and heats) once each `power` pair of pins is on one piece of copper. */
+  thermal?:{pin:string;power:[string,string][]};
+  /** A connector that also comes in the mirrored pinout (the spare in the crate), and the pairs
+   *  [chip pin, connector pin] it joins: their order round the board must match on one layer. */
+  spare?:{part:string;pairs:[string,string][]};
   /** Elegance target: track cells + VIA_COST × vias of the reference route. */
   par:number;
 }
@@ -77,32 +86,35 @@ const W=13,H=9,CHIP:XY=[6,4];
 export const BOARDS:Board[]=[
   {id:'sensor',title:'Sensor breakout',w:W,h:H,layers:1,par:22,
     ask:'One copper layer: tracks can\'t cross. Place J1, R1 and C1 so every net routes.',
-    teach:'Placement comes before routing: the order of the pins around the chip decides where the connector can go.',
+    teach:"On one layer tracks can't cross, so the connector's pins must run round the board in the same order as the chip pins they join.",
     parts:[qfn('U1','temp sensor',{1:'VDD',2:'GND',9:'OUT'},'NC'),conn('J1','3-pin header',['VDD','GND','SIG']),twoPin('R1','res','100 Ω','OUT','SIG'),twoPin('C1','cap','100 nF','VDD','GND')],
-    start:{U1:{at:CHIP,rot:0},J1:{at:[10,1],rot:1},R1:{at:[1,1],rot:1},C1:{at:[10,7],rot:0}},
+    // J1 arrives as the mirrored header; the right one is the spare in the crate.
+    start:{U1:{at:CHIP,rot:0},J1:{at:[10,1],rot:1,flip:true},R1:{at:[1,1],rot:1},C1:{at:[10,7],rot:0}},
     nets:{VDD:['U1.1','C1.1','J1.1'],GND:['U1.2','C1.2','J1.2'],OUT:['U1.9','R1.1'],SIG:['R1.2','J1.3']},
-    decouple:{caps:['C1'],pairs:[['U1.1','U1.2']],max:4}},
+    spare:{part:'J1',pairs:[['U1.1','J1.1'],['U1.2','J1.2'],['U1.9','J1.3']]}},
   {id:'mcu',title:'Decoupling',w:W,h:H,layers:1,par:35,
-    ask:'This chip has two supply pin pairs. Each needs its own 100 nF cap hugging its VDD and GND pins.',
+    ask:'This MCU resets whenever its supply sags. Wire it so it stays up.',
     teach:'A bypass cap supplies brief bursts of current (it is not a battery). It only helps when the loop through its pads and the chip\'s pins is short.',
     parts:[qfn('U1','MCU',{1:'VDD',2:'GND',7:'GND',8:'VDD',10:'RST'},'NC'),conn('J1','2-pin power',['VDD','GND']),twoPin('C1','cap','100 nF','VDD','GND'),twoPin('C2','cap','100 nF','VDD','GND'),twoPin('R1','res','10 kΩ','VDD','RST')],
     start:{U1:{at:CHIP,rot:0},J1:{at:[11,6],rot:0},C1:{at:[0,0],rot:0},C2:{at:[11,0],rot:0},R1:{at:[1,7],rot:0}},
     nets:{VDD:['U1.1','U1.8','C1.1','C2.1','R1.1','J1.1'],GND:['U1.2','U1.7','C1.2','C2.2','J1.2'],RST:['U1.10','R1.2']},
     decouple:{caps:['C1','C2'],pairs:[['U1.1','U1.2'],['U1.8','U1.7']],max:4}},
   {id:'driver',title:'Two layers',w:W,h:H,layers:2,par:42,
-    ask:'The power passes through to a flipped connector, so VIN and GND must cross. Use layer 2 and vias, and cool the exposed pad.',
+    ask:'Power passes through to J2, whose pins are flipped. Route it, and keep the LED driver under its temperature.',
     teach:'A via lets a track change layer, so a crossing on one layer becomes a route. Thermal vias carry the chip\'s heat into the other copper.',
     parts:[qfn('U1','LED driver',{1:'VIN',2:'GND',9:'ISET'},'GND'),conn('J1','power in',['VIN','GND'],true),conn('J2','power out',['VIN','GND'],true),twoPin('C1','cap','1 µF','VIN','GND'),twoPin('R1','res','2 kΩ','ISET','GND')],
     start:{U1:{at:CHIP,rot:0},J1:{at:[0,3],rot:0},J2:{at:[12,4],rot:2},C1:{at:[5,8],rot:0},R1:{at:[1,0],rot:0}},
     nets:{VIN:['J1.1','J2.1','U1.1','C1.1'],GND:['J1.2','J2.2','U1.2','U1.EP','C1.2','R1.2'],ISET:['U1.9','R1.1']},
-    decouple:{caps:['C1'],pairs:[['U1.1','U1.2']],max:4},thermal:{pin:'U1.EP'}},
+    decouple:{caps:['C1'],pairs:[['U1.1','U1.2']],max:4},thermal:{pin:'U1.EP',power:[['U1.1','J1.1'],['U1.2','J1.2']]}},
 ];
 
 // ---------- geometry ----------
 export const partOf=(b:Board,id:string)=>b.parts.find(p=>p.id===id)!;
 /** World cells of each pin of a part at a placement. */
-export function pinCells(p:PartDef,at:Place):{pin:PinDef;cells:XY[]}[]{return p.pins.map(pin=>({pin,cells:pin.cells.map(c=>add(at.at,turn(c,at.rot)))}));}
-export function footprint(p:PartDef,at:Place):XY[]{return [...pinCells(p,at).flatMap(q=>q.cells),...p.body.map(c=>add(at.at,turn(c,at.rot)))];}
+/** A part-local cell at a placement: mirrored along the pin row when flipped, turned, then moved. */
+export const placeCell=(c:XY,at:Place):XY=>add(at.at,turn(at.flip?[c[0],-c[1]+0]:c,at.rot));
+export function pinCells(p:PartDef,at:Place):{pin:PinDef;cells:XY[]}[]{return p.pins.map(pin=>({pin,cells:pin.cells.map(c=>placeCell(c,at))}));}
+export function footprint(p:PartDef,at:Place):XY[]{return [...pinCells(p,at).flatMap(q=>q.cells),...p.body.map(c=>placeCell(c,at))];}
 export const inBoard=(b:Board,c:XY)=>c[0]>=0&&c[1]>=0&&c[0]<b.w&&c[1]<b.h;
 /** Net of a pin reference ("U1.3"); unused pins get a private NC net nothing may join. */
 export function netOfPin(b:Board,ref:string){for(const [n,refs] of Object.entries(b.nets))if(refs.includes(ref))return n;return `NC:${ref}`;}
@@ -117,7 +129,7 @@ export function occupancy(b:Board,d:Design){
   const put=(l:Layer,c:XY,cu:Cu)=>{const k=cellKey(c),a=L[l].get(k);if(a){if(!a.some(x=>x.net===cu.net&&x.what===cu.what&&x.ref===cu.ref))a.push(cu);}else L[l].set(k,[cu]);};
   for(const p of b.parts){const at=d.place[p.id];
     for(const {pin,cells} of pinCells(p,at))for(const c of cells){const ref=`${p.id}.${pin.id}`,net=netOfPin(b,ref);put(1,c,{net,what:'pad',ref});if(p.through&&b.layers===2)put(2,c,{net,what:'pad',ref});}
-    for(const c of p.body.map(c=>add(at.at,turn(c,at.rot))))put(1,c,{net:`BODY:${p.id}`,what:'body',ref:p.id});}
+    for(const c of p.body.map(c=>placeCell(c,at)))put(1,c,{net:`BODY:${p.id}`,what:'body',ref:p.id});}
   d.traces.forEach((t,i)=>t.cells.forEach(c=>put(t.layer,c,{net:t.net,what:'trace',ref:`T${i}`})));
   d.vias.forEach((v,i)=>{put(1,v.at,{net:v.net,what:'via',ref:`V${i}`});put(2,v.at,{net:v.net,what:'via',ref:`V${i}`});});
   return L;
@@ -228,15 +240,18 @@ export interface NetState {net:string;pads:number;joined:number;done:boolean}
 export interface Loop {pair:[string,string];cap?:string;loop:number;max:number;path:{l:Layer;c:XY}[]}
 /** The hot chip on the two-layer board (this bench's tuning values). Its exposed pad sheds heat to the
  *  air through the board alone, or also down every thermal via in parallel:
- *  T = ambient + P ÷ (1/θ_board + n/θ_via). */
-export const HEAT={power:1,ambient:25,board:110,via:300,limit:70};
+ *  T = ambient + P ÷ (1/θ_board + n/θ_via). `limit` is the chip's own (junction) temperature it should
+ *  stay under for a long life; its absolute maximum is `max`. */
+export const HEAT={power:1.6,ambient:25,board:110,via:300,limit:100,max:125};
 export const chipTemp=(vias:number)=>HEAT.ambient+HEAT.power/(1/HEAT.board+vias/HEAT.via);
 /** The fewest thermal vias that keep the chip at or under the limit. */
 export const viasNeeded=()=>{let n=0;while(chipTemp(n)>HEAT.limit)n++;return n;};
 export interface Report {
   /** 0 = does not work, 1 = works, 2 = works reliably, 3 = reliable and at or under par. */
   tier:0|1|2|3;problems:string[];notes:string[];nets:NetState[];loops:Loop[];
-  thermal?:{vias:number;temp:number;limit:number};length:number;vias:number;cost:number;par:number;
+  /** The hot chip: thermal vias in its pad, its temperature, the limit, and whether power reaches it
+   *  (an unpowered chip sits at room temperature). */
+  thermal?:{vias:number;temp:number;limit:number;powered:boolean};length:number;vias:number;cost:number;par:number;
 }
 export function check(b:Board,d:Design):Report{
   const problems:string[]=[],notes:string[]=[];
@@ -247,6 +262,9 @@ export function check(b:Board,d:Design):Report{
       problems.push(`${p.id} must sit on a board edge with its mouth facing out, or the cable can't plug in.`);}
   for(let i=0;i<b.parts.length;i++)for(let j=i+1;j<b.parts.length;j++){const a=new Set(footprint(b.parts[i],d.place[b.parts[i].id]).map(cellKey));
     if(footprint(b.parts[j],d.place[b.parts[j].id]).some(c=>a.has(cellKey(c))))problems.push(`${b.parts[i].id} and ${b.parts[j].id} overlap.`);}
+  // Pin order: on one layer a mirrored connector pinout can never route (two tracks would cross).
+  if(b.spare&&b.layers===1&&!problems.some(p=>p.startsWith(b.spare!.part))&&!pinOrderOk(b,d))
+    problems.push(`${b.spare.part}'s pins run the other way round from the chip pins they join, so on one layer two tracks would have to cross. The spare header beside the board has the mirrored pinout.`);
   // Spacing: shorts, copper under the package body, via-to-pad clearance.
   const occ=occupancy(b,d),shorts=new Set<string>();
   for(const l of [1,2] as Layer[])for(const [k,list] of occ[l]){const nets=[...new Set(list.map(x=>x.net))];if(nets.length<2)continue;
@@ -270,18 +288,35 @@ export function check(b:Board,d:Design):Report{
     for(const perm of permutations(caps,pairs.length)){const ls=pairs.map((p,i)=>loopOf(perm[i],p));const score=Math.max(...ls)*100+ls.reduce((a,z)=>a+z,0);if(!best||score<best.score)best={caps:perm,score};}
     pairs.forEach((p,i)=>{const cap=best?.caps[i],loop=cap?loopOf(cap,p):Infinity,[up,down]=cap?legs(cap,p):[undefined,undefined];
       loops.push({pair:p,cap,loop,max,path:loop===Infinity?[]:[...up!.cells,...[...down!.cells].reverse()]});
-      if(loop>max){reliable=false;const [sp,gp]=p.map(r=>`${r.split('.')[0]} pin ${r.split('.')[1]}`);
-        notes.push(loop===Infinity?`No bypass cap is wired to ${sp} and ${gp}.`:`${cap}'s loop to ${sp}/${gp} is ${loop} cells (≤ ${max} wanted). Current bursts have to travel the whole loop, so a far cap can't deliver them in time.`);}});}
+      if(loop>max){reliable=false;const pins=pairName(b,p);
+        notes.push(loop===Infinity?`No bypass cap is wired to ${pins}.`:`${cap}'s loop to ${pins} is ${loop} cells (≤ ${max} wanted). A longer loop has more inductance: when the chip suddenly draws current, the voltage at its pins sags before the cap's current can ramp up.`);}});}
   let thermal:Report['thermal'];
   if(b.thermal){const [pid,pin]=b.thermal.pin.split('.'),p=partOf(b,pid),pad=new Set(pinCells(p,d.place[pid]).find(x=>x.pin.id===pin)!.cells.map(cellKey));
-    const n=d.vias.filter(v=>pad.has(cellKey(v.at))).length,temp=Math.round(chipTemp(n));thermal={vias:n,temp,limit:HEAT.limit};
-    if(temp>HEAT.limit){reliable=false;notes.push(`The chip runs at ${temp} °C (it must stay at or under ${HEAT.limit} °C). Heat leaves its exposed pad through the board${n?` and ${n} thermal via${n===1?'':'s'}`:''}; every via is one more path into layer 2.`);}}
+    const n=d.vias.filter(v=>pad.has(cellKey(v.at))).length,powered=b.thermal.power.every(([x,y])=>comp.get(pinNodes(b,d,x)[0])===comp.get(pinNodes(b,d,y)[0]));
+    const temp=powered?Math.round(chipTemp(n)):HEAT.ambient;thermal={vias:n,temp,limit:HEAT.limit,powered};
+    if(temp>HEAT.limit){reliable=false;notes.push(`The chip runs at ${temp} °C. It must stay at or under ${HEAT.limit} °C for a long life (its absolute max is ${HEAT.max} °C). Heat leaves its exposed pad through the board${n?` and ${n} thermal via${n===1?'':'s'}`:''}; every via is one more path into layer 2.`);}}
   const len=length(d),c=cost(d);
   let tier:Report['tier']=problems.length?0:reliable?2:1;
   if(tier===2&&c<=b.par)tier=3;
-  if(tier===2)notes.push(`Track + vias cost ${c}; par is ${b.par}. Shorter routes and fewer vias are cheaper to make.`);
+  if(tier===2)notes.push(`Track + vias: ${c}; par is ${b.par}. Shorter tracks have less resistance and pick up less noise, and every via is another hole to drill.`);
   return {tier,problems,notes,nets,loops,thermal,length:len,vias:d.vias.length,cost:c,par:b.par};
 }
+/** Which side of the chip a QFN pin is on, as the player sees it on the bench. */
+function side(b:Board,ref:string){const [pid,pin]=ref.split('.'),c=partOf(b,pid).pins.find(q=>q.id===pin)?.cells[0];if(!c)return '';
+  return c[0]<=-2?'left-hand':c[0]>=2?'right-hand':c[1]>=2?'bottom':'top';}
+/** "U1's right-hand VDD/GND pins": a supply pin pair named the way the chip on the bench shows it. */
+function pairName(b:Board,[s,g]:[string,string]){const lbl=(r:string)=>{const [pid,pin]=r.split('.');return partOf(b,pid).pins.find(q=>q.id===pin)?.label??r;};
+  const [sa,ga]=[side(b,s),side(b,g)];return `${s.split('.')[0]}'s ${sa===ga?`${sa} `:''}${lbl(s)}/${lbl(g)} pins`;}
+/** Whether the spare-able connector's pins run round the board in the same order as the chip pins
+ *  they join. The copper outside the chip is a ring, so tracks that don't cross keep that order. */
+export function pinOrderOk(b:Board,d:Design){if(!b.spare)return true;
+  const centre=(ref:string)=>{const [pid,pin]=ref.split('.'),p=partOf(b,pid);return pinCells(p,d.place[pid]).find(x=>x.pin.id===pin)!.cells[0];};
+  // Order by angle round the chip's centre: its pins sit on its rim, the connector's on the board edge.
+  const uc=d.place[b.spare.pairs[0][0].split('.')[0]].at,ang=(c:XY)=>Math.atan2(c[1]-uc[1],c[0]-uc[0]);
+  const order=(cs:XY[])=>cs.map((c,i)=>({i,a:ang(c)})).sort((x,y)=>x.a-y.a).map(x=>x.i);
+  const a=order(b.spare.pairs.map(([c])=>centre(c))),z=order(b.spare.pairs.map(([,j])=>centre(j))),n=a.length;
+  for(let k=0;k<n;k++)if(a.every((x,i)=>x===z[(i+k)%n]))return true;
+  return false;}
 function permutations<T>(items:T[],k:number):T[][]{if(k===0)return [[]];const out:T[][]=[];items.forEach((x,i)=>{for(const rest of permutations([...items.slice(0,i),...items.slice(i+1)],k-1))out.push([x,...rest]);});return out;}
 
 /** Unrouted connections (ratsnest): per net, the shortest links that would join its copper islands. */

@@ -52,3 +52,47 @@ Still delegated to Claude: station practice rules (free parts/fuses and sub-job 
 Stage 1 follow-up verification: production build passed; the expanded browser run finished with 23 passes (all 10 routes and all 10 layouts included) and three smoke timeouts, not failing state assertions. Exact output: tools/astra-grading/stage1-browser.log. Screenshot meeting-complete.png was inspected; the new HQ primary action is visible (the legacy capture occurs during entrance animation, so it is not proof of settled card layout). The concurrent unit rerun had two existing Arcade timeout failures; the subsequent single-worker rerun also exceeded the existing 30-second 500-cabinet stress-case limit. OS inspection showed only ~1 GB free physical memory, with two other worktrees running browser suites and several capture jobs. Their processes were left untouched. Further verification will run sequentially, with longer browser timeouts. No assertion failure is being waived as a pass.
 
 Stage 1 owned implementation is ready for integration; remaining gameplay/threshold/teaching changes are explicitly delegated in Needs Claude above. Hollow provisional stars are in Stage 2. Human par timing remains unmeasured.
+
+## Stage 2 — prompts, job card, and readable feedback
+
+Merged `origin/claude/nifty-knuth-519jg0` through its models and colour merges before this pass. The model prerequisite now passes. The main checkout was not edited.
+
+| Entry | Change | Files | How checked |
+|---|---|---|---|
+| R5-008 | Shared E carry prompts say what pressing E does: put the named item down. Job IDs keep names such as robot, parts crate, and resistor tray. | ui/objectives.ts | Unit cases and physical clean-route UI checks. Station-specific acceptance remains below. |
+| R5-102, R5-242 | Shared desktop HTML label floor is 14 CSS px. Rush's count appears once as the first graded row, not a duplicate caption. | ui/ui.css, ui/game-ui.ts | Build; dedicated bench budgets in Stage 4. Canvas glyph height is not proven by a CSS check. |
+| R5-103, R5-109 | Keep the existing outlined, depth-independent marker and destination targeting; raise it relative to elevated Pip when close. | ui/objectives.ts | Browser regression checks. |
+| R5-105, R5-107 | A completed-step flash no longer leaves the previous object's sentence on screen. Ordered latching is preserved; station `(E)` suffixes are removed in the shared adapter. | ui/objectives.ts | Actual Playground progression at 0.1 s after each action; legacy objectives specs. |
+| R5-112 | Keep/time bonuses are hollow provisional stars during play; achievement stars light when earned. Hover gives the goal. Final results still evaluate actual conditions. | ui/objectives.ts, ui/ui.css | Unit cases and browser assertion of zero earned stars at spawn. |
+| R5-114, R5-091, R5-038, R5-279 | Fridge safety is explicit, oven feed must actually be live while baking, safety steps can reopen, and the conveyor step is retained. Once baked, the completed feed step does not prevent sequencing power away. The chill bonus avoids an unexplained percentage. | ui/objectives.ts | Predicate unit tests, shared browser regressions; full Lunch gameplay remains owned by Claude. |
+| R5-198 | Both Lunch fail cards name the cause in eight words or fewer. No invented duration is printed. | ui/screens.ts, ui/screens.css | Pure markup cases. |
+| R5-245, R5-250, R5-273 | HQ/LED/QFN casing is retained, ordinary BIG becomes Big; practice spelling is consistent. HQ gets its home icon, absent gamepads are hidden, title includes survey/pause keys, and irrelevant hub pause tallies/Jobs button hide. | ui/screens.ts, hub/lobby.ts, ui/*.css | Unit cases, build, smoke, visual result inspection. |
+| R5-262 | Recovering an unplugged floor plug takes priority over an unpowered lamp-switch prompt. | ui/objectives.ts | Regression unit case. |
+| R5-272 | Hide F's cable button in station rooms and HQ; retain Q because carried props can be thrown. | ui/game-ui.ts, ui/ui.css | Build/browser startup. |
+| R5-223, R5-254 | Rush ring follows its three-minute countdown; final 30 seconds receive a restrained red clock and a quiet tick. | ui/game-ui.ts, ui/ui.css | Build; countdown presentation uses existing rushStatus data. |
+| R5-280, R5-366 | Every prefab kind has a readable name enforced by a complete Record and a data-coverage unit test. | ui/objectives.ts | Type check and unit test. |
+| Lunch gauge truth | Fractional draw fills fractional budget pips (1.5 no longer appears as two full bars). | ui/lunch-hud.ts | Source/build inspection. |
+
+Verification: all 19 selected browser checks passed in 9.7 minutes on port 4191. Exact log: `tools/astra-ui/stage2-browser.log`. Settled `artifacts/astra-clean-result.png` and `astra-practice-result.png` were opened and inspected: cards fit, the clean route has three As, practice has no medals, and Pip/the lamp remain visible. Unit/build final rerun is recorded below. The new lobby-reward test initially imported browser-only rendering; it now tests the pure `campaignProgress()` used by the real lobby, so it does not require DOM globals.
+
+### Skipped / already present
+
+- R5-107's ordered step latching and R5-103's depth-independent outlined arrow were already fixed; retained.
+- R5-135 and all phone-only portions are deferred, per desktop-only scope.
+- R5-174's added pause controls and comfort assists are handled in Stage 5.
+- R5-183's world plaques, R5-242's canvas label dimensions, and R5-252's labelTexture font sizing belong to Claude's files, not this pass.
+
+### Needs Claude — exact B6 shared changes
+
+- **R5-008:** use the same landing predicate for prompt and delivery acceptance: QFN crate acceptance from Pip within 2.6 m of stand/side table; Arcade tray from the actual delivery predicate (tray within 2.6 m or Pip within 2.2 m). Far-pad Spectrum E says put the pod/mirror down, never carry it. Shared normalization handles imperative Carry/Bring/Roll/Move, but cannot repair a station's misleading Set prompt near a failed snap zone.
+- **R5-102:** Arcade `updatePanel` should retain Chain/Parts and remove Current/Hottest block when the monitor already prints them. Hide station panels while walking. Keep station toast copy within 14 words. Remove duplicate live values from other station panels/monitors at their draw/update methods. Bench word-budget failures from Stage 4 will identify exact remaining text. Do not remove the taught measured value altogether.
+- **R5-183 / R5-242:** Garage scope stop time axis 0–2 ms and slow-motion badge; Observatory tuned-values/not-to-scale tags; QFN teaching-grid disclaimer; Spectrum band disclosure. Enlarge/stabilize canvas label glyphs to 14 actual pixels at 1440×900 (CSS cannot fix those textures).
+- **R5-109:** keep each held station item's step target at its destination, not its position in Pip's hands; this adapter preserves station `at()` functions. Garage footprint cue and station labels remain station-owned.
+- **R5-252 / R5-300:** `render/labels.ts`: expose fixed font-size/wrapping to `signPlate`/`labelTexture`; then each door/directory label can share cap height instead of auto-shrinking. Existing board row order/supports and lamp/plate separation were already fixed.
+- **Juice shared list:** Lunch runtime should expose/use its oven burn-warning state in the HUD (warning constant is BURN_WARNING=60); use the shared plug flash/trip sounds and hitstop at the runtime call sites listed in juice.md. Those calls are not in Astra's files.
+
+### Questions for the product owner
+
+- No blocking design questions. Desktop HTML's 14 CSS px minimum is independently testable; actual 3D cap height remains a station render/camera task, not a claim made by this pass.
+
+Stage 2 final verification: **155 unit tests pass**, strict production build passes, **19/19 browser checks pass**. This also rechecked the earlier new-test import failure and the existing Arcade stress-test timeouts successfully. Selected browser run used port 4191; capture server for Stage 3 is reserved on 4192.

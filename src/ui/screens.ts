@@ -19,11 +19,11 @@ export const LOOK:Record<LevelId,{color:string;thumb:string;size:string;pos:stri
 };
 export const thumbUrl=(id:LevelId)=>`${import.meta.env.BASE_URL}ui/${LOOK[id].thumb}`;
 /** Level data keeps names upper-case for the old intro card; menus use title case. */
-export const title=(l:Level)=>l.name.toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase());
+export const title=(l:Level)=>l.name.split(/\s+/).map(word=>['HQ','LED','QFN','IR','RF','PCB','ESD','PTC','DC','AC'].includes(word)?word:word.toLowerCase().replace(/^./,c=>c.toUpperCase())).join(' ');
 export const clock=(t:number)=>`${Math.floor(t/60)}:${Math.floor(t%60).toString().padStart(2,'0')}`;
 export const medalClass=(g:Grade)=>({A:'',B:'b',C:'c',D:'d'} as const)[g];
 export const medal=(g:Grade|undefined,extra='')=>g?`<span class="medal ${medalClass(g)} ${extra}"><span>${g}</span></span>`:`<span class="medal none ${extra}"></span>`;
-const disc=(l:Level,cls='disc')=>`<span class="${cls}" style="--lvl:${LOOK[l.id].color}">${icon(l.badge)}</span>`;
+const disc=(l:Level,cls='disc')=>`<span class="${cls}" style="--lvl:${LOOK[l.id].color}">${icon(l.id==='lobby'?'home':l.badge)}</span>`;
 const kb=(k:string,cls='')=>`<span class="key kb ${cls}">${k}</span>`;
 /** Face buttons match the colours printed on common pads. */
 const pad=(b:'A'|'B'|'X'|'Y')=>`<span class="key gp btnpad p${b.toLowerCase()}">${b}</span>`;
@@ -53,7 +53,7 @@ export const hudMarkup=(l:Level)=>`
     <button class="act jump" data-action="jump" aria-label="Jump">${icon('jump')}${space()}${pad('A')}</button>
     <i class="sep"></i>
     <button class="act small survey" data-action="survey" aria-label="Overview">${icon('survey')}${kb('Tab')}${pill('View')}</button>
-    <button class="act small cam" data-action="camera" aria-label="Reset camera">${icon('camera')}${kb('C')}${pill('RS')}</button>
+    <button class="act small cam" data-action="camera" aria-label="Reset camera">${icon('retry')}${kb('C')}${pill('RS')}</button>
   </div>
   <div class="stick" aria-hidden="true"><i class="knob"></i></div>
 </div>`;
@@ -97,7 +97,7 @@ export const titleMarkup=(l:Level)=>`
     <div><span class="key">Q</span>${icon('throw')}</div>
     <div><span class="key sp"></span>${icon('jump')}</div>
     <div><span class="key">&#8679;</span>${icon('dash')}</div>
-    <div>${icon('mouse')}${icon('camera')}</div>
+    <div>${icon('mouse')}${icon('camera')}</div><div><span class="key">Tab</span>${icon('survey')}</div><div><span class="key">Esc</span>${icon('pause')}</div>
   </div>
   <div class="corner">
     <span class="padind" aria-hidden="true">${icon('gamepad')}<i></i></span>
@@ -222,6 +222,7 @@ export function failMarkup(f:FailView){
     <div class="hero">${hero}
       <div class="vthermo" aria-hidden="true"><svg class="pop" viewBox="0 0 50 34"><path d="M8 30l-6-12M25 26V4M42 30l6-12" stroke="#E5484D" stroke-width="5" stroke-linecap="round"/></svg><i class="tube"></i><i class="bulb"></i></div>
     </div>
+    <p class="fail-cause">${f.burned?'The tray stayed in the hot oven.':'Food spoiled while the fridge was unpowered.'}</p>
     <div class="progress" aria-label="How far the tray got">
       ${step(f.oven,'oven')}<i class="link ${f.oven?'live':'cold'}"></i>${step(f.belt,'conveyor')}<i class="link ${f.belt?'live':'cold'}"></i>${step(f.lift,'lift')}
     </div>

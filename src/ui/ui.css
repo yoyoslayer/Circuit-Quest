@@ -271,3 +271,11 @@ body[data-bench] .station-panel{width:min(290px,calc(100vw - 32px));font-size:13
 /* Off-screen pointer for the objective marker (R5-103): a yellow chevron at the screen edge. */
 .marker-edge{position:absolute;width:26px;height:30px;background:#ffd84a;clip-path:polygon(0 0,100% 50%,0 100%);filter:drop-shadow(2px 0 0 #262a40) drop-shadow(-2px 0 0 #262a40) drop-shadow(0 2px 0 #262a40) drop-shadow(0 -2px 0 #262a40);pointer-events:none;z-index:3}
 body[data-bench] .marker-edge,body[data-menu] .marker-edge{display:none}
+
+/* Desktop readability floor; station canvas labels remain owned by station renderers. */
+@media(min-width:701px){.station-panel header small,.station-panel .profile,.key,.pill,.bench-chip kbd,.result .prev,.result-bonus,.practice-tag{font-size:14px}}
+.objective .stars i.at-risk{color:var(--ink-2);opacity:.8}.objective .stars i.missed{opacity:.45}
+.nocable .act.cable{display:none}.badge.urgent{color:#c0392b;animation:nowpulse .6s ease-in-out infinite alternate}
+body[data-practice] .jobplate::after{left:auto;right:-8px;top:-8px;bottom:auto;font-size:14px;z-index:2}
+body[data-hub] .pause .head .tallies,body[data-hub] .pause [data-ui="jobs-reload"]{display:none}
+.result .row.result-served{margin:0;text-align:left;position:relative}.served-label{position:absolute;left:44px;top:-13px;font-size:14px;background:var(--paper)}

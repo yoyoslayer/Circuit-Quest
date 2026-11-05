@@ -51,7 +51,7 @@ export class LunchHud {
       // Needle sweeps 0-180 degrees across 0-6 bars; the limit is 5.
       const turn=g.tripped?180:Math.max(0,Math.min(1,g.draw/6))*180;v.needle.style.transform=`rotate(${turn}deg)`;
       v.el.classList.toggle('tripped',g.tripped);v.el.classList.toggle('hot',!g.tripped&&g.draw>=4.5);
-      v.bars.forEach((b,i)=>{b.style.background=g.tripped?'#E5484D':g.draw>i+.01?'#3BB273':'#FAF3E3';});}
+      v.bars.forEach((b,i)=>{const fill=Math.max(0,Math.min(1,g.draw-i))*100;b.style.background=g.tripped?'#E5484D':`linear-gradient(90deg,#3BB273 ${fill}%,#FAF3E3 ${fill}%)`;});}
   }
 }
 const huds=new WeakMap<HTMLElement,LunchHud>();

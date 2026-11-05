@@ -29,3 +29,11 @@ export function nextUnfinished(levels:Level[]){const all=read();return levels.fi
 /** Restart and "next job" reload the page; this flag skips the intro once after that reload. */
 export function flagAutostart(id:LevelId){try{sessionStorage.setItem(AUTOSTART,id);}catch{/* ignore */}}
 export function takeAutostart(id:LevelId){try{const v=sessionStorage.getItem(AUTOSTART);sessionStorage.removeItem(AUTOSTART);return v===id;}catch{return false;}}
+
+/** Campaign rewards use actual earned records; optional shifts never block completion. */
+export function campaignProgress(levels:Level[]) {
+  const required=levels.filter(l=>!isOptional(l));
+  return {allJobs:required.length>0&&required.every(l=>!!bestFor(l.id)),
+    goldJobs:required.filter(l=>bestFor(l.id)?.crewGold).length,
+    stars:levels.reduce((n,l)=>n+[0,1,2].filter(i=>((bestFor(l.id)?.stars??0)&(1<<i))!==0).length,0)};
+}

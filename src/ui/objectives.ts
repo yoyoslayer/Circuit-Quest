@@ -4,20 +4,17 @@
 import * as T from 'three';
 import type {Game} from '../game';
 import {prefabs,type PropKind} from '../props/prefabs';
-
 type At=(g:Game)=>{x:number;z:number}|undefined;
 /** at: where the bouncing marker points for this step. */
-interface Step {text:string;done:(g:Game)=>boolean;at?:At}
+interface Step {text:string;done:(g:Game)=>boolean;at?:At;recheck?:boolean|((g:Game)=>boolean)}
 interface Bonus {text:string;ok:(g:Game)=>boolean}
 interface Job {goal:string;steps:Step[];bonuses:Bonus[]}
 const dist=(a:{x:number;z:number},b:{x:number;z:number})=>Math.hypot(a.x-b.x,a.z-b.z);
 const prop=(g:Game,id:string)=>{const q=g.props.find(q=>q.spec.id===id);return q?.mesh.visible?q.body.translation():undefined;};
-
 // Lunch Rush bookkeeping read from the circuit's event log.
 const tripped=(g:Game)=>!!g.lunch?.circuit.events.some(e=>e.kind==='trip'||e.kind==='short');
 const scorched=(g:Game)=>!!g.lunch?.circuit.events.some(e=>e.kind==='scorch')||!!g.lunch?.cables.some(c=>c.lead.dead);
 const kitchenFed=(g:Game)=>!!g.lunch&&(g.lunch.powered('oven')||g.lunch.powered('kitchen-lamp'));
-
 export const JOBS:Record<string,Job>={
   playground:{goal:'Light the lamp',
     steps:[
@@ -40,9 +37,10 @@ export const JOBS:Record<string,Job>={
       {text:'Leave the coffee machine alone',ok:g=>!g.coffeeReused}]},
   lunch:{goal:'Bake a tray of lunch and send it upstairs on the lift',
     steps:[
+      {text:'Keep the lunch in the fridge cold',recheck:g=>(g.lunch?.job.temperature??0)>=.8,done:g=>!!g.lunch&&(g.lunch.powered('fridge')||g.lunch.job.cooled||(g.lunch.job.transport>0&&g.lunch.job.temperature<.8)),at:()=>({x:-4,z:-1.8})},
       {text:'Wedge the kitchen door open with the doorstop',done:g=>!!g.lunch?.doorWedged()||kitchenFed(g),at:g=>g.held?.spec.id==='wedge'?{x:0,z:1}:prop(g,'wedge')},
-      {text:'Mop up the leak (or bridge it)',done:g=>(g.lunch?.water??1)<.1||kitchenFed(g),at:g=>g.held?.spec.id==='mop'?{x:.3,z:2}:prop(g,'mop')},
-      {text:'Power the kitchen\'s feed post (oven and lamps)',done:g=>kitchenFed(g)||(g.lunch?.job.bake??0)>=20,at:()=>({x:-4,z:-3})},
+      {text:'Mop up the leak (or bridge it)',recheck:true,done:g=>(g.lunch?.water??1)<.1||!!g.lunch?.bridgeNear({x:0,z:1}),at:g=>g.held?.spec.id==='mop'?{x:.3,z:2}:prop(g,'mop')},
+      {text:'Power the kitchen\'s feed post (oven and lamps)',recheck:g=>g.lunch?.job.tray==='raw',done:g=>kitchenFed(g),at:()=>({x:-4,z:-3})},
       {text:'Keep the oven on until the tray is baked',done:g=>g.lunch?.job.tray!=='raw',at:()=>({x:-2.5,z:-7.2})},
       {text:'Carry the tray to the conveyor',done:g=>['conveyor','lift','delivered'].includes(g.lunch?.job.tray??''),at:g=>g.held?.spec.id==='tray'?{x:0,z:-7}:prop(g,'tray')},
       {text:'Get the conveyor moving',done:g=>!!g.lunch&&(g.lunch.powered('conveyor')||(g.lunch.job.transport??0)>0||['lift','delivered'].includes(g.lunch.job.tray)),at:()=>({x:5,z:-5})},
@@ -53,17 +51,21 @@ export const JOBS:Record<string,Job>={
     bonuses:[
       {text:'Never trip a breaker',ok:g=>!tripped(g)},
       {text:'No scorched or cut cables',ok:g=>!scorched(g)},
-      {text:'Keep the fridge from spoiling (under 80%)',ok:g=>(g.lunch?.maxTemperature??0)<.8}]},
+      {text:'Keep the food safely chilled',ok:g=>(g.lunch?.maxTemperature??0)<.8}]},
 };
-
-const NAMES:Partial<Record<PropKind,string>>={box:'crate',desk:'desk',chair:'chair',monitor:'monitor',mug:'mug',paper:'paper',plant:'plant',cabinet:'cabinet',sofa:'sofa',bin:'bin',
+export const NAMES:Record<PropKind,string>={box:'crate',desk:'desk',chair:'chair',monitor:'monitor',mug:'mug',paper:'paper',plant:'plant',cabinet:'cabinet',sofa:'sofa',bin:'bin',
   reel:'cable reel',coupler:'coupler',cart:'cart',printer:'printer',whiteboard:'whiteboard',bookshelf:'shelf',cooler:'water cooler',bridge:'cable bridge',mop:'mop',tray:'lunch tray',
-  lamp:'lamp',dolly:'cable dolly',vending:'vending machine',glass:'glass panel',coffee:'coffee machine',pingpong:'ping-pong table',capcart:'capacitor cart',coolbox:'cooler box',splitter:'splitter',wedge:'doorstop',cone:'cone',strip:'power strip',beanbag:'bean bag'};
+  lamp:'lamp',dolly:'cable dolly',vending:'vending machine',glass:'glass panel',coffee:'coffee machine',pingpong:'ping-pong table',capcart:'capacitor cart',coolbox:'cooler box',splitter:'splitter',wedge:'doorstop',cone:'cone',strip:'power strip',beanbag:'bean bag',supply:'supply cart',plug:'plug',pin:'bowling pin',stool:'stool'};
 /** Job items whose prop kind is generic get their own name in prompts. */
-const ID_NAMES:Record<string,string>={parts:'parts crate',blocks:'resistor tray',robot:'robot',motor:'motor cart',pod:'detector pod'};
+export const ID_NAMES:Record<string,string>={parts:'parts crate',blocks:'resistor tray',robot:'robot',motor:'motor cart',pod:'detector pod'};
 /** A station supplies its own steps and bonuses (src/stations); the marker defaults to its bench. */
-function stationJob(g:Game):Job{const j=(g.station??g.hub)!.job,home=g.station?.stand;
-  return {goal:j.goal,steps:j.steps.map(s=>({text:s.text,done:()=>s.done(),at:()=>s.at?.()??home})),bonuses:j.bonuses.map(b=>({text:b.text,ok:()=>b.ok()}))};}
+export function stationJob(g:Game):Job{const j=(g.station??g.hub)!.job,home=g.station?.stand;
+  return {goal:j.goal,steps:j.steps.map(s=>({text:s.text.replace(/\s*\(E\)$/,''),done:()=>s.done(),at:()=>s.at?.()??home})),bonuses:j.bonuses.map(b=>({text:b.text,ok:()=>b.ok()}))};}
+export const propName=(kind:PropKind,id?:string)=>ID_NAMES[id??'']??NAMES[kind]??kind.replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('-',' ');
+export function bonusState(text:string,ok:boolean,finished:boolean):'earned'|'at-risk'|'missed'{
+  if(!ok)return 'missed';
+  return !finished&&/^(never|no |keep |leave |break |finish (in|before|under)|don't)/i.test(text)?'at-risk':'earned';
+}
 export interface Prompt {key:string;text:string}
 /** What the most useful key does right now, in words. */
 export function promptFor(g:Game):Prompt|null{
@@ -72,9 +74,9 @@ export function promptFor(g:Game):Prompt|null{
   if(g.lunch){const p=g.lunch.promptAt();if(p)return p;}
   if(g.strip&&!g.held&&!g.holdingPlug){const p=g.strip.prompt(pos);if(p)return p;}
   // A station may return {key:'',text:''} to show no pill at all.
-  if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench)return p&&p.text?p:null;}
+  if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench){if(p?.key==='E'&&g.held&&/^(carry|bring|roll|keep rolling|move)\b/i.test(p.text))return {key:'E',text:`Put the ${propName(g.held.spec.kind,g.held.spec.id)} down · Q throws it`};return p&&p.text?p:null;}}
   if(g.hub&&!g.held){const p=g.hub.prompt();if(p)return p;}
-  if(g.held){const name=NAMES[g.held.spec.kind]??'it';
+  if(g.held){const name=propName(g.held.spec.kind,g.held.spec.id);
     if(g.held.spec.id==='strip'&&dist(pos,g.level.target)<2.6)return {key:'E',text:'Set the power strip down by the door'};
     return {key:'E',text:`Put the ${name} down  ·  Q throws it`};}
   if(g.holdingPlug&&!g.lunch){
@@ -82,16 +84,15 @@ export function promptFor(g:Game):Prompt|null{
     if(part)return {key:'F',text:part.spec.id==='coupler'||g.coupler?'Attach it to your cable':'Attach the coupler first'};
     if(Math.min(dist(pos,g.level.target)-.6,dist(g.plugPosition,g.level.target))<1.6)return {key:'F',text:g.stripPlaced()?'Plug in':'Plug in (the power strip is still missing)'};
     // Only offer the slingshot when letting go would actually fling something (the rope has stored energy).
-    return g.rope.peak>1?{key:'Q',text:'Let go to slingshot the cable'}:{key:'F',text:'Drop the plug'};}
-  if(!g.lunch&&g.nearSwitch(pos))return {key:'E',text:g.switchedOn?'Switch it off':g.connected?'Switch it on':'Switch on (needs power first)'};
+    return g.rope.peak>1?{key:'Q',text:'Let go of the cable'}:{key:'F',text:'Drop the plug'};}
+  if(!g.lunch&&g.nearSwitch(pos)&&(g.connected||dist(pos,g.plugPosition)>=1.75))return {key:'E',text:g.switchedOn?'Switch it off · lamp':g.connected?'Switch it on · lamp':'Lamp needs power first'};
   // In the Meeting the strip comes first: only offer the plug when Pip is right on it until the strip is placed.
   if(!g.lunch&&!g.station&&!g.hub&&!g.connected&&dist(pos,g.plugPosition)<(g.strip&&!g.stripPlaced()?.9:1.75))return {key:'F',text:'Pick up the plug'};
   // In station rooms the pill is for the job: clutter can still be grabbed, it just isn't advertised.
   const near=g.nearest();if(near&&g.station&&!near.spec.id)return null;if(near){if(near.spec.id==='coffee-reel'&&!g.coffeeReused)return {key:'E',text:'Borrow the coffee machine\'s cable'};
-    return {key:'E',text:`Grab the ${ID_NAMES[near.spec.id??'']??NAMES[near.spec.kind]??near.spec.kind}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
+    return {key:'E',text:`Grab the ${propName(near.spec.kind,near.spec.id)}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
   return null;
 }
-
 /** The job card (top left, under the timer) and the prompt pill (above the action bar). */
 export class ObjectivesHUD{
   card:HTMLElement;prompt:HTMLElement;stand:HTMLElement;marker:T.Mesh;edge:HTMLElement;private shown='';private promptShown='';private current:{key:string;text:string}|null=null;private job:Job;private flash=new Set<number>();
@@ -120,22 +121,24 @@ export class ObjectivesHUD{
   update(){
     // Steps latch in order: a later step that happens to be true early (sitting at the bench before
     // fetching the item) waits until the ones before it are done, so the card never skips ahead.
-    const g=this.g;this.job.steps.forEach((s,i)=>{if(!this.done.has(i)&&this.job.steps.slice(0,i).every((_,k)=>this.done.has(k))&&s.done(g)){this.done.add(i);this.flash.add(i);g.audio.bell(1175,.35,.035);setTimeout(()=>{this.flash.delete(i);this.shown='';},900);}});
+    const g=this.g;
+    for(const [i,step] of this.job.steps.entries())if((typeof step.recheck==='function'?step.recheck(g):step.recheck)&&!step.done(g))this.done.delete(i);
+    this.job.steps.forEach((s,i)=>{if(!this.done.has(i)&&this.job.steps.slice(0,i).every((_,k)=>this.done.has(k))&&s.done(g)){this.done.add(i);this.flash.add(i);g.audio.bell(1175,.35,.035);setTimeout(()=>{this.flash.delete(i);this.shown='';},900);}});
     const current=this.job.steps.findIndex((_,i)=>!this.done.has(i));
-    const bonus=this.job.bonuses.map(b=>b.ok(g));
+    const bonus=this.job.bonuses.map(b=>bonusState(b.text,b.ok(g),g.won));
     const key=`${[...this.done].join()}|${current}|${bonus.join()}|${[...this.flash].join()}`;
     if(key!==this.shown){this.shown=key;
       // One line: progress dots, the current step, and three stars for the bonus goals (their wording
       // is on the pause and result screens). Steps that just finished flash a tick before moving on.
       const n=this.job.steps.length,cur=current<0?n-1:current,flashing=[...this.flash].pop();
       const dots=this.job.steps.map((_,i)=>`<b class="${this.done.has(i)?'done':i===current?'now':''}"></b>`).join('');
-      const text=flashing!==undefined&&current!==flashing?this.job.steps[flashing].text:this.job.steps[cur].text;
+      const text=this.job.steps[cur].text; // Flash the tick, never leave the previous object's instruction on screen.
       this.card.classList.toggle('flash',flashing!==undefined);
       this.card.innerHTML=`<div class="dots" aria-label="Step ${Math.min(n,this.done.size+1)} of ${n}">${dots}</div><p class="cur">${current<0?'Done!':text}</p>`+
-        `<div class="stars" aria-label="Bonus goals">${bonus.map(ok=>`<i class="${ok?'ok':''}">★</i>`).join('')}</div>`;}
+        `<div class="stars" aria-label="Bonus goals">${bonus.map((state,i)=>`<i class="${state==='earned'?'ok':state}" title="${this.job.bonuses[i].text}${state==='at-risk'?' (keep it up)':''}">${state==='earned'?'&#9733;':'&#9734;'}</i>`).join('')}</div>`;}
     // A bouncing arrow over whatever the current step needs.
     const at=current>=0&&g.running&&!g.won&&!g.atBench?this.job.steps[current].at?.(g):undefined;this.marker.visible=!!at;
-    if(at){const cam=g.view.camera,y=(g.hub?3.7:2.1)+Math.sin(g.last*.006)*.18;this.marker.position.set(at.x,y,at.z);this.marker.rotation.y=g.last*.002;
+    if(at){const cam=g.view.camera,y=(g.hub?3.7:dist(g.player.translation(),at)<1.3?Math.max(2.1,g.player.translation().y+1.2):2.1)+Math.sin(g.last*.006)*.18;this.marker.position.set(at.x,y,at.z);this.marker.rotation.y=g.last*.002;
       // At least ~28 px tall however far the camera is.
       this.marker.scale.setScalar(Math.max(1,cam.position.distanceTo(this.marker.position)/18));
       const n=this.marker.position.clone().project(cam),off=n.z>1||Math.abs(n.x)>.95||Math.abs(n.y)>.92;this.edge.hidden=!off;

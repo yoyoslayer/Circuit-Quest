@@ -37,6 +37,11 @@ it('prioritises recovering a dropped plug over an unpowered switch',()=>{
 
 });
 
+it('names the real socket destination and makes Lunch carry prompts truthful',()=>{
+ const g=game({holdingPlug:true,plugPosition:{x:7,z:-6},stripPlaced:()=>true});expect(promptFor(g)?.text).toBe('Plug into the lamp');
+ expect(promptFor(game({held:{spec:{kind:'wedge',id:'wedge'}},lunch:{promptAt:()=>({key:'E',text:'Carry the doorstop to the kitchen door'})}}))?.text).toContain('Put the doorstop down');
+});
+
 it('does not advertise a slingshot when the cable is not loaded',()=>{
 
  const g=game({holdingPlug:true,rope:{peak:0},stripPlaced:()=>true});expect(promptFor(g)?.key).toBe('F');

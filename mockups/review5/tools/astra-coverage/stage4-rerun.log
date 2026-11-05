@@ -1,0 +1,258 @@
+
+[WebServer] (node:21920) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 9 tests using 1 worker
+
+
+(node:17728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/9] tests\astra-bench-budget.spec.ts:21:71 › arcade: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[WebServer] 
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+
+  1) tests\astra-bench-budget.spec.ts:21:71 › arcade: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    32
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:106
+
+    Error Context: test-results\astra\astra-bench-budget-arcade--04684-nd-shared-bench-word-budget\error-context.md
+
+
+(node:30952) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/9] tests\astra-bench-budget.spec.ts:21:71 › garage: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  2) tests\astra-bench-budget.spec.ts:21:71 › garage: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    34
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:106
+
+    Error Context: test-results\astra\astra-bench-budget-garage--b28b4-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:30640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[3/9] tests\astra-bench-budget.spec.ts:21:71 › qfn: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  3) tests\astra-bench-budget.spec.ts:21:71 › qfn: clean-route task names and shared bench word budget 
+
+    Error: Visible shared HTML labels must be at least 14 CSS px
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 18
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/3 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/3 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/2 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/2 pads",
+    +   },
+    + ]
+
+      28 |  });
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+    > 30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+         |                                                                                    ^
+      31 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:30:84
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    62
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:106
+
+    Error Context: test-results\astra\astra-bench-budget-qfn-cle-93b7d-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:25972) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[4/9] tests\astra-bench-budget.spec.ts:21:71 › observatory: clean-route task names and shared bench word budget
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+  4) tests\astra-bench-budget.spec.ts:21:71 › observatory: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    69
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:106
+
+    Error Context: test-results\astra\astra-bench-budget-observa-e5d96-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:38816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[5/9] tests\astra-bench-budget.spec.ts:21:71 › spectrum: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  5) tests\astra-bench-budget.spec.ts:21:71 › spectrum: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    52
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:106
+
+    Error Context: test-results\astra\astra-bench-budget-spectru-f9ffb-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:26112) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[6/9] tests\astra-cable-prompts.spec.ts:8:1 › Meeting clean route keeps the strip and cable targets clear through the overload recovery
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[7/9] tests\astra-cable-prompts.spec.ts:22:1 › Lunch clean route names the fridge, kitchen feed, tray and conveyor at their interactions
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  6) tests\astra-cable-prompts.spec.ts:22:1 › Lunch clean route names the fridge, kitchen feed, tray and conveyor at their interactions 
+
+    Error: {"quality":0,"level":"lunch","running":true,"paused":false,"won":false,"player":{"x":11.375214576721191,"y":0.7698693871498108,"z":-4.284580230712891},"props":117,"items":[{"id":"supply-a","pos":{"x":-13,"y":0.6249638795852661,"z":3},"visible":true},{"id":"supply-b","pos":{"x":-13,"y":0.6249638795852661,"z":7},"visible":true},{"id":"capacitor","pos":{"x":11.878467559814453,"y":0.5749680399894714,"z":-5.203878879547119},"visible":true},{"id":"cooler-box","pos":{"x":-9.997241020202637,"y":0.27484700083732605,"z":-7.997984886169434},"visible":true},{"id":"thick-dolly","pos":{"x":-2.5366101264953613,"y":0.6249679327011108,"z":1.3013784885406494},"visible":true},{"id":"portable-lamp","pos":{"x":4.996996879577637,"y":0.7249587178230286,"z":-2.998572826385498},"visible":true},{"id":"shelf","pos":{"x":-5.279832363128662,"y":0.8749101161956787,"z":-3.4662554264068604},"visible":true},{"id":"wedge","pos":{"x":1.0199999809265137,"y":0.20000000298023224,"z":-1.25},"visible":true},{"id":"mop","pos":{"x":5.123694896697998,"y":0.27484726905822754,"z":0.6782435178756714},"visible":true},{"id":"bridge-1","pos":{"x":-0.8584777116775513,"y":0.07478326559066772,"z":1.4803290367126465},"visible":true},{"id":"bridge-2","pos":{"x":1.0138965845108032,"y":0.07478326559066772,"z":1.180898666381836},"visible":true},{"id":"bridge-3","pos":{"x":3.061567544937134,"y":0.07478328049182892,"z":1.187170147895813},"visible":true},{"id":"splitter-1","pos":{"x":-13.997628211975098,"y":0.09481888264417648,"z":0.6511343717575073},"visible":true},{"id":"splitter-2","pos":{"x":-13.297628402709961,"y":0.09481887519359589,"z":0.6511343717575073},"visible":true},{"id":"splitter-3","pos":{"x":-12.597628593444824,"y":0.09481888264417648,"z":0.6511343717575073},"visible":true},{"id":"tray","pos":{"x":12,"y":1.1799999475479126,"z":-7},"visible":true}],"holdingPlug":false,"rope":{"length":20.50582139566606,"maxLength":32,"bends":[],"strain":0.6408069186145644},"time":119.5499999999945,"damage":1,"cost":5,"fps":12.188261766360332,"drawCalls":1106,"electrical":"off","lunch":{"job":{"temperature":0.12802500000000358,"bake":20,"ovenWait":1.8499999999999983,"transport":1,"height":0,"tray":"lift","cooled":false,"failed":false,"done":false,"warming":true},"water":0,"doorWedged":true,"doorBusy":true,"capDocked":true,"capHint":false,"surgeHint":null,"liftRan":false,"capCharge":6.7,"door":{"angle":0.9999999999999996,"side":-1},"bots":[{"x":14,"z":5.04},{"x":-1,"z":1.56}],"cablePoints":{"thin-1":[{"x":-13,"z":3},{"x":7.43,"z":1.2}],"thin-2":[{"x":-13,"z":3},{"x":-1.38,"z":0.42},{"x":5,"z":-5}],"thin-3":[{"x":-13,"z":7},{"x":-11,"z":6.2}],"thick":[{"x":-13,"z":7},{"x":-1.38,"z":0.42},{"x":-1.38,"z":-0.12},{"x":-4,"z":-3}]},"lit":true,"held":null,"sources":[{"id":"a","limit":5,"tripped":false},{"id":"b","limit":5,"tripped":false}],"loads":[{"id":"oven","steady":3,"kick":0,"kickSeconds":1,"enabled":true,"state":"on","started":26.899999999999753},{"id":"fridge","steady":2,"kick":0,"kickSeconds":1,"enabled":true,"state":"off","started":16.383333333333685},{"id":"conveyor","steady":1.5,"kick":3,"kickSeconds":1,"enabled":true,"state":"on","started":88.16666666666295},{"id":"lift","steady":3,"kick":9,"kickSeconds":1,"enabled":true,"state":"off","started":0,"capacitor":{"node":"cap","atLoad":false,"charge":6.6999999999999815}},{"id":"kitchen-lamp","steady":0.5,"kick":0,"kickSeconds":1,"enabled":true,"state":"on","started":26.899999999999753},{"id":"store-lamp","steady":0.5,"kick":0,"kickSeconds":1,"enabled":true,"state":"on","started":26.899999999999753}],"draw":{"b":4,"thick":4,"fixed-oven":3,"a":1.5,"thin-2":1.5,"fixed-kitchen-lamp":0.5,"fixed-store-lamp":0.5},"told":[],"cables":[{"id":"thin-1","ports":["a",null],"ends":[{"x":-13,"y":0.7249638795852661,"z":3},{"x":7.426666666662868,"y":0.18,"z":1.2}],"dead":false,"cause":null,"nicked":true,"wet":false,"heat":0,"strain":0.6408069186145644,"length":20.51,"maxLength":32},{"id":"thin-2","ports":["a","conveyor"],"ends":[{"x":-13,"y":0.7249638795852661,"z":3},{"x":5,"y":0.35,"z":-5}],"dead":false,"cause":null,"nicked":false,"wet":false,"heat":0,"strain":0.8447667506033684,"length":20.27,"maxLength":24},{"id":"thin-3","ports":["b",null],"ends":[{"x":-13,"y":0.7249638795852661,"z":7},{"x":-11,"y":0.18,"z":6.2}],"dead":false,"cause":null,"nicked":false,"wet":false,"heat":0,"strain":0.1538618516324144,"length":2.15,"maxLength":14},{"id":"thick","ports":["b","kitchen"],"ends":[{"x":-13,"y":0.7249638795852661,"z":7},{"x":-4,"y":0.35,"z":-3}],"dead":false,"cause":null,"nicked":false,"wet":false,"heat":0,"strain":0.8085050683866982,"length":17.79,"maxLength":22}],"events":[{"time":16.383333333333685,"kind":"start","id":"fridge"},{"time":26.899999999999753,"kind":"start","id":"oven"},{"time":26.899999999999753,"kind":"start","id":"kitchen-lamp"},{"time":26.899999999999753,"kind":"start","id":"store-lamp"},{"time":88.16666666666295,"kind":"start","id":"conveyor"},{"time":91.11666666666278,"kind":"stop","id":"fridge"},{"time":95.83333333332918,"kind":"start","id":"cap"},{"time":102.5333333333288,"kind":"stop","id":"cap"}]},"atBench":false,"alarmed":2,"npcs":[{"seated":false,"y":0,"x":-1.2,"z":-5.9},{"seated":false,"y":0,"x":13,"z":0},{"seated":false,"y":0,"x":-3.8,"z":8.55},{"seated":false,"y":0,"x":-2.4,"z":8.5},{"seated":false,"y":0,"x":11.9,"z":7.5},{"seated":false,"y":0,"x":15.3,"z":9.3},{"seated":false,"y":0,"x":5.1,"z":9.1},{"seated":false,"y":0,"x":-11.2,"z":5.2},{"seated":false,"y":0,"x":-6.6,"z":-7.4}],"stripPlaced":true,"switchedOn":false,"pose":{"arms":[0.01,-0.05],"legs":[0,0],"torso":0.01,"grounded":true,"airborne":0},"profile":{"step":0.00089744799835598,"render":81.31988593669303,"draw":339.0596048814923},"fastestProp":0.07259907169683434,"lampLit":false,"hitstops":0,"beats":[{"t":47.23,"kind":"alarm"},{"t":47.23,"kind":"impact"},{"t":77.58,"kind":"alarm"},{"t":92.63,"kind":"alarm"},{"t":92.63,"kind":"break"}],"failAt":null}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      35 |  await walk(page,-3.8,-1.7,.4);await page.keyboard.press('KeyF');const cap=(await snapshot(page)).items.find((i:any)=>i.id==='capacitor').pos;
+      36 |  await route(page,[[.3,-1.3],[.3,2.4],[10,1],[cap.x-.9,cap.z]]);await page.keyboard.press('KeyF');await walk(page,11.8,-4.4,.45);await wait(page,7);await target(page,/lift/i);await page.keyboard.press('KeyE');await wait(page,16);
+    > 37 |  expect((await snapshot(page)).won,JSON.stringify(await snapshot(page))).toBe(true);await expect(page.locator('body')).toHaveAttribute('data-complete','true');
+         |                                                                          ^
+      38 | });
+      39 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-cable-prompts.spec.ts:37:74
+
+    Error Context: test-results\astra\astra-cable-prompts-Lunch--69863-veyor-at-their-interactions\error-context.md
+
+
+(node:17096) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[8/9] tests\astra-chaos.spec.ts:10:1 › single-reel chaos shortcut still finishes after stretching through the office
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  7) tests\astra-chaos.spec.ts:10:1 › single-reel chaos shortcut still finishes after stretching through the office 
+
+    Error: {"quality":0,"level":"meeting","running":true,"paused":false,"won":false,"player":{"x":10.154955863952637,"y":0.7700726389884949,"z":-1.5849004983901978},"props":315,"items":[{"id":"strip","pos":{"x":12.300000190734863,"y":0.07999999821186066,"z":-1.9500000476837158},"visible":true},{"id":"mail-cart","pos":{"x":-2.9967105388641357,"y":0.2997972369194031,"z":4.702442169189453},"visible":true},{"id":"extension","pos":{"x":-2.9916679859161377,"y":0.9741582870483398,"z":4.706474781036377},"visible":true},{"id":"coupler","pos":{"x":-3.9783945083618164,"y":0.09485511481761932,"z":4.7044291496276855},"visible":true},{"id":"coffee","pos":{"x":-13.992100715637207,"y":1.249433159828186,"z":5.009078025817871},"visible":true},{"id":"coffee-reel","pos":{"x":-12.697683334350586,"y":0.32488489151000977,"z":4.5026679039001465},"visible":true},{"id":"glass-0","pos":{"x":9.300000190734863,"y":1.3250000476837158,"z":-8.600000381469727},"visible":true},{"id":"glass-1","pos":{"x":9.300000190734863,"y":1.3250000476837158,"z":-6.099999904632568},"visible":true},{"id":"glass-2","pos":{"x":9.300000190734863,"y":1.3250000476837158,"z":-3.5999999046325684},"visible":true}],"holdingPlug":false,"rope":{"length":24.04415574460976,"maxLength":23.2,"bends":[{"x":-5.708831349779609,"z":-3.7996305214263915},{"x":-5.799684986856725,"z":-3.5811558295301618},{"x":-4.18,"z":-3.47},{"x":-2.330207605561385,"z":-2.5401574180515243}],"strain":1.0363860234745588},"time":17.500000000000288,"damage":0,"cost":0,"fps":15.484370463563343,"drawCalls":1325,"electrical":"off","strip":{"pulses":false,"tripped":false,"trips":0,"unplugged":0,"heat":0,"overloaded":false,"towerDown":false,"draw":0,"demand":4.5,"appliances":[{"id":"urn","plugged":true,"state":"off"},{"id":"heater","plugged":true,"state":"off"}]},"atBench":false,"alarmed":10,"npcs":[{"seated":false,"y":0,"x":-12.4,"z":5.9},{"seated":false,"y":0,"x":-12.7,"z":2.8},{"seated":true,"y":0.72,"x":-6.85,"z":-5.98},{"seated":false,"y":0.25,"x":-6.85,"z":-3.02},{"seated":true,"y":0.72,"x":-5.15,"z":-5.98},{"seated":false,"y":0.25,"x":-5.77,"z":-3.02},{"seated":true,"y":0.49,"x":-1.85,"z":-5.98},{"seated":true,"y":0.72,"x":-1.85,"z":-3.02},{"seated":true,"y":0.47,"x":-0.15,"z":-5.98},{"seated":true,"y":0.72,"x":-0.77,"z":-3.02},{"seated":true,"y":0.49,"x":3.15,"z":-5.98},{"seated":true,"y":0.72,"x":3.15,"z":-3.02},{"seated":true,"y":0.5,"x":4.85,"z":-5.98},{"seated":true,"y":0.72,"x":4.23,"z":-3.02},{"seated":true,"y":0.47,"x":-6.85,"z":0.02},{"seated":true,"y":0.47,"x":-6.85,"z":2.98},{"seated":true,"y":0.47,"x":-5.15,"z":0.02},{"seated":true,"y":0.5,"x":-5.15,"z":2.98},{"seated":true,"y":0.47,"x":-1.85,"z":0.02},{"seated":true,"y":0.47,"x":-1.85,"z":2.98},{"seated":true,"y":0.5,"x":-0.15,"z":0.02},{"seated":true,"y":0.48,"x":-0.15,"z":2.98},{"seated":true,"y":0.47,"x":10.8,"z":-7.9},{"seated":true,"y":0.5,"x":13.2,"z":-7.9},{"seated":true,"y":0.72,"x":10.8,"z":-6.85},{"seated":true,"y":0.72,"x":13.2,"z":-6.85}],"stripPlaced":true,"switchedOn":false,"pose":{"arms":[-0.48,-0.43],"legs":[0.01,-0.01],"torso":-0.35,"grounded":true,"airborne":0},"profile":{"step":0.007676066451851243,"render":150.6011090807051,"draw":441.39680586758936},"fastestProp":58.89854170025345,"lampLit":false,"hitstops":0,"beats":[{"t":10.45,"kind":"alarm"},{"t":10.45,"kind":"impact"},{"t":12.58,"kind":"alarm"},{"t":12.58,"kind":"alarm"},{"t":12.58,"kind":"alarm"},{"t":17.5,"kind":"alarm"},{"t":17.5,"kind":"slingshot"},{"t":17.5,"kind":"alarm"},{"t":17.5,"kind":"alarm"}],"failAt":null}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "on"
+    Received: "off"
+
+      13 |   await route(page,[[6,-1.2],[-8,-1.4],[-10,-6.2]]);await page.keyboard.press('KeyF');await route(page,[[-8,-5],[-1,-1.5],[6,-1.2]]);
+      14 |   await wait(page,2,['KeyD']);await wait(page,1.5,['KeyD','ShiftLeft']);expect((await snapshot(page)).rope.strain).toBeGreaterThan(1);
+    > 15 |   await page.keyboard.press('KeyF');expect((await snapshot(page)).electrical,JSON.stringify(await snapshot(page))).toBe('on');await projector(page);await expect(page.locator('body')).toHaveAttribute('data-complete','true');expect((await snapshot(page)).won).toBe(true);
+         |                                                                                                                    ^
+      16 |   await page.waitForTimeout(2600);await page.screenshot({path:'artifacts/astra-chaos-result.png'});
+      17 | });
+      18 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-chaos.spec.ts:15:116
+
+    Error Context: test-results\astra\astra-chaos-single-reel-ch-17038-retching-through-the-office\error-context.md
+
+
+
+(node:13740) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+[9/9] tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  7 failed
+    tests\astra-bench-budget.spec.ts:21:71 › arcade: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › garage: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › qfn: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › observatory: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › spectrum: clean-route task names and shared bench word budget 
+    tests\astra-cable-prompts.spec.ts:22:1 › Lunch clean route names the fridge, kitchen feed, tray and conveyor at their interactions 
+    tests\astra-chaos.spec.ts:10:1 › single-reel chaos shortcut still finishes after stretching through the office 
+  2 passed (4.4m)

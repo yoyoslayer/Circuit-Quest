@@ -128,3 +128,29 @@ Capture tools: `tools/astra-animation/capture.mjs before|after` and `coworkers.m
 - None blocking. These motions affect presentation only; electricity, grade rules, camera control, collider placement and required items are unchanged.
 
 Stage 3 final verification: **164 unit tests pass**, production build passes. The first browser batch passed 14/16; Meeting layout and the second navigation in the render-quality smoke check exceeded the original five-second ready wait. The first isolated rerun also exceeded Vite's 60-second cold-start allowance. The Astra-only config in `tools/astra-review/playwright.config.ts` gives cold startup 180 seconds and assertions 30 seconds on this shared host; it retains the original software renderer, viewport, routes, and state assertions. Both isolated checks then passed (2/2, 2.9 minutes). Exact outputs are in `tools/astra-animation/stage3-browser*.log`. The full-toon coworker tracking/no-runtime-error test passed in the initial batch. After coworker captures (idle/alarm/cheer) also completed without runtime errors; idle/alarm were inspected. The celebration capture was inspected separately: face visible, hands clear the helmet. No FPS claim is made from screenshots.
+
+## Stage 4 — route and readability regression coverage
+
+Merged Claude through 3bd3d3e before this stage.
+
+| Entry / goal | Change | Files | Verification |
+|---|---|---|---|
+| B5 idle and clean grading | Idle Rush saves D; actual clean Playground finishes with three As; practice saves nothing. | tests/astra-grading.spec.ts, astra-ui.spec.ts | Idle rerun and both clean/practice cases pass. |
+| B5 chaos | New physical single-reel shortcut regression, with state diagnostics. | tests/astra-chaos.spec.ts | Known failure below; no state is forged to win. |
+| B6 all eight required routes | Added target-name checks on Meeting/Lunch and pickup/carry checks for all five station routes, supplementing Playground's complete prompt sequence. Ran the five existing full clean station specs. | tests/astra-cable-prompts.spec.ts, astra-bench-budget.spec.ts | Meeting and all five full station routes pass; Lunch final physical failure below. |
+| R5-008 | Lunch carry instructions now describe E's actual drop action; plug destinations name the lamp/strip; Meeting's switch names the projector. | ui/objectives.ts, objectives.test.ts | Browser regression found/fixed the shared lamp/projector mistake; 166 unit tests pass. |
+| R5-102 / 242 / 247 | Hide duplicate job card at desktop benches, restore panel font to 14 CSS px, hide station panels/toasts while walking. | ui/ui.css | All five initial bench font checks now pass; captures generated. Word counts remain failing below. |
+
+Checks: **166/166 unit tests pass**, production build passes. Initial browser batch: 22/31 pass, including all 15 smoke/layout checks and all five existing full station clean routes. Corrected rerun: 2/9 pass (Meeting and idle Rush); five word-budget failures and two physical-route failures remain. Logs: tools/astra-coverage/stage4-*.log. The bench cap is the review's 25 words outside the monitor, tightened from the initial draft's 35; no canvas-height or all-state text-budget claim is made. The initial Arcade bench capture was inspected and confirmed duplicated text and small labels.
+
+### Needs Claude — known failing regressions
+
+- **R5-102:** Initial bench HTML counts after hiding the duplicate card: Arcade **32**, Garage **34**, QFN **62**, Observatory **69**, Spectrum **52** (target <=25). All shared HTML font checks now pass. In station updatePanel/draw methods, remove duplicated live-value rows and shorten asks/toasts as specified in Stage 2. Arcade still repeats Current on the panel and monitor; retain the measured value on the monitor. QFN must retain one short layer/crossing constraint. Monitor text and duplicate values in canvas require station edits; CSS cannot establish their actual cap height.
+- **R5-164 / chaos:** On the single-reel route Pip ends at (10.155,-1.585), strain 1.036, with four bends around standing coworkers. F releases without connecting: strip draw remains zero, so the projector never trips/wins. Reconcile the new coworker cable obstacles with the intended sprint shortcut in Game.simulateCable / Meeting reel tuning. Retain a clean route and a meaningful stretch; do not disable all coworker obstacles. The final diagnostic checks strip draw (the projector load is correctly off before its switch).
+- **R5-196 / Lunch:** The early-fridge clean route reaches a baked tray on the lift, capDocked=true, charge=6.7, lift enabled but off. Thin-1 changes from cap to a null end at t=102.53; it is nicked and lying at (7.43,1.2), leaving no lift feed. Prevent a bot detaching the freshly docked capacitor feed before a readable warning/recovery window, or add protected routing feedback at that crossing. See full snapshot/events in stage4-rerun.log. All named interaction checks preceding the final won assertion pass.
+
+Skipped: station canvas text edits, physical cable acceptance and bot/runtime changes are outside ownership. These failing tests remain visible and are not marked skip/expected-failure.
+
+### Questions for the product owner
+
+None blocking. Human clean-run pars and first-time-player testing remain unmeasured. Stage 4 is finished under the brief's explicit known-failure handoff option; these are not claimed as passing gameplay outcomes.

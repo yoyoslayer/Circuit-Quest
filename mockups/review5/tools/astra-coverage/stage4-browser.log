@@ -1,0 +1,692 @@
+
+[WebServer] (node:13224) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 31 tests using 1 worker
+
+(node:39752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/31] tests\astra-bench-budget.spec.ts:21:71 › arcade: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[WebServer] 
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+  1) tests\astra-bench-budget.spec.ts:21:71 › arcade: clean-route task names and shared bench word budget 
+
+    Error: Visible shared HTML labels must be at least 14 CSS px
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 30
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "size": "13px",
+    +     "text": "The last tech clipped a block across the LED. The fuse keeps clicking.",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Chain",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "wire only",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Current",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "off",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Parts",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1 credit",
+    +   },
+    + ]
+
+      28 |  });
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+    > 30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+         |                                                                                    ^
+      31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:30:84
+
+    Error: Shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 35
+    Received:    42
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+         |                                                                                                    ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:100
+
+    Error Context: test-results\astra\astra-bench-budget-arcade--04684-nd-shared-bench-word-budget\error-context.md
+
+
+(node:17664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/31] tests\astra-bench-budget.spec.ts:21:71 › garage: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  2) tests\astra-bench-budget.spec.ts:21:71 › garage: clean-route task names and shared bench word budget 
+
+    Error: Visible shared HTML labels must be at least 14 CSS px
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 38
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "size": "13px",
+    +     "text": "The controller resets every time the motor stops.",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Across motor",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "—",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Across switch",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "—",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "At controller",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "—",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Ground",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "shared with motor",
+    +   },
+    + ]
+
+      28 |  });
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+    > 30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+         |                                                                                    ^
+      31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:30:84
+
+    Error: Shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 35
+    Received:    39
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+         |                                                                                                    ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:100
+
+    Error Context: test-results\astra\astra-bench-budget-garage--b28b4-nd-shared-bench-word-budget\error-context.md
+
+
+(node:37608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/31] tests\astra-bench-budget.spec.ts:21:71 › qfn: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  3) tests\astra-bench-budget.spec.ts:21:71 › qfn: clean-route task names and shared bench word budget 
+
+    Error: Visible shared HTML labels must be at least 14 CSS px
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 62
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "size": "13px",
+    +     "text": "One copper layer: tracks can't cross. Place J1, R1 and C1 so every net routes.",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "VDD",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/3 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "GND",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/3 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "OUT",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/2 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "SIG",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1/2 pads",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Connector",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "edge, mouth out",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Track + vias",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "0 · par 22",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Grade now",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Doesn't work",
+    +   },
+    + ]
+
+      28 |  });
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+    > 30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+         |                                                                                    ^
+      31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:30:84
+
+    Error: Shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 35
+    Received:    70
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+         |                                                                                                    ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:100
+
+    Error Context: test-results\astra\astra-bench-budget-qfn-cle-93b7d-nd-shared-bench-word-budget\error-context.md
+
+
+(node:31860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[4/31] tests\astra-bench-budget.spec.ts:21:71 › observatory: clean-route task names and shared bench word budget
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+  4) tests\astra-bench-budget.spec.ts:21:71 › observatory: clean-route task names and shared bench word budget 
+
+    Error: Visible shared HTML labels must be at least 14 CSS px
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 78
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Motor noise from the cart buries the Morse from the roof. The decoder needs a clean margin.",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Series",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "wire link",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Shunt",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "—",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Filter",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "none (wire link)",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Motor cart",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "7.0 m from the rack",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Cable",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "past the cart bay",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Tone level",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "100%",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Signal/noise",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "2.2 dB",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Latch",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "11.1 V (not needed yet)",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Parts cost",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "0",
+    +   },
+    + ]
+
+      28 |  });
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+    > 30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+         |                                                                                    ^
+      31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:30:84
+
+    Error: Shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 35
+    Received:    76
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+         |                                                                                                    ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:100
+
+    Error Context: test-results\astra\astra-bench-budget-observa-e5d96-nd-shared-bench-word-budget\error-context.md
+
+
+(node:34212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[5/31] tests\astra-bench-budget.spec.ts:21:71 › spectrum: clean-route task names and shared bench word budget
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+  5) tests\astra-bench-budget.spec.ts:21:71 › spectrum: clean-route task names and shared bench word budget 
+
+    Error: Visible shared HTML labels must be at least 14 CSS px
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 42
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "size": "13px",
+    +     "text": "The storeroom keeper needs a message. The pod sits behind a solid brick wall.",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Pod",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "on the storeroom pad",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Band",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Power",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "1 mW",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Path",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "stopped: brick wall",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "Link margin",
+    +   },
+    +   Object {
+    +     "size": "13px",
+    +     "text": "SEND to measure",
+    +   },
+    + ]
+
+      28 |  });
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+    > 30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+         |                                                                                    ^
+      31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:30:84
+
+    Error: Shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 35
+    Received:    58
+
+      29 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      30 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 31 |  expect(report.words,'Shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(35);
+         |                                                                                                    ^
+      32 | });
+      33 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:31:100
+
+    Error Context: test-results\astra\astra-bench-budget-spectru-f9ffb-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:9496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[6/31] tests\astra-cable-prompts.spec.ts:8:1 › Meeting clean route keeps the strip and cable targets clear through the overload recovery
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  6) tests\astra-cable-prompts.spec.ts:8:1 › Meeting clean route keeps the strip and cable targets clear through the overload recovery 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.prompt-pill')
+    Expected pattern: /projector/i
+    Received string:  "ESwitch it on · lamp"
+    Timeout: 30000ms
+
+    Call log:
+      - Expect "toContainText" locator('.prompt-pill') with timeout 30000ms
+      - waiting for locator('.prompt-pill')
+        55 × locator resolved to <div class="prompt-pill">…</div>
+           - unexpected value "ESwitch it on · lamp"
+
+
+      4 | test.describe.configure({timeout:300000});
+      5 | async function start(page:Page,level:string){await page.goto(`/?level=${level}&manual&lowfx`);await expect(page.locator('body')).toHaveAttribute('data-ready','true');await page.getByRole('button',{name:'Start playing'}).click();}
+    > 6 | async function target(page:Page,name:RegExp){await wait(page,.1);await expect(page.locator('.objective .cur')).toContainText(name);await expect(page.locator('.prompt-pill')).toContainText(name);}
+        |                                                                                                                                                                               ^
+      7 |
+      8 | test('Meeting clean route keeps the strip and cable targets clear through the overload recovery',async({page})=>{
+      9 |  await start(page,'meeting');await walk(page,-8.6,-3.9,.4);await target(page,/power strip/i);await page.keyboard.press('KeyE');await target(page,/power strip/i);
+        at target (C:\Users\yousi\Circuit-Quest-astra\tests\astra-cable-prompts.spec.ts:6:175)
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-cable-prompts.spec.ts:17:49
+
+    Error Context: test-results\astra\astra-cable-prompts-Meetin-eddef-rough-the-overload-recovery\error-context.md
+
+
+
+(node:5540) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[7/31] tests\astra-cable-prompts.spec.ts:22:1 › Lunch clean route names the fridge, kitchen feed, tray and conveyor at their interactions
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  7) tests\astra-cable-prompts.spec.ts:22:1 › Lunch clean route names the fridge, kitchen feed, tray and conveyor at their interactions 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      35 |  await walk(page,-3.8,-1.7,.4);await page.keyboard.press('KeyF');const cap=(await snapshot(page)).items.find((i:any)=>i.id==='capacitor').pos;
+      36 |  await route(page,[[.3,-1.3],[.3,2.4],[10,1],[cap.x-.9,cap.z]]);await page.keyboard.press('KeyF');await walk(page,11.8,-4.4,.45);await wait(page,7);await target(page,/lift/i);await page.keyboard.press('KeyE');await wait(page,16);
+    > 37 |  expect((await snapshot(page)).won).toBe(true);await expect(page.locator('body')).toHaveAttribute('data-complete','true');
+         |                                     ^
+      38 | });
+      39 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-cable-prompts.spec.ts:37:37
+
+    Error Context: test-results\astra\astra-cable-prompts-Lunch--69863-veyor-at-their-interactions\error-context.md
+
+
+
+
+(node:10056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[8/31] tests\astra-chaos.spec.ts:10:1 › single-reel chaos shortcut still finishes after stretching through the office
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  8) tests\astra-chaos.spec.ts:10:1 › single-reel chaos shortcut still finishes after stretching through the office 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      4 | async function projector(page:Page){
+      5 |   await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');await wait(page,3);
+    > 6 |   expect((await snapshot(page)).strip.tripped).toBe(true);
+        |                                                ^
+      7 |   await route(page,[[12.3,-1.2],[14.3,-.9]],.4);await page.keyboard.press('KeyE');await wait(page,.2);
+      8 |   await walk(page,12.3,-1.45,.3);await page.keyboard.press('KeyE');await wait(page,2);
+      9 | }
+        at projector (C:\Users\yousi\Circuit-Quest-astra\tests\astra-chaos.spec.ts:6:48)
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-chaos.spec.ts:15:37
+
+    Error Context: test-results\astra\astra-chaos-single-reel-ch-17038-retching-through-the-office\error-context.md
+
+
+
+(node:18588) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[9/31] tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  9) tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A ───────────────
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.result-served')
+    Expected substring: "Cabinets fixed: 0"
+    Received string:    "Cabinets fixed:0D"
+    Timeout: 30000ms
+
+    Call log:
+      - Expect "toContainText" locator('.result-served') with timeout 30000ms
+      - waiting for locator('.result-served')
+        58 × locator resolved to <div class="row best result-served">…</div>
+           - unexpected value "Cabinets fixed:0D"
+
+
+       7 |  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('circuit-crew:best:v1')??'{}'));
+       8 |  expect(stored['arcade-rush'].grade).toBe('D');
+    >  9 |  await expect(page.locator('.result-served')).toContainText('Cabinets fixed: 0');
+         |                                               ^
+      10 | });
+      11 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-grading.spec.ts:9:47
+
+    Error Context: test-results\astra\astra-grading-R5-078-an-idle-Rush-shift-records-D-never-A\error-context.md
+
+
+
+(node:3496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[10/31] tests\astra-ui.spec.ts:6:1 › task card advances immediately, safety stars remain provisional, and clean play earns three As
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[11/31] tests\astra-ui.spec.ts:15:1 › practice completion is ungraded and never writes a job record
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[12/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in the lobby
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[13/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in playground
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[14/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in meeting
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[15/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in lunch
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[16/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[17/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in arcade-rush
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[18/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in garage
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[19/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in qfn
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[20/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in observatory
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[21/31] tests\layout.spec.ts:9:3 › layout: nothing starts overlapping in spectrum
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[22/31] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[23/31] tests\smoke.spec.ts:9:1 › player can pick up the plug, move, jump, and release it
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[24/31] tests\smoke.spec.ts:21:1 › office contains over 300 physics props and renders without errors
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[25/31] tests\smoke.spec.ts:29:1 › Lunch Rush boots with two supplies, four cables and a warming fridge
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[26/31] tests\smoke.spec.ts:33:1 › a fresh player starts at full render quality; ?lowfx stays low even with a saved level (R5-143)
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[27/31] tests\station-arcade.spec.ts:19:1 › arcade: five cabinets fixed in the ★ zone; powering them on as found to look is free
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[28/31] tests\station-garage.spec.ts:26:1 › robot garage: catch the kick, clamp it, brake fast, star-ground the controller, then the delivery run
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[29/31] tests\station-observatory.spec.ts:17:1 › signal observatory: move the motor, filter the line, keep the latch, tune the whip
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+[30/31] tests\station-qfn.spec.ts:27:1 › QFN bench: three boards laid out, each reliable and at par
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[31/31] tests\station-spectrum.spec.ts:25:1 › spectrum delivery: radio through brick, near IR through the hatch by mirror, thermal IR past smoke and mesh
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  9 failed
+    tests\astra-bench-budget.spec.ts:21:71 › arcade: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › garage: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › qfn: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › observatory: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:21:71 › spectrum: clean-route task names and shared bench word budget 
+    tests\astra-cable-prompts.spec.ts:8:1 › Meeting clean route keeps the strip and cable targets clear through the overload recovery 
+    tests\astra-cable-prompts.spec.ts:22:1 › Lunch clean route names the fridge, kitchen feed, tray and conveyor at their interactions 
+    tests\astra-chaos.spec.ts:10:1 › single-reel chaos shortcut still finishes after stretching through the office 
+    tests\astra-grading.spec.ts:3:1 › R5-078: an idle Rush shift records D, never A ────────────────
+  22 passed (23.4m)

@@ -67,14 +67,16 @@ export function bonusState(text:string,ok:boolean,finished:boolean):'earned'|'at
   return !finished&&/^(never|no |keep |leave |break |finish (in|before|under)|don't)/i.test(text)?'at-risk':'earned';
 }
 export interface Prompt {key:string;text:string}
+const carryPrompt=(g:Game,p:Prompt|null):Prompt|null=>p?.key==='E'&&g.held&&/^(carry|bring|roll|keep rolling|push|move)\b/i.test(p.text)
+  ?{key:'E',text:`Put the ${propName(g.held.spec.kind,g.held.spec.id)} down · Q throws it`}:p;
 /** What the most useful key does right now, in words. */
 export function promptFor(g:Game):Prompt|null{
   if(!g.running||g.won||g.paused)return null;
   const pos=g.player.translation();
-  if(g.lunch){const p=g.lunch.promptAt();if(p)return p;}
+  if(g.lunch){const p=g.lunch.promptAt();if(p)return carryPrompt(g,p);}
   if(g.strip&&!g.held&&!g.holdingPlug){const p=g.strip.prompt(pos);if(p)return p;}
   // A station may return {key:'',text:''} to show no pill at all.
-  if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench){if(p?.key==='E'&&g.held&&/^(carry|bring|roll|keep rolling|move)\b/i.test(p.text))return {key:'E',text:`Put the ${propName(g.held.spec.kind,g.held.spec.id)} down · Q throws it`};return p&&p.text?p:null;}}
+  if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench)return p?.text?carryPrompt(g,p):null;}
   if(g.hub&&!g.held){const p=g.hub.prompt();if(p)return p;}
   if(g.held){const name=propName(g.held.spec.kind,g.held.spec.id);
     if(g.held.spec.id==='strip'&&dist(pos,g.level.target)<2.6)return {key:'E',text:'Set the power strip down by the door'};
@@ -82,10 +84,10 @@ export function promptFor(g:Game):Prompt|null{
   if(g.holdingPlug&&!g.lunch){
     const part=g.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!g.coupler)||(q.spec.id==='extension'&&!g.extension))&&dist(pos,q.body.translation())<1.9);
     if(part)return {key:'F',text:part.spec.id==='coupler'||g.coupler?'Attach it to your cable':'Attach the coupler first'};
-    if(Math.min(dist(pos,g.level.target)-.6,dist(g.plugPosition,g.level.target))<1.6)return {key:'F',text:g.stripPlaced()?'Plug in':'Plug in (the power strip is still missing)'};
+    if(Math.min(dist(pos,g.level.target)-.6,dist(g.plugPosition,g.level.target))<1.6)return {key:'F',text:g.stripPlaced()?`Plug into the ${g.strip?'power strip':'lamp'}`:'Plug in (the power strip is still missing)'};
     // Only offer the slingshot when letting go would actually fling something (the rope has stored energy).
     return g.rope.peak>1?{key:'Q',text:'Let go of the cable'}:{key:'F',text:'Drop the plug'};}
-  if(!g.lunch&&g.nearSwitch(pos)&&(g.connected||dist(pos,g.plugPosition)>=1.75))return {key:'E',text:g.switchedOn?'Switch it off · lamp':g.connected?'Switch it on · lamp':'Lamp needs power first'};
+  if(!g.lunch&&g.nearSwitch(pos)&&(g.connected||dist(pos,g.plugPosition)>=1.75)){const name=g.strip?'projector':'lamp';return {key:'E',text:g.switchedOn?`Switch it off · ${name}`:g.connected?`Switch it on · ${name}`:`${name} needs power first`};}
   // In the Meeting the strip comes first: only offer the plug when Pip is right on it until the strip is placed.
   if(!g.lunch&&!g.station&&!g.hub&&!g.connected&&dist(pos,g.plugPosition)<(g.strip&&!g.stripPlaced()?.9:1.75))return {key:'F',text:'Pick up the plug'};
   // In station rooms the pill is for the job: clutter can still be grabbed, it just isn't advertised.

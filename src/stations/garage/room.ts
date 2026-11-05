@@ -6,7 +6,7 @@
 import * as T from 'three';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,DMETAL,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,decal,glyph,boltGlyph,DMETAL,INK} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pointLamp,lampPool,rug} from '../../levels/dressing';
@@ -43,7 +43,7 @@ const pegboard=(seed:number)=>canvasTex(768,384,c=>{
 export interface RobotParts {root:T.Group;wheels:T.Object3D[];eyes:T.Mesh[];lamp:T.Mesh;face:T.Mesh;cargo:T.Object3D}
 /** The teal delivery robot (front = +x), drawn to fit the cart's physics box (1.2 × 0.65 × 0.75)
  *  around its centre. Decor copies use the same model. */
-export function robotMesh(body=TEAL,accent=TEAL2):RobotParts{
+export function robotMesh(body=TEAL,accent=TEAL2,port=false):RobotParts{
   const g=new T.Group(),wheels:T.Object3D[]=[];
   for(const [x,z] of [[-.36,-.33],[.36,-.33],[-.36,.33],[.36,.33]]){const w=group(g,x,-.18,z);part(w,cyl(.15,.15,.1,18,'z'),toon(INK));part(w,cyl(.07,.07,.11,12,'z'),toon('#dfe3ea'));
     for(let k=0;k<3;k++){const s=part(w,box(.2,.03,.112),toon('#9aa3b2'),0,0,0,false);s.rotation.z=k*Math.PI/3;}wheels.push(w);}
@@ -57,6 +57,8 @@ export function robotMesh(body=TEAL,accent=TEAL2):RobotParts{
   const face=part(head,rbox(.04,.2,.4,.02),toon('#1d2b33'),.16,.16,0);
   const eyes=[-.1,.1].map(z=>{const e=part(head,sphere(.045,12,10),hot('#7fffe8',1.6),.185,.17,z,false);e.scale.set(.4,1,1);return e;});
   part(head,cyl(.012,.012,.26,6),toon(INK),-.06,.42,.14);const lamp=part(head,sphere(.04,12,10),hot('#8dffb0',1.6),-.06,.56,.14,false);
+  // The job robot's service port on its bench-side flank (+z), clear of the wheels: the bench harness plugs in here.
+  if(port){part(g,rbox(.14,.09,.04,.015),toon(INK),0,.1,.31);part(g,rbox(.08,.05,.02,.01),toon('#e5484d'),0,.1,.335);}
   return {root:g,wheels,eyes,lamp,face,cargo};
 }
 
@@ -74,17 +76,31 @@ export function dressGarage(game:Game,kit:RoomKit){
   const stand=group(r,STAND.x,0,STAND.z);part(stand,rbox(2,.14,1.3,.05),toon('#3a3d55'),0,.07,0);
   const hz=new T.MeshBasicMaterial({map:TX.hazardStripe()});hz.userData.outlineParameters={visible:false};
   for(const z of [-.62,.62]){const s=part(stand,new T.PlaneGeometry(2,.12),hz,0,.142,z,false);s.rotation.x=-Math.PI/2;s.userData.noAO=true;}
-  for(const x of [-.36,.36])for(const z of [-.33,.33]){part(stand,cyl(.12,.12,.2,18,'z'),toon('#9aa3b2'),x,.18,z);part(stand,box(.3,.06,.26),toon(DMETAL),x,.12,z);}
+  // The rolling road: one long knurled drum per axle, sunk in a dark slot, under both wheels of that axle.
+  for(const x of [-.36,.36]){part(stand,box(.28,.02,1.1),toon(INK),x,.141,0,false);part(stand,cyl(.11,.11,1.0,24,'z'),toon(DMETAL),x,.17,0);
+    for(let k=0;k<6;k++)part(stand,cyl(.113,.113,.012,24,'z'),toon(INK),x,.17,-.4+k*.16,false);
+    for(const z of [-.52,.52])part(stand,box(.12,.12,.04),toon('#3a3d55'),x,.16,z);}
   const sp=part(game.root,new T.PlaneGeometry(1.2,.3),flat(plaque('TEST STAND',512,128,YELLOW)),STAND.x,.9,STAND.z-.9,false);sp.rotation.x=-.2;
   part(stand,box(.06,.8,.06),toon(DMETAL),0,.4,-.85);solid(game,2,.14,1.3,STAND.x,.07,STAND.z);
-  // A harness from the bench to the stand.
-  const harness=new T.CatmullRomCurve3([[1.35,.95,-3.05],[1.4,.4,-3.3],[1.3,.12,-3.7],[1.05,.3,-4.1]].map(([x,y,z])=>new T.Vector3(x,y,z)));
-  part(game.root,new T.TubeGeometry(harness,24,.025,6),toon('#e5484d'),0,0,0,false);
+  // The harness: from the harness board's battery end, over the bench's back lip, along the floor and
+  // up into the service port on the robot's flank (the station shows it only while the robot is on the stand).
+  const harness=new T.CatmullRomCurve3([[-1.92,1.1,-2.42],[-2.02,1.16,-2.95],[-1.95,1.07,-3.14],[-1.55,.35,-3.5],[-.7,.1,-3.86],[.3,.18,-3.96],[.64,.5,-4.0],[.7,.73,-4.115]].map(([x,y,z])=>new T.Vector3(x,y,z)));
+  const hm=part(game.root,new T.TubeGeometry(harness,48,.025,6),toon('#e5484d'),0,0,0,false);hm.name='garage-harness';
+  const plug=part(hm,rbox(.1,.07,.05,.015),toon(INK),.7,.73,-4.1,false);plug.rotation.y=0;
   // ---- Charging bays along the back right: teal robots on glowing pads (decor), one empty pad.
   const bw=kit.back;
-  for(const [x,occupied] of [[4.4,true],[PAD.x,false],[8.4,true]] as const){const pad=group(r,x,0,PAD.z);part(pad,rbox(1.5,.05,1.1,.03),toon('#2b4a55'),0,.025,0);
-    part(pad,box(1.3,.012,.9),hot('#7fffe8',.9),0,.056,0,false);part(bw,rbox(.4,.6,.12,.05),toon(CREAM),x,.7,.2);part(bw,box(.2,.05,.06),hot('#8dffb0',1.4),x,.85,.28,false);
-    if(occupied){const bot=robotMesh(x>5?'#4aa3d8':TEAL);bot.root.position.set(x,.38,PAD.z);bot.root.rotation.y=Math.PI/2;r.add(bot.root);solid(game,.75,1,1.2,x,.5,PAD.z);}}
+  // Each bay's wall charger: a dark unit with a cream face, a bolt, a 4-segment charge meter and a
+  // cable to a plug on the pad. The parked robots are other colours, fully charged, eyes off (asleep);
+  // the job robot's bay meter is empty and its plug lies on the pad.
+  const bolt=glyph(boltGlyph),segOn=hot('#8dffb0',1.4),segOff=toon('#4a4f63');
+  for(const [x,occupied,body] of [[4.4,true,'#6cc58a'],[PAD.x,false,TEAL],[8.4,true,'#b392f0']] as const){const pad=group(r,x,0,PAD.z);part(pad,rbox(1.5,.05,1.1,.03),toon('#2b4a55'),0,.025,0);
+    part(pad,box(1.3,.012,.9),hot('#7fffe8',.9),0,.056,0,false);
+    const ch=group(bw,x,.72,.26);part(ch,rbox(.42,.62,.14,.05),toon('#3a3d55'),0,0,0);part(ch,rbox(.34,.4,.02,.03),toon(CREAM),0,.04,.075);
+    decal(ch,bolt,.16,.16,-.06,.08,.088);for(let k=0;k<4;k++)part(ch,box(.06,.08,.02),occupied?segOn:segOff,.1,-.07+k*.095,.088,false);
+    const cable=new T.CatmullRomCurve3([[x,.42,-D+.3],[x+.1,.05,-D+.5],[x+.05,.04,PAD.z-1.2],[x,.07,PAD.z-.5]].map(([a,b,c])=>new T.Vector3(a,b,c)));
+    part(r,new T.TubeGeometry(cable,20,.022,6),toon(INK),0,0,0,false);part(r,rbox(.1,.06,.14,.02),toon(INK),x,.08,PAD.z-.47);
+    if(occupied){const bot=robotMesh(body);bot.root.position.set(x,.38,PAD.z);bot.root.rotation.y=Math.PI/2;r.add(bot.root);
+      const asleep=toon('#34424a');bot.eyes.forEach(e=>{e.material=asleep;e.scale.set(.4,.25,1);});bot.lamp.material=toon('#4a4f63');solid(game,.75,1,1.2,x,.5,PAD.z);}}
   const cs=new T.Mesh(new T.PlaneGeometry(3.8,.36),flat(plaque('CHARGING BAYS',1024,96,TEAL,'#fffaf0')));cs.position.set(6.4,2.35,.2);bw.add(cs);
   // ---- Pegboards with tools on the back wall and the side wall; a red tool chest; wheel stacks.
   for(const [x,seed] of [[-4,9]] as const){part(bw,box(3.3,1.55,.05),toon('#b99f71'),x,1.75,.16);const pb=new T.Mesh(new T.PlaneGeometry(3.2,1.45),toon('#ffffff',{map:pegboard(seed)}));pb.position.set(x,1.75,.2);bw.add(pb);}
@@ -98,8 +114,9 @@ export function dressGarage(game:Game,kit:RoomKit){
   for(let k=0;k<11;k++)part(door,box(2.3,.025,.02),toon('#9aa3b2'),0,.12+k*.22,.21,false);
   const dl=part(door,box(.5,.16,.08),toon('#6b6f84'),0,2.75,.22,false);dl.name='dock-lamp';
   const hs=new T.Mesh(new T.PlaneGeometry(2.2,.36),flat(plaque('DELIVERY DOCK',768,128,YELLOW)));hs.position.set(0,2.98,.2);door.add(hs);
-  for(const [dx,dz] of [[1.9,.5],[-1.9,.5]]){const sh=group(r,DOCK.x+dx,0,-D+dz);part(sh,box(.9,.06,.5),toon('#a8734a'),0,.6,0);part(sh,box(.9,.06,.5),toon('#a8734a'),0,1.2,0);
-    for(const px of [-.42,.42])part(sh,box(.05,1.3,.05),toon(DMETAL),px,.65,.22);for(let k=0;k<2;k++)part(sh,rbox(.32,.24,.3,.03),toon(k?'#c98f5a':'#d7a56d'),-.2+k*.38,.76,0);part(sh,rbox(.4,.26,.32,.03),toon('#c98f5a'),0,1.36,0);solid(game,.9,1.4,.5,DOCK.x+dx,.7,-D+dz);}
+  // Parcel shelves standing against the wall: four posts each and back rails, so nothing cantilevers.
+  for(const [dx,dz] of [[1.9,.3],[-1.9,.3]]){const sh=group(r,DOCK.x+dx,0,-D+dz);part(sh,box(.9,.06,.5),toon('#a8734a'),0,.6,0);part(sh,box(.9,.06,.5),toon('#a8734a'),0,1.2,0);
+    for(const px of [-.42,.42])for(const pz of [-.22,.22])part(sh,box(.05,1.3,.05),toon(DMETAL),px,.65,pz);for(const yy of [.62,1.22])part(sh,box(.9,.04,.03),toon(DMETAL),0,yy+.05,-.23);for(let k=0;k<2;k++)part(sh,rbox(.32,.24,.3,.03),toon(k?'#c98f5a':'#d7a56d'),-.2+k*.38,.76,0);part(sh,rbox(.4,.26,.32,.03),toon('#c98f5a'),0,1.36,0);solid(game,.9,1.4,.5,DOCK.x+dx,.7,-D+dz);}
   rug(r,-6.8,4.4,3,2,TEAL,'#cdeee9');
   // Warm work lamps: floor spots in the corners and a soft light over the bench (nothing hanging in its view).
   for(const [x,z,ry] of [[-9.6,-6.6,.7],[9.4,-6.4,-.8],[-9.6,6.6,2.4]] as const){const lp=group(r,x,0,z,ry);part(lp,cyl(.22,.26,.06,16),toon(INK),0,.03,0);part(lp,cyl(.025,.025,1.8,8),toon(DMETAL),0,.93,0);

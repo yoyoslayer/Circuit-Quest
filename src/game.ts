@@ -306,7 +306,10 @@ export class Game {
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&p.spec.kind!=='glass'&&!p.spec.id?.startsWith('pin-')&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. The
    *  Meeting mail cart only carries the job's reel, so the reel on it wins over the cart. */
-  reach(pos:Point,p:Prop){return distance(pos,p.body.translation())-(p.spec.id&&p.spec.id!=='mail-cart'?2:0);}
+  /** Grab preference (R5-170): the item the job card's marker points at wins by 2.5 m, other job items by
+   *  1.5 m (still ahead of clutter), and bonus pins and clutter get no head start. */
+  reach(pos:Point,p:Prop){const q=p.body.translation(),d=distance(pos,q),id=p.spec.id;if(!id||id==='mail-cart'||id.startsWith('pin-'))return d;
+    const m=gameUI(this)?.objectives?.marker,step=m?.visible&&Math.hypot(m.position.x-q.x,m.position.z-q.z)<1.2;return d-(step?2.5:1.5);}
   interact(cableOnly=false){
     const pos=this.player.translation();
     if(this.atBench){this.leaveBench();return;}

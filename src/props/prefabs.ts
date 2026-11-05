@@ -148,8 +148,10 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       for(const [x,z,r] of [[-.05,.03,.07],[.06,-.04,.06],[.01,.07,.05]] as const)part(g,ico(r),toon('#fffaf0'),x,h/2-.03,z);break;
     case 'reel':reel(g,0,0,0,'#f4efe6',c,.8);break;
     case 'plug':
-      // The cable's male plug: an ink body with a job-yellow band and two brass prongs.
-      part(g,cyl(.11,.13,.3,14,'x'),toon(INK));part(g,cyl(.135,.135,.06,14,'x'),toon('#ffc94d'),-.04);for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),.2,0,dz);break;
+      // The live cable's end is a trailing socket (R5-185): an ink body with a job-yellow band and a
+      // cream face with two slots, no exposed prongs. The load's inlet carries the prongs.
+      part(g,cyl(.11,.13,.3,14,'x'),toon(INK));part(g,cyl(.135,.135,.06,14,'x'),toon('#ffc94d'),-.04);
+      part(g,cyl(.1,.1,.02,14,'x'),toon('#fff6e6'),.155);for(const dz of [-.05,.05])part(g,box(.012,.05,.022),toon(INK),.167,0,dz,false);break;
     case 'coupler':
       // A female-to-male joiner: a yellow barrel with ink bands, a socket face (two slots) on one
       // end and prongs on the other, so it reads as the part that lets two cables meet.
@@ -255,6 +257,8 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       break;}
     case 'strip':{
       part(g,rbox(w,h,d,.05),m);for(let k=0;k<4;k++){part(g,rbox(.13,.02,.13,.03),toon('#fff6e6'),-.3+k*.19,h/2+.005,0,false);part(g,box(.02,.012,.05),toon(INK),-.33+k*.19,h/2+.02,0,false);part(g,box(.02,.012,.05),toon(INK),-.27+k*.19,h/2+.02,0,false);}
+      // Its inlet end has two brass prongs: the reel's trailing socket pushes onto them (R5-185).
+      for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),-w/2-.07,0,dz);
       // A rocker switch, and a small rating plate (bolt glyph) beside it.
       part(g,rbox(.07,.025,.05,.01),toon(INK),w/2-.06,h/2+.008,0,false);part(g,rbox(.06,.03,.045,.012),toon('#e5484d'),w/2-.06,h/2+.025,0).rotation.z=.2;
       decal(g,cachedTexture('boltCream',()=>glyph(c=>{c.fillStyle='#fffaf0';c.fillRect(0,0,256,256);c.fillStyle=INK;c.beginPath();c.moveTo(150,20);c.lineTo(70,140);c.lineTo(125,140);c.lineTo(100,236);c.lineTo(190,104);c.lineTo(134,104);c.closePath();c.fill();})),.06,.06,w/2-.06,0,d/2+.003);

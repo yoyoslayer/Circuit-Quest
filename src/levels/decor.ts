@@ -121,9 +121,10 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
   // The lamp's own cord runs from the socket along the floor and up the post through the switch.
   const cord=(pts:number[][])=>part(r,new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(([x,y,z])=>new T.Vector3(x,y,z))),32,.022,6,false),toon(INK),0,0,0,false);
   cord([[t.x+.22,.12,t.z-.05],[t.x+.42,.03,t.z-.22],[L.x-.3,.03,L.z+.24],[L.x,.2,L.z+.11],[L.x,.6,L.z+.105],[S.x,S.y-.2,S.z-.03]]);cord([[S.x,S.y+.2,S.z-.03],[L.x,1.7,L.z+.095],[L.x,2.62,L.z+.07]]);
-  // The socket: a housing with a cream face plate and two slots toward the route, and a pilot that lights once the plug is in.
+  // The lamp's inlet: a housing with a cream face plate and two brass prongs toward the route; the cable's
+  // trailing socket pushes onto them (R5-185). A pilot lights once it is in.
   part(r,rbox(.48,.38,.3,.06),toon('#384454'),t.x,.19,t.z);part(r,rbox(.02,.26,.24,.01),toon('#f0ece2'),t.x-.245,.2,t.z);
-  for(const dz of [-.05,.05])part(r,box(.012,.08,.025),toon(INK),t.x-.256,.2,t.z+dz,false);
+  for(const dz of [-.05,.05])part(r,cyl(.022,.022,.12,8,'x'),toon('#e0b25a'),t.x-.31,.2,t.z+dz);
   const socketPilot=part(game.root,sphere(.022,10,8),pilotOff,t.x-.25,.33,t.z+.09,false);
   // Kept small and soft so the win push-in doesn't wash Pip out (R5-156).
   const halo=glow(game.root,'rgba(255,214,140,1)',1.2,.4);halo.position.set(L.x-.75,2.42,L.z);halo.visible=false;

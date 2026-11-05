@@ -17,7 +17,7 @@ const dial=`<svg viewBox="0 0 96 62" aria-hidden="true">
 const step=(id:string,ic:string)=>`<div class="step todo" id="${id}"><svg class="prog" viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="35" r="32"/></svg>${icon(ic)}</div>`;
 
 export class LunchHud {
-  chain:HTMLElement;breakers:HTMLElement;steps:HTMLElement[];links:HTMLElement[];progs:SVGCircleElement[];thermo:HTMLElement;gauges=new Map<string,{el:HTMLElement;needle:SVGGElement}>();
+  chain:HTMLElement;breakers:HTMLElement;steps:HTMLElement[];links:HTMLElement[];progs:SVGCircleElement[];thermo:HTMLElement;gauges=new Map<string,{el:HTMLElement;needle:SVGGElement;bars:HTMLElement[]}>();
   private last='';
   constructor(host:HTMLElement){
     const layer=host.querySelector<HTMLElement>('[data-layer="hud"]')??host;
@@ -26,11 +26,14 @@ export class LunchHud {
     this.chain.innerHTML=`${step('oven-stage','oven')}<i class="link cold"></i>${step('belt-stage','conveyor')}<i class="link cold"></i>${step('lift-stage','lift')}<i class="div"></i>
       <div class="thermo" id="fridge-stage">${icon('fridge','fr')}<div class="tube"><i></i></div>${icon('spoiled','sad')}</div>`;
     this.breakers=document.createElement('div');this.breakers.className='breakers card';this.breakers.id='breaker-stage';this.breakers.setAttribute('aria-hidden','true');
-    this.breakers.innerHTML=CARTS.map(([id,c])=>`<div class="gauge" data-cart="${id}" style="--g:${c}"><div class="face">${dial}</div><i class="pip"></i></div>`).join('');
+    // Each dial wears its cart's letter and a strip of five bar pips (the cart's whole budget), lit by
+    // what it is giving now, so the HUD reads the same as the pips painted on the cart.
+    const pips=Array.from({length:5},(_,i)=>`<b data-pip="${i}" style="display:inline-block;width:11px;height:11px;margin-right:2px;border:2px solid #262A40;border-radius:2px;background:#FAF3E3"></b>`).join('');
+    this.breakers.innerHTML=CARTS.map(([id,c])=>`<div class="gauge" data-cart="${id}" style="--g:${c}"><div class="face">${dial}</div><span style="position:absolute;left:8px;bottom:1px;font:800 15px/18px system-ui,sans-serif;color:#262A40">${id.toUpperCase()}</span><span class="bars" style="position:absolute;left:26px;bottom:3px;line-height:0">${pips}</span><i class="pip"></i></div>`).join('');
     layer.append(this.chain,this.breakers);
     this.steps=Array.from(this.chain.querySelectorAll<HTMLElement>('.step'));this.links=Array.from(this.chain.querySelectorAll<HTMLElement>('.link'));
     this.progs=Array.from(this.chain.querySelectorAll<SVGCircleElement>('.prog circle'));this.thermo=this.chain.querySelector('.thermo')!;
-    for(const el of Array.from(this.breakers.querySelectorAll<HTMLElement>('.gauge')))this.gauges.set(el.dataset.cart!,{el,needle:el.querySelector('.needle')!});
+    for(const el of Array.from(this.breakers.querySelectorAll<HTMLElement>('.gauge')))this.gauges.set(el.dataset.cart!,{el,needle:el.querySelector('.needle')!,bars:Array.from(el.querySelectorAll<HTMLElement>('[data-pip]'))});
   }
   update(job:LunchJob,circuit:Circuit){
     // Stage progress: bake 0-20 s, then carry to the belt, then ride the lift.
@@ -47,7 +50,8 @@ export class LunchHud {
     for(const g of gauges){const v=this.gauges.get(g.id);if(!v)continue;
       // Needle sweeps 0-180 degrees across 0-6 bars; the limit is 5.
       const turn=g.tripped?180:Math.max(0,Math.min(1,g.draw/6))*180;v.needle.style.transform=`rotate(${turn}deg)`;
-      v.el.classList.toggle('tripped',g.tripped);v.el.classList.toggle('hot',!g.tripped&&g.draw>=4.5);}
+      v.el.classList.toggle('tripped',g.tripped);v.el.classList.toggle('hot',!g.tripped&&g.draw>=4.5);
+      v.bars.forEach((b,i)=>{b.style.background=g.tripped?'#E5484D':g.draw>i+.01?'#3BB273':'#FAF3E3';});}
   }
 }
 const huds=new WeakMap<HTMLElement,LunchHud>();

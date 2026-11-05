@@ -46,11 +46,14 @@ export function wallArt(parent:T.Object3D,kind:WallArt,x:number,y:number,z:numbe
   part(g,box(.72*s,.95*s,.04),toon(INK));const f=new T.Mesh(new T.PlaneGeometry(.64*s,.86*s),toon('#ffffff',{map:TX.poster(kind)}));f.position.z=.025;g.add(f);return g;
 }
 export function pointLamp(parent:T.Object3D,x:number,y:number,z:number,{color='#ffcf7a',intensity=6,distance=5.5}={}){const l=new T.PointLight(color,intensity,distance,1.6);l.position.set(x,y,z);parent.add(l);return l;}
-/** Pendant lamp hanging from the (off-screen) ceiling. */
-export function pendant(parent:T.Object3D,x:number,z:number,{y=2.55,color='#ffc94d',light=true,cord=.9}={}){
+/** Pendant lamp on a short cord that ends in a ceiling canopy (the rooms have no modelled ceiling
+ *  and the camera looks in from above, so the cord must end on a visible mount, not in the void).
+ *  The shade is returned as `userData.shade` so a level can make it fade over Pip. */
+export function pendant(parent:T.Object3D,x:number,z:number,{y=2.55,color='#ffc94d',light=true,cord=.35}={}){
   const g=group(parent,x,0,z);
   part(g,cyl(.012,.012,cord,5),toon(INK),0,y+.25+cord/2,0,false);
-  const shade=part(g,new T.CylinderGeometry(.14,.38,.32,20,1,true),glossyToon(color,{spec:.8,size:.95}),0,y+.16,0);(shade.material as T.Material).side=T.DoubleSide;
+  part(g,cyl(.09,.11,.05,16),toon(INK),0,y+.25+cord+.025,0);part(g,cyl(.05,.05,.02,12),toon('#6b7385'),0,y+.25+cord+.06,0,false);
+  const shade=part(g,new T.CylinderGeometry(.14,.38,.32,20,1,true),glossyToon(color,{spec:.8,size:.95}),0,y+.16,0);(shade.material as T.Material).side=T.DoubleSide;g.userData.shade=shade;
   part(g,cyl(.05,.06,.08,10),toon(INK),0,y+.35,0,false);
   const bulb=part(g,sphere(.1,12,8),hot('#ffe6b0',2.2),0,y+.02,0,false);bulb.userData.noAO=true;
   glow(g,'rgba(255,200,120,1)',1,.22).position.y=y-.05;

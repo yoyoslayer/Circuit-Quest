@@ -5,7 +5,7 @@
 import * as T from 'three';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,freeze,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,freeze,plaqueBoard,INK,DMETAL} from '../../render/kit';
 import {hot} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pointLamp,lampPool,rug} from '../../levels/dressing';
@@ -20,7 +20,7 @@ export interface ArcadeRoom {light(k:number,title?:string):void;lightUp():void}
 // A dusty-mauve carpet with a light scatter of pastel confetti: arcade, but quiet enough to sit
 // behind the props and the bench (the house brief is pale wood, cream and pastels).
 const confetti=()=>TX.tex('arcade-carpet',512,512,c=>{
-  c.fillStyle='#6a5480';c.fillRect(0,0,512,512);const r=TX.rng(11);
+  c.fillStyle='#8f7aa6';c.fillRect(0,0,512,512);const r=TX.rng(11);
   c.fillStyle='rgba(255,255,255,.035)';for(let y=0;y<512;y+=64)for(let x=0;x<512;x+=64)if((x+y)%128===0)c.fillRect(x,y,64,64);
   const cols=['#f6b3cf','#a9e6d3','#f3de96','#c2b2ee','#a9d4f2','#f4c0a2'];c.globalAlpha=.75;
   for(let k=0;k<60;k++){const x=r()*512,y=r()*512,col=cols[k%cols.length];c.fillStyle=col;c.strokeStyle=col;c.save();c.translate(x,y);c.rotate(r()*6.3);c.scale(.8,.8);
@@ -66,6 +66,13 @@ function cabinet(parent:T.Object3D,x:number,z:number,ry:number,body:string,title
   part(c,box(.26,.3,.02),toon(DMETAL),0,.45,.41);part(c,box(.05,.1,.02),toon(LEMON),0,.5,.425);
   const mq=group(c,0,2.02,.05);part(mq,rbox(1,.28,.3,.06),toon(PLUM),0,0,0);
   const face=part(mq,new T.PlaneGeometry(.92,.23),new T.MeshBasicMaterial({map:marqueeTex(title,lit,seed),toneMapped:false}),0,0,.155,false);(face.material as T.Material).userData.outlineParameters={visible:false};
+  // Finished sides and back (the player orbits): ink T-molding down both front edges, a side art
+  // panel with a star burst, and on the back a recessed service door, vent slots and a power cord.
+  const ink=toon(INK),panel=toon(new T.Color(body).offsetHSL(0,0,-.1).getStyle()),accent=[PINK,MINT,LEMON,GRAPE,SKY][seed%5];
+  for(const s of [-1,1]){part(c,box(.025,1.9,.03),ink,s*.475,1.05,.39,false);part(c,box(.008,.9,.56),panel,s*.479,.75,-.02,false);
+    const star=part(c,new T.CircleGeometry(.16,5),toon(accent),s*.485,.8,-.02,false);star.rotation.y=s*Math.PI/2;}
+  part(c,rbox(.6,1.0,.02,.02),panel,0,.75,-.405);for(let k=0;k<5;k++)part(c,box(.4,.02,.015),ink,0,1.4+k*.07,-.36,false);
+  part(c,box(.05,.05,.02),toon(DMETAL),.3,.15,-.41);part(c,cyl(.015,.015,.15,6),ink,.3,.075,-.42,false);
   return {group:c,face,screen:scr};
 }
 
@@ -119,7 +126,10 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   for(let n=0;n<9;n++){const y=[.5,1.2,1.9][n%3],bx=-.8+Math.floor(n/3)*.8;part(shelf,rbox(.5,.22,.4,.04),toon(['#ffa6c9','#9ff0d2','#c7b6ff'][n%3]),bx,y+.14,0);}
   solid(game,2.4,2,.6,-9.6,1,7.2);
   const counter=group(r,-9.2,0,4.3);part(counter,rbox(1.6,.84,.8,.05),toon('#e9c38e'),0,.42,0);part(counter,box(1.64,.04,.84),toon(PLUM),0,.85,0);solid(game,1.6,.86,.8,-9.2,.43,4.3);
-  const store=part(r,new T.PlaneGeometry(1.5,.36),flat(plaque('STOREROOM',512,124,GRAPE,'#fffaf0',60)),-7.6,2.1,2.8,false);store.rotation.y=0;
+  // The STOREROOM plaque hangs under a header beam carried on two posts that rise from the ends of
+  // the storeroom walls, so it is mounted, has a back, and reads from both sides.
+  for(const x of [-8.65,-6.4])part(r,box(.1,1.1,.12),toon(DMETAL),x,1.9,2.6);part(r,rbox(2.5,.16,.16,.04),toon(PLUM),-7.5,2.38,2.6);
+  plaqueBoard(r,plaque('STOREROOM',512,124,GRAPE,'#fffaf0',60),1.5,.36,-7.6,2.1,2.6,{board:PLUM});
   // ---- Lights: warm over the bench, candy colours around the hall. No hanging lamps over the bench.
   // Three room lights (the bench LED is the fourth, and the only one that changes); the lilac
   // corner and the storeroom get painted light pools instead of lamps.

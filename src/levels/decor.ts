@@ -224,10 +224,11 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
 }
 function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   const l=game.level;
-  floor(game,-l.width/2,-7.8,0,l.depth/2,TX.concreteFloor('#cbbfa8'),4);floor(game,-l.width/2,-7.8,-l.depth/2,0,TX.concreteFloor('#8f8aa0'),4);
-  floor(game,-7.8,8,-l.depth/2,0,TX.kitchenTiles('#f4ecd8','#8fcac0',8),4);
+  // Floors sit inside DR-54's luma band (140-185) so the cream leads and white props read on them (R5-154).
+  floor(game,-l.width/2,-7.8,0,l.depth/2,TX.concreteFloor('#ada28c'),4);floor(game,-l.width/2,-7.8,-l.depth/2,0,TX.concreteFloor('#8f8aa0'),4);
+  floor(game,-7.8,8,-l.depth/2,0,TX.kitchenTiles('#e2d8c2','#7fb8ae',8),4);
   floor(game,8,l.width/2,-l.depth/2,0,TX.concreteFloor('#9aa3b2'),3);
-  floor(game,-7.8,l.width/2,0,l.depth/2,TX.woodPlanks('#d9ab6e'),3.2);
+  floor(game,-7.8,l.width/2,0,l.depth/2,TX.woodPlanks('#c0925a'),3.2);
   floor(game,10.4,13.6,-5.9,-5.45,TX.hazardStripe(),.6,.006);
   backWindows(game,back,x=>x< -7.6,.14);for(const x of windowXs(l.width))if(x< -7.6)windowUnit(back,x,1.95,.16);wallArt(side,'sun',-3,1.9,.16);wallArt(back,'plant',-8.5,1.95,.18,0,.8);
   const colors:Record<string,[string,string]>={store:['#b9b3c9','#6a6488'],kitchen:[WALL_UP,'#6cc3b4'],lift:['#c9d1db','#5a6378']};
@@ -248,7 +249,7 @@ function lunch(game:Game,back:T.Group,side:T.Group):Decor{
   for(const x of [-4.2,-2.6]){part(r,rbox(1.3,.1,.45,.06),toon('#c98a55'),x,.46,9.45);for(const s of [-.5,.5])part(r,box(.08,.44,.36),toon(INK),x+s,.22,9.45);solid(game,1.3,.5,.45,x,.25,9.45);}
   rug(r,13.2,8.1,3.4,3.2,'#d98c5f','#f6d49b');part(r,cyl(.7,.7,.06,24),toon('#f4efe6'),13.2,.76,8.1);part(r,cyl(.08,.3,.74,12),toon(INK),13.2,.38,8.1);solid(game,1.4,.8,1.4,13.2,.4,8.1);
   // Café chairs on four legs, each with a collider.
-  for(let k=0;k<3;k++){const a=k*2.1+.4,cx=13.2+Math.cos(a)*1.1,cz=8.1+Math.sin(a)*1.1,chair=group(r,cx,0,cz,-a-Math.PI/2),c=['#e5484d','#3f7fd6','#ffc94d'][k];part(chair,rbox(.5,.08,.5,.08),toon(c),0,.46,0);part(chair,rbox(.4,.03,.4,.08),toon('#f6d49b'),0,.51,0);
+  for(let k=0;k<3;k++){const a=k*2.1+.4,cx=13.2+Math.cos(a)*1.1,cz=8.1+Math.sin(a)*1.1,chair=group(r,cx,0,cz,-a-Math.PI/2),c=['#e5484d','#3f7fd6','#6cc58a'][k];part(chair,rbox(.5,.08,.5,.08),toon(c),0,.46,0);part(chair,rbox(.4,.03,.4,.08),toon('#f6d49b'),0,.51,0);
     part(chair,rbox(.46,.42,.07,.08),toon(c),0,.74,-.22).rotation.x=-.1;for(const [lx,lz] of [[-.2,-.2],[.2,-.2],[-.2,.2],[.2,.2]])part(chair,box(.04,.44,.04),toon(INK),lx,.22,lz);solid(game,.55,.9,.55,cx,.45,cz,-a-Math.PI/2);}
   for(const [x,z] of [[15.6,5.2],[-7.2,1.2],[15.8,-1.5]]){part(r,cyl(.26,.2,.42,14),toon('#e07a4f'),x,.21,z);solid(game,.52,.9,.52,x,.45,z);for(const [dx,dy,dz,rr] of [[0,.66,0,.3],[.16,.5,.08,.24],[-.16,.54,-.05,.25]])part(r,sphere(rr,10,8),toon('#5cbf6a'),x+dx,dy,z+dz);}
   return {};

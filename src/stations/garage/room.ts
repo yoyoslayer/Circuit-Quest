@@ -6,7 +6,7 @@
 import * as T from 'three';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,decal,glyph,boltGlyph,DMETAL,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,decal,glyph,boltGlyph,DMETAL,INK,plaqueBoard} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pointLamp,lampPool,rug} from '../../levels/dressing';
@@ -64,8 +64,8 @@ export function robotMesh(body=TEAL,accent=TEAL2,port=false):RobotParts{
 
 export function dressGarage(game:Game,kit:RoomKit){
   const l=game.level,r=game.decorRoot,W=l.width/2,D=l.depth/2;
-  // Pale concrete everywhere; warm planks under the bench where Pip works.
-  kit.floor(-W,W,-D,D,TX.concreteFloor('#dcd8ce'),4);kit.floor(-3,3,-2.2,-.6,TX.woodPlanks('#d8ad72'),2.2,.006);
+  // Mid-grey concrete everywhere (floor luma inside DR-54's 140-185 so pale props and job yellow read on it, R5-154); warm planks under the bench.
+  kit.floor(-W,W,-D,D,TX.concreteFloor('#a49e92'),4);kit.floor(-3,3,-2.2,-.6,TX.woodPlanks('#d8ad72'),2.2,.006);
   kit.backWindows(x=>x<-2||x>6,.14);
   // The delivery lane: dashed safety-yellow markings along the robot's route, a stop line at the dock.
   const dash=toon(YELLOW);
@@ -80,8 +80,8 @@ export function dressGarage(game:Game,kit:RoomKit){
   for(const x of [-.36,.36]){part(stand,box(.28,.02,1.1),toon(INK),x,.141,0,false);part(stand,cyl(.11,.11,1.0,24,'z'),toon(DMETAL),x,.17,0);
     for(let k=0;k<6;k++)part(stand,cyl(.113,.113,.012,24,'z'),toon(INK),x,.17,-.4+k*.16,false);
     for(const z of [-.52,.52])part(stand,box(.12,.12,.04),toon('#3a3d55'),x,.16,z);}
-  const sp=part(game.root,new T.PlaneGeometry(1.2,.3),flat(plaque('TEST STAND',512,128,YELLOW)),STAND.x,.9,STAND.z-.9,false);sp.rotation.x=-.2;
-  part(stand,box(.06,.8,.06),toon(DMETAL),0,.4,-.85);solid(game,2,.14,1.3,STAND.x,.07,STAND.z);
+  plaqueBoard(stand,plaque('TEST STAND',512,128,YELLOW),1.2,.3,0,.98,-.9,{rx:-.2});
+  part(stand,box(.06,.84,.06),toon(DMETAL),0,.42,-.88);solid(game,2,.14,1.3,STAND.x,.07,STAND.z);
   // The harness: from the harness board's battery end, over the bench's back lip, along the floor and
   // up into the service port on the robot's flank (the station shows it only while the robot is on the stand).
   const harness=new T.CatmullRomCurve3([[-1.92,1.1,-2.42],[-2.02,1.16,-2.95],[-1.95,1.07,-3.14],[-1.55,.35,-3.5],[-.7,.1,-3.86],[.3,.18,-3.96],[.64,.5,-4.0],[.7,.73,-4.115]].map(([x,y,z])=>new T.Vector3(x,y,z)));
@@ -120,8 +120,11 @@ export function dressGarage(game:Game,kit:RoomKit){
   rug(r,-6.8,4.4,3,2,TEAL,'#cdeee9');
   // Warm work lamps: floor spots in the corners and a soft light over the bench (nothing hanging in its view).
   for(const [x,z,ry] of [[-9.6,-6.6,.7],[9.4,-6.4,-.8],[-9.6,6.6,2.4]] as const){const lp=group(r,x,0,z,ry);part(lp,cyl(.22,.26,.06,16),toon(INK),0,.03,0);part(lp,cyl(.025,.025,1.8,8),toon(DMETAL),0,.93,0);
-    const hd=part(lp,new T.ConeGeometry(.2,.3,16,1,true),glossyToon(YELLOW,{spec:.8,size:.95}),0,1.85,.08);hd.rotation.x=-2.2;(hd.material as T.Material).side=T.DoubleSide;
-    part(lp,sphere(.08,10,8),hot('#ffe6b0',2.2),0,1.8,.14,false);pointLamp(lp,0,1.6,.6,{color:'#ffd9a0',intensity:4,distance:6});solid(game,.4,1.9,.4,x,.95,z);}
+    // Work-light head: a closed cup shell with an ink rim, a dark inner face and a recessed bulb,
+    // on a swivel, aimed down and forward (reads as a lamp from any orbit, not a flag).
+    part(lp,sphere(.05,10,8),toon(DMETAL),0,1.84,.02);const hd=group(lp,0,1.84,.08);hd.rotation.x=.9;
+    part(hd,cyl(.24,.12,.26,16),glossyToon(YELLOW,{spec:.8,size:.95}),0,0,0);part(hd,new T.TorusGeometry(.24,.02,8,24),toon(INK),0,-.13,0).rotation.x=Math.PI/2;
+    part(hd,cyl(.2,.2,.01,16),toon('#3a3d55'),0,-.12,0,false);part(hd,sphere(.08,10,8),hot('#ffe6b0',2.2),0,-.1,0,false);pointLamp(lp,0,1.6,.6,{color:'#ffd9a0',intensity:4,distance:6});solid(game,.4,1.9,.4,x,.95,z);}
   pointLamp(game.root,0,2.7,-1.7,{color:'#fff1d6',intensity:5,distance:5.5});lampPool(game.root,0,-2.3,2.6,.2);
   pointLamp(game.root,STAND.x,2.4,STAND.z+.2,{color:'#ffe6c0',intensity:3.5,distance:4.5});
   pointLamp(game.root,5,2.4,2,{color:'#ffe0b0',intensity:3,distance:7});pointLamp(game.root,-5,2.4,2.5,{color:'#ffe0b0',intensity:3,distance:7});

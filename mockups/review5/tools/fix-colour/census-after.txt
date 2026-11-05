@@ -1,0 +1,45 @@
+﻿
+== lobby: props 115  audit.02 0
+  kinds {"plant":12,"cooler":2,"bin":10,"box":15,"chair":2,"beanbag":8,"cone":1,"mug":18,"paper":45,"lamp":1,"cart":1}
+  yellow non-job 0   default-coloured mugs/beanbags 0
+  lookalikes 
+
+== lunch: props 139  audit.02 0
+  kinds {"supply":2,"capcart":1,"coolbox":1,"dolly":1,"lamp":1,"bookshelf":1,"wedge":1,"mop":1,"bridge":3,"splitter":3,"bin":12,"plant":9,"desk":2,"tray":1,"box":26,"mug":22,"paper":46,"beanbag":4,"cone":2}
+  yellow non-job 0   default-coloured mugs/beanbags 0
+  lookalikes 
+
+== arcade: props 122  audit.02 0
+  kinds {"tray":1,"box":33,"bin":10,"chair":11,"beanbag":10,"plant":11,"cone":2,"mug":9,"paper":29,"desk":1,"monitor":1,"cart":1,"lamp":2,"cooler":1}
+  yellow non-job 0   default-coloured mugs/beanbags 1
+  lookalikes 
+
+== garage: props 94  audit.02 0
+  kinds {"cart":4,"box":39,"coolbox":1,"bin":4,"cabinet":4,"desk":1,"monitor":1,"chair":3,"mug":5,"paper":13,"plant":3,"cone":15,"mop":1}
+  yellow non-job 0   default-coloured mugs/beanbags 1
+  lookalikes 
+
+== qfn: props 94  audit.02 0
+  kinds {"box":42,"cart":7,"chair":4,"plant":3,"bin":8,"cone":3,"cabinet":1,"mug":5,"paper":21}
+  yellow non-job 0   default-coloured mugs/beanbags 1
+  lookalikes 
+
+== observatory: props 124  audit.02 0
+  kinds {"cart":2,"box":31,"chair":8,"plant":9,"bin":2,"cabinet":12,"bookshelf":1,"beanbag":3,"cone":2,"mug":15,"paper":29,"desk":4,"monitor":4,"lamp":2}
+  yellow non-job 0   default-coloured mugs/beanbags 1
+  lookalikes 
+
+== spectrum: props 57  audit.02 0
+  kinds {"coolbox":1,"whiteboard":2,"box":13,"cart":3,"chair":6,"plant":5,"bin":6,"cabinet":1,"cone":3,"lamp":2,"mug":2,"paper":11,"desk":1,"beanbag":1}
+  yellow non-job 0   default-coloured mugs/beanbags 1
+  lookalikes 
+
+== playground: props 109  audit.02 0
+  kinds {"box":22,"chair":5,"cone":20,"bin":14,"plant":14,"bookshelf":5,"cooler":1,"mug":5,"beanbag":6,"paper":17}
+  yellow non-job 0   default-coloured mugs/beanbags 0
+  lookalikes 
+
+== meeting: props 310  audit.02 0
+  kinds {"desk":34,"monitor":32,"chair":40,"mug":32,"paper":64,"bin":29,"cabinet":18,"box":36,"plant":7,"printer":1,"vending":1,"cooler":1,"whiteboard":1,"strip":1,"cart":1,"reel":2,"coupler":1,"coffee":1,"sofa":1,"beanbag":2,"pingpong":1,"bookshelf":1,"glass":3}
+  yellow non-job 6 chair@-6.85,-3.0199999999999996 #ffc94d | chair@3.15,-3.0199999999999996 #ffc94d | chair@-1.85,0.020000000000000018 #ffc94d | chair@4.85,0.020000000000000018 #ffc94d | chair@-1.65,6.119999999999999 #ffc94d | beanbag@10,4.6 #ffc94d  default-coloured mugs/beanbags 32
+  lookalikes 

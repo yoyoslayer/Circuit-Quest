@@ -8,7 +8,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,DMETAL,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,DMETAL,INK,plaqueBoard} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pointLamp,lampPool,rug} from '../../levels/dressing';
@@ -17,6 +17,9 @@ import {STORE,LAB,QUIET,HATCH,BANDS,BAND_IDS,POD_HOME,PADS,DOORS,DOOR_IDS,type D
 
 export const CREAM='#fbf6ec',PAPER='#fffdf8',BRICK='#c8674a',COPPER='#cf8a4e',STEEL='#8e9bb0';
 const RAINBOW=BAND_IDS.map(b=>BANDS[b].color);
+// The room's decorative bands (floor stripes, wall rail): only Visible keeps a solid real hue; the invisible
+// bands are greyed false-colour tints, so the decor never says near-IR is pink light (R5-050, DR-35).
+const DECOR_BANDS=BAND_IDS.map(b=>b==='vis'?BANDS[b].color:'#'+new T.Color(BANDS[b].color).lerp(new T.Color('#b9b4aa'),.6).getHexString());
 const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;
 /** A wall material that can fade when it hides Pip (each wall gets its own copy). */
 const fading=(m:T.Material)=>{const c=m.clone();c.transparent=true;return c;};
@@ -43,9 +46,10 @@ export function plaque(text:string,w:number,h:number,bg:string,fg=INK,size=40){
   return canvasTex(w,h,c=>{c.fillStyle=bg;c.beginPath();c.roundRect(4,4,w-8,h-8,Math.min(22,h*.3));c.fill();c.lineWidth=6;c.strokeStyle=fg;c.stroke();
     c.fillStyle=fg;c.textAlign='center';c.textBaseline='middle';let s=size;c.font=FONT(s);while(s>12&&c.measureText(text).width>w-36){s--;c.font=FONT(s);}c.fillText(text,w/2,h/2+2);});
 }
-/** A standing sign plate facing +z (rotate the returned mesh to face elsewhere). */
+/** A sign facing +z: the text on a housed board (a darker edge), readable from both sides. The
+ *  caller mounts it on something (a wall face, a rail, a post). Returns the board group. */
 function standingSign(parent:T.Object3D,text:string,x:number,y:number,z:number,w:number,bg:string,fg=INK,ry=0){
-  const h=w*.22,m=part(parent,new T.PlaneGeometry(w,h),flat(plaque(text,512,Math.round(512*h/w),bg,fg,44)),x,y,z,false);m.rotation.y=ry;m.userData.noAO=true;return m;
+  const h=w*.22;return plaqueBoard(parent,plaque(text,512,Math.round(512*h/w),bg,fg,44),w,h,x,y,z,{ry,board:new T.Color(bg).offsetHSL(0,0,-.25).getStyle()});
 }
 /** A straight wall slab between two plan points (axis-aligned), with a collider. */
 function slab(game:Game,x0:number,z0:number,x1:number,z1:number,h:number,thick:number,material:T.Material,fade=true,parent:T.Object3D=game.root,uvTile?:number){
@@ -54,7 +58,7 @@ function slab(game:Game,x0:number,z0:number,x1:number,z1:number,h:number,thick:n
   solid(game,w,2.6,d,x,1.3,z);return m;
 }
 /** Trim that sits on a fading wall (caps, signs) fades with it. */
-function fadeWith(game:Game,m:T.Mesh){const mat=(m.material as T.Material).clone();mat.transparent=true;m.material=mat;game.occluders.push(m);return m;}
+function fadeWith(game:Game,o:T.Object3D){o.traverse(m=>{if(!(m instanceof T.Mesh))return;const mat=(m.material as T.Material).clone();mat.transparent=true;m.material=mat;game.occluders.push(m);});return o;}
 
 /** A door that swings on a spring: a pivot at the hinge, the leaf's kinematic collider, and the doorway. */
 export interface SwingDoor {id:DoorId;pivot:T.Group;body:RAPIER.RigidBody;hinge:{x:number;z:number};closed:number;
@@ -66,16 +70,16 @@ export interface SpectrumRoom {hatchDoor:T.Object3D;smoke:T.Sprite[];doors:Swing
 export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   const l=game.level,r=game.decorRoot,W=l.width/2,D=l.depth/2;
   // ---- Floors: pale research-hall tiles; warm oak in the storeroom; pale blue lino in the lab; a rug in the quiet room.
-  kit.floor(-W,W,-D,D,TX.kitchenTiles('#f6f2ea','#e7eef5',6),3.2);
+  kit.floor(-W,W,-D,D,TX.kitchenTiles('#d9d2c4','#cdd5dc',6),3.2); // mid grey-cream, inside DR-54's luma band (R5-154)
   kit.floor(STORE.x0,STORE.x1,STORE.z0,STORE.z1,TX.woodPlanks('#d9ae78'),2.6,.004);
-  kit.floor(LAB.x0,LAB.x1,LAB.z0,LAB.z1,TX.kitchenTiles('#eaf4fb','#d3e6f3',4),2.4,.004);
+  kit.floor(LAB.x0,LAB.x1,LAB.z0,LAB.z1,TX.kitchenTiles('#c9dbe8','#b8cfe0',4),2.4,.004);
   kit.floor(QUIET.x0,QUIET.x1,QUIET.z0,QUIET.z1,TX.carpetTiles('#c9b8ea'),2.4,.004);
   rug(r,8.3,5,3.2,2.4,'#8b7be8','#e2dbff');rug(r,-6.4,5.4,2.4,2,'#3fae6a','#d5f2de');
   // Rainbow wayfinding stripes on the floor, from the entrance along the front of the hall: flat decals
   // in front of the pod dock's rug (not under it). They glow in place when the last message lands.
-  const stripes=RAINBOW.map((c,i)=>{const m=part(r,new T.PlaneGeometry(13.5,.1),toon(c),-3.9,.006,7.4-i*.16,false);m.rotation.x=-Math.PI/2;m.userData.noAO=true;return m;});
+  const stripes=DECOR_BANDS.map((c,i)=>{const m=part(r,new T.PlaneGeometry(13.5,.1),toon(c),-3.9,.006,7.4-i*.16,false);m.rotation.x=-Math.PI/2;m.userData.noAO=true;return m;});
   // A rainbow band at rail height on the back and side walls.
-  RAINBOW.forEach((c,i)=>{part(kit.back,box(l.width-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);part(kit.side,box(l.depth-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);});
+  DECOR_BANDS.forEach((c,i)=>{part(kit.back,box(l.width-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);part(kit.side,box(l.depth-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);});
   // Windows light the (sunny) lab, with strong sun shafts; the storeroom has none and the hall's back wall holds the exhibits.
   kit.backWindows(x=>x<LAB.x0+.6,.3);
   // Sunlight lands on the lab pad and the benches: the glare the visible-light detector has to fight.
@@ -123,8 +127,8 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   const frame=group(r,(HATCH.x0+HATCH.x1)/2,(hy0+hy1)/2,lb.z1+.06);for(const [w,h,x,y] of [[.72,.06,0,.33],[.72,.06,0,-.33],[.06,.66,-.33,0],[.06,.66,.33,0]] as const)part(frame,box(w,h,.05),toon('#ffc629'),x,y,0);
   const hatchDoor=group(game.root,(HATCH.x0+HATCH.x1)/2,(hy0+hy1)/2,lb.z1+.08);part(hatchDoor,box(HATCH.x1-HATCH.x0,hy1-hy0,.04),toon('#7f8ca3'),0,0,0);part(hatchDoor,box(.2,.05,.05),toon(INK),0,-.2,.03);
   part(r,rbox(lb.door[0]-lb.x0+.2,.26,.3,.06),toon('#7f8ca3'),(lb.x0+lb.door[0])/2,sh+.1,lb.z1+.04);
-  standingSign(game.root,'HATCH',(HATCH.x0+HATCH.x1)/2,1.82,lb.z1+.1,.62,'#ffc629');
-  standingSign(game.root,'GLASS LAB',7.4,1.82,lb.z1+.1,1.4,'#d8ecff');
+  standingSign(game.root,'HATCH',(HATCH.x0+HATCH.x1)/2,1.82,lb.z1+.135,.62,'#ffc629');
+  standingSign(game.root,'GLASS LAB',7.4,1.82,lb.z1+.135,1.4,'#d8ecff');
   // Inside the lab: benches with glassware in the sunshine, a fume hood.
   for(const x of [4.2,8]){const b=group(r,x,0,-7.3);part(b,rbox(2.4,.9,.8,.05),toon('#e9eef5'),0,.45,0);part(b,box(2.5,.05,.9),toon(PAPER),0,.92,0);
     for(let k=0;k<4;k++)part(b,cyl(.07,.09,.22,12),toon(['#bfe6f5','#d8f5c8','#ffe1dc','#e8dcff'][k],{opacity:.7}),-.9+k*.55,1.06,0);solid(game,2.4,1,.8,x,.5,-7.3);}
@@ -158,7 +162,8 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
     const body=game.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(at.x,1.05,at.z));game.world.createCollider(RAPIER.ColliderDesc.cuboid(width/2,1.05,.05),body);
     body.setRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),closed),true);
     return {id,pivot,body,hinge,closed,sign:id==='store'?-1:1,width};});
-  standingSign(game.root,'QUIET ROOM · SCREENED',7.45,2.45,q.z0+.02,1.9,'#f3d9c2');
+  // The sign stands on the mesh wall's copper top rail.
+  standingSign(game.root,'QUIET ROOM · SCREENED',7.45,2.465,q.z0,1.9,'#f3d9c2');
   const chair=group(r,9.9,0,6.6,-2.4);part(chair,rbox(.9,.45,.8,.12),toon('#8b7be8'),0,.3,0);part(chair,rbox(.9,.6,.2,.08),toon('#7a6ad6'),0,.7,-.32);solid(game,.9,.9,.8,9.9,.45,6.6);
   const lamp=group(r,10.4,0,7.4);part(lamp,cyl(.2,.24,.05,16),toon(INK),0,.03,0);part(lamp,cyl(.025,.025,1.5,8),toon(COPPER),0,.78,0);part(lamp,cyl(.16,.28,.3,16),toon('#fff1d6'),0,1.55,0);
 
@@ -168,7 +173,7 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   for(const dx of [-.07,.07])part(toaster,box(.03,.1,.13),toon('#3a2a20'),dx,.28,0);
   const kettle=group(tea,.5,.95,.05);part(kettle,cyl(.12,.15,.22,16),toon('#e5484d'),0,.11,0);part(kettle,cyl(.03,.02,.16,8),toon('#e5484d'),.15,.14,0).rotation.z=-1;
   part(tea,cyl(.05,.045,.1,10),toon('#ffc94d'),.85,1,-.1);solid(game,2.2,1,.62,2.4,.5,4.85);
-  standingSign(game.root,'TEA',2.4,1.5,5.2,.5,'#f4c9c3');
+  part(tea,cyl(.02,.02,.62,8),toon(DMETAL),0,1.25,-.26);standingSign(tea,'TEA',0,1.6,-.26,.5,'#f4c9c3');
   // Smoke: toon puffs with a firm core, rising from the toaster and spreading over the cloud in
   // logic.SMOKE at beam height (the station animates them and thins them around Pip).
   const smoke:T.Sprite[]=[],puff=TX.radial('smoke-cel','rgba(255,255,255,1)','rgba(255,255,255,0)',.55);
@@ -186,7 +191,7 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   const roof=part(kit.back,new T.PlaneGeometry(1.2,.3),flat(plaque('ROOF HATCH ↑',512,128,'#fff1c2')),.9,2.75,.18,false);roof.userData.noAO=true;
   // ---- Front: the pod's charging dock by the entrance, and a band chart on the side wall.
   const dock=group(r,POD_HOME.x,0,POD_HOME.z);part(dock,cyl(.75,.8,.05,28),toon('#dff3e6'),0,.025,0);part(dock,new T.TorusGeometry(.72,.03,8,40),toon('#3fae6a'),0,.06,0).rotation.x=Math.PI/2;
-  standingSign(game.root,'POD DOCK',POD_HOME.x,.35,POD_HOME.z+.84,.8,'#d5f2de');
+  {const tag=part(r,new T.PlaneGeometry(.8,.176),flat(plaque('POD DOCK',512,113,'#d5f2de',INK,44)),POD_HOME.x,.013,POD_HOME.z+.92,false);tag.rotation.x=-Math.PI/2;tag.userData.noAO=true;}
   // The notebook chart: it starts empty and fills in, cell by cell, as sends show what each band does
   // at each material (green gets through, amber loses a lot, red stops it).
   const COLS:Material[]=['brick','glass','metal','mesh','smoke'],seen=new Map<string,number>();

@@ -4,12 +4,13 @@ import type {PropSpec} from '../props/prefabs';
 // roof receiver's rack at its left end; the noisy motor cart is parked right beside the rack.
 // The dome and telescope sit back left, the spectrum gallery along the back wall.
 const props:PropSpec[]=[
-  {kind:'cart',id:'motor',x:-3.7,z:-1.1,color:'#5f8fa8'},
+  // The noisy motor cart is a job item, so its tray wears job yellow (R5-101).
+  {kind:'cart',id:'motor',x:-3.7,z:-1.1,color:'#ffc629'},
   // Star-chart crates, stools and clutter (all of it can be knocked about).
   ...[[-9.4,6.6],[-8.6,6.7],[-9.5,5.8],[8.6,6.3],[9.5,6.2]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#c98f5a':'#8b7be8'})),
-  {kind:'chair',x:-1.8,z:1.4,color:'#8b7be8'},{kind:'chair',x:1.6,z:1.6,color:'#ffc94d'},{kind:'chair',x:5.2,z:2.2,color:'#6cc58a'},{kind:'chair',x:-5.6,z:3.9,color:'#3f7fd6'},
+  {kind:'chair',x:-1.8,z:1.4,color:'#8b7be8'},{kind:'chair',x:1.6,z:1.6,color:'#3f7fd6'},{kind:'chair',x:5.2,z:2.2,color:'#6cc58a'},{kind:'chair',x:-5.6,z:3.9,color:'#3f7fd6'},
   {kind:'plant',x:-9.6,z:-1.2},{kind:'plant',x:9.5,z:-2.4},{kind:'plant',x:9.4,z:7.1},{kind:'bin',x:3.2,z:-1.2},{kind:'bin',x:-8.8,z:2.2},
-  {kind:'cabinet',x:9.4,z:.6},{kind:'cabinet',x:9.4,z:1.5},{kind:'bookshelf',x:6.2,z:7.3},{kind:'beanbag',x:-6.8,z:3.2},{kind:'beanbag',x:-5.8,z:2.6,color:'#8b7be8'},
+  {kind:'cabinet',x:9.4,z:.6},{kind:'cabinet',x:9.4,z:1.5},{kind:'bookshelf',x:6.2,z:7.3},{kind:'beanbag',x:-6.8,z:3.2,color:'#6f6ab8'},{kind:'beanbag',x:-5.8,z:2.6,color:'#8b7be8'},
   {kind:'cone',x:-3,z:4.6},{kind:'cone',x:3.4,z:4.8},{kind:'mug',x:4.4,z:6.2,y:1.1},{kind:'paper',x:-4.2,z:1.8},{kind:'paper',x:2.2,z:3.1},{kind:'paper',x:.6,z:5.4},
   {kind:'desk',x:4.6,z:6.4,variant:2},{kind:'monitor',x:4.6,z:6.6,y:1.2,variant:2},{kind:'chair',x:4.6,z:5.4,color:'#b392f0'},
   {kind:'cart',x:6.8,z:4.4,color:'#8b7be8'},{kind:'lamp',x:-9.2,z:4.4},
@@ -23,5 +24,7 @@ export const observatory:Level={id:'observatory',name:'SIGNAL OBSERVATORY',numbe
   width:22,depth:16,spawn:{x:-6.4,z:6.2},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs,
   // Observatory clutter: reading corners, desks, shelves of star atlases; the cart's run from the
   // receiver and the walk to the bench stay clear.
-  clutter:{seed:6,fill:['box','box','litter'],max:220,step:2.1,recipes:['pod','shelf','reading','lounge','pod','shelf','crates','reading'],colors:['#4a4380','#9b7bf0','#ffd66b','#8fd3c8','#e9dcc0'],
-    lanes:[{points:[[-6.1,-5.3],[-6.1,-5.3]],r:2.9},{points:[[-6.4,6.2],[-3.7,-.1],[-6,3.5],[0,-1.55]],r:1.2},{points:[[-6.4,6.2],[0,-1.55]],r:1}]}};
+  clutter:{seed:6,fill:['box','box','litter'],max:220,step:2.1,recipes:['pod','shelf','reading','lounge','pod','plants','crates','cabinets'],colors:['#4a4380','#9b7bf0','#c9a46a','#6f6ab8','#e9dcc0'],jitter:.6,fillSkip:.2,
+    lanes:[{points:[[-6.1,-5.3],[-6.1,-5.3]],r:2.9},{points:[[-6.4,6.2],[-3.7,-.1],[-6,3.5],[0,-1.55]],r:1.2},{points:[[-6.4,6.2],[0,-1.55]],r:1},
+      // Keep-outs: the exhibit gallery along the back wall stays a gallery, and the bench camera's view past the table stays clear (R5-312).
+      {points:[[-.2,-7.2],[9.6,-7.2]],r:1.3},{points:[[-3.5,-3.4],[3.5,-3.4]],r:1.3}]}};

@@ -48,3 +48,7 @@ Merged: `lunch3` (bots snag a cable only where their path crosses it; seated Lun
 | R5-220 | The Rush shift clock starts when the tray reaches the bench (or after 20 s if the tray is never fetched), so the fetch no longer eats the shift. The time limit is RUSH_TIME+30. | `src/stations/arcade/station.ts`, `tests/astra-grading.spec.ts` | station-arcade-rush, astra-grading, station-cable specs |
 
 Merged: `stationcable` (R5-079, a bench mains lead in every station plus a physical chaos bonus; `fixlog/stationcable.md`). The action bar keeps F in station rooms that have a lead.
+| R5-264 | Lenses are now distinct framings: Close is ~15% tighter and Wide shows ~25% more room than Standard. Standard and the bench views are unchanged. | `src/render/lens.ts` | type check; the default lens is untouched, so specs are unaffected |
+| R5-224 | Slingshot kicks (release and recoil) are capped at mass×14, so light litter leaves at ~14 m/s, not 50+. The direction is unchanged; Lunch's whip direction is in lunch-runtime. | `src/game.ts` | routes "slingshot" specs |
+| R5-326 | `respawn(prop)`: a puff where the item was (clamped inside the room) and at home, plus a pop and a rising tone for job items. Used for stranded items and for falls out of the room. | `src/game.ts` | respawn spec |
+| R5-161 | Covered by R5-004: at a bench every key the station doesn't use is swallowed (Space, Tab, F and R do nothing). The C-key orbit reset is in GameUI (Astra's). | - | R5-004 checks |

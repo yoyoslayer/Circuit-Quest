@@ -38,7 +38,8 @@ test('meeting single reel only reaches when overstretched at a sprint',async({pa
   await route(page,[[-8,-5],[-1,-1.5],[6,-1.2]]);
   // Walking, the reel's spring stops Pip well short of the boardroom door...
   await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(2,['KeyD']));let s=await snapshot(page);
-  expect(Math.hypot(s.player.x-12.3,s.player.z+2.25)).toBeGreaterThan(2.3);
+  // Seating needs Pip within 2.2 m of the socket (Game.canSeat: distance − .6 < 1.6). The margin is thin (R5-164, open).
+  expect(Math.hypot(s.player.x-12.3,s.player.z+2.25)).toBeGreaterThan(2.2);
   // ...but sprinting stretches it past its length (dragging props along) far enough to plug in.
   await page.evaluate(()=>(window as any).__circuitCrew.drive.advance(1.5,['KeyD','ShiftLeft']));s=await snapshot(page);expect(s.rope.strain).toBeGreaterThan(1);
   await page.keyboard.press('KeyF');await switchProjector(page);await complete(page);await page.screenshot({path:'artifacts/meeting-complete.png'});

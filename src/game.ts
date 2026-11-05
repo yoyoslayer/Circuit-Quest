@@ -348,12 +348,12 @@ export class Game {
   /** Heavy furniture, and carts (the Garage robot, the Observatory motor), are pushed along the floor. */
   heavy(p:Prop){return prefabs[p.spec.kind].mass>=15||this.isCart(p);}
   isCart(p:Prop){return p.spec.kind==='cart'&&(p.spec.id==='robot'||p.spec.id==='motor');}
-  /** The carried prop. While held it doesn't collide with Pip's body, so turning round with a cart
+  /** The carried prop. A carried cart (the robot included) doesn't collide with Pip's body, so turning round with it
    *  or the robot swings it past him instead of leaving it stuck behind him. */
   private heldProp?:Prop;
   get held(){return this.heldProp;}
   set held(p:Prop|undefined){if(this.heldProp===p)return;const set=(q:Prop,g:number)=>{for(let i=0;i<q.body.numColliders();i++)q.body.collider(i).setCollisionGroups(g);};
-    if(this.heldProp)set(this.heldProp,ALL_GROUPS);this.heldProp=p;if(p)set(p,HELD_GROUPS);}
+    if(this.heldProp)set(this.heldProp,ALL_GROUPS);this.heldProp=p;if(p&&this.isCart(p))set(p,HELD_GROUPS);}
   /** Sends a stuck or fallen prop home with a puff where it was (clamped inside the room) and at home;
    *  a job item also gets a pop and a rising tone, so the player sees where it went (R5-326). */
   respawn(prop:Prop){const q=prop.body.translation(),w=this.level.width/2-.3,d=this.level.depth/2-.3;

@@ -133,7 +133,7 @@ export class GarageBench implements Station {
   constructor(private game:Game){
     this.job={goal:'Stop the delivery robot resetting, then send it on its route',
       steps:[
-        {text:'Carry the delivery robot onto the test stand behind the bench',done:()=>this.onStand,at:()=>this.bot?.body.translation()??PAD},
+        {text:'Carry the delivery robot onto the test stand behind the bench',done:()=>this.onStand,at:()=>this.game.held===this.bot?STAND:this.bot?.body.translation()??PAD},
         {text:'Sit at the garage bench (E)',done:()=>(this.active&&this.onStand)||this.logged.length>0,at:()=>this.stand},
         ...JOBS.map((j,i)=>({text:`Job ${i+1}: ${j.title}`,done:()=>this.logged.length>i,at:()=>this.stand})),
         {text:'Watch the robot drive its delivery route',done:()=>this.delivered,at:()=>this.bot?.body.translation()??STAND}],

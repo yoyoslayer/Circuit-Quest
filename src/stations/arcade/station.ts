@@ -119,7 +119,7 @@ export class ArcadeBench implements Station {
     this.rush=game.level.id==='arcade-rush';this.jobs=this.rush?[]:[...JOBS];this.setup=clone(this.current()!.start);this.heat=zeroHeat(this.setup.chain);
     this.limits.cost=this.rush?24:Math.ceil(JOBS.reduce((n,j)=>n+partsCost({chain:best(j)??[],reversed:false}),0)*1.5);
     if(this.rush){this.limits.time=RUSH_TIME+10;this.limits.damage=3;}
-    const carry={text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.tray?.body.translation()??this.stand};
+    const carry={text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.game.held===this.tray?this.stand:this.tray?.body.translation()??this.stand};
     const step={text:'Step up to the service bench (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand};
     this.job=this.rush?{goal:`Arcade Rush: fix as many cabinets as you can in ${RUSH_TIME/60} minutes`,
       steps:[carry,step,{text:'Fix cabinets until the clock runs out',done:()=>this.complete(),at:()=>this.stand}],

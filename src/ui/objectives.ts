@@ -16,7 +16,7 @@ const prop=(g:Game,id:string)=>{const q=g.props.find(q=>q.spec.id===id);return q
 // Lunch Rush bookkeeping read from the circuit's event log.
 const tripped=(g:Game)=>!!g.lunch?.circuit.events.some(e=>e.kind==='trip'||e.kind==='short');
 const scorched=(g:Game)=>!!g.lunch?.circuit.events.some(e=>e.kind==='scorch')||!!g.lunch?.cables.some(c=>c.lead.dead);
-const kitchenFed=(g:Game)=>!!g.lunch?.cables.some(c=>c.ports.includes('kitchen')&&c.lead.closed&&!c.lead.dead);
+const kitchenFed=(g:Game)=>!!g.lunch&&(g.lunch.powered('oven')||g.lunch.powered('kitchen-lamp'));
 
 export const JOBS:Record<string,Job>={
   playground:{goal:'Light the lamp',
@@ -44,6 +44,7 @@ export const JOBS:Record<string,Job>={
       {text:'Power the kitchen\'s feed post (oven and lamps)',done:g=>kitchenFed(g)||(g.lunch?.job.bake??0)>=20,at:()=>({x:-4,z:-3})},
       {text:'Keep the oven on until the tray is baked',done:g=>g.lunch?.job.tray!=='raw',at:()=>({x:-2.5,z:-7.2})},
       {text:'Carry the tray to the conveyor',done:g=>['conveyor','lift','delivered'].includes(g.lunch?.job.tray??''),at:g=>g.held?.spec.id==='tray'?{x:0,z:-7}:prop(g,'tray')},
+      {text:'Get the conveyor moving',done:g=>!!g.lunch&&(g.lunch.powered('conveyor')||(g.lunch.job.transport??0)>0||['lift','delivered'].includes(g.lunch.job.tray)),at:()=>({x:5,z:-5})},
       // Goals, not methods: how to start the lift's heavy motor is for the player to find (a badge
       // over the capacitor cart appears only after its start-up kick has tripped a breaker).
       {text:'Start the lift winch without tripping a breaker',done:g=>!!g.lunch?.liftRan||!!g.lunch?.job.done,at:g=>g.lunch?.capHint&&!g.lunch.capDocked?prop(g,'capacitor'):{x:12,z:-4.8}},
@@ -57,6 +58,8 @@ export const JOBS:Record<string,Job>={
 const NAMES:Partial<Record<PropKind,string>>={box:'crate',desk:'desk',chair:'chair',monitor:'monitor',mug:'mug',paper:'paper',plant:'plant',cabinet:'cabinet',sofa:'sofa',bin:'bin',
   reel:'cable reel',coupler:'coupler',cart:'cart',printer:'printer',whiteboard:'whiteboard',bookshelf:'shelf',cooler:'water cooler',bridge:'cable bridge',mop:'mop',tray:'lunch tray',
   lamp:'lamp',dolly:'cable dolly',capcart:'capacitor cart',coolbox:'cooler box',splitter:'splitter',wedge:'doorstop',cone:'cone',strip:'power strip',beanbag:'bean bag'};
+/** Job items whose prop kind is generic get their own name in prompts. */
+const ID_NAMES:Record<string,string>={parts:'parts crate',blocks:'resistor tray',robot:'robot',motor:'motor cart',pod:'detector pod'};
 /** A station supplies its own steps and bonuses (src/stations); the marker defaults to its bench. */
 function stationJob(g:Game):Job{const j=(g.station??g.hub)!.job,home=g.station?.stand;
   return {goal:j.goal,steps:j.steps.map(s=>({text:s.text,done:()=>s.done(),at:()=>s.at?.()??home})),bonuses:j.bonuses.map(b=>({text:b.text,ok:()=>b.ok()}))};}
@@ -67,7 +70,8 @@ export function promptFor(g:Game):Prompt|null{
   const pos=g.player.translation();
   if(g.lunch){const p=g.lunch.promptAt();if(p)return p;}
   if(g.strip&&!g.held&&!g.holdingPlug){const p=g.strip.prompt(pos);if(p)return p;}
-  if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench)return p;}
+  // A station may return {key:'',text:''} to show no pill at all.
+  if(g.station){const p=g.station.prompt(g.atBench);if(p||g.atBench)return p&&p.text?p:null;}
   if(g.hub&&!g.held){const p=g.hub.prompt();if(p)return p;}
   if(g.held){const name=NAMES[g.held.spec.kind]??'it';
     if(g.held.spec.id==='strip'&&dist(pos,g.level.target)<2.6)return {key:'E',text:'Set the power strip down by the door'};
@@ -81,8 +85,9 @@ export function promptFor(g:Game):Prompt|null{
   if(!g.lunch&&g.nearSwitch(pos))return {key:'E',text:g.switchedOn?'Switch it off':g.connected?'Switch it on':'Switch on (needs power first)'};
   // In the Meeting the strip comes first: only offer the plug when Pip is right on it until the strip is placed.
   if(!g.lunch&&!g.station&&!g.hub&&!g.connected&&dist(pos,g.plugPosition)<(g.strip&&!g.stripPlaced()?.9:1.75))return {key:'F',text:'Pick up the plug'};
-  const near=g.nearest();if(near){if(near.spec.id==='coffee-reel'&&!g.coffeeReused)return {key:'E',text:'Borrow the coffee machine\'s cable'};
-    return {key:'E',text:`Grab the ${NAMES[near.spec.kind]??'thing'}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
+  // In station rooms the pill is for the job: clutter can still be grabbed, it just isn't advertised.
+  const near=g.nearest();if(near&&g.station&&!near.spec.id)return null;if(near){if(near.spec.id==='coffee-reel'&&!g.coffeeReused)return {key:'E',text:'Borrow the coffee machine\'s cable'};
+    return {key:'E',text:`Grab the ${ID_NAMES[near.spec.id??'']??NAMES[near.spec.kind]??'thing'}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
   return null;
 }
 

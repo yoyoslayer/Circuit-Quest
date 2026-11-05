@@ -233,6 +233,8 @@ export class ArcadeBench implements Station {
       part(bg,rbox(.42,.02,.32,.03),toon(rim),0,.01,0);
       for(const [w,d,bx,bz] of [[.42,.025,0,-.15],[.42,.025,0,.15],[.025,.32,-.2,0],[.025,.32,.2,0]] as const)part(bg,rbox(w,.1,d,.012),toon(col),bx,.06,bz);
       for(let n=0;n<4;n++){const blk=blockMesh(v);blk.position.set(-.1+(n%2)*.2+(pick()-.5)*.04,.02+Math.floor(n/2)*.04,-.06+Math.floor(n/2)*.1);blk.rotation.y=(pick()-.5)*.6;blk.scale.setScalar(.92);bg.add(blk);}
+      // Its key on the rim (R5-246): bins 1–4 match Digit1–4.
+      sign(bg,String(k+1),-.15,.115,-.12,.09,-Math.PI/2,'#ffe36e',INK,.09);
       this.bins.set(v,bg);this.click(bg,'pick',v);});
     r.visible=false;
   }
@@ -241,10 +243,11 @@ export class ArcadeBench implements Station {
     const p=group(this.top,POWERAT.x,.04,POWERAT.z-.18);part(p,rbox(.46,.2,.4,.06),toon(MINT),0,.1,0);part(p,box(.48,.03,.42),toon(PLUM),0,.205,0);
     const lv=group(p,0,.2,-.04);part(lv,rbox(.2,.04,.16,.03),toon(INK),0,.02,0);this.lever=group(lv,0,.04,0);part(this.lever,cyl(.018,.018,.2,10),toon('#c9ced8'),0,.1,0);part(this.lever,sphere(.05,14,10),toon('#e5484d'),0,.21,0);
     this.powerLamp=part(p,sphere(.035,12,8),toon('#5a4a60'),-.16,.23,.12);
+    sign(p,'P',.15,.222,-.13,.11,-Math.PI/2,'#ffe36e',INK,.11);
     this.click(p,'power');
     // The sign-off button: a big round stamp with a tick on it.
     const s=group(this.top,POWERAT.x+.52,.04,POWERAT.z+.14);part(s,cyl(.17,.19,.06,24),toon(INK),0,.03,0);this.signBtn=part(s,cyl(.13,.13,.06,24),toon('#8a9a8e'),0,.08,0);this.click(s,'signoff');
-    sign(s,'✓',0,.112,0,.16,-Math.PI/2,'#fffaf0',INK,.16);
+    sign(s,'✓',0,.112,0,.16,-Math.PI/2,'#fffaf0',INK,.16);sign(s,'Enter',0,.065,.25,.24,-Math.PI/2,'#ffe36e',INK,.09);
   }
   /** The cabinet being serviced stands at the bench's left end, back open, ribbon cable to the board,
    *  with a kid waiting to play it. */

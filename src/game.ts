@@ -506,20 +506,26 @@ export class Game {
         const sx=b.x-a.x,sz=b.z-a.z,len=Math.hypot(sx,sz)||1,side=Math.sign((q.x-a.x)*-sz/len+(q.z-a.z)*sx/len)||1,m=prefabs[p.spec.kind].mass;
         p.body.applyImpulse({x:-sz/len*side*m*.06,y:0,z:sx/len*side*m*.06},true);break;}}
     const furniture=chosen.map(p=>{
-      const pos=p.body.translation(),[w,,d]=prefabs[p.spec.kind].size,rotation=new T.Matrix4().makeRotationFromQuaternion(p.mesh.quaternion).elements;
-      const hx=Math.abs(rotation[0])*w/2+Math.abs(rotation[8])*d/2+.05,hz=Math.abs(rotation[2])*w/2+Math.abs(rotation[10])*d/2+.05;
+      // The footprint includes the height axis, so a tipped prop keeps its real footprint.
+      const pos=p.body.translation(),[w,h,d]=prefabs[p.spec.kind].size,rotation=new T.Matrix4().makeRotationFromQuaternion(p.mesh.quaternion).elements;
+      const hx=Math.abs(rotation[0])*w/2+Math.abs(rotation[4])*h/2+Math.abs(rotation[8])*d/2+.05,hz=Math.abs(rotation[2])*w/2+Math.abs(rotation[6])*h/2+Math.abs(rotation[10])*d/2+.05;
       return {id:`prop-${p.body.handle}`,minX:pos.x-hx,maxX:pos.x+hx,minZ:pos.z-hz,maxZ:pos.z+hz,prop:p};
-    }).filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ)&&!(this.rope.anchor.x>o.minX&&this.rope.anchor.x<o.maxX&&this.rope.anchor.z>o.minZ&&this.rope.anchor.z<o.maxZ));
+    });
+    // A held plug pressed into furniture is pulled back toward Pip until it is outside every box, so
+    // the cable bends round the prop's corner instead of the prop dropping out of the route (R5-321).
+    const inside=(q:Point,o:{minX:number;maxX:number;minZ:number;maxZ:number})=>q.x>o.minX&&q.x<o.maxX&&q.z>o.minZ&&q.z<o.maxZ;
+    if(this.holdingPlug){const pip=this.player.translation();for(let k=0;k<12&&furniture.some(o=>inside(this.plugPosition,o));k++)this.plugPosition.set(pip.x+(this.plugPosition.x-pip.x)*.8,this.plugPosition.y,pip.z+(this.plugPosition.z-pip.z)*.8);}
+    const kept=furniture.filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ)&&!(this.rope.anchor.x>o.minX&&this.rope.anchor.x<o.maxX&&this.rope.anchor.z>o.minZ&&this.rope.anchor.z<o.maxZ));
     // Standing coworkers (the solid ones, with a body) are in the way too: the cable bends round them as a 0.9 m box, and a taut
     // cable rubbing past makes them jump (throttled). Seated ones are left out, or desk pods become mazes.
     const people=this.npcs.filter(n=>!!n.collider&&Math.min(...route.slice(1).map((b,i)=>segmentDistance(n.group.position,route[i],b)))<1.2).map(n=>{const g=n.group.position;return {id:`npc-${n.seed}`,minX:g.x-.45,maxX:g.x+.45,minZ:g.z-.45,maxZ:g.z+.45,npc:n};})
       .filter(o=>!(this.plugPosition.x>o.minX&&this.plugPosition.x<o.maxX&&this.plugPosition.z>o.minZ&&this.plugPosition.z<o.maxZ));
-    const obstacles=[...this.obstacles,...furniture,...people];this.ropePoints=this.rope.update(this.plugPosition,obstacles);
+    const obstacles=[...this.obstacles,...kept,...people];this.ropePoints=this.rope.update(this.plugPosition,obstacles);
     if(this.rope.strain>.3)for(const o of people){const n=o.npc;if(this.time-(n.cableAt??-9)<.7||n.alarm>0)continue;
       const g=n.group.position;if(Math.min(...this.ropePoints.slice(1).map((b,i)=>segmentDistance(g,this.ropePoints[i],b)))<.6){n.cableAt=this.time;n.alarm=ALARM;n.from={x:this.plugPosition.x,z:this.plugPosition.z};n.bang=true;this.beat('alarm');
         if(this.time-this.lastVoice>.5){this.lastVoice=this.time;this.audio.voice('alarm',1+Math.random()*.3);}}}
     const isCorner=(o:Obstacle,b:Point)=>(Math.abs(b.x-o.minX+CORNER)<.05||Math.abs(b.x-o.maxX-CORNER)<.05)&&(Math.abs(b.z-o.minZ+CORNER)<.05||Math.abs(b.z-o.maxZ-CORNER)<.05);
-    this.wrapped=new Set(furniture.filter(o=>this.rope.bends.some(b=>isCorner(o,b))).map(o=>o.prop));
+    this.wrapped=new Set(kept.filter(o=>this.rope.bends.some(b=>isCorner(o,b))).map(o=>o.prop));
     const swungClear=beforeBends.filter(b=>!this.rope.bends.some(a=>distance(a,b)<.01)).some(b=>obstacles.some(o=>isCorner(o,b)));
     if(this.running&&this.rope.bends.length!==before){if(this.rope.bends.length>before)this.audio.knock(1);else this.audio.slip();}
     // A taut rope whipping off a corner slingshots whatever lies along it.

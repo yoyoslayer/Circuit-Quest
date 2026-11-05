@@ -9,7 +9,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressObservatory,RX} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL,freezeBench} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import {signOff,fault as benchFault} from '../shared';
 import {JOBS,KINDS,VALUES,DEFAULT,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,REROUTE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,
@@ -104,7 +104,7 @@ export class ObservatoryBench implements Station {
         {text:'Elegant: the leanest filter each time',ok:()=>this.logged.every(l=>l.verdict.tier===3)},
         {text:'No failed decode logged',ok:()=>this.mistakes===0}]};
     game.root.add(this.root);game.root.add(this.motor);
-    this.buildBench();this.redraw();
+    this.buildBench();this.redraw();freezeBench(this.root,this,game,[this.top]);
   }
   dress(kit:RoomKit){this.room=dressObservatory(this.game,kit);return this.room;}
   private setup(){this.ready=true;this.cart=this.game.props.find(p=>p.spec.id==='motor');this.buildMotor();}

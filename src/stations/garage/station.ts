@@ -13,7 +13,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressGarage,robotMesh,STAND,PAD,ROUTE,YELLOW,TEAL,CREAM,type RobotParts} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL,freezeBench} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import {signOff,fault as benchFault} from '../shared';
 import {JOBS,PARTS,PART_IDS,SPEC,SWITCH,MOTOR,STALL,CTRL,SCOPE_TEXT,START_SPAN,judge,cost,cheapest,shutdownCached,startTrace,startDip,setupKey,placementKey,partCount,orientation,jobCoil,coilRunning,ms,
@@ -145,7 +145,7 @@ export class GarageBench implements Station {
         {text:'No failed test',ok:()=>this.mistakes===0}]};
     this.rollTray();
     this.robot=robotMesh(TEAL,undefined,true);game.root.add(this.root);game.root.add(this.robot.root);
-    this.buildBench();this.redraw();
+    this.buildBench();this.redraw();freezeBench(this.root,this,game,[this.gndShort,this.gndLong,this.starWire,this.shared,this.brakeMesh,this.motorMesh]);
   }
   dress(kit:RoomKit){return dressGarage(this.game,kit);}
   current():Job|undefined{return JOBS[this.jobIndex];}

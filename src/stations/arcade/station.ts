@@ -14,7 +14,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressArcade,type ArcadeRoom} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,freezeBench} from '../../render/kit';
 import {hot} from '../../render/actors';
 import {JOBS,rushJob,BLOCKS,BLOCK_RATING,BLOCK_COST,PER_POSITION,HOUSE,read,judge,best,mA,ohms,watts,partsCost,positionR,starZone,TIER_WORD,motorDrive,popWhy,minCost,
   type Block,type Chain,type Job,type Setup,type Reading,type Verdict,type LedColor} from './logic';
@@ -137,7 +137,7 @@ export class ArcadeBench implements Station {
         {text:'Every cabinet in the ★ zone',ok:()=>this.served.every(s=>s.tier===3)},
         {text:'Fuse tripped no more than once',ok:()=>this.trips<=1}]};
     game.root.add(this.top);this.top.position.copy(this.table).add(new T.Vector3(OX,0,0));
-    this.build();this.showJob();
+    this.build();this.showJob();freezeBench(this.top,this,game,[this.binsGroup,...this.bins.values(),this.motorLoop]);
   }
   dress(kit:RoomKit){const r=dressArcade(this.game,kit);this.room=r;return {lightUp:r.lightUp};}
   current():Job|undefined{

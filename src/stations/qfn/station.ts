@@ -16,7 +16,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressFabBay} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,stripes,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,stripes,INK,freezeBench} from '../../render/kit';
 import {hot} from '../../render/actors';
 import {BOARDS,HEAT,blank,check,erase,footprint,netOfPin,isNC,partOf,pinCells,pinOrderOk,placeProblem,ratsnest,strokeNet,stepProblem,traceProblem,viaProblem,same,
   type Board,type Design,type Layer,type PartDef,type Place,type Report,type Rot,type XY} from './logic';
@@ -90,7 +90,7 @@ export class QfnBench implements Station {
         {text:'Every board works reliably',ok:()=>this.shipped.length>0&&this.shipped.every(s=>s.tier>=2)},
         {text:'Elegant: every route at or under par',ok:()=>this.shipped.length>0&&this.shipped.every(s=>s.tier===3)},
         {text:'No board sent back',ok:()=>this.mistakes===0}]};
-    game.root.add(this.root);this.buildBench();this.loadBoard();
+    game.root.add(this.root);this.buildBench();this.loadBoard();freezeBench(this.root,this,game);
   }
   board():Board{return BOARDS[Math.min(this.boardIx,BOARDS.length-1)];}
   dress(kit:RoomKit){return dressFabBay(this.game,kit,this.table);}

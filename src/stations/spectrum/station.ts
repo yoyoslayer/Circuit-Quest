@@ -11,7 +11,7 @@ import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {prefabs} from '../../props/prefabs';
 import {dressSpectrum,CREAM,PAPER,COPPER,type SpectrumRoom} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL,freezeBench} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import * as TXR from '../../render/textures';
 import {JOBS,BANDS,BAND_IDS,DETECTOR_IDS,POWERS,SPEC,PADS,PAD_NAMES,SPOTS,SPOT_IDS,TX,SMOKE,STORE,LAB,QUIET,HATCH,MATERIAL_NAMES,POD_HOME,DOORS,
@@ -104,7 +104,7 @@ export class SpectrumDesk implements Station {
         {text:'Elegant: least power, fewest mirrors',ok:()=>this.delivered.every(x=>x.verdict.tier===3)},
         {text:'No failed send',ok:()=>this.mistakes===0}]};
     game.root.add(this.root);game.root.add(this.beam);
-    this.buildDesk();this.buildHall();this.redraw();
+    this.buildDesk();this.buildHall();this.redraw();freezeBench(this.root,this,game);
   }
   dress(kit:RoomKit){this.room=dressSpectrum(this.game,kit);return {lightUp:this.room.lightUp};}
   current():Job|undefined{return JOBS[this.jobIndex];}

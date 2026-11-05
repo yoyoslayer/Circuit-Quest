@@ -72,16 +72,57 @@ export const unlit=(color:string,opts:T.MeshBasicMaterialParameters={})=>{const 
 const sharedUnlit=new Map<string,T.MeshBasicMaterial>();
 /** Shared unlit material for static decor that never changes colour. */
 export const paint=(color:string)=>{let m=sharedUnlit.get(color);if(!m){m=unlit(color);sharedUnlit.set(color,m);}return m;};
-/** Merges every static mesh under `group` into one mesh per material (and shadow flag).
- *  Level decor is hundreds of small parts; merged it costs a handful of draw calls. */
-export function freeze(group:T.Object3D){
-  group.updateMatrixWorld(true);const inverse=group.matrixWorld.clone().invert(),buckets=new Map<string,{material:T.Material;cast:boolean;geometries:T.BufferGeometry[]}>(),done:T.Mesh[]=[];
-  group.traverse(o=>{if(!(o instanceof T.Mesh)||Array.isArray(o.material))return;
+/** Plain opaque toon (and unlit basic) materials that differ only in colour merge into one
+ *  vertex-coloured material (colour baked per vertex in linear space, so the shading is identical). */
+const bakedMaterials=new Map<string,T.Material>();
+const onlyDefines=(m:T.Material,allowed:string[])=>Object.keys(m.defines??{}).every(k=>allowed.includes(k));
+function colourOnly(m:T.Material):m is T.MeshToonMaterial|T.MeshBasicMaterial{
+  const t=m as T.MeshToonMaterial&T.MeshBasicMaterial;
+  const common=!t.map&&!t.alphaMap&&!t.vertexColors&&!t.transparent&&t.opacity===1&&t.visible&&!t.wireframe&&!t.alphaTest&&!t.clippingPlanes&&t.blending===T.NormalBlending;
+  if(!common)return false;
+  if(t.type==='MeshToonMaterial')return t.emissive.getHex()===0&&t.gradientMap===toon('#ffffff').gradientMap&&onlyDefines(t,['TOON'])&&t.onBeforeCompile===toon('#ffffff').onBeforeCompile&&!t.lightMap&&!t.aoMap&&!t.normalMap&&!t.bumpMap;
+  if(t.type==='MeshBasicMaterial')return onlyDefines(t,[])&&!t.lightMap&&!t.aoMap&&!t.envMap&&!t.specularMap;
+  return false;
+}
+function bakedFor(m:T.MeshToonMaterial|T.MeshBasicMaterial){
+  const outline=m.userData.outlineParameters?.visible!==false,rim=!m.userData.noRim,key=`${m.type}|${m.side}|${outline}|${rim}|${m.toneMapped}|${m.fog}|${m.depthWrite}|${m.depthTest}|${m.polygonOffset}|${m.polygonOffsetFactor}|${m.polygonOffsetUnits}`;
+  let b=bakedMaterials.get(key);
+  if(!b){b=m.type==='MeshToonMaterial'?toon('#ffffff').clone():new T.MeshBasicMaterial();b.vertexColors=true;b.side=m.side;b.toneMapped=m.toneMapped;b.depthWrite=m.depthWrite;b.depthTest=m.depthTest;
+    b.polygonOffset=m.polygonOffset;b.polygonOffsetFactor=m.polygonOffsetFactor;b.polygonOffsetUnits=m.polygonOffsetUnits;if(m.type==='MeshBasicMaterial')(b as T.MeshBasicMaterial).fog=m.fog;
+    if(!outline)b.userData.outlineParameters={visible:false};if(!rim)b.userData.noRim=true;bakedMaterials.set(key,b);}
+  return b;
+}
+/** Merges every static mesh under `group` into one mesh per material (and shadow flags); plain
+ *  toon colours share one vertex-coloured material. Level decor is hundreds of small parts; merged
+ *  it costs a handful of draw calls (R5-026). Left alone, with their whole subtree: anything hidden,
+ *  anything with userData.live (animated, toggled or swapped later), anything `keep` returns true
+ *  for, instanced/skinned meshes, multi-material and already vertex-coloured meshes, and
+ *  userData.noAO meshes (the merged mesh would lose the flag). A mesh is only merged when all its
+ *  children are, so nothing kept loses its parent. */
+export function freeze(group:T.Object3D,keep?:(o:T.Object3D)=>boolean){
+  group.updateMatrixWorld(true);const inverse=group.matrixWorld.clone().invert(),buckets=new Map<string,{material:T.Material;cast:boolean;receive:boolean;order:number;geometries:T.BufferGeometry[]}>(),done:T.Mesh[]=[];
+  const add=(o:T.Mesh)=>{const source=o.material as T.Material,baked=colourOnly(source);
     let g:T.BufferGeometry=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();for(const name of Object.keys(g.attributes))if(!['position','normal','uv'].includes(name))g.deleteAttribute(name);
+    g.morphAttributes={};g.clearGroups();
     if(!g.attributes.uv)g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!g.attributes.normal)g.computeVertexNormals();
-    g=g.applyMatrix4(inverse.clone().multiply(o.matrixWorld));const key=`${o.material.uuid}|${o.castShadow}`;const b=buckets.get(key)??{material:o.material,cast:o.castShadow,geometries:[] as T.BufferGeometry[]};b.geometries.push(g);buckets.set(key,b);done.push(o);});
-  for(const m of done)m.removeFromParent();for(const child of [...group.children])if(child.children.length===0&&!(child instanceof T.Sprite)&&!(child instanceof T.Light))group.remove(child);
-  for(const b of buckets.values()){const merged=mergeGeometries(b.geometries,false);if(!merged)continue;const mesh=new T.Mesh(merged,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=true;group.add(mesh);b.geometries.forEach(g=>g.dispose());}
+    if(baked){const c=source.color,a=new Float32Array(g.attributes.position.count*3);for(let i=0;i<a.length;i+=3){a[i]=c.r;a[i+1]=c.g;a[i+2]=c.b;}g.setAttribute('color',new T.BufferAttribute(a,3));}
+    g=g.applyMatrix4(inverse.clone().multiply(o.matrixWorld));const material=baked?bakedFor(source):source;
+    const key=`${material.uuid}|${o.castShadow}|${o.receiveShadow}|${o.renderOrder}`;const b=buckets.get(key)??{material,cast:o.castShadow,receive:o.receiveShadow,order:o.renderOrder,geometries:[] as T.BufferGeometry[]};b.geometries.push(g);buckets.set(key,b);done.push(o);};
+  // Post-order walk; returns whether o and everything under it was merged.
+  const visit=(o:T.Object3D):boolean=>{
+    if(o!==group&&(!o.visible||o.userData.live||keep?.(o)))return false;
+    let all=true;for(const child of [...o.children])if(!visit(child))all=false;
+    if(o===group)return all;
+    if(o instanceof T.Mesh){const m=o.material;
+      if(!all||o instanceof T.InstancedMesh||o instanceof T.SkinnedMesh||Array.isArray(m)||(m as T.Material).vertexColors||o.userData.noAO||(o.geometry.attributes.position as T.BufferAttribute|undefined)?.itemSize!==3)return false;
+      add(o);return true;}
+    // Plain groups count as merged once empty of anything kept; sprites, lights and the rest stay.
+    return all&&(o.type==='Group'||o.type==='Object3D');
+  };
+  visit(group);
+  for(const m of done)m.removeFromParent();
+  const prune=(o:T.Object3D)=>{for(const child of [...o.children]){prune(child);if((child.type==='Group'||child.type==='Object3D')&&child.children.length===0&&!child.userData.live&&!keep?.(child))o.remove(child);}};prune(group);
+  for(const b of buckets.values()){const merged=mergeGeometries(b.geometries,false);if(!merged)continue;const mesh=new T.Mesh(merged,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=b.receive;mesh.renderOrder=b.order;mesh.name='frozen';group.add(mesh);b.geometries.forEach(g=>g.dispose());}
   return buckets.size;
 }
 /** One coworker blob (body, eye whites, pupils) as a single vertex-coloured mesh. */

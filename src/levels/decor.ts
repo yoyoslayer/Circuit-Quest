@@ -6,7 +6,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../game';
 import type {Obstacle} from '../sim/cable';
-import {DMETAL,TRIM,WOOD,toon,rbox,box,cyl,sphere,part,group,glow,glyph,cachedTexture} from '../render/kit';
+import {DMETAL,TRIM,WOOD,toon,rbox,box,cyl,sphere,part,group,glow,glyph,cachedTexture,freeze} from '../render/kit';
 import {INK} from '../render/toon';
 import {glossyToon,hot} from '../render/actors';
 import * as TX from '../render/textures';
@@ -16,7 +16,7 @@ export interface Decor {screen?:T.Mesh;beam?:T.Object3D;clock?:{hand:T.Object3D;
 const WALL_UP='#efe2c8',WALL_LOW='#c7b08e',RAIL='#a8734a',BASE='#7a4f33',CAP='#c98a55',CAP_DARK='#8e5a36';
 // Big flat wall faces skip OutlineEffect: its hull pokes through them at grazing angles as stripes.
 const plainMaterials=new Map<string,T.Material>();
-const plain=(color:string,map?:T.Texture)=>{const key=color+(map?.uuid??'');let m=plainMaterials.get(key);if(!m){m=toon(color,{map}).clone();m.userData.outlineParameters={visible:false};plainMaterials.set(key,m);}return m;};
+const plain=(color:string,map?:T.Texture)=>{const key=color+(map?.uuid??'');let m=plainMaterials.get(key);if(!m){m=toon(color,{map}).clone();m.userData.outlineParameters={visible:false};m.userData.noRim=true;plainMaterials.set(key,m);}return m;};
 /** Invisible static collider; interior walls are taller than they look so Pip can't hop them. */
 export function solid(game:Game,w:number,h:number,d:number,x:number,y:number,z:number,ry=0){
   const body=game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z).setRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),ry)));
@@ -76,6 +76,17 @@ export function decorate(game:Game):Decor{
   if(l.id==='lunch')return lunch(game,back,side);
   return playground(game,back,side);
 }
+/** Static merge (R5-026), run once after every room, station and runtime has built its dressing:
+ *  game.decorRoot, then each shell wall's lower part and its folding upper part (each merged in its
+ *  own frame, so the cutaway still scales the upper part). Named meshes (looked up later by name),
+ *  userData.live groups and the lobby doors' moving parts stay separate; see freeze() for the rest. */
+export function freezeDecor(game:Game){
+  const live=new Set<T.Object3D>();
+  for(const d of game.hub?.doors??[])for(const o of [d.leaf,d.lamp,d.portal.mesh,d.spill])live.add(o);
+  const keep=(o:T.Object3D)=>live.has(o)||(o.name!==''&&o.name!=='frozen');
+  freeze(game.decorRoot,keep);
+  for(const wall of game.shellWalls){const upper=wall.group,lower=upper.parent!;freeze(lower,o=>o===upper||keep(o));for(const inside of [...upper.children])freeze(inside,keep);}
+}
 /** Back-wall windows with blinds, each throwing a warm shaft into the room. */
 function backWindows(game:Game,back:T.Group,skip:(x:number)=>boolean=()=>false,shaftOpacity=.18){
   const l=game.level;for(const x of windowXs(l.width)){if(skip(x))continue;windowUnit(back,x,1.95,.16);windowShaft(game.root,x,-l.depth/2+.2,{opacity:shaftOpacity});}
@@ -123,7 +134,7 @@ function meeting(game:Game,back:T.Group,side:T.Group):Decor{
   rug(r,12.4,5.4,4.2,4.2,'#d98c5f','#f6d49b');floor(game,10.4,13.9,-9.2,-3.6,TX.rugTex('#5f7fa8','#bcd3ee'),3.5,.01);
   backWindows(game,back,x=>x< -11.5,.2);
   // Deadline clock between two windows: its red minute hand sweeps the four-minute meeting.
-  const clock=group(back,-3.1,2.55,.18);const face=part(clock,cyl(.3,.3,.06,32,'z'),toon('#fbf5ea'));part(clock,cyl(.34,.34,.05,32,'z'),toon(INK),0,0,-.02);
+  const clock=group(back,-3.1,2.55,.18);clock.userData.live=true;const face=part(clock,cyl(.3,.3,.06,32,'z'),toon('#fbf5ea'));part(clock,cyl(.34,.34,.05,32,'z'),toon(INK),0,0,-.02);
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2;part(clock,box(.03,.06,.02),toon(INK),Math.sin(a)*.24,Math.cos(a)*.24,.04,false).rotation.z=-a;}
   const hand=group(clock,0,0,.05);part(hand,box(.035,.17,.02),toon(INK),0,.075,0,false);const minute=group(clock,0,0,.06);part(minute,box(.025,.25,.02),toon('#e5484d'),0,.12,0,false);
   wallArt(back,'graph',15.2,1.9,.18,0,.9);

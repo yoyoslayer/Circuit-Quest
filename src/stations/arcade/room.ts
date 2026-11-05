@@ -5,7 +5,7 @@
 import * as T from 'three';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,freeze,INK,DMETAL} from '../../render/kit';
 import {hot} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pointLamp,lampPool,rug} from '../../levels/dressing';
@@ -80,9 +80,12 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   rug(r,0,-1.2,5.6,2.2,PINK,'#ffd1e3');rug(r,5.4,2.6,3.2,2.4,GRAPE,'#e3d9ff');
   // ---- The five broken cabinets along the back wall (dark until signed off).
   const lit:{face:T.Mesh;screen:T.Mesh;at:T.Vector3;title:string;done?:boolean}[]=[];
+  // Cabinets stay on root but are merged in place at the end (R5-026); the broken ones keep their
+  // marquee face and screen separate, because light(k) swaps them.
+  const cabs:{group:T.Group;live:T.Object3D[]}[]=[];
   const spots:[number,number][]=[[-7.8,-6.9],[-5.2,-6.9],[4.6,-6.9],[7.2,-6.9],[9.7,-3.2]];
   JOBS.forEach((j,k)=>{const [x,z]=spots[k],ry=k===4?-Math.PI/2:0,cab=cabinet(game.root,x,z,ry,['#ff9fc8','#9ff0d2','#ffe08a','#c7b6ff','#ffb38a'][k],j.cabinet,false,k);
-    cab.group.updateMatrixWorld(true);solid(game,1,2.2,.9,x,1.1,z,ry);lit.push({face:cab.face,screen:cab.screen,at:cab.group.localToWorld(new T.Vector3(0,2.1,.4)),title:j.cabinet});
+    cabs.push({group:cab.group,live:[cab.face,cab.screen]});cab.group.updateMatrixWorld(true);solid(game,1,2.2,.9,x,1.1,z,ry);lit.push({face:cab.face,screen:cab.screen,at:cab.group.localToWorld(new T.Vector3(0,2.1,.4)),title:j.cabinet});
     // Each broken cabinet has a tell: a pinball table, a dance pad, a claw box, a handheld, a hopper.
     const g=cab.group;
     if(j.id==='bumper'){const t=group(g,0,0,.95);part(t,rbox(.8,.14,1.1,.05),toon('#ff9fc8'),0,.85,0);part(t,box(.7,.02,1),toon('#2a1c33'),0,.93,0);for(const [bx,bz] of [[-.18,-.2],[.18,-.2],[0,.05]] as const)part(t,cyl(.07,.07,.08,14),toon(PINK),bx,.97,bz);for(const [lx,lz] of [[-.33,-.48],[.33,-.48],[-.33,.48],[.33,.48]] as const)part(t,box(.06,.8,.06),toon(PLUM),lx,.4,lz);solid(game,.8,1,1.1,x,.5,z+.95);}
@@ -94,8 +97,8 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
     if(j.id==='hopper'){const s=group(g,0,0,.9);part(s,rbox(1.2,.9,.5,.05),toon('#ffb38a'),0,.45,0);for(let n=0;n<5;n++)part(s,sphere(.11,12,8),toon([PINK,MINT,LEMON,GRAPE,SKY][n]),-.44+n*.22,1.0,0);for(let n=0;n<6;n++)part(s,cyl(.05,.05,.015,14),toon('#d9a441'),-.3+n*.12,.92,.2);solid(game,.5,1,1.2,x-.9,.5,z);}
   });
   // ---- Working cabinets along the right wall and the left of the hall (the "too many lamps").
-  [[9.7,-.6],[9.7,1.2],[9.7,3]].forEach(([x,z],k)=>{cabinet(game.root,x,z,-Math.PI/2,['#9ff0d2','#ff9fc8','#c7b6ff'][k],['STAR BLASTER','KART DASH','BLOCK DROP'][k],true,k);solid(game,.9,2.2,1,x,1.1,z,-Math.PI/2);});
-  [[-9.9,-3.4],[-9.9,-1.5],[-9.9,.4]].forEach(([x,z],k)=>{cabinet(game.root,x,z,Math.PI/2,['#ffe08a','#9ff0d2','#ff9fc8'][k],['SNAKE','SPACE ROCKS','PONG'][k],true,k+1);solid(game,.9,2.2,1,x,1.1,z,Math.PI/2);});
+  [[9.7,-.6],[9.7,1.2],[9.7,3]].forEach(([x,z],k)=>{cabs.push({live:[],group:cabinet(game.root,x,z,-Math.PI/2,['#9ff0d2','#ff9fc8','#c7b6ff'][k],['STAR BLASTER','KART DASH','BLOCK DROP'][k],true,k).group});solid(game,.9,2.2,1,x,1.1,z,-Math.PI/2);});
+  [[-9.9,-3.4],[-9.9,-1.5],[-9.9,.4]].forEach(([x,z],k)=>{cabs.push({live:[],group:cabinet(game.root,x,z,Math.PI/2,['#ffe08a','#9ff0d2','#ff9fc8'][k],['SNAKE','SPACE ROCKS','PONG'][k],true,k+1).group});solid(game,.9,2.2,1,x,1.1,z,Math.PI/2);});
   // ---- Back wall: the neon sign between the cabinets, and the LED basics poster.
   const bw=kit.back;
   const neon=new T.Mesh(new T.PlaneGeometry(4.6,.9),flat(canvasTex(1024,200,c=>{c.clearRect(0,0,1024,200);c.textAlign='center';c.textBaseline='middle';let fs=96;c.font=FONT(fs);while(c.measureText('OVERHEATING ARCADE').width>940){fs--;c.font=FONT(fs);}
@@ -124,6 +127,7 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   const pink=pointLamp(game.root,-4,2.4,-5.4,{color:'#ff9fd0',intensity:4,distance:8});pointLamp(game.root,5,2.4,-3,{color:'#9ff0ff',intensity:4,distance:8});
   lampPool(game.root,8.4,1.2,2.2,.16,'#c7b6ff');lampPool(game.root,-8.6,5.4,2,.18,'#ffe0b0');
   for(const [x,z,c] of [[-8.6,-2,'rgba(255,224,138,1)'],[8.6,1.2,'rgba(159,240,210,1)']] as const)glow(game.root,c,3,.1).position.set(x,1.6,z);
+  for(const c of cabs)freeze(c.group,o=>c.live.includes(o));
   return {
     light(k:number,title?:string){const m=lit[k];if(!m||m.done)return;m.done=true;(m.face.material as T.MeshBasicMaterial).map=marqueeTex(title??m.title,true,k);(m.face.material as T.MeshBasicMaterial).needsUpdate=true;
       m.screen.material=hot(['#4a3a78','#2f5a6e','#5a2f58'][k%3],1.3);glow(game.root,'rgba(255,216,77,1)',1.8,.35).position.copy(m.at);game.burst(m.at,'#ffd84d',16,'confetti');},

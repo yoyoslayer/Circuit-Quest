@@ -107,7 +107,7 @@ export function dressObservatory(game:Game,kit:RoomKit){
   // ---- The receiver rack and its rooftop mast, just left of the bench.
   const rack=group(r,RX.x-.3,0,RX.z-.2);part(rack,rbox(.9,1.5,.7,.06),toon(NIGHT),0,.75,0);part(rack,box(.92,.06,.72),toon(BRASS),0,1.52,0);
   for(let k=0;k<3;k++){part(rack,box(.74,.3,.02),toon('#2e3a6e'),0,.4+k*.38,.36,false);part(rack,cyl(.06,.06,.03,16,'z'),toon(CREAM),-.2,.4+k*.38,.375);
-    for(let n=0;n<3;n++)part(game.root,sphere(.022,8,6),hot(['#8dffb0','#ffd66b','#7fd8ff'][(k+n)%3],1.8),RX.x-.3+.05+n*.1,.4+k*.38,RX.z-.2+.37,false);}
+    for(let n=0;n<3;n++)part(r,sphere(.022,8,6),hot(['#8dffb0','#ffd66b','#7fd8ff'][(k+n)%3],1.8),RX.x-.3+.05+n*.1,.4+k*.38,RX.z-.2+.37,false);}
   part(rack,cyl(.04,.05,2.4,10),toon(DMETAL),.25,2.7,-.2);for(const [y,w] of [[3.2,.7],[3.5,.5],[3.75,.34]] as const)part(rack,cyl(.012,.012,w,6,'x'),toon('#dfe3ea'),.25,y,-.2);
   part(rack,sphere(.05,10,8),hot('#ff6b6b',2),.25,3.92,-.2);solid(game,.9,1.6,.7,RX.x-.3,.8,RX.z-.2);
   const plaq=part(r,new T.PlaneGeometry(.8,.2),flat(plaque('ROOF RECEIVER',512,128,'#ffd66b')),RX.x-.3,1.72,RX.z+.16,false);plaq.rotation.x=-.3;
@@ -118,7 +118,7 @@ export function dressObservatory(game:Game,kit:RoomKit){
   const head=new T.Mesh(new T.PlaneGeometry(4.6,.42),flat(plaque('THE SPECTRUM: ONE WAVE, c = f × λ',1024,96,VIOLET,'#fffaf0')));head.position.set(x0+3*step,2.95,.2);kit.back.add(head);
   const warn=new T.Mesh(new T.PlaneGeometry(5.6,.34),flat(plaque('Not every band is safe: UV, X-rays and gamma rays damage living cells.',1400,84,'#ffe1dc','#7a1f22')));warn.position.set(x0+3*step,.9,.2);kit.back.add(warn);
   // A light rail over the gallery.
-  part(r,box(9,.06,.1),toon(BRASS),x0+3*step,3.2,-D+.4);for(let i=0;i<7;i++)part(game.root,cyl(.05,.07,.1,10),hot('#fff1d6',1.6),x0+i*step,3.12,-D+.45,false);
+  part(r,box(9,.06,.1),toon(BRASS),x0+3*step,3.2,-D+.4);for(let i=0;i<7;i++)part(r,cyl(.05,.07,.1,10),hot('#fff1d6',1.6),x0+i*step,3.12,-D+.45,false);
   pointLamp(game.root,x0+1.5*step,2.6,-D+1.8,{color:'#fff1d6',intensity:4,distance:5.5});pointLamp(game.root,x0+5*step,2.6,-D+1.8,{color:'#fff1d6',intensity:4,distance:5.5});
   // Exhibit plinths in front of the gallery: a dish, a prism with its rainbow, a lead-lined box.
   const plinth=(x:number,z:number)=>{const g=group(r,x,0,z);part(g,rbox(.7,.9,.7,.06),toon(CREAM),0,.45,0);part(g,box(.74,.05,.74),toon(BRASS),0,.92,0);solid(game,.7,1,.7,x,.5,z);return g;};

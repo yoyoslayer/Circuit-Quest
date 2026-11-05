@@ -32,10 +32,11 @@ export const JOBS:Record<string,Job>={
     steps:[
       {text:'Fetch the power strip by the printer and set it at the boardroom door',done:g=>g.stripPlaced(),at:g=>g.held?.spec.id==='strip'?g.level.target:prop(g,'strip')},
       {text:'Bring the server-room cable to the power strip and plug it in',done:g=>g.connected&&g.stripPlaced(),at:g=>g.holdingPlug?g.level.target:g.plugPosition},
-      {text:'Switch the projector on in the boardroom',done:g=>g.won,at:g=>g.level.switchAt}],
+      // After a trip the marker moves to the strip (the reset is there) and the card says the job is to get it running.
+      {text:'Get the projector running in the boardroom',done:g=>g.won,at:g=>g.strip?.tripped?g.strip.stripAt():g.level.switchAt}],
     bonuses:[
       {text:'Finish before the meeting starts (4:00)',ok:g=>g.time<(g.level.deadline??240)},
-      {text:'Break fewer than 5 things',ok:g=>g.damage<5},
+      {text:'Topple the carton tower',ok:g=>!!g.strip?.towerDown()},
       {text:'Leave the coffee machine alone',ok:g=>!g.coffeeReused}]},
   lunch:{goal:'Bake a tray of lunch and send it upstairs on the lift',
     steps:[
@@ -57,7 +58,7 @@ export const JOBS:Record<string,Job>={
 
 const NAMES:Partial<Record<PropKind,string>>={box:'crate',desk:'desk',chair:'chair',monitor:'monitor',mug:'mug',paper:'paper',plant:'plant',cabinet:'cabinet',sofa:'sofa',bin:'bin',
   reel:'cable reel',coupler:'coupler',cart:'cart',printer:'printer',whiteboard:'whiteboard',bookshelf:'shelf',cooler:'water cooler',bridge:'cable bridge',mop:'mop',tray:'lunch tray',
-  lamp:'lamp',dolly:'cable dolly',capcart:'capacitor cart',coolbox:'cooler box',splitter:'splitter',wedge:'doorstop',cone:'cone',strip:'power strip',beanbag:'bean bag'};
+  lamp:'lamp',dolly:'cable dolly',vending:'vending machine',glass:'glass panel',coffee:'coffee machine',pingpong:'ping-pong table',capcart:'capacitor cart',coolbox:'cooler box',splitter:'splitter',wedge:'doorstop',cone:'cone',strip:'power strip',beanbag:'bean bag'};
 /** Job items whose prop kind is generic get their own name in prompts. */
 const ID_NAMES:Record<string,string>={parts:'parts crate',blocks:'resistor tray',robot:'robot',motor:'motor cart',pod:'detector pod'};
 /** A station supplies its own steps and bonuses (src/stations); the marker defaults to its bench. */
@@ -87,7 +88,7 @@ export function promptFor(g:Game):Prompt|null{
   if(!g.lunch&&!g.station&&!g.hub&&!g.connected&&dist(pos,g.plugPosition)<(g.strip&&!g.stripPlaced()?.9:1.75))return {key:'F',text:'Pick up the plug'};
   // In station rooms the pill is for the job: clutter can still be grabbed, it just isn't advertised.
   const near=g.nearest();if(near&&g.station&&!near.spec.id)return null;if(near){if(near.spec.id==='coffee-reel'&&!g.coffeeReused)return {key:'E',text:'Borrow the coffee machine\'s cable'};
-    return {key:'E',text:`Grab the ${ID_NAMES[near.spec.id??'']??NAMES[near.spec.kind]??'thing'}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
+    return {key:'E',text:`Grab the ${ID_NAMES[near.spec.id??'']??NAMES[near.spec.kind]??near.spec.kind}${prefabs[near.spec.kind].mass>=15?' (heavy: push it)':''}`};}
   return null;
 }
 

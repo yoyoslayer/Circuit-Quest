@@ -222,7 +222,8 @@ export class GameUI {
       if(g.practice)screen.querySelector('.result .head')?.insertAdjacentHTML('beforeend','<span class="practice-tag">Practice · not recorded</span>');
       // Bonus goals under the grade rows: a star for each one achieved.
       const rows=screen.querySelector('.result .rows');const bonus=this.objectives.results();const rush=g.station?.rushStatus?.();
-      if(rush&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Orders served: <b>${rush.served}</b></p>`);if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
+      if(rush&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Orders served: <b>${rush.served}</b></p>`);
+      if(g.strip&&rows)rows.insertAdjacentHTML('beforebegin',`<p class="result-served">Strip trips: <b>${g.strip.trips}</b></p>`);if(rows)rows.insertAdjacentHTML('afterend',`<ul class="result-bonus">${bonus.map(b=>`<li class="${b.ok?'ok':'miss'}"><i>★</i>${b.text}</li>`).join('')}</ul>`);
       if(this.keyboard)requestAnimationFrame(()=>screen.querySelector<HTMLElement>('.btn.primary')?.focus({preventScroll:true}));
       if(!reduced())setTimeout(()=>{g.audio.thud(9);g.audio.tone(90,.18,.08,'triangle');screen.querySelector('.result')?.classList.add('thud');},1800);
       setTimeout(()=>{if(improved)g.audio.bell(1319,.6,.05);},reduced()?0:1950);

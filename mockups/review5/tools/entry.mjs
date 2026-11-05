@@ -1,8 +1,9 @@
 // Prints fix-list entries from REVIEW.md: node mockups/review5/tools/entry.mjs R5-004 R5-006 [--full]
 // Default prints the title line, Fix and Verify sections; --full prints the whole entry.
+// Works whether the checkout has LF or CRLF line endings.
 import {readFileSync} from 'node:fs';
 const args=process.argv.slice(2),full=args.includes('--full'),ids=args.filter(a=>a.startsWith('R5-'));
-const md=readFileSync(new URL('../REVIEW.md',import.meta.url),'utf8');
+const md=readFileSync(new URL('../REVIEW.md',import.meta.url),'utf8').split('\r\n').join('\n');
 for(const id of ids){
   const start=md.indexOf(`\n### ${id}\n`);if(start<0){console.log(`${id}: not found`);continue;}
   const end=md.indexOf('\n### R5-',start+5),body=md.slice(start,end<0?undefined:end);

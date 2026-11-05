@@ -5,7 +5,7 @@
 import * as T from 'three';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
-import {toon,box,rbox,cyl,part,group,glow,canvasTex,reel,stripes,repeat,DMETAL,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,part,group,glow,canvasTex,reel,stripes,repeat,DMETAL,INK,plaqueBoard} from '../../render/kit';
 import {hot} from '../../render/actors';
 import * as TX from '../../render/textures';
 import {wallArt,pendant,lampPool,pointLamp,rug} from '../../levels/dressing';
@@ -86,7 +86,7 @@ export function dressFabBay(game:Game,kit:RoomKit,table:T.Vector3){
   for(let k=0;k<5;k++)miniBoard(shelf,0,1.8,-1.2+k*.6,.45,.3,Math.PI/2);solid(game,.9,1.9,3.6,-10.25,.95,2.2);
   const tape=toon(YEL);for(const [w,d,dx,dz] of [[1.1,.07,0,-.55],[1.1,.07,0,.55],[.07,1.1,-.55,0],[.07,1.1,.55,0]] as const)part(r,box(w,.01,d),tape,-8.8+dx,.008,2.2+dz,false);
   const stock=canvasTex(256,96,c=>{c.fillStyle=YEL;c.beginPath();c.roundRect(4,4,248,88,22);c.fill();c.lineWidth=6;c.strokeStyle=INK;c.stroke();c.fillStyle=INK;c.font='700 50px "Fredoka Variable", system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('STOCK',128,50);});
-  const sign=part(kit.side,new T.PlaneGeometry(1.1,.41),new T.MeshBasicMaterial({map:stock}),-2.2,2.45,.2,false);sign.userData.noAO=true;
+  plaqueBoard(kit.side,stock,1.1,.41,-2.2,2.45,.175,{back:false,depth:.03});
   // Posters: a QFN footprint with its pin 1 dot, a decoupling loop, and the usual office art.
   const qfnPoster=panelTex('QFN',c=>{c.fillStyle=MASK;c.fillRect(38,70,180,180);c.fillStyle='#e9c46a';for(let i=0;i<3;i++){for(const [x,y] of [[48,110+i*40],[188,110+i*40],[88+i*40,80],[88+i*40,220]])c.fillRect(x,y,20,20);}
     c.fillRect(98,120,60,60);c.fillStyle=INK;c.beginPath();c.arc(58,84,7,0,7);c.fill();c.font='600 22px system-ui';c.fillText('pin 1 · exposed pad',128,290);});

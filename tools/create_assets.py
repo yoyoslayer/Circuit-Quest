@@ -42,7 +42,15 @@ def cube(name,loc,scale,mat,rot=(0,0,0),bevel=.25):
 
 # Torso: rounded body, overall straps, belt with buckle and wrench, bolt badge.
 sphere('Torso',(0,0,.87),(.34,.25,.42),blue)
-for s,n in [(-1,'L'),(1,'R')]:cube(f'TorsoStrap{n}',(s*.14,-.215,1.02),(.035,.012,.2),navy,rot=(-.12,0,s*.08),bevel=.01)
+for s,n in [(-1,'L'),(1,'R')]:
+    cube(f'TorsoStrap{n}',(s*.14,-.215,1.02),(.035,.012,.2),navy,rot=(-.12,0,s*.08),bevel=.01)
+    # The straps run over the shoulders and cross in an X on the back (the camera mostly sees his back).
+    cube(f'TorsoShoulderStrap{n}',(s*.15,0,1.245),(.035,.2,.012),navy,rot=(0,0,s*.1),bevel=.01)
+    cube(f'TorsoBackStrap{n}',(s*.08,.235,1.0),(.035,.012,.24),navy,rot=(.12,0,-s*.45),bevel=.01)
+    # A navy seam where each arm meets the body, so arms and torso don't merge into one mass.
+    torus(f'TorsoShoulderSeam{n}',(s*.4,0,1.04),.085,.02,navy,rot=(0,math.pi/2,0))
+cube('TorsoBackPocket',(0,.245,.8),(.09,.015,.07),navy,bevel=.015)
+cube('TorsoBackTag',(0,.235,1.13),(.05,.01,.03),yellow,bevel=.008)
 torus('TorsoBelt',(0,0,.66),.315,.035,brown,scale=(1,.76,1))
 cube('TorsoBuckle',(0,-.245,.66),(.055,.02,.042),yellow,bevel=.012)
 cube('TorsoPocket',(.13,-.235,.86),(.07,.015,.06),navy,rot=(-.2,0,0),bevel=.015)
@@ -53,14 +61,15 @@ sphere('Head',(0,-.015,1.4),(.29,.26,.27),skin)
 sphere('HeadNose',(0,-.27,1.37),(.045,.04,.04),skin)
 for s,n in [(-1,'L'),(1,'R')]:
     sphere(f'HeadEar{n}',(s*.285,-.01,1.39),(.04,.05,.065),skin)
-    sphere(f'HeadEye{n}',(s*.1,-.245,1.44),(.035,.022,.048),ink)
-    sphere(f'HeadGlint{n}',(s*.1+.012,-.262,1.46),(.011,.008,.013),white)
+    sphere(f'HeadEye{n}',(s*.1,-.245,1.42),(.045,.025,.06),ink)
+    sphere(f'HeadGlint{n}',(s*.1+.014,-.266,1.445),(.013,.008,.015),white)
     sphere(f'HeadCheek{n}',(s*.17,-.215,1.35),(.045,.015,.028),blush)
 torus('HeadMouth',(0,-.255,1.315),.035,.009,ink,rot=(math.pi/2,0,0),scale=(1,1,.55))
 # Hard hat: dome, brim, ridge, lamp with a glowing lens.
 sphere('Helmet',(0,0,1.59),(.32,.29,.17),yellow)
-cylinder('HelmetBrim',(0,-.06,1.52),.36,.04,yellow,scale=(1,.97,1))
-cube('HelmetRidge',(0,0,1.72),(.035,.24,.035),yellow,bevel=.02)
+cylinder('HelmetBrim',(0,-.02,1.53),.33,.035,yellow,scale=(1,.97,1))
+# A low rib that follows the dome front to back (no fin or 'cat ear' ends sticking up).
+sphere('HelmetRidge',(0,0,1.59),(.045,.293,.182),yellow)
 cylinder('HelmetLamp',(0,-.29,1.62),.06,.06,ink,rot=(math.pi/2-.3,0,0))
 cylinder('HelmetLens',(0,-.325,1.63),.045,.02,lens,rot=(math.pi/2-.3,0,0))
 for s,n in [(-1,'L'),(1,'R')]:
@@ -68,13 +77,13 @@ for s,n in [(-1,'L'),(1,'R')]:
     sphere(f'Leg{n}',(s*.17,0,.4),(.12,.12,.27),blue)
     torus(f'Leg{n}Cuff',(s*.17,0,.25),.1,.035,navy)
     sphere(f'Boot{n}',(s*.17,-.075,.18),(.14,.23,.16),ink)
-    cube(f'Boot{n}Sole',(s*.17,-.08,.045),(.13,.21,.03),grey,bevel=.03)
+    sphere(f'Boot{n}Sole',(s*.17,-.08,.04),(.13,.215,.035),navy)
     sphere(f'Boot{n}Toe',(s*.17,-.24,.14),(.1,.07,.08),grey)
     # Arms with cuffs; mitten gloves with a thumb.
-    sphere(f'Arm{n}',(s*.39,0,.88),(.11,.12,.27),blue)
-    torus(f'Arm{n}Cuff',(s*.41,-.02,.73),.09,.03,navy)
-    sphere(f'Glove{n}',(s*.42,-.03,.64),(.13,.14,.14),white)
-    sphere(f'Glove{n}Thumb',(s*.36,-.12,.68),(.05,.05,.07),white,rot=(.4,0,-s*.5))
+    sphere(f'Arm{n}',(s*.43,0,.86),(.095,.105,.24),blue)
+    torus(f'Arm{n}Cuff',(s*.45,-.02,.71),.085,.03,navy)
+    sphere(f'Glove{n}',(s*.46,-.03,.62),(.13,.14,.14),white)
+    sphere(f'Glove{n}Thumb',(s*.4,-.12,.66),(.05,.05,.07),white,rot=(.4,0,-s*.5))
 root=bpy.data.objects.new('Pip',None);bpy.context.collection.objects.link(root)
 for o in parts:o.parent=root
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out,'pip.blend'))

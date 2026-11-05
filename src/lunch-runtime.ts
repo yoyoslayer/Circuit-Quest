@@ -21,7 +21,9 @@ type Cable={pulses:Pulses;id:string;rating:number;active:0|1;ends:[T.Vector3,T.V
   /** Insulation scuffed by a cleaner bot's drag: bare copper that water can reach. */
   nicked?:boolean;pluggedAt:number};
 type Leaf={pivot:T.Group;body:RAPIER.RigidBody;collider:RAPIER.Collider;closed:number;dir:number};
-type Bot={group:T.Group;snag?:{cable:Cable;end:0|1;left:number}};
+type Bot={group:T.Group;snag?:{cable:Cable;end:0|1;left:number};
+  /** Where the bot was last step: it catches a cable only where this step's path crosses it. */
+  last?:T.Vector3};
 /** The five things that can go wrong, each with its own glyph where it happened. */
 export type Fault='overload'|'surge'|'leak'|'overheat'|'pinched';
 const DOOR={x:0,z:.15};
@@ -364,6 +366,9 @@ export class LunchRuntime {
     cable.ends[end].y=.15;this.held=undefined;g.holdingPlug=false;
   }
   pull(){if(!this.held)return {x:0,z:0};return this.held.cable.rope.pull(this.game.player.translation());}
+  /** Whether a bot's step from a to b runs over the cable (a thin box round the step, so a cable lying along it counts too). */
+  crosses(cable:Cable,a:Point,b:Point){const box={id:'bot',minX:Math.min(a.x,b.x)-.04,maxX:Math.max(a.x,b.x)+.04,minZ:Math.min(a.z,b.z)-.04,maxZ:Math.max(a.z,b.z)+.04};
+    return cable.points.slice(1).some((q,j)=>segmentHits(cable.points[j],q,box));}
   bridgeNear(p:Point,radius=1.15){return this.game.props.some(prop=>prop.spec.kind==='bridge'&&distance(prop.body.translation(),p)<radius&&prop.body.translation().y<.6);}
   /** The puddle (if any, and not under a cable bridge) that a point on the floor stands in. */
   puddleAt(p:Point,grow=1){if(this.water<=.1)return undefined;return PUDDLES.find(([x,z,r])=>{const c={x,z},s=r*this.water*grow;return Math.hypot((p.x-x)/1.4,p.z-z)<s&&!this.bridgeNear(c,1.3);});}
@@ -441,14 +446,17 @@ export class LunchRuntime {
     }
     this.doorWasOpen=this.doorAngle>.15;
     // Cleaner bots snag a live cable lying across their line and drag its plug along for a while.
+    // A bot catches a cable where its path crosses the cable, so a bridge on each crossing keeps a
+    // cable safe even when it runs close beside the line (the lift feed hugs the bottom edge for
+    // 5 m round the kitchen wall's end, which no sensible row of bridges covered).
     const w=LANE.x1-LANE.x0,h=LANE.z1-LANE.z0,loop=2*(w+h);
     this.bots.forEach((bot,i)=>{const t=(g.time*.8+i*loop/2)%loop;
       const pos=t<w?new T.Vector3(LANE.x0+t,0,LANE.z0):t<w+h?new T.Vector3(LANE.x1,0,LANE.z0+t-w):t<2*w+h?new T.Vector3(LANE.x1-(t-w-h),0,LANE.z1):new T.Vector3(LANE.x0,0,LANE.z1-(t-2*w-h));
-      bot.group.rotation.y=t<w?Math.PI/2:t<w+h?0:t<2*w+h?-Math.PI/2:Math.PI;bot.group.position.copy(pos);
+      bot.group.rotation.y=t<w?Math.PI/2:t<w+h?0:t<2*w+h?-Math.PI/2:Math.PI;bot.group.position.copy(pos);const last=bot.last??pos.clone();bot.last=pos.clone();
       if(bot.snag){bot.snag.left-=dt;bot.snag.cable.ends[bot.snag.end].set(pos.x,.18,pos.z);if(bot.snag.left<=0||this.held?.cable===bot.snag.cable)bot.snag=undefined;return;}
       if(this.bridgeNear(pos))return;
       // A plug that has only just gone in gets a moment to hold before a bot can bump it out.
-      for(const cable of this.cables){if(!cable.lead.closed||g.time-cable.pluggedAt<1.2||this.bots.some(b=>b.snag?.cable===cable)||!cable.points.slice(1).some((b,j)=>segmentDistance(pos,cable.points[j],b)<.35))continue;
+      for(const cable of this.cables){if(!cable.lead.closed||g.time-cable.pluggedAt<1.2||this.bots.some(b=>b.snag?.cable===cable)||!this.crosses(cable,last,pos))continue;
         const end=(cable.ports[1]&&this.ports.find(q=>q.id===cable.ports[1])?.role!=='out'?1:0) as 0|1;g.burst(cable.ends[end],'#fff3a3',10,'spark');cable.ports[end]=null;cable.nicked=true;bot.snag={cable,end,left:4};g.audio.tone(140,.2,.06);g.burst({x:pos.x,y:.3,z:pos.z},'#fff3a3',8,'spark');g.alarm(pos);break;}
     });
     // The capacitor cart charges only from current it really draws through its inlet: a bar while the

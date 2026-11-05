@@ -170,7 +170,7 @@ export class Game {
   addNpc(p:NpcSpot){
     // Seated coworkers sit on the chair at their spot (body at the seat top, a little forward of the
     // backrest); standing ones get a fixed capsule so Pip and thrown props bump into them.
-    const g=new T.Group(),seated=this.level.id==='meeting'&&!p.standing,body=new T.Group(),SEAT=.47;body.position.set(0,seated?SEAT:0,seated?.12:0);g.add(body);
+    const g=new T.Group(),seated=p.seated??(this.level.id==='meeting'&&!p.standing),body=new T.Group(),SEAT=.47;body.position.set(0,seated?SEAT:0,seated?.12:0);g.add(body);
     const i=this.npcs.length,color=p.color??BLOBC[i%BLOBC.length],acc=p.acc??ACCESSORIES[i%ACCESSORIES.length],calm=blob(color,p.mood??MOODS[i%MOODS.length],acc),startled=blob(color,'alarm',acc);
     if(p.chef){const hat=new T.Group();hat.position.y=1.05;body.add(hat);part(hat,cyl(.2,.18,.22,16),toon('#ffffff'),0,.1,0);part(hat,sphere(.24,14,10),toon('#ffffff'),0,.28,0).scale.y=.6;}startled.visible=false;body.add(calm,startled);
     const sweat=new T.Sprite(new T.SpriteMaterial({map:sweatTexture(),toneMapped:false}));sweat.scale.set(.2,.2,1);sweat.position.set(.3,body.position.y+1.0,.1);sweat.visible=false;g.add(sweat);

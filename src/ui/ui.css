@@ -269,5 +269,5 @@ body[data-bench] .station-panel{width:min(290px,calc(100vw - 32px));font-size:13
 .workshop-picker{max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 0 0 100vmax rgba(20,22,40,.45),var(--drop-lg)}
 .workshop-picker .grid .btn{text-align:left}
 /* Off-screen pointer for the objective marker (R5-103): a yellow chevron at the screen edge. */
-.marker-edge{position:absolute;width:0;height:0;border-top:14px solid transparent;border-bottom:14px solid transparent;border-left:24px solid #ffd84a;filter:drop-shadow(0 0 0 #262a40) drop-shadow(2px 0 0 #262a40) drop-shadow(-1px 0 0 #262a40) drop-shadow(0 2px 0 #262a40) drop-shadow(0 -2px 0 #262a40);pointer-events:none;z-index:3}
+.marker-edge{position:absolute;width:26px;height:30px;background:#ffd84a;clip-path:polygon(0 0,100% 50%,0 100%);filter:drop-shadow(2px 0 0 #262a40) drop-shadow(-2px 0 0 #262a40) drop-shadow(0 2px 0 #262a40) drop-shadow(0 -2px 0 #262a40);pointer-events:none;z-index:3}
 body[data-bench] .marker-edge,body[data-menu] .marker-edge{display:none}

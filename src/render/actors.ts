@@ -1,6 +1,7 @@
 // Characters and the star cable (ported from mockups/look/actors.js): coworker blobs with
 // personality, glossy toon plastic, and the cable as a thick hose with a strain gradient.
 import * as T from 'three';
+import {STRAIN_RAMP} from '../sim/cable';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {toon,toonRamp,INK,rimShader} from './toon';
 const noRim=new URLSearchParams(location.search).has('norim');
@@ -121,7 +122,7 @@ export function blob(color:string,mood:Mood='calm',acc:Accessory[]=[]){
 }
 
 // ------------------------------------------------------------------ cable hose
-export const STRAIN:[number,string][]=[[0,'#f5f1dc'],[.55,'#f5f1dc'],[.72,'#ffd451'],[.86,'#ff922f'],[1,'#f34e56']];
+export const STRAIN=STRAIN_RAMP;
 const strainColors=STRAIN.map(([t,c])=>[t,new T.Color(c)] as const),scratch=new T.Color();
 export function strainAt(t:number,out=scratch){for(let i=1;i<strainColors.length;i++)if(t<=strainColors[i][0]){const [a,ca]=strainColors[i-1],[b,cb]=strainColors[i];return out.copy(ca).lerp(cb,(t-a)/(b-a||1));}return out.copy(strainColors[strainColors.length-1][1]);}
 const BAND=new T.Color('#2f3147');

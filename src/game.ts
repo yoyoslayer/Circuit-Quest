@@ -550,7 +550,7 @@ export class Game {
     // Meeting that is the urn and heater before the projector is on). A plugged-in cable carrying
     // nothing because the strip tripped goes a dull gold.
     const live=(this.circuit.draw.get('supply')??0)>0&&!this.circuit.sources[0].tripped;
-    if(points.length>1){const hose=hoseGeometry(points,{radius:.075,strain:u=>strain*(.6+.4*u),tint:this.connected?(this.strip&&!live?DULL_GOLD:GOLD):undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
+    if(points.length>1){const hose=hoseGeometry(points,{radius:.075,strain:u=>strain*(.85+.15*u),tint:this.connected?(this.strip&&!live?DULL_GOLD:GOLD):undefined});this.ropeMesh.geometry.dispose();this.ropeMesh.geometry=hose.geo;
       this.pulses.update(hose.curve,hose.length,this.last/1000,live);
       // The joint: the coupler sits on the cable where the second reel was joined.
       if(this.extension){if(!this.joint){this.joint=makeProp('coupler');this.root.add(this.joint);}

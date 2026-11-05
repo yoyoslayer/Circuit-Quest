@@ -83,7 +83,12 @@ export class Rope {
   }
   release(){const energy=Math.max(this.energy,this.peak);this.energy=0;this.peak=0;return energy;}
 }
-export const strainColor=(ratio:number)=>ratio<.7?'#f5f1dc':ratio<.85?'#ffd451':ratio<.97?'#ff922f':'#f34e56';
+/** The one strain ramp (R5-257): cream while slack, yellow from .72, orange from .86, red at the
+ *  cable's length. The hose blends between these stops; HUD and prompts should use the same stops. */
+export const STRAIN_RAMP:[number,string][]=[[0,'#f5f1dc'],[.55,'#f5f1dc'],[.72,'#ffd451'],[.86,'#ff922f'],[1,'#f34e56']];
+export const STRAIN_WARN=.72,STRAIN_HOT=.86;
+/** The stepped band a strain ratio falls in (the ramp's colour at the stop at or below it). */
+export const strainColor=(ratio:number)=>ratio<STRAIN_WARN?STRAIN_RAMP[0][1]:ratio<STRAIN_HOT?STRAIN_RAMP[2][1]:ratio<1?STRAIN_RAMP[3][1]:STRAIN_RAMP[4][1];
 export function segmentDistance(p:Point,a:Point,b:Point){
   const dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.z-a.z)*dz)/(dx*dx+dz*dz||1)));
   return distance(p,{x:a.x+t*dx,z:a.z+t*dz});

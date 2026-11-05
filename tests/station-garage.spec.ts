@@ -6,15 +6,24 @@ test.describe.configure({timeout:300000});
 const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);
 async function steps(page:Page,list:[string,unknown?][]){for(const [n,a] of list)expect((await act(page,n,a)).ok,`${n} ${a??''}`).toBe(true);}
 const station=async(page:Page)=>(await snapshot(page)).station;
+/** Pick a part up, turn it in hand if it lies the other way round (the tray lays parts either way
+ *  each job), and fit it: `flipped` false = band (or +) at the socket's left end. */
+async function fit(page:Page,part:string,slot:string,flipped=false){
+  await steps(page,[['pick',part]]);
+  if((await station(page)).trayFlip[part]!==flipped)await steps(page,[['flip']]);
+  await steps(page,[['slot',slot]]);
+  expect((await station(page)).slots[slot]).toEqual({part,flipped});
+}
 /** Carry the robot from its charging pad onto the test stand behind the bench, then sit at the bench. */
 async function setUp(page:Page){
-  await walk(page,6.4,-4.2,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('robot');
+  await walk(page,6.4,-4.2,.5);await expect(page.locator('.prompt-pill')).toContainText('robot');
+  await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('robot');
   await route(page,[[3.4,-4],[2.5,-4.4]]);await page.keyboard.press('KeyE');await wait(page,.3);
   expect((await station(page)).onStand).toBe(true);
   await route(page,[[2.9,-4],[2.9,-1.1]]);await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
 }
 
-test('robot garage: catch the kick, clamp it, stop fast, star-ground the controller, then the delivery run',async({page})=>{
+test('robot garage: catch the kick, clamp it, brake fast, star-ground the controller, then the delivery run',async({page})=>{
   const errors=await open(page,'garage');await wait(page,.1);
   await expect(page.locator('.objective')).toContainText('Carry the delivery robot');
   // Nothing to test until the robot is on the stand.
@@ -25,20 +34,27 @@ test('robot garage: catch the kick, clamp it, stop fast, star-ground the control
   await steps(page,[['pulse']]);await wait(page,1);
   let s=await station(page);expect(s.capture.fault).toBe('stop');expect(s.capture.spike).toBeGreaterThan(60);
   await expect(page.locator('.station-toast')).toContainText('controller reset');
-  await steps(page,[['pick','diode'],['slot','fly'],['pulse']]);
+  // Failing readings are red in the panel.
+  await expect(page.locator('.station-panel li.bad')).toContainText('Stop spike');
+  await fit(page,'diode','fly');await steps(page,[['pulse']]);
   s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.spike).toBeLessThan(14);
   await steps(page,[['test']]);s=await station(page);expect(s.logged[0].tier).toBe(3);
-  // 2 · The stop line: the plain diode empties the coil too slowly; one TVS across the switch is quick and lean.
-  await expect(page.locator('.station-panel')).toContainText('Stop at the line');
-  await steps(page,[['pulse']]);expect((await station(page)).capture.fault).toBe('slow');
-  await steps(page,[['pick','diode'],['pick','diode'],['pick','tvs'],['slot','switch'],['pulse']]);
-  s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.offTime).toBeLessThan(1e-3);
+  // 2 · The parking brake: the board is bare again; a plain diode empties the brake coil too slowly.
+  expect(s.slots).toEqual({});
+  await expect(page.locator('.station-panel')).toContainText('Brake at the line');
+  await fit(page,'diode','fly');await steps(page,[['pulse']]);expect((await station(page)).capture.fault).toBe('slow');
+  // One TVS across the switch empties it fast: lean and quick.
+  await steps(page,[['pick','diode'],['pick','diode']]);await fit(page,'tvs','switch');await steps(page,[['pulse']]);
+  s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.offTime).toBeLessThan(2e-3);
   await steps(page,[['test']]);s=await station(page);expect(s.logged[1].tier).toBe(3);
-  // 3 · Heavy cargo: the start surge through the shared ground browns the controller out; a star ground fixes it.
-  await steps(page,[['pulse']]);s=await station(page);expect(s.capture.fault).toBe('start');expect(s.scope).toBe('start');
-  await steps(page,[['ground'],['pulse']]);expect((await station(page)).capture.dip).toBeLessThan(.35);
+  // 3 · Heavy cargo, from a bare board: a path for the kick, then the start surge through the long shared ground.
+  await fit(page,'diode','fly');await steps(page,[['pulse']]);s=await station(page);expect(s.capture.fault).toBe('start');expect(s.scope).toBe('start');
+  await steps(page,[['ground'],['pulse']]);s=await station(page);expect(s.capture.dip).toBeLessThan(.35);
+  // The proof is shown where the failure was: the scope stays on the START trace.
+  expect(s.scope).toBe('start');
   await steps(page,[['test']]);s=await station(page);
   expect(s.logged.map((l:{tier:number})=>l.tier)).toEqual([3,3,3]);expect(s.driving).toBe(true);expect((await snapshot(page)).atBench).toBe(false);
+  await wait(page,.2);await expect(page.locator('.prompt-pill')).toContainText('Follow the robot');
   // The payoff: the robot drives its route to the dock.
   await wait(page,12);s=await snapshot(page);
   expect(s.station.delivered).toBe(true);expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);
@@ -48,29 +64,40 @@ test('robot garage: catch the kick, clamp it, stop fast, star-ground the control
   expect(errors).toEqual([]);
 });
 
-test('robot garage: a backwards diode trips the self-resetting fuse, a backwards clamp gives no path, and both are recoverable',async({page})=>{
+test('robot garage: polarity and place are real choices, PULSE experiments are free of mistakes, and every fault is recoverable',async({page})=>{
   const errors=await open(page,'garage');await wait(page,.1);await setUp(page);
-  // A diode fitted backwards is a dead short while the motor runs: the fuse trips.
-  await steps(page,[['pick','diode'],['slot','fly'],['flip','fly'],['pulse']]);
-  let s=await station(page);expect(s.fuse).toBe(false);expect(s.mistakes).toBe(1);
+  // A diode fitted band-to-node across the motor is a dead short while the motor runs: the fuse trips.
+  // At PULSE that costs a scrapped fuse's bench time, not a mistake.
+  await fit(page,'diode','fly',true);await steps(page,[['pulse']]);
+  let s=await station(page);expect(s.fuse).toBe(false);expect(s.mistakes).toBe(0);expect(s.spent).toBeCloseTo(.3,6);
   await expect(page.locator('.station-toast')).toContainText('fuse tripped');
   await expect(page.locator('.station-toast')).not.toContainText('band');
   expect((await act(page,'pulse')).ok).toBe(false);
+  // While the fuse cools the prompt offers no key, and the panel counts down.
+  await wait(page,.1);await expect(page.locator('.prompt-pill')).toContainText('Fuse cooling');await expect(page.locator('.prompt-pill kbd')).toHaveCount(0);
+  const before=await page.locator('.station-panel').innerText();await wait(page,.6);expect(await page.locator('.station-panel').innerText()).not.toBe(before);
   // Flip it back; the PTC fuse cools and conducts again by itself, and the diode clamps the kick.
   await steps(page,[['flip','fly']]);await wait(page,2.6);
   s=await station(page);expect(s.fuse).toBe(true);
   await steps(page,[['pulse'],['test']]);s=await station(page);expect(s.logged[0].tier).toBe(3);
-  // Job 2: testing the plain diode fails the stop line (a mistake, with the reason).
-  await steps(page,[['test']]);s=await station(page);expect(s.mistakes).toBe(2);expect(s.job).toBe(1);
-  await expect(page.locator('.station-toast')).toContainText('stop-line brake');
-  // The zener clamp fitted backwards: its diode never conducts, so the kick has no path again.
-  await steps(page,[['pick','clamp'],['slot','fly'],['flip','fly'],['pulse']]);s=await station(page);expect(s.capture.fault).toBe('stop');expect(s.fuse).toBe(true);
+  // Job 2: testing the plain diode fails the brake (a mistake, with the reason), without the reset cue.
+  await fit(page,'diode','fly');await steps(page,[['test']]);s=await station(page);expect(s.mistakes).toBe(1);expect(s.job).toBe(1);
+  await expect(page.locator('.station-toast')).toContainText('grabbed late');
+  await wait(page,.8);expect((await station(page)).resetFlash).toBe(0);
+  // The zener clamp fitted backwards: it never conducts, so the kick has no path again.
+  await fit(page,'clamp','fly',true);await steps(page,[['pulse']]);s=await station(page);expect(s.capture.fault).toBe('stop');expect(s.fuse).toBe(true);
   // The right way round it clamps at about 37 V and empties the coil fast: one part, elegant.
   await steps(page,[['flip','fly'],['pulse']]);s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.spike).toBeGreaterThan(30);
   await steps(page,[['test']]);s=await station(page);expect(s.job).toBe(2);expect(s.logged[1].tier).toBe(3);
-  // Job 3: a bulk capacitor at the controller rides through part of the start sag, but not enough.
-  await steps(page,[['pick','cap'],['slot','ctrl'],['pulse']]);s=await station(page);expect(s.capture.fault).toBe('start');expect(s.capture.dip).toBeLessThan(.9);
+  // Job 3: a diode across the switch, band at the node, never conducts as the node rises: still no path.
+  await fit(page,'diode','switch');await steps(page,[['pulse']]);expect((await station(page)).capture.fault).toBe('stop');
+  // Turned round it conducts forwards: the motor never switches off and keeps running until the setup changes.
+  await steps(page,[['flip','switch'],['pulse']]);await wait(page,1.4);s=await station(page);expect(s.capture.fault).toBe('stuck');expect(s.stuck).toBe(true);expect(s.motorOn).toBe(1);
+  await steps(page,[['slot','switch']]);await wait(page,.1);expect((await station(page)).stuck).toBe(false);
+  // A bulk capacitor at the controller barely dents the start sag of an 80 ms spin-up.
+  await fit(page,'diode','fly');await fit(page,'cap','ctrl');await steps(page,[['pulse']]);s=await station(page);expect(s.capture.fault).toBe('start');expect(s.capture.dip).toBeLessThan(.9);
   await expect(page.locator('.station-toast')).toContainText('browned out');
+  expect(s.mistakes).toBe(1);
   // Stepping back from the bench returns the keys to walking.
   await page.keyboard.press('Escape');expect((await snapshot(page)).atBench).toBe(false);
   expect(errors).toEqual([]);

@@ -789,7 +789,8 @@ export class Game {
    *  than `min` metres. Props against fixed colliders and each other, standing coworkers and Pip's
    *  spawn against both. Call it before advancing time, while everything is where the level put it. */
   audit(min=.04){
-    const fixed:RAPIER.Collider[]=[];this.world.forEachCollider(c=>{if(c.parent()?.isFixed())fixed.push(c);});
+    // Fixed level geometry only: a prop that is itself a fixed body (the Meeting glass) isn't checked against itself.
+    const own=new Set(this.props.map(p=>p.collider.handle)),fixed:RAPIER.Collider[]=[];this.world.forEachCollider(c=>{if(c.parent()?.isFixed()&&!own.has(c.handle))fixed.push(c);});
     const r=(v:number)=>Math.round(v*100)/100;
     const fixedName=(c:RAPIER.Collider)=>{const t=c.translation(),h=(c.shape as RAPIER.Cuboid).halfExtents;return `fixed ${h?`${r(h.x*2)}×${r(h.z*2)}`:'shape'} @${r(t.x)},${r(t.z)}`;};
     const propName=(p:Prop)=>{const t=p.body.translation();return `${p.spec.id??p.spec.kind} @${r(t.x)},${r(t.z)}`;};

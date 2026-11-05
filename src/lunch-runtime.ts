@@ -2,6 +2,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from './game';
 import {Circuit,type Lead,type Load} from './sim/electrical';
+import {darkBox,darkness} from './render/toon';
 import {LunchJob,BURN_WARNING} from './sim/lunch';
 import {Rope,distance,segmentDistance,segmentHits,type Point,type Obstacle} from './sim/cable';
 import {INK,METAL,DMETAL,TRIM,toon,rbox,box,cyl,sphere,part,group,glow,unlit,canvasTex,repeat,glyph,decal,cachedTexture,lit,Gauge,paint} from './render/kit';
@@ -12,14 +13,17 @@ import {lunchHud} from './ui/lunch-hud';
 import {gameUI} from './ui/game-ui';
 import {solid} from './levels/decor';
 import {cablePath,type Prop} from './game';
-type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;ring:T.Mesh;capacity:number};
+/** A socket. One on a prop rides with it: `lift` above the body's centre, or at `local` in the prop's own frame. */
+type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;local?:T.Vector3;ring:T.Mesh;capacity:number};
 type Cable={pulses:Pulses;id:string;rating:number;active:0|1;ends:[T.Vector3,T.Vector3];ports:[string|null,string|null];rope:Rope;mesh:T.Mesh;plugs:[T.Group,T.Group];lead:Lead;points:Point[];
   /** Why a dead cable is dead (a door cut is mended with a splice, a scorch needs a new length). */
   cause?:'cut'|'scorch';
   /** Insulation scuffed by a cleaner bot's drag: bare copper that water can reach. */
   nicked?:boolean;pluggedAt:number};
 type Leaf={pivot:T.Group;body:RAPIER.RigidBody;collider:RAPIER.Collider;closed:number;dir:number};
-type Bot={group:T.Group;snag?:{cable:Cable;end:0|1;left:number}};
+type Bot={group:T.Group;snag?:{cable:Cable;end:0|1;left:number};
+  /** Where the bot was last step: it catches a cable only where this step's path crosses it. */
+  last?:T.Vector3};
 /** The five things that can go wrong, each with its own glyph where it happened. */
 export type Fault='overload'|'surge'|'leak'|'overheat'|'pinched';
 const DOOR={x:0,z:.15};
@@ -77,7 +81,7 @@ const letterTexture=(letter:string)=>cachedTexture(`cart-${letter}`,()=>glyph(c=
 export class LunchRuntime {
   circuit:Circuit;job=new LunchJob();ports:Port[]=[];cables:Cable[]=[];held?:{cable:Cable;end:0|1};
   water=1;puddles:T.Mesh[]=[];leaves:Leaf[]=[];doorAngle=0;doorSide=1;doorWasOpen=false;bots:Bot[]=[];
-  dark:T.Mesh;liftCar!:T.Group;eventIndex=0;bakeGauge=new Gauge([[0,.95,'#ffc94d'],[.95,1,'#3bb273']]);supplyGauges=new Map<string,{gauge:Gauge;mount:T.Group;button:T.Mesh}>();
+  liftCar!:T.Group;eventIndex=0;bakeGauge=new Gauge([[0,.95,'#ffc94d'],[.95,1,'#3bb273']]);supplyGauges=new Map<string,{gauge:Gauge;mount:T.Group;button:T.Mesh}>();
   // Assigned by the build* helpers called from the constructor.
   thermoFill!:T.Mesh;ovenWindow!:T.Mesh;ovenLight!:T.PointLight;ovenGlow!:T.Sprite;belt!:T.Texture;sad!:T.Sprite;cord!:T.Mesh;
   liftRope!:T.Mesh;liftRopeKey=-1;drum!:T.Group;alerts=new Map<string,T.Sprite>();scars:{mark:T.Object3D;life:number;at:T.Vector3}[]=[];wetAt?:Point;
@@ -102,9 +106,8 @@ export class LunchRuntime {
     for(const o of game.root.children)if(o instanceof T.Mesh&&o.geometry instanceof T.BoxGeometry&&Math.abs(o.position.x-game.level.target.x)<.01&&Math.abs(o.position.z-game.level.target.z)<.01)o.visible=false;
     const loads:Load[]=[['oven',3,0],['fridge',2,0],['conveyor',1.5,3],['lift',3,9],['kitchen-lamp',.5,0],['store-lamp',.5,0]].map(([id,steady,kick])=>({id:String(id),steady:Number(steady),kick:Number(kick),kickSeconds:1,enabled:!['conveyor','lift'].includes(String(id)),state:'off',started:0}));
     // The capacitor cart has been sitting unplugged in the storeroom: it starts empty and fills only
-    // from the current it really draws through its inlet (the 'cap' charging load below).
-    loads.find(l=>l.id==='lift')!.capacitor={node:'cap',atLoad:false,charge:0};
-    loads.push({id:'cap',steady:1,kick:0,kickSeconds:0,enabled:true,state:'off',started:0});
+    // from the current it really draws through its inlet (the circuit counts that charging current).
+    loads.find(l=>l.id==='lift')!.capacitor={node:'cap',atLoad:false,charge:0,chargeRate:1};
     // The kitchen feed post is hard-wired to the oven and both lamps.
     const branches=['oven','kitchen-lamp','store-lamp'].map(id=>({id:`fixed-${id}`,from:'kitchen',to:id,rating:3,closed:true,heat:0,dead:false}));
     this.circuit=new Circuit([{id:'a',limit:5,tripped:false},{id:'b',limit:5,tripped:false}],branches,loads);
@@ -121,7 +124,8 @@ export class LunchRuntime {
     this.port('fridge',-4,-1.8,'in',1);this.port('conveyor',5,-5,'in',1);this.port('lift',12,-4.8,'in',1);
     for(let i=1;i<=3;i++)this.port(`splitter-${i}`,-14+(i-1)*.7,.65,'both',4,`splitter-${i}`,-.15);
     // The capacitor cart's inlet, and its short lead to the winch (closed only while it is docked).
-    this.port('cap',-12,-7,'in',1,'capacitor',.6);
+    // The inlet is the socket plate on the cart's control box (local +x .75, .1 above the body's centre).
+    this.port('cap',-12,-7,'in',1,'capacitor',.1,new T.Vector3(.75,.1,0));
     this.capLead={id:'cap-lead',from:'cap',to:'lift',rating:10,closed:false,heat:0,dead:false};this.circuit.leads.push(this.capLead);
     this.capCord=part(root,new T.BufferGeometry(),toon('#ecE8dc'),0,0,0,false);this.capCord.visible=false;this.capPulses=new Pulses(root,3,.065);
     this.capPlug=makeProp('plug','#ecE8dc');this.capPlug.visible=false;root.add(this.capPlug);
@@ -133,20 +137,28 @@ export class LunchRuntime {
     // A dashed job-yellow ring marks where the cart docks while it is being pushed.
     const dash=canvasTex(512,512,c=>{c.strokeStyle='#ffc94d';c.lineWidth=22;c.setLineDash([46,30]);c.beginPath();c.arc(256,256,232,0,7);c.stroke();});
     this.dockRing=part(root,new T.PlaneGeometry(4,4).rotateX(-Math.PI/2),unlit('#ffffff',{map:dash,transparent:true,depthWrite:false}),WINCH.x,.03,WINCH.z,false);this.dockRing.visible=false;
-    for(const id of ['a','b']){const gauge=new Gauge(),mount=gauge.mount(root,0,0,0,.9);mount.rotation.x=-.5;const button=part(root,cyl(.1,.1,.12,12),toon('#d63a3f',{emissive:'#ff3a3a',ei:0}).clone());this.supplyGauges.set(id,{gauge,mount,button});}
+    for(const id of ['a','b']){const gauge=new Gauge(),mount=gauge.mount(root,0,0,0,.9,0,true);mount.rotation.x=-.5;const button=part(root,cyl(.1,.1,.12,12),toon('#d63a3f',{emissive:'#ff3a3a',ei:0}).clone());this.supplyGauges.set(id,{gauge,mount,button});}
     this.buildFollowers();
     // Lengths are about 1.1× the longest route each lead is meant for, so a sloppy route strains.
     // thin-1 is the lift feed (Supply A round to the capacitor at the winch); thin-3 is a short spare on B.
     this.addCable('thin-1',3,32,'a',null,[-11,2]);this.addCable('thin-2',3,24,'a',null,[-10,3.5]);this.addCable('thin-3',3,14,'b',null,[-11,6.2]);this.addCable('thick',10,22,'b',null,[-10,7.5]);
-    // The unlit storeroom: a dim blue-violet lid with a soft hole where the lamp would pool
-    // (look-dev lunch.js); it lifts away once a lamp in there is powered.
-    const darkTex=cachedTexture('store-dark',()=>{const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d')!;x.fillStyle='rgba(16,18,40,1)';x.fillRect(0,0,512,512);x.globalCompositeOperation='destination-out';
-      const hx=(-10+16.55)/8.9*512,hy=(-3+10)/10*512,gr=x.createRadialGradient(hx,hy,0,hx,hy,150);gr.addColorStop(0,'rgba(0,0,0,.35)');gr.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=gr;x.fillRect(0,0,512,512);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;});
-    this.dark=part(root,new T.PlaneGeometry(8.9,10),unlit('#ffffff',{map:darkTex,transparent:true,opacity:.8,depthWrite:false}),-12.1,1.5,-5,false);this.dark.rotation.x=-Math.PI/2;this.dark.renderOrder=5;this.dark.userData.noAO=true;
+    // The unlit storeroom (R5-141): every material inside its walls is darkened toward a blue-violet
+    // tint by the toon pass (render/toon.ts darkBox/darkness), fading up once a lamp in there is
+    // powered. The uniform is global, so it is cleared again when the page (the level) goes away.
+    Object.assign(darkBox,{x:-16.6,y:-7.75,z:-10.2,w:0});darkness.amount=1;
+    addEventListener('pagehide',()=>this.dispose(),{once:true});
+    // A pulsing warning over the oven while a baked tray sits in it past BURN_WARNING (R5-088).
+    this.burnBadge=new T.Sprite(new T.SpriteMaterial({map:cachedTexture('burn-warning',()=>glyph(c=>{disc(c);c.fillStyle='#c7ccd6';c.beginPath();c.roundRect(46,170,164,30,10);c.fill();c.stroke();
+      c.fillStyle='#ff8a3d';c.beginPath();c.moveTo(128,40);c.bezierCurveTo(186,92,190,140,128,166);c.bezierCurveTo(66,140,74,96,104,76);c.bezierCurveTo(108,104,120,110,128,40);c.fill();c.lineWidth=8;c.stroke();
+      c.fillStyle='#ffe066';c.beginPath();c.moveTo(128,100);c.bezierCurveTo(152,124,150,150,128,160);c.bezierCurveTo(106,150,110,128,128,100);c.fill();})),depthTest:false,transparent:true}));
+    this.burnBadge.scale.set(.95,.95,1);this.burnBadge.position.set(-2.5,2.2,-7.05);this.burnBadge.renderOrder=9;this.burnBadge.visible=false;root.add(this.burnBadge);
     const tray=this.prop('tray');if(tray){tray.mesh.visible=false;tray.body.setEnabled(false);}
     // HUD: objective chain, fridge thermometer and breaker dials (src/ui/lunch-hud.ts).
     lunchHud(game.hud);
   }
+  burnBadge:T.Sprite;
+  /** Clear the global storeroom darkness (the toon uniform outlives this level otherwise). */
+  dispose(){darkness.amount=0;}
   prop(id:string){return this.game.props.find(p=>p.spec.id===id);}
   load(id:string){return this.circuit.loads.find(l=>l.id===id)!;}
   socketPlate(parent:T.Object3D,x:number,y:number,z:number,ry=0){const g=group(parent,x,y,z,ry);part(g,rbox(.38,.1,.38,.06).clone().rotateX(Math.PI/2),toon('#f0ece2'));part(g,cyl(.11,.11,.06,14,'z'),toon(INK),0,0,.05);return g;}
@@ -245,9 +257,9 @@ export class LunchRuntime {
       // Each of the four cans holds a quarter of the charge and fills from the bottom with a lit band.
       for(const [cx,cz] of [[-.4,-.22],[.1,-.22],[.1,.22],[-.4,.22]]){const fill=part(grp,cyl(.226,.226,1,20),lit('#6fe9ff','#3fc6ff',.9),cx,bottom+.44,cz,false);fill.scale.y=.001;this.capCans.push(fill);}}
   }
-  port(id:string,x:number,z:number,role:Port['role'],capacity:number,bodyId?:string,lift=.45){
+  port(id:string,x:number,z:number,role:Port['role'],capacity:number,bodyId?:string,lift=.45,local?:T.Vector3){
     const ring=part(this.game.root,new T.TorusGeometry(.29,.05,8,24),unlit('#61d8ce',{transparent:true,opacity:.8}),x,.35,z,false);ring.rotation.x=-Math.PI/2;
-    this.ports.push({id,pos:new T.Vector3(x,.35,z),role,capacity,bodyId,lift,ring});
+    this.ports.push({id,pos:new T.Vector3(x,.35,z),role,capacity,bodyId,lift,local,ring});
   }
   addCable(id:string,rating:number,length:number,from:string|null,to:string|null,loose:[number,number]){
     const ends:[T.Vector3,T.Vector3]=[from?this.ports.find(p=>p.id===from)!.pos.clone():new T.Vector3(loose[0]-.5,.18,loose[1]),to?this.ports.find(p=>p.id===to)!.pos.clone():new T.Vector3(loose[0],.18,loose[1])];
@@ -286,7 +298,7 @@ export class LunchRuntime {
         if(count<target.capacity&&validRole){cable.ports[end]=target.id;cable.ends[end].copy(target.pos);cable.pluggedAt=g.time;
           // Only the mechanical click now; the chime waits a step to see whether the connection holds.
           g.audio.noise(.025,.08,3200,'highpass');g.audio.noise(.025,.07,2600,'highpass',.05);this.chimeAt={time:this.circuit.time,events:this.circuit.events.length};
-          g.burst(target.pos,'#fff3a3',12,'spark');this.held=undefined;g.holdingPlug=false;return true;}
+          g.plugFlash(target.pos);this.held=undefined;g.holdingPlug=false;return true;}
       }
       this.release();return true;
     }
@@ -299,10 +311,11 @@ export class LunchRuntime {
       const switches:Record<string,Point>={oven:{x:-2.5,z:-6.9},conveyor:{x:5,z:-5},lift:WINCH,'store-lamp':{x:-10,z:-3}};
       const machine=Object.entries(switches).find(([,p])=>distance(pos,p)<1.25);
       if(machine){const load=this.load(machine[0]);load.enabled=!load.enabled;g.audio.noise(.03,.06,2500,'highpass');g.audio.tone(load.enabled?320:160,.1,.04);return true;}
-      // E grabs things; only F picks up, plugs and unplugs cables.
-      return false;
+      // E grabs things first (R5-168): only with no prop in reach does it pick up a loose cable end
+      // lying nearby. It never unplugs or splices a cable; F does all of that.
+      if(g.nearest())return false;
     }
-    const nearby=this.cables.flatMap(c=>[0,1].map(end=>({c,end:end as 0|1,d:distance(pos,c.ends[end])}))).filter(v=>v.d<1.75).sort((a,b)=>a.d-b.d)[0];
+    const nearby=this.cables.flatMap(c=>[0,1].map(end=>({c,end:end as 0|1,d:distance(pos,c.ends[end])}))).filter(v=>v.d<1.75&&(cableOnly||!v.c.ports[v.end]&&!v.c.lead.dead)).sort((a,b)=>a.d-b.d)[0];
     if(nearby){const {c,end}=nearby;
       if(c.lead.dead){
         // A splice through a door that will shut again would just be cut again: wedge it first.
@@ -336,6 +349,8 @@ export class LunchRuntime {
     const switches:[string,Point,string,string][]=[['oven',{x:-2.5,z:-6.9},'oven','kitchen'],['conveyor',{x:5,z:-5},'conveyor','conveyor'],['lift',WINCH,'lift','lift'],['store-lamp',{x:-10,z:-3},'storeroom lamp','kitchen']];
     const sw=switches.find(([,p])=>distance(pos,p)<1.25);
     if(sw){const load=this.load(sw[0]);return {key:'E',text:`Switch the ${sw[2]} ${load.enabled?'off':'on'}${!load.enabled&&!this.fed(sw[3])?' (nothing feeds it yet)':''}`};}
+    // A prop in reach: E grabs it, so the generic grab prompt shows instead of the cable one (R5-168).
+    if(g.nearest())return null;
     const nearby=this.cables.flatMap(c=>[0,1].map(end=>({c,d:distance(pos,c.ends[end])}))).filter(v=>v.d<1.75).sort((a,b)=>a.d-b.d)[0];
     if(nearby){const c=nearby.c;
       if(c.lead.dead){if(c.cause==='cut')return !this.doorWedged()&&this.throughDoor(c)?{key:'',text:'Wedge the door first: it would cut the splice again'}:{key:'F',text:'Splice the cut cable (costs 15)'};
@@ -351,6 +366,9 @@ export class LunchRuntime {
     cable.ends[end].y=.15;this.held=undefined;g.holdingPlug=false;
   }
   pull(){if(!this.held)return {x:0,z:0};return this.held.cable.rope.pull(this.game.player.translation());}
+  /** Whether a bot's step from a to b runs over the cable (a thin box round the step, so a cable lying along it counts too). */
+  crosses(cable:Cable,a:Point,b:Point){const box={id:'bot',minX:Math.min(a.x,b.x)-.04,maxX:Math.max(a.x,b.x)+.04,minZ:Math.min(a.z,b.z)-.04,maxZ:Math.max(a.z,b.z)+.04};
+    return cable.points.slice(1).some((q,j)=>segmentHits(cable.points[j],q,box));}
   bridgeNear(p:Point,radius=1.15){return this.game.props.some(prop=>prop.spec.kind==='bridge'&&distance(prop.body.translation(),p)<radius&&prop.body.translation().y<.6);}
   /** The puddle (if any, and not under a cable bridge) that a point on the floor stands in. */
   puddleAt(p:Point,grow=1){if(this.water<=.1)return undefined;return PUDDLES.find(([x,z,r])=>{const c={x,z},s=r*this.water*grow;return Math.hypot((p.x-x)/1.4,p.z-z)<s&&!this.bridgeNear(c,1.3);});}
@@ -384,7 +402,8 @@ export class LunchRuntime {
     return [...FIXED.filter(o=>near({x:(o.minX+o.maxX)/2,z:(o.minZ+o.maxZ)/2},2+Math.max(o.maxX-o.minX,o.maxZ-o.minZ)/2)),...props].filter(o=>!inside(o,cable.rope.anchor)&&!inside(o,end));
   }
   step(dt:number){const g=this.game,p=g.player.translation(),before=this.circuit.events.length;
-    for(const port of this.ports)if(port.bodyId){const prop=this.prop(port.bodyId);if(prop){const pos=prop.body.translation();port.pos.set(pos.x,pos.y+port.lift,pos.z);}}
+    for(const port of this.ports)if(port.bodyId){const prop=this.prop(port.bodyId);if(prop){const pos=prop.body.translation();
+      if(port.local){const q=prop.body.rotation();port.pos.copy(port.local).applyQuaternion(new T.Quaternion(q.x,q.y,q.z,q.w)).add(pos);}else port.pos.set(pos.x,pos.y+port.lift,pos.z);}}
     const wedged=this.doorWedged(),open=wedged||distance(p,{x:0,z:.2})<2.6;
     if(this.doorAngle<.05&&!wedged)this.doorSide=p.z>DOOR.z?-1:1;
     this.doorAngle=T.MathUtils.lerp(this.doorAngle,open?1:0,dt*7);const shut=this.doorWasOpen&&this.doorAngle<=.15&&!wedged;if(this.doorWasOpen!==this.doorAngle>.15)g.audio.noise(.22,.035,shut?260:700);
@@ -396,7 +415,11 @@ export class LunchRuntime {
       // pinned between it, the doorstop and the wall. It is solid again as it swings shut.
       const solidLeaf=this.doorAngle<.5;if(leaf.collider.isEnabled()!==solidLeaf)leaf.collider.setEnabled(solidLeaf);}
     if(g.held?.spec.id==='mop'&&this.nearPuddle(p))this.water=Math.max(0,this.water-dt*.3);
-    if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){this.job.cooled=true;g.audio.bell(988,.6,.05);g.held=undefined;}
+    // The lunch goes into the cooler box, which is set down snug between the fridge and the kitchen's
+    // front wall: let go where Pip stood (2 m out, by the feed post) it blocked the way to the fridge.
+    if(g.held?.spec.id==='cooler-box'&&distance(p,{x:-5.6,z:-1.8})<2){this.job.cooled=true;g.audio.bell(988,.6,.05);const box=g.held;g.held=undefined;
+      box.body.setTranslation({x:-5.6,y:.32,z:-1.05},true);box.body.setRotation(new T.Quaternion(),true);box.body.setLinvel({x:0,y:0,z:0},true);box.body.setAngvel({x:0,y:0,z:0},true);
+      g.burst({x:-5.6,y:.1,z:-1.05},'#efe8d8',6,'dust');}
     // Docking: parked within 2 m of the winch, the cart's own lead plugs into the winch socket.
     const capacitor=this.prop('capacitor')!,capPos=capacitor.body.translation(),docked=g.held!==capacitor&&distance(capPos,WINCH)<2;
     if(docked!==this.capDocked){this.capDocked=docked;this.capLead.closed=docked;this.capCordKey='';
@@ -423,22 +446,25 @@ export class LunchRuntime {
     }
     this.doorWasOpen=this.doorAngle>.15;
     // Cleaner bots snag a live cable lying across their line and drag its plug along for a while.
+    // A bot catches a cable where its path crosses the cable, so a bridge on each crossing keeps a
+    // cable safe even when it runs close beside the line (the lift feed hugs the bottom edge for
+    // 5 m round the kitchen wall's end, which no sensible row of bridges covered).
     const w=LANE.x1-LANE.x0,h=LANE.z1-LANE.z0,loop=2*(w+h);
     this.bots.forEach((bot,i)=>{const t=(g.time*.8+i*loop/2)%loop;
       const pos=t<w?new T.Vector3(LANE.x0+t,0,LANE.z0):t<w+h?new T.Vector3(LANE.x1,0,LANE.z0+t-w):t<2*w+h?new T.Vector3(LANE.x1-(t-w-h),0,LANE.z1):new T.Vector3(LANE.x0,0,LANE.z1-(t-2*w-h));
-      bot.group.rotation.y=t<w?Math.PI/2:t<w+h?0:t<2*w+h?-Math.PI/2:Math.PI;bot.group.position.copy(pos);
+      bot.group.rotation.y=t<w?Math.PI/2:t<w+h?0:t<2*w+h?-Math.PI/2:Math.PI;bot.group.position.copy(pos);const last=bot.last??pos.clone();bot.last=pos.clone();
       if(bot.snag){bot.snag.left-=dt;bot.snag.cable.ends[bot.snag.end].set(pos.x,.18,pos.z);if(bot.snag.left<=0||this.held?.cable===bot.snag.cable)bot.snag=undefined;return;}
       if(this.bridgeNear(pos))return;
       // A plug that has only just gone in gets a moment to hold before a bot can bump it out.
-      for(const cable of this.cables){if(!cable.lead.closed||g.time-cable.pluggedAt<1.2||this.bots.some(b=>b.snag?.cable===cable)||!cable.points.slice(1).some((b,j)=>segmentDistance(pos,cable.points[j],b)<.35))continue;
+      for(const cable of this.cables){if(!cable.lead.closed||g.time-cable.pluggedAt<1.2||this.bots.some(b=>b.snag?.cable===cable)||!this.crosses(cable,last,pos))continue;
         const end=(cable.ports[1]&&this.ports.find(q=>q.id===cable.ports[1])?.role!=='out'?1:0) as 0|1;g.burst(cable.ends[end],'#fff3a3',10,'spark');cable.ports[end]=null;cable.nicked=true;bot.snag={cable,end,left:4};g.audio.tone(140,.2,.06);g.burst({x:pos.x,y:.3,z:pos.z},'#fff3a3',8,'spark');g.alarm(pos);break;}
     });
     // The capacitor cart charges only from current it really draws through its inlet: a bar while the
     // lift is off, a trickle while it runs, nothing while it is giving the lift its start-up kick.
-    const lift=this.load('lift'),cap=lift.capacitor!,charger=this.load('cap'),kicking=lift.enabled&&this.capDocked&&(lift.state!=='on'||this.circuit.time-lift.started<(lift.kickSeconds??1));
-    charger.steady=lift.state==='on'?.4:1;charger.enabled=cap.charge<11.99&&!kicking;const charge=cap.charge;
+    // The circuit counts that charging current on the cart and its leads; 0.4 bar while the lift runs
+    // keeps conveyor 1.5 + lift 3 + 0.4 under the cart's 5.
+    const lift=this.load('lift'),cap=lift.capacitor!;cap.chargeRate=lift.state==='on'?.4:1;const charge=cap.charge;
     this.circuit.tick(dt);
-    if(cap.charge>charge)cap.charge=charge;if(charger.state==='on')cap.charge=Math.min(12,cap.charge+charger.steady*dt);
     if(cap.charge<charge-1e-6&&Math.random()<dt*14){g.burst({x:12.62,y:.5,z:-4.8},'#6fe9ff',3,'spark');}
     if(cap.charge<charge-1e-6&&charge-cap.charge>.04&&this.circuit.time-lift.started<dt*1.5)g.audio.thud(18);
     // A motor on a cart that cuts out drops out with it (no-volt release): after a reset it stays off
@@ -453,9 +479,13 @@ export class LunchRuntime {
     // The plug chime plays once the new connection has held for a step without tripping anything.
     if(this.chimeAt&&this.circuit.time>this.chimeAt.time){const failed=this.circuit.events.slice(this.chimeAt.events).some(e=>e.kind==='trip'||e.kind==='short');if(!failed)[880,1109,1319].forEach((f,i)=>g.audio.bell(f,.5,.04,i*.07));this.chimeAt=undefined;}
     for(const event of this.circuit.events.slice(this.eventIndex)){
-      if(event.kind==='trip'||event.kind==='short'){g.audio.tone(75,.25,.1,'square');const source=this.ports.find(q=>q.id===event.id);if(source){g.burst(source.pos,'#fff3a3',18,'spark');g.burst(source.pos,'#8d8a96',5,'dust');g.alarm(source.pos);}g.audio.noise(.25,.1,300);g.shake=.15;}
+      if(event.kind==='trip'||event.kind==='short'){
+        // A short is a crackle (with a hiss where water did it); an overload is the breaker's clack and
+        // the machines winding down. Either way a short hitstop marks the moment.
+        if(event.kind==='short')g.audio.short(!!this.wetAt);else g.audio.breakerTrip(Math.max(1,this.circuit.loads.filter(l=>l.state==='brownout').length));g.freeze(.08);
+        const source=this.ports.find(q=>q.id===event.id);if(source){g.burst(source.pos,'#fff3a3',18,'spark');g.burst(source.pos,'#8d8a96',5,'dust');g.alarm(source.pos);}g.shake=.15;}
       if(event.kind==='scorch'){const cable=this.cables.find(c=>c.id===event.id);if(cable)cable.cause='scorch';const at=cable?.points[Math.floor(cable.points.length/2)]??{x:0,z:0};g.audio.tone(60,.4,.08,'sawtooth');this.puff(new T.Vector3(at.x,.3,at.z));this.scar(at,'overheat');g.burst({x:at.x,y:.3,z:at.z},'#ff9a3d',10,'spark');}
-      if(event.kind==='start'&&event.id!=='cap')g.audio.tone(event.id==='lift'?180:260,.15,.03,'triangle');
+      if(event.kind==='start')g.audio.tone(event.id==='lift'?180:260,.15,.03,'triangle');
       // The lift's start-up kick tripped a breaker and no capacitor was in its feed: show the hint.
       if(event.kind==='trip'){if(lift.capacitor&&!lift.capacitor.atLoad&&this.circuit.time-lift.started<1.5&&this.surgeHint==='lift')this.capHint=true;}
     }
@@ -473,7 +503,9 @@ export class LunchRuntime {
       tray.body.setNextKinematicTranslation(this.job.tray==='conveyor'?{x:BELT_START+this.job.transport*(BELT_END-BELT_START),y:1.18,z:-7}:{x:T.MathUtils.lerp(BELT_END,12,hop),y:1.18+this.job.height*2.5+Math.sin(hop*Math.PI)*.3,z:-7});}
     if(this.powered('oven')&&this.job.tray==='raw'&&Math.random()<dt*2)this.puff(new T.Vector3(-1.9,2.9,-8.4),'#fffaf0');
     const scorching=this.job.tray==='burned'||(this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&this.powered('oven'));
+    // Burning: smoke from the oven's front, and twice as much again from its top while the warning is up.
     if(scorching&&Math.random()<dt*3)this.puff(new T.Vector3(-2.7,2,-7.4));
+    if(scorching&&this.job.tray==='baked'&&Math.random()<dt*6)this.puff(new T.Vector3(-2.5+(Math.random()-.5)*1.6,2.15,-8.1));
     if(this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&Math.floor(this.job.ovenWait)%2===0&&Math.floor(this.job.ovenWait-dt)%2===1)g.audio.tone(880,.12,.04,'square');
     if(this.job.done&&!g.won)g.win();
     // Failure gets an in-world beat first: the fridge (or oven) puffs, everyone groans, then the tag drops.
@@ -495,8 +527,11 @@ export class LunchRuntime {
   /** A little cloud of toon smoke (pooled particles). */
   puff(at:T.Vector3,color='#8d8a96'){this.game.burst(at,color,3,'smoke');}
   render(dt:number){const g=this.game;this.updateScars(dt);
-    for(const [i,m] of this.puddles.entries())m.scale.setScalar(Math.max(.001,this.water*(1-i*.02)));this.puddles.forEach(m=>m.scale.x*=1.4);this.dark.visible=!this.lit();
-    for(const id of ['capacitor','cooler-box']){const prop=this.prop(id);if(prop)prop.mesh.visible=this.lit()||!this.inStore(prop.body.translation());}
+    for(const [i,m] of this.puddles.entries())m.scale.setScalar(Math.max(.001,this.water*(1-i*.02)));this.puddles.forEach(m=>m.scale.x*=1.4);
+    // The storeroom fades up over half a second once lit (and back down if its lamp goes out).
+    darkness.amount=T.MathUtils.clamp(darkness.amount+(this.lit()?-dt/.5:dt/.5),0,1);
+    const warn=this.job.tray==='baked'&&this.job.ovenWait>BURN_WARNING&&!g.won;this.burnBadge.visible=warn;
+    if(warn){const k=.5+.5*Math.sin(g.time*9);this.burnBadge.scale.setScalar(.9+.18*k);this.burnBadge.position.y=2.2+Math.sin(g.time*4)*.06;this.burnBadge.material.opacity=.75+.25*k;}
     for(const f of this.followers){f.group.position.copy(f.prop.mesh.position);f.group.quaternion.copy(f.prop.mesh.quaternion);f.group.visible=f.prop.mesh.visible;}
     this.bakeGauge.set(this.job.bake/20);const oven=this.powered('oven');const hot=this.job.tray==='burned'||this.job.ovenWait>BURN_WARNING;this.ovenWindow.material=oven?(hot?HOT_WINDOW:OVEN_WINDOW):toon('#3a3d55');this.ovenLight.intensity=oven?5:0;this.ovenGlow.material.opacity=oven?.45:0;
     const temp=this.job.temperature;this.thermoFill.scale.y=Math.max(.02,temp);this.thermoFill.position.y=.68+Math.max(.02,temp)*.5;this.thermoFill.material=toon(temp>.8?'#e5484d':temp>.6?'#ff8a3d':'#ffc94d');
@@ -557,20 +592,20 @@ export class LunchRuntime {
     this.capCans.forEach((can,i)=>{const fill=T.MathUtils.clamp(cap.charge/3-i,0,1);can.scale.y=Math.max(.001,fill*.72);can.position.y=-prefabs.capcart.size[1]/2+.44+fill*.36;});
     this.capCord.visible=this.capPlug.visible=this.capDocked;
     if(this.capDocked){const a=this.ports.find(p=>p.id==='cap')!.pos,key=`${a.x.toFixed(2)},${a.y.toFixed(2)},${a.z.toFixed(2)}`,b=new T.Vector3(12.62,.38,-4.8);
-      if(key!==this.capCordKey){this.capCordKey=key;const mid=a.clone().lerp(b,.5).setY(.09);this.capCord.geometry.dispose();this.capCurve=new T.CatmullRomCurve3([a.clone().setY(.45),mid,b.clone().add(new T.Vector3(-.2,0,0))]);
+      if(key!==this.capCordKey){this.capCordKey=key;const mid=a.clone().lerp(b,.5).setY(.09);this.capCord.geometry.dispose();const c=capProp.body.translation(),out=new T.Vector3(a.x-c.x,0,a.z-c.z).setLength(.22).setY(-.22);this.capCurve=new T.CatmullRomCurve3([a.clone(),a.clone().add(out),mid,b.clone().add(new T.Vector3(-.2,0,0))]);
         this.capCord.geometry=new T.TubeGeometry(this.capCurve,24,.06,8);this.capPlug.position.copy(b).add(new T.Vector3(-.18,0,0));this.capPlug.rotation.y=Math.PI;}}
     // Current pulses run down the cart's lead while it is feeding the winch, brightest as the kick is supplied.
     const giving=this.capDocked&&this.powered('lift');this.capPulses.update(this.capCurve,this.capCurve?.getLength()??1,g.time*(this.circuit.time-lift.started<1?3:1),giving);
     this.dockRing.visible=g.held===capProp;if(this.dockRing.visible){this.dockRing.rotation.y+=dt*.5;(this.dockRing.material as T.MeshBasicMaterial).opacity=distance(capProp.body.translation(),WINCH)<2?1:.6;}
     // The capacitor hint: over the cart, or over the storeroom door while the cart is still in the dark.
     const capFed=!!cap.atLoad;this.capBadge.visible=this.capHint&&!capFed;
-    if(this.capBadge.visible){const q=capProp.mesh.visible?capProp.body.translation():{x:-7.8,y:.4,z:-1.8};this.capBadge.position.set(q.x,q.y+1.6+Math.sin(g.time*4)*.08,q.z);this.capBadge.scale.setScalar(.85+Math.sin(g.time*6)*.08);}
+    if(this.capBadge.visible){const q=this.lit()||!this.inStore(capProp.body.translation())?capProp.body.translation():{x:-7.8,y:.4,z:-1.8};this.capBadge.position.set(q.x,q.y+1.6+Math.sin(g.time*4)*.08,q.z);this.capBadge.scale.setScalar(.85+Math.sin(g.time*6)*.08);}
     // The surge badge floats over whichever motor's start-up kick tripped a cart.
     this.surgeBadge.visible=!!this.surgeHint&&g.time<this.surgeUntil;
     if(this.surgeBadge.visible){const at=this.surgeHint==='lift'?{x:13.3,z:-4.8}:{x:5,z:-6.1};this.surgeBadge.position.set(at.x,2.2+Math.sin(g.time*5)*.08,at.z);this.surgeBadge.scale.setScalar(.85+Math.sin(g.time*8)*.08);}
   }
   snapshot(){const lift=this.load('lift');return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),doorBusy:this.doorBusy(),capDocked:this.capDocked,capHint:this.capHint,surgeHint:this.surgeHint??null,liftRan:this.liftRan,capCharge:+lift.capacitor!.charge.toFixed(2),
     door:{angle:this.doorAngle,side:this.doorSide},bots:this.bots.map(b=>({x:+b.group.position.x.toFixed(2),z:+b.group.position.z.toFixed(2),snag:b.snag?.cable.id})),cablePoints:Object.fromEntries(this.cables.map(c=>[c.id,c.points.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)}))])),
-    lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads.filter(l=>l.id!=='cap'),draw:Object.fromEntries(this.circuit.draw),told:[...this.told],
+    lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,draw:Object.fromEntries(this.circuit.draw),told:[...this.told],
     cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,cause:c.cause??null,nicked:!!c.nicked,wet:!!c.lead.wet,heat:c.lead.heat,strain:c.rope.strain,length:+c.rope.length.toFixed(2),maxLength:c.rope.maxLength})),events:this.circuit.events};}
 }

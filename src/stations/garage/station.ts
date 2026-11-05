@@ -13,9 +13,10 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressGarage,robotMesh,STAND,PAD,ROUTE,YELLOW,TEAL,CREAM,type RobotParts} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,DMETAL,freezeBench} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import {signOff,fault as benchFault} from '../shared';
+import {parcelStack} from '../../levels/garage';
 import {JOBS,PARTS,PART_IDS,SPEC,SWITCH,MOTOR,STALL,CTRL,SCOPE_TEXT,START_SPAN,judge,cost,cheapest,shutdownCached,startTrace,startDip,setupKey,placementKey,partCount,orientation,jobCoil,coilRunning,ms,
   type PartId,type SlotId,type Fit,type Setup,type Verdict,type Job,type Trace} from './logic';
 
@@ -136,16 +137,19 @@ export class GarageBench implements Station {
     this.job={goal:'Stop the delivery robot resetting, then send it on its route',
       steps:[
         {text:'Carry the delivery robot onto the test stand behind the bench',done:()=>this.onStand,at:()=>this.game.held===this.bot?STAND:this.bot?.body.translation()??PAD},
+        // The bench's mains lead (R5-079): no PULSE until it is plugged in at the wall.
+        ...game.leadStep(),
         {text:'Sit at the garage bench (E)',done:()=>(this.active&&this.onStand)||this.logged.length>0,at:()=>this.stand},
         ...JOBS.map((j,i)=>({text:`Job ${i+1}: ${j.title}`,done:()=>this.logged.length>i,at:()=>this.stand})),
         {text:'Watch the robot drive its delivery route',done:()=>this.delivered,at:()=>this.bot?.body.translation()??STAND}],
       bonuses:[
-        {text:`Every fix reliable (spike ≤ ${SPEC.spikeReliable} V, supply sag ≤ ${SPEC.dipReliable} V)`,ok:()=>this.logged.length===JOBS.length&&this.logged.every(l=>l.verdict.tier>=2)},
+        // A chaos bonus in the room (R5-079): bowl the parcel stack off the robot's painted route before it drives.
+        {text:"Bowl the parcel stack off the robot's route",ok:()=>this.parcelsBowled},
         {text:'Elegant: the fewest parts each time',ok:()=>this.logged.length===JOBS.length&&this.logged.every(l=>l.verdict.tier===3)},
         {text:'No failed test',ok:()=>this.mistakes===0}]};
     this.rollTray();
     this.robot=robotMesh(TEAL,undefined,true);game.root.add(this.root);game.root.add(this.robot.root);
-    this.buildBench();this.redraw();
+    this.buildBench();this.redraw();freezeBench(this.root,this,game,[this.gndShort,this.gndLong,this.starWire,this.shared,this.brakeMesh,this.motorMesh]);
   }
   dress(kit:RoomKit){return dressGarage(this.game,kit);}
   current():Job|undefined{return JOBS[this.jobIndex];}
@@ -286,6 +290,7 @@ export class GarageBench implements Station {
         if(this.pendingDrive)return false;
         if(!this.onStand){this.say('The robot is still on its charging pad.');a.voice('hm',1.4);return false;}
         if(!this.fuse){a.voice('hm',1.2);return false;}
+        if(this.game.benchDead()){this.say("No power: the bench lead isn't plugged in.",'bad');return false;}
         const s=this.setup(),coil=jobCoil(j),v=judge(j,s),tr=v.fault==='short'||v.fault==='cap'?undefined:shutdownCached(s,coil);
         this.capture={job:this.jobIndex,key:setupKey(s),verdict:v,trace:tr,start:startTrace(j,s),at:this.game.time};this.captures++;this.sweep=0;this.stuck=false;
         // The scope shows the problem; a start-up job stays on START once its stop is clean.
@@ -436,12 +441,19 @@ export class GarageBench implements Station {
       this.say('Robot on the stand and wired to the bench. Sit at the bench to diagnose it.','ok');this.redraw();}
   }
   private placeOnStand(){const b=this.bot;if(!b)return;b.body.setTranslation({x:STAND.x,y:STAND.y,z:STAND.z},true);b.body.setRotation(new T.Quaternion(),true);b.body.setLinvel({x:0,y:0,z:0},true);b.body.setAngvel({x:0,y:0,z:0},true);b.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);}
-  private init(){this.ready=true;this.bot=this.game.props.find(p=>p.spec.id==='robot');this.harness=this.game.root.getObjectByName('garage-harness');
+  private init(){this.ready=true;this.bot=this.game.props.find(p=>p.spec.id==='robot');this.parcels=this.game.props.filter(p=>parcelStack.includes(p.spec));this.harness=this.game.root.getObjectByName('garage-harness');
     // The robot prop is a cart physics body; the teal robot model is drawn over it instead.
     if(this.bot)for(const c of this.bot.mesh.children)c.scale.setScalar(0);
     this.redraw();}
+  /** The parcel stack on the robot's route (R5-079): bowled once two of its three boxes are knocked
+   *  off their spot, by anything, before the robot sets off on its route. */
+  parcelsBowled=false;private parcels:Game['props']=[];
+  private trackParcels(){if(this.parcelsBowled||this.driving||this.delivered)return;
+    const off=this.parcels.filter(p=>{const t=p.body.translation();return Math.hypot(t.x-p.spec.x,t.z-p.spec.z)>.6||t.y<(p.spec.y??.3)-.25;}).length;
+    if(off>=2){this.parcelsBowled=true;const at=this.parcels[2]?.body.translation()??{x:-7,y:.6,z:1};const g=this.game;g.burst({x:at.x,y:1,z:at.z},'#ffcf52',24,'confetti');g.audio.milestone();g.cheerNear(at,8);}}
   update(dt:number){
     if(!this.ready)this.init();
+    this.trackParcels();
     const m=this.mats,w=new T.Vector3();
     // The PTC fuse glows while hot and conducts again once it has cooled.
     if(!this.fuse){this.cooling-=dt;if(this.cooling<=0){this.fuse=true;this.cooling=0;this.game.audio.tone(900,.05,.03,'triangle');this.redraw();}}
@@ -581,6 +593,7 @@ export class GarageBench implements Station {
     return null;
   }
   prompt(atBench:boolean):Prompt|null{
+    {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}
     const j=this.current();
     if(this.driving)return this.delivered?null:{key:'',text:'Follow the robot to the dock'};
     if(!j)return null;
@@ -606,7 +619,7 @@ export class GarageBench implements Station {
   winFocus(){const q=this.bot?.body.translation();return q?new T.Vector3(q.x,q.y+.4,q.z):new T.Vector3(this.table.x,this.table.y+.5,this.table.z);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const j=this.current(),s=this.setup(),v=j?judge(j,s):undefined;
-    return {job:this.jobIndex,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,spike:l.verdict.spike,offTime:l.verdict.offTime,parts:l.verdict.parts})),slots:{...this.slots},star:this.star,held:this.held??null,
+    return {job:this.jobIndex,parcelsBowled:this.parcelsBowled,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,spike:l.verdict.spike,offTime:l.verdict.offTime,parts:l.verdict.parts})),slots:{...this.slots},star:this.star,held:this.held??null,
       order:this.order,trayFlip:{...this.trayFlip},stuck:this.stuck,gndHeat:+this.gndHeat.toFixed(2),gndColor:this.gndMat.color.getHexString(),motorOn:this.motorOn,resetFlash:this.resetFlash,
       fuse:this.fuse,cooling:this.cooling,onStand:this.onStand,driving:this.driving,delivered:this.delivered,mistakes:this.mistakes,spent:this.spent,scope:this.scopeMode,captures:this.captures,
       capture:this.capture?{fault:this.capture.verdict.fault??null,spike:this.capture.verdict.spike,offTime:this.capture.verdict.offTime,dip:this.capture.verdict.dip}:null,

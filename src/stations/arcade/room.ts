@@ -3,6 +3,7 @@
 // ORDER marquees until Pip signs them off), a row of working cabinets on the right wall, a neon
 // sign, an LED basics poster, and the storeroom (planks, shelves) where the resistor tray waits.
 import * as T from 'three';
+import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {RoomKit} from '../types';
 import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,flat,freeze,plaqueBoard,INK,DMETAL} from '../../render/kit';
@@ -15,7 +16,12 @@ import {JOBS} from './logic';
 const PLUM='#3b2346',CREAM='#fbf3e2',PINK='#ff7eb6',MINT='#6fe0c0',LEMON='#ffd84d',GRAPE='#9b7bf0',SKY='#7cc8ff';
 const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;
 /** light(k): the k-th back-wall cabinet lights, once (rush passes the cabinet just fixed as its title). */
-export interface ArcadeRoom {light(k:number,title?:string):void;lightUp():void}
+/** A prize box on the prize shelf: a real (light) physics body, so a thrown beanbag or a flung box
+ *  knocks the pyramid over (R5-079 chaos bonus). The station keeps its mesh on the body. */
+export interface Prize {mesh:T.Object3D;body:RAPIER.RigidBody;home:T.Vector3}
+/** Where the prize pyramid stands (the level keeps clutter off it). */
+export const PYRAMID={x:1.4,z:-6.75};
+export interface ArcadeRoom {light(k:number,title?:string):void;lightUp():void;prizes:Prize[]}
 
 // A dusty-mauve carpet with a light scatter of pastel confetti: arcade, but quiet enough to sit
 // behind the props and the bench (the house brief is pale wood, cream and pastels).
@@ -117,6 +123,13 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   // Change machine and a prize shelf behind the bench (low, so the bench view stays clear).
   const cm=group(r,-1.2,0,-7.4);part(cm,rbox(.8,1.5,.6,.06),toon(SKY),0,.75,0);part(cm,box(.5,.3,.02),toon('#2a1c33'),0,1.1,.31);part(cm,box(.3,.06,.02),toon(LEMON),0,.7,.31);solid(game,.8,1.5,.6,-1.2,.75,-7.4);
   const ps=group(r,1.4,0,-7.5);part(ps,rbox(2,.9,.45,.05),toon(CREAM),0,.45,0);for(let n=0;n<6;n++)part(ps,sphere(.13,12,8),toon([PINK,MINT,LEMON,GRAPE,SKY,'#ff9a6b'][n]),-.8+n*.32,1.02,0);solid(game,2,1,.45,1.4,.5,-7.5);
+  // The prize pyramid on the floor in front of the shelf: ten candy gift boxes stacked 4-3-2-1, asleep
+  // until something hits them (a thrown beanbag, a flung box, a shoved trolley, or Pip himself).
+  const prizes:Prize[]=[],gift=rbox(.3,.3,.3,.04),ribbon=box(.31,.31,.07);let n=0;
+  for(let row=0;row<4;row++)for(let k=0;k<4-row;k++){const x=1.4+(k-(3-row)/2)*.32,y=.16+row*.305,z=PYRAMID.z,g=group(game.root,x,y,z);
+    part(g,gift,toon([PINK,MINT,LEMON,GRAPE,SKY,'#ff9a6b'][n%6]));part(g,ribbon,toon(CREAM),0,0,0,false);n++;
+    const body=game.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(x,y,z).setLinearDamping(.3).setAngularDamping(.5).setCanSleep(true).setSleeping(true).setCcdEnabled(true));
+    game.world.createCollider(RAPIER.ColliderDesc.cuboid(.15,.15,.15).setMass(.4).setFriction(.8).setRestitution(.08),body);prizes.push({mesh:g,body,home:new T.Vector3(x,y,z)});}
   // ---- Side wall: a ticket counter mural and posters.
   const side=kit.side;
   const tick=new T.Mesh(new T.PlaneGeometry(3.4,.6),flat(plaque('WIN TICKETS · FIX CABINETS',900,160,LEMON,PLUM,64)));tick.position.set(2.2,2.2,.16);side.add(tick);
@@ -139,7 +152,7 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   lampPool(game.root,8.4,1.2,2.2,.16,'#c7b6ff');lampPool(game.root,-8.6,5.4,2,.18,'#ffe0b0');
   for(const [x,z,c] of [[-8.6,-2,'rgba(255,224,138,1)'],[8.6,1.2,'rgba(159,240,210,1)']] as const)glow(game.root,c,3,.1).position.set(x,1.6,z);
   for(const c of cabs)freeze(c.group,o=>c.live.includes(o));
-  return {
+  return {prizes,
     light(k:number,title?:string){const m=lit[k];if(!m||m.done)return;m.done=true;(m.face.material as T.MeshBasicMaterial).map=marqueeTex(title??m.title,true,k);(m.face.material as T.MeshBasicMaterial).needsUpdate=true;
       m.screen.material=hot(['#4a3a78','#2f5a6e','#5a2f58'][k%3],1.3);glow(game.root,'rgba(255,216,77,1)',1.8,.35).position.copy(m.at);game.burst(m.at,'#ffd84d',16,'confetti');},
     lightUp(){glow(game.root,'rgba(255,126,182,1)',6.5,.22).position.set(0,2.6,-D+1);pink.intensity=8;},

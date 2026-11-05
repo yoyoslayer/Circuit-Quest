@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest';
-import {Circuit,type Lead,type Load} from './electrical';
+import {Circuit,heatRate,type Lead,type Load} from './electrical';
 const lead=(id:string,from:string,to:string,rating=3):Lead=>({id,from,to,rating,closed:true,heat:0,dead:false});
 const load=(id:string,steady:number,kick=0):Load=>({id,steady,kick,enabled:true,state:'off',started:0});
 it('requires both outgoing and returning conductors',()=>{const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','lamp')],[load('lamp',1)]);c.tick(.1);expect(c.loads[0].state).toBe('on');c.leads[0].returnClosed=false;c.tick(.1);expect(c.loads[0].state).toBe('off');});
@@ -20,3 +20,21 @@ it('an inline capacitor helps only when the lift is fed through it',()=>{
     expect(lift.capacitor.atLoad).toBe(through);expect(c.sources[0].tripped).toBe(!through);}
 });
 it('cyclic splitter wiring terminates',()=>{const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','x'),lead('b','x','y'),lead('c','y','x')],[]);expect(()=>c.tick(.1)).not.toThrow();});
+it('heating is I-squared: 4 bars on a 3-bar cable heats at about 0.33/s and scorches in about 6 s',()=>{
+  expect(heatRate(4,3)).toBeCloseTo(.334,2);expect(heatRate(6,3)).toBeCloseTo(1.29,2);expect(heatRate(2,3)).toBeLessThan(0);
+  const c=new Circuit([{id:'s',limit:10,tripped:false}],[lead('a','s','oven')],[load('oven',4)]);let t=0;while(!c.leads[0].dead&&t<20){c.tick(.1);t+=.1;}expect(t).toBeGreaterThan(5.5);expect(t).toBeLessThan(6.5);});
+it('a capacitor charges only by drawing real current through its feed',()=>{
+  const lift=load('lift',3,9);lift.enabled=false;lift.capacitor={node:'cap',atLoad:false,charge:0};
+  const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','cap',10),lead('cap-lead','cap','lift',10)],[lift]);
+  for(let i=0;i<10;i++)c.tick(.1);
+  expect(lift.capacitor.charge).toBeCloseTo(1,5);expect(c.draw.get('s')).toBeCloseTo(1,5);expect(c.draw.get('a')).toBeCloseTo(1,5);expect(lift.capacitor.charging).toBe(true);
+  // Unfed, it neither charges nor draws.
+  c.leads[0].closed=false;c.tick(.1);expect(lift.capacitor.charge).toBeCloseTo(1,5);expect(c.draw.get('s')??0).toBe(0);
+  // Full, it stops drawing.
+  c.leads[0].closed=true;for(let i=0;i<200;i++)c.tick(.1);expect(lift.capacitor.charge).toBe(12);expect(c.draw.get('s')??0).toBe(0);expect(lift.capacitor.charging).toBe(false);});
+it('conveyor running, then the capped lift: the 0.4-bar recharge after the kick stays under 5',()=>{
+  const conveyor=load('conveyor',1.5,3),lift=load('lift',3,9);lift.enabled=false;lift.capacitor={node:'cap',atLoad:false,charge:12,chargeRate:.4};
+  const c=new Circuit([{id:'s',limit:5,tripped:false}],[lead('a','s','conveyor'),lead('b','s','cap',10),lead('cap-lead','cap','lift',10)],[conveyor,lift]);
+  for(let i=0;i<20;i++)c.tick(.1);lift.enabled=true;let peak=0;
+  for(let i=0;i<60;i++){c.tick(.1);peak=Math.max(peak,c.draw.get('s')??0);}
+  expect(c.sources[0].tripped).toBe(false);expect(peak).toBeLessThanOrEqual(4.9+1e-9);expect(lift.capacitor.charge).toBeLessThan(12);expect(lift.capacitor.charge).toBeGreaterThan(6);});

@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {toCreasedNormals} from 'three/addons/utils/BufferGeometryUtils.js';
-import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,group,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached,stripes} from '../render/kit';
+import {INK,METAL,DMETAL,CHAIRC,toon,rbox,box,cyl,sphere,ico,part,group,reel,wheels,handle,glyph,decal,cachedTexture,lit,cached,stripes,freeze} from '../render/kit';
 import {hot} from '../render/actors';
 import {screen,keyboardTex,SCREENS,type ScreenKind} from '../render/textures';
 export type PropKind='box'|'desk'|'chair'|'monitor'|'mug'|'paper'|'plant'|'cabinet'|'sofa'|'bin'|'reel'|'coupler'|'coffee'|'cart'|'glass'|'printer'|'whiteboard'|'bookshelf'|'vending'|'cooler'|'pingpong'|'bridge'|'mop'|'tray'|'lamp'|'dolly'|'supply'|'capcart'|'coolbox'|'splitter'|'plug'|'wedge'|'beanbag'|'cone'|'strip'|'pin'|'stool';
@@ -50,10 +50,17 @@ const C:Partial<Record<PropKind,ColliderPart[]>>={
 };
 for(const [k,c] of Object.entries(C))prefabs[k as PropKind].collider=c;
 const templates=new Map<string,T.Group>();
-/** Returns a copy of the prop's model; copies share geometry and materials so they batch. */
+/** Returns a copy of the prop's model; copies share geometry and materials so they batch. Each
+ *  template's plain toon parts are merged into one vertex-coloured mesh (kit.ts freeze), so a prop
+ *  instances as one batch plus its textured, see-through and glowing parts
+ *  (which stay separate and still batch across templates) instead of one batch per part (R5-026). */
 export function makeProp(kind:PropKind,color?:string,variant=0):T.Group{
   const key=`${kind}|${color??''}|${variant}`;let template=templates.get(key);
-  if(!template){template=build(kind,color??prefabs[kind].color,variant);templates.set(key,template);}
+  if(!template){template=build(kind,color??prefabs[kind].color,variant);
+    // The batches cast shadows whatever a part's flag says (Game.batchProps), so the flag only split
+    // the merge in two; one bucket per template, with no change on screen.
+    template.traverse(o=>{if(o instanceof T.Mesh&&!o.castShadow&&!(o.material as T.Material).transparent)o.castShadow=true;});
+    freeze(template);templates.set(key,template);}
   return template.clone();
 }
 const scribble=()=>cachedTexture('scribble',()=>glyph(c=>{c.strokeStyle='#3f7fd6';c.lineWidth=10;c.beginPath();c.moveTo(20,200);c.lineTo(80,120);c.lineTo(140,160);c.lineTo(230,40);c.stroke();c.strokeStyle='#e5484d';c.beginPath();c.arc(70,60,30,0,7);c.stroke();}));
@@ -141,8 +148,10 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       for(const [x,z,r] of [[-.05,.03,.07],[.06,-.04,.06],[.01,.07,.05]] as const)part(g,ico(r),toon('#fffaf0'),x,h/2-.03,z);break;
     case 'reel':reel(g,0,0,0,'#f4efe6',c,.8);break;
     case 'plug':
-      // The cable's male plug: an ink body with a job-yellow band and two brass prongs.
-      part(g,cyl(.11,.13,.3,14,'x'),toon(INK));part(g,cyl(.135,.135,.06,14,'x'),toon('#ffc94d'),-.04);for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),.2,0,dz);break;
+      // The live cable's end is a trailing socket (R5-185): an ink body with a job-yellow band and a
+      // cream face with two slots, no exposed prongs. The load's inlet carries the prongs.
+      part(g,cyl(.11,.13,.3,14,'x'),toon(INK));part(g,cyl(.135,.135,.06,14,'x'),toon('#ffc94d'),-.04);
+      part(g,cyl(.1,.1,.02,14,'x'),toon('#fff6e6'),.155);for(const dz of [-.05,.05])part(g,box(.012,.05,.022),toon(INK),.167,0,dz,false);break;
     case 'coupler':
       // A female-to-male joiner: a yellow barrel with ink bands, a socket face (two slots) on one
       // end and prongs on the other, so it reads as the part that lets two cables meet.
@@ -248,6 +257,8 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       break;}
     case 'strip':{
       part(g,rbox(w,h,d,.05),m);for(let k=0;k<4;k++){part(g,rbox(.13,.02,.13,.03),toon('#fff6e6'),-.3+k*.19,h/2+.005,0,false);part(g,box(.02,.012,.05),toon(INK),-.33+k*.19,h/2+.02,0,false);part(g,box(.02,.012,.05),toon(INK),-.27+k*.19,h/2+.02,0,false);}
+      // Its inlet end has two brass prongs: the reel's trailing socket pushes onto them (R5-185).
+      for(const dz of [-.05,.05])part(g,cyl(.022,.022,.14,8,'x'),toon('#e0b25a'),-w/2-.07,0,dz);
       // A rocker switch, and a small rating plate (bolt glyph) beside it.
       part(g,rbox(.07,.025,.05,.01),toon(INK),w/2-.06,h/2+.008,0,false);part(g,rbox(.06,.03,.045,.012),toon('#e5484d'),w/2-.06,h/2+.025,0).rotation.z=.2;
       decal(g,cachedTexture('boltCream',()=>glyph(c=>{c.fillStyle='#fffaf0';c.fillRect(0,0,256,256);c.fillStyle=INK;c.beginPath();c.moveTo(150,20);c.lineTo(70,140);c.lineTo(125,140);c.lineTo(100,236);c.lineTo(190,104);c.lineTo(134,104);c.closePath();c.fill();})),.06,.06,w/2-.06,0,d/2+.003);

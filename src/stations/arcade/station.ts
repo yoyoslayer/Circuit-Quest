@@ -14,7 +14,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressArcade,type ArcadeRoom} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,glow,canvasTex,INK,freezeBench} from '../../render/kit';
 import {hot} from '../../render/actors';
 import {JOBS,rushJob,BLOCKS,BLOCK_RATING,BLOCK_COST,PER_POSITION,HOUSE,read,judge,best,mA,ohms,watts,partsCost,positionR,starZone,TIER_WORD,motorDrive,popWhy,minCost,
   type Block,type Chain,type Job,type Setup,type Reading,type Verdict,type LedColor} from './logic';
@@ -122,29 +122,37 @@ export class ArcadeBench implements Station {
   constructor(private game:Game){
     this.rush=game.level.id==='arcade-rush';this.jobs=this.rush?[]:[...JOBS];this.setup=clone(this.current()!.start);this.heat=zeroHeat(this.setup.chain);
     this.limits.cost=this.rush?24:Math.ceil(JOBS.reduce((n,j)=>n+partsCost({chain:best(j)??[],reversed:false}),0)*1.5);
-    if(this.rush){this.limits.time=RUSH_TIME+10;this.limits.damage=3;}
+    if(this.rush){this.limits.time=RUSH_TIME+30;this.limits.damage=3;}
     const carry={text:'Carry the tray of resistor blocks from the storeroom to the service bench',done:()=>this.trayReady,at:()=>this.game.held===this.tray?this.stand:this.tray?.body.translation()??this.stand};
     const step={text:'Step up to the service bench (E)',done:()=>this.active||this.served.length>0,at:()=>this.stand};
+    // The bench's mains lead (R5-079): the bench can't power a cabinet until it is plugged in.
+    const lead=game.leadStep();
+    // The prize pyramid on the shelf behind the bench (R5-079): a chaos bonus anyone can see from the door.
+    const pyramid={text:'Knock the prize pyramid over',ok:()=>this.prizesDown>=3};
     this.job=this.rush?{goal:`Arcade Rush: fix as many cabinets as you can in ${RUSH_TIME/60} minutes`,
-      steps:[carry,step,{text:'Fix cabinets until the clock runs out',done:()=>this.complete(),at:()=>this.stand}],
+      steps:[carry,...lead,step,{text:'Fix cabinets until the clock runs out',done:()=>this.complete(),at:()=>this.stand}],
       bonuses:[
         {text:'Eight cabinets or more',ok:()=>this.served.length>=8},
         {text:'Every one reliable',ok:()=>this.served.length>0&&this.served.every(s=>s.tier>=2)},
-        {text:'Fuse tripped no more than once',ok:()=>this.trips<=1}]}:{goal:'Fix five arcade cabinets with candy resistors',
-      steps:[carry,step,...JOBS.map((j,i)=>({text:`${j.title} — ${j.ask.replace(':',' ·')}`,done:()=>this.served.length>i,at:()=>this.stand}))],
+        pyramid]}:{goal:'Fix five arcade cabinets with candy resistors',
+      steps:[carry,...lead,step,...JOBS.map((j,i)=>({text:`${j.title} — ${j.ask.replace(':',' ·')}`,done:()=>this.served.length>i,at:()=>this.stand}))],
       bonuses:[
-        {text:'Every cabinet reliable',ok:()=>this.served.every(s=>s.tier>=2)},
+        pyramid,
         {text:'Every cabinet in the ★ zone',ok:()=>this.served.every(s=>s.tier===3)},
         {text:'Fuse tripped no more than once',ok:()=>this.trips<=1}]};
     game.root.add(this.top);this.top.position.copy(this.table).add(new T.Vector3(OX,0,0));
-    this.build();this.showJob();
+    this.build();this.showJob();freezeBench(this.top,this,game,[this.binsGroup,...this.bins.values(),this.motorLoop]);
   }
   dress(kit:RoomKit){const r=dressArcade(this.game,kit);this.room=r;return {lightUp:r.lightUp};}
   current():Job|undefined{
     // Rush: the clock ends the shift, but a cabinet already in its play test gets to finish it.
-    if(this.rush){if(this.game.time>=RUSH_TIME&&!this.overtime())return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length));}
+    if(this.rush){if(this.shift()>=RUSH_TIME&&!this.overtime())return undefined;while(this.jobs.length<=this.index+2)this.jobs.push(rushJob(this.random,this.jobs.length,this.jobs[this.jobs.length-1]));}
     return this.jobs[this.index];}
-  private overtime(){return this.powered&&this.soak>0&&this.game.time<RUSH_TIME+RUSH_SOAK+.5;}
+  private overtime(){return this.powered&&this.soak>0&&this.shift()<RUSH_TIME+RUSH_SOAK+.5;}
+  /** Rush shift clock (R5-220): it starts when the tray reaches the bench, so the fetch doesn't eat the
+   *  shift; a player who never fetches it still gets a clock after 20 s. Story mode uses game time. */
+  private rushFrom?:number;
+  shift(){if(!this.rush)return this.game.time;if(this.rushFrom===undefined&&(this.trayReady||this.game.time>=20))this.rushFrom=this.game.time;return this.rushFrom===undefined?0:this.game.time-this.rushFrom;}
   reading():Reading|undefined{const j=this.current();return j&&read(j,this.setup);}
   /** Current only flows while the bench is on and the fuse is cool. */
   private get live(){return this.powered&&!this.tripped&&this.ledDead<=0;}
@@ -225,6 +233,8 @@ export class ArcadeBench implements Station {
       part(bg,rbox(.42,.02,.32,.03),toon(rim),0,.01,0);
       for(const [w,d,bx,bz] of [[.42,.025,0,-.15],[.42,.025,0,.15],[.025,.32,-.2,0],[.025,.32,.2,0]] as const)part(bg,rbox(w,.1,d,.012),toon(col),bx,.06,bz);
       for(let n=0;n<4;n++){const blk=blockMesh(v);blk.position.set(-.1+(n%2)*.2+(pick()-.5)*.04,.02+Math.floor(n/2)*.04,-.06+Math.floor(n/2)*.1);blk.rotation.y=(pick()-.5)*.6;blk.scale.setScalar(.92);bg.add(blk);}
+      // Its key on the rim (R5-246): bins 1–4 match Digit1–4.
+      sign(bg,String(k+1),-.15,.115,-.12,.09,-Math.PI/2,'#ffe36e',INK,.09);
       this.bins.set(v,bg);this.click(bg,'pick',v);});
     r.visible=false;
   }
@@ -233,10 +243,11 @@ export class ArcadeBench implements Station {
     const p=group(this.top,POWERAT.x,.04,POWERAT.z-.18);part(p,rbox(.46,.2,.4,.06),toon(MINT),0,.1,0);part(p,box(.48,.03,.42),toon(PLUM),0,.205,0);
     const lv=group(p,0,.2,-.04);part(lv,rbox(.2,.04,.16,.03),toon(INK),0,.02,0);this.lever=group(lv,0,.04,0);part(this.lever,cyl(.018,.018,.2,10),toon('#c9ced8'),0,.1,0);part(this.lever,sphere(.05,14,10),toon('#e5484d'),0,.21,0);
     this.powerLamp=part(p,sphere(.035,12,8),toon('#5a4a60'),-.16,.23,.12);
+    sign(p,'P',.15,.222,-.13,.11,-Math.PI/2,'#ffe36e',INK,.11);
     this.click(p,'power');
     // The sign-off button: a big round stamp with a tick on it.
     const s=group(this.top,POWERAT.x+.52,.04,POWERAT.z+.14);part(s,cyl(.17,.19,.06,24),toon(INK),0,.03,0);this.signBtn=part(s,cyl(.13,.13,.06,24),toon('#8a9a8e'),0,.08,0);this.click(s,'signoff');
-    sign(s,'✓',0,.112,0,.16,-Math.PI/2,'#fffaf0',INK,.16);
+    sign(s,'✓',0,.112,0,.16,-Math.PI/2,'#fffaf0',INK,.16);sign(s,'Enter',0,.065,.25,.24,-Math.PI/2,'#ffe36e',INK,.09);
   }
   /** The cabinet being serviced stands at the bench's left end, back open, ribbon cable to the board,
    *  with a kid waiting to play it. */
@@ -317,6 +328,8 @@ export class ArcadeBench implements Station {
         // Tripped, the PTC fuse comes back by itself once it cools, so P leaves the power on.
         if(this.powered&&this.tripped){a.voice('hm',1.4);return false;}
         if(this.powered){this.powerOff();a.noise(.03,.07,2500,'highpass');a.tone(220,.09,.04);break;}
+        // No mains, no power: the lever clacks but nothing lights (the bench lead is unplugged).
+        if(this.game.benchDead()){this.say("No power: the bench lead isn't plugged in.",'bad');return false;}
         this.powered=true;this.changed();a.noise(.03,.07,2500,'highpass');a.tone(420,.09,.04);break;}
       case 'signoff':{
         if(!this.soakDone||!this.verdict){a.voice('hm',1.4);return false;}
@@ -431,8 +444,14 @@ export class ArcadeBench implements Station {
     // A few blocks ride on the tray until it reaches the bench.
     this.game.root.add(this.trayRide);([47,100,220,470,220,100] as Block[]).forEach((v,k)=>{const b=blockMesh(v);b.position.set(-.24+(k%3)*.24,.02,k<3?-.1:.1);this.trayRide.add(b);});
     this.redraw();}
+  /** Prize boxes knocked off their spot (R5-079): counted once each, never back. Three or more is the
+   *  pyramid knocked over (the stack settles a few cm into itself at rest, so the margins are generous). */
+  prizesDown=0;private prizeGone=new Set<number>();
   update(dt:number){
     if(!this.ready)this.setup0();
+    // The bench lead was pulled out: the bench loses power (a harmless bit of chaos, no mistake).
+    if(this.powered&&!this.game.benchLive()){this.powerOff();this.game.audio.tone(160,.3,.05,'triangle');}
+    this.updatePrizes();
     // The play-test framing (R5-080): only while a play test is running or has passed, and only at the bench.
     // The framing holds for a 1.2 s beat after a sign-off, so the marquee confetti is seen (R5-087).
     {const want=(this.soak>0||this.game.time-this.signedAt<1.2)&&this.game.atBench?ArcadeBench.SOAK:ArcadeBench.REST,e=this.game.manual?1:1-Math.exp(-dt*3),v=this.view;
@@ -467,7 +486,7 @@ export class ArcadeBench implements Station {
             if(this.soak>=this.soakTime){this.soakDone=true;this.passed=true;this.verdict=v;this.say(`${TIER_WORD[v.tier]}${v.tier===3?' ★':''}${v.notes[0]?`: ${v.notes[0]}`:''}`,'ok');this.game.audio.bell(988,.4,.05);this.redraw();}}
           else if(this.soakDone)playing=true;
           // Rush overtime: the last cabinet signs itself off as soon as its play test passes.
-          if(this.rush&&this.soakDone&&time>=RUSH_TIME){this.act('signoff');return;}
+          if(this.rush&&this.soakDone&&this.shift()>=RUSH_TIME){this.act('signoff');return;}
         }
       }else{this.heat.led-=this.heat.led*k;for(const p of this.heat.blocks)for(let i=0;i<p.length;i++)p[i]-=p[i]*k;this.heat.across-=this.heat.across*k;}
       this.animate(dt,j,r,playing,time);
@@ -563,7 +582,13 @@ export class ArcadeBench implements Station {
     }
     return null;
   }
+  private updatePrizes(){const prizes=this.room?.prizes??[];
+    prizes.forEach((p,k)=>{const t=p.body.translation(),r=p.body.rotation();p.mesh.position.set(t.x,t.y,t.z);p.mesh.quaternion.set(r.x,r.y,r.z,r.w);
+      if(!this.prizeGone.has(k)&&(t.y<p.home.y-.3||Math.hypot(t.x-p.home.x,t.z-p.home.z)>.35)){this.prizeGone.add(k);this.prizesDown++;
+        // The pyramid goes over: a ticket-machine jingle, confetti from the shelf, and the nearest players cheer.
+        if(this.prizesDown===3){const g=this.game;g.audio.bell(1319,.3,.05);g.audio.bell(1568,.35,.05);g.burst({x:p.home.x,y:1.6,z:p.home.z},'#ffcf52',30,'confetti');g.cheerNear(p.home,7);}}});}
   prompt(atBench:boolean):Prompt|null{
+    {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}
     const j=this.current();if(!j||this.game.won)return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z);
       if(this.game.held?.spec.id==='blocks')return {key:'E',text:near<2.4?'Set the tray on the bench':'Carry the tray'};
@@ -581,11 +606,11 @@ export class ArcadeBench implements Station {
   }
   /** The win shot frames Pip with the lit back wall of fixed cabinets (R5-077). */
   winFocus(){return new T.Vector3(0,1.6,-6.4);}
-  complete(){return this.rush?this.game.time>=RUSH_TIME&&!this.overtime():this.served.length>=JOBS.length;}
+  complete(){return this.rush?this.shift()>=RUSH_TIME&&!this.overtime():this.served.length>=JOBS.length;}
   /** Rush: cabinets fixed and seconds left, for the HUD clock and the result card. */
-  rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.game.time)}:undefined;}
+  rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.shift())}:undefined;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
-  snapshot(){const j=this.current();return {index:this.index,job:j?.id??null,fix:j?best(j)??null:null,rush:this.rush,setup:clone(this.setup),held:this.held??null,powered:this.powered,live:this.live,
+  snapshot(){const j=this.current();return {index:this.index,prizesDown:this.prizesDown,job:j?.id??null,fix:j?best(j)??null:null,rush:this.rush,setup:clone(this.setup),held:this.held??null,powered:this.powered,live:this.live,
     tripped:this.tripped,cooling:+this.cooling.toFixed(2),soak:+this.soak.toFixed(2),soakDone:this.soakDone,verdict:this.verdict?{tier:this.verdict.tier,notes:this.verdict.notes}:null,
     served:this.served,mistakes:this.mistakes,trips:this.trips,spent:this.spent,trayReady:this.trayReady,reading:j?read(j,this.setup):null,
     heat:{led:this.heat.led,blocks:this.heat.blocks.map(p=>[...p]),across:this.heat.across}};}

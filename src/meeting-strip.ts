@@ -136,10 +136,13 @@ export class MeetingStrip {
     const g=this.game,a=g.audio;
     if(this.atReset(pos)){g.circuit.resetBreaker('supply');this.heat=0;a.noise(.08,.1,500);a.tone(640,.06,.04,'triangle');return true;}
     const near=this.nearAppliance(pos);if(!near)return false;
+    const total=()=>this.demand().reduce((s,l)=>s+l.draw,0),before=total();
     near.plugged=!near.plugged;a.pop();a.noise(.03,.06,2400,'highpass');
     if(!near.plugged){this.unplugged++;
-      // Somebody wanted that tea (or that warmth): the boardroom groans.
-      g.alarm({x:12,z:-5.5},6);for(let i=0;i<3;i++)setTimeout(()=>a.voice('groan',.85+i*.15),120+i*260);}
+      // Somebody wanted that tea (or that warmth): one disappointed 'hm' from the boardroom, and a
+      // little bell once what is left on the strip fits under its limit again.
+      setTimeout(()=>a.voice('hm',.9),120);
+      if(before>STRIP_LIMIT+1e-6&&total()<=STRIP_LIMIT+1e-6)a.bell(988,.3,.03,.3);}
     return true;
   }
   prompt(pos:Point):{key:string;text:string}|null{
@@ -184,7 +187,11 @@ export class MeetingStrip {
     // New trips: a clack at the strip, a smoke column above Pip's head, the flag, one sentence.
     for(const e of c.events.slice(this.eventIndex))if(e.kind==='trip'){this.trips++;const at=this.onStrip(.39,.1);
       g.burst({x:at.x,y:.3,z:at.z},'#fff3a3',16,'spark');for(const y of [.6,1,1.4])g.burst({x:at.x,y,z:at.z},'#8d8a96',3,'smoke');g.burst({x:at.x,y:.3,z:at.z},'#8d8a96',4,'dust');
-      g.audio.tone(75,.25,.1,'square');g.audio.noise(.25,.1,300);g.alarm(at,4);g.shake=.12;this.flagUp=0;
+      // The breaker's clack and every load on it winding down, a hitstop and a coral flash; the
+      // boardroom notices and groans (twice).
+      g.audio.breakerTrip(Math.max(1,this.demand().length));g.freeze(.08);g.flash('#ff7a6b',.22);
+      g.alarm(at,4);g.alarm({x:12,z:-5.5},6);for(let i=0;i<2;i++)setTimeout(()=>g.audio.voice('groan',.85+i*.15),180+i*280);
+      g.shake=.12;this.flagUp=0;
       // A repeat trip with nothing unplugged since: a double buzz, and the shorter sentence.
       const again=this.trips>1&&this.unplugged===this.unpluggedAtTrip;
       if(again){g.audio.tone(110,.12,.07,'square',.3);g.audio.tone(110,.12,.07,'square',.48);}

@@ -3,7 +3,7 @@
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
-import {INK,toon,type ToonOptions} from './toon';
+import {INK,toon,sharedToons,type ToonOptions} from './toon';
 export {INK,toon};
 export const METAL='#9aa3b2',DMETAL='#6b7385',WOOD='#b98552',TRIM='#a8734a';
 export const CHAIRC=['#e5484d','#3f7fd6','#6cc58a','#f6a07a','#b392f0','#f08a4b'];
@@ -108,9 +108,9 @@ function bakedFor(m:T.MeshToonMaterial|T.MeshBasicMaterial){
  *  for, instanced/skinned meshes, multi-material and already vertex-coloured meshes, and
  *  userData.noAO meshes (the merged mesh would lose the flag). A mesh is only merged when all its
  *  children are, so nothing kept loses its parent. */
-export function freeze(group:T.Object3D,keep?:(o:T.Object3D)=>boolean){
+export function freeze(group:T.Object3D,keep?:(o:T.Object3D)=>boolean,unbaked?:Set<T.Material>){
   group.updateMatrixWorld(true);const inverse=group.matrixWorld.clone().invert(),buckets=new Map<string,{material:T.Material;cast:boolean;receive:boolean;order:number;geometries:T.BufferGeometry[]}>(),done:T.Mesh[]=[];
-  const add=(o:T.Mesh)=>{const source=o.material as T.Material,baked=colourOnly(source);
+  const add=(o:T.Mesh)=>{const source=o.material as T.Material,baked=colourOnly(source)&&!unbaked?.has(source);
     let g:T.BufferGeometry=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();for(const name of Object.keys(g.attributes))if(!['position','normal','uv'].includes(name))g.deleteAttribute(name);
     g.morphAttributes={};g.clearGroups();
     if(!g.attributes.uv)g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!g.attributes.normal)g.computeVertexNormals();
@@ -133,6 +133,35 @@ export function freeze(group:T.Object3D,keep?:(o:T.Object3D)=>boolean){
   const prune=(o:T.Object3D)=>{for(const child of [...o.children]){prune(child);if((child.type==='Group'||child.type==='Object3D')&&child.children.length===0&&!child.userData.live&&!keep?.(child))o.remove(child);}};prune(group);
   for(const b of buckets.values()){const merged=mergeGeometries(b.geometries,false);if(!merged)continue;const mesh=new T.Mesh(merged,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=b.receive;mesh.renderOrder=b.order;mesh.name='frozen';group.add(mesh);b.geometries.forEach(g=>g.dispose());}
   return buckets.size;
+}
+/** A `freeze` keep-test for a station bench (R5-026): everything the station object can still reach
+ *  stays live, i.e. any Object3D held in its fields (directly or inside arrays, maps, sets and plain
+ *  records such as the clickables list) and anything named (looked up by name later). The materials
+ *  it holds (it may recolour them; cached toon() materials excepted) come back too: meshes using
+ *  them still merge, but per material, never baked into vertex colour. */
+export function liveKeep(owner:object,skip:object[]=[]){
+  const objects=new Set<T.Object3D>(),materials=new Set<T.Material>(),seen=new Set<unknown>(skip);
+  const walk=(v:unknown,depth:number)=>{
+    if(!v||typeof v!=='object'||seen.has(v))return;seen.add(v);
+    if(v instanceof T.Object3D){objects.add(v);return;}
+    if(v instanceof T.Material){if(!sharedToons.has(v))materials.add(v);return;}
+    if(depth>6||v instanceof T.BufferGeometry||v instanceof T.Texture||ArrayBuffer.isView(v)||(typeof Node!=='undefined'&&v instanceof Node)||(typeof AudioNode!=='undefined'&&v instanceof AudioNode))return;
+    if(v instanceof Map){for(const [k,x] of v){walk(k,depth+1);walk(x,depth+1);}return;}
+    if(v instanceof Set||Array.isArray(v)){for(const x of v)walk(x,depth+1);return;}
+    for(const k of Object.keys(v))walk((v as Record<string,unknown>)[k],depth+1);
+  };
+  walk(owner,0);
+  return {keep:(o:T.Object3D)=>objects.has(o)||!!o.name,materials};
+}
+/** Merges a station bench's static parts once it is built, keeping what the station still holds
+ *  (liveKeep). `?nofreeze` leaves benches unmerged, for comparison. `inner`: groups the station
+ *  holds only to move, show or hide whole (a table top, a parts bin, a toggled wire run); their own
+ *  static contents merge in place, inside them, so those toggles still apply. */
+export function freezeBench(root:T.Object3D,station:object,game:object,inner:T.Object3D[]=[]){
+  if(new URLSearchParams(location.search).has('nofreeze'))return 0;
+  const live=liveKeep(station,[game]);let n=freeze(root,live.keep,live.materials);
+  for(const g of inner)n+=freeze(g,live.keep,live.materials);
+  return n;
 }
 /** One coworker blob (body, eye whites, pupils) as a single vertex-coloured mesh. */
 const blobGeometries=new Map<string,T.BufferGeometry>();let blobMaterial:T.MeshToonMaterial|undefined;

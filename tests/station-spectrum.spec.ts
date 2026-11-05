@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot,route} from './navigation';
+import {plugBench} from './station-lead';
 
 // Long walks across the hall: the machine may be busy with other builds.
 test.describe.configure({timeout:300000});
@@ -10,6 +11,9 @@ const E=async(page:Page)=>{await page.keyboard.press('KeyE');await wait(page,.2)
 const station=async(page:Page)=>(await snapshot(page)).station;
 // Walking routes around the desk and through the doorways (plan coordinates, metres).
 const DESK_FRONT:[number,number][]=[[-6.3,3.6]];
+/** From the storeroom: plug the desk's mains lead in at the left wall (R5-079), then on to the desk. */
+const FROM_STORE:[number,number][]=[[-10.1,-4.4],[-10.1,-2.2],[-6.4,1.2]];
+async function plugFromStore(page:Page){await plugBench(page,FROM_STORE,[[-8.6,1.5],[-6.4,1.45]]);}
 async function toDesk(page:Page,via:[number,number][]){await route(page,via);await walk(page,-3.5,3.55,.4);await E(page);expect((await snapshot(page)).atBench).toBe(true);}
 const pill=(page:Page)=>page.locator('.prompt-pill');
 async function podToStore(page:Page){
@@ -26,8 +30,8 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   const errors=await open(page,'spectrum');await wait(page,.1);
   await expect(page.locator('.objective')).toContainText('Carry the receiver pod');
   // 1 · Brick: light stops at the wall; the 3 m radio wave passes it.
-  await podToStore(page);
-  await toDesk(page,[[-10.1,-4.4],[-10.1,-2.2],[-6.4,1.2],...DESK_FRONT]);
+  await podToStore(page);await plugFromStore(page);
+  await toDesk(page,DESK_FRONT);
   await expect(page.locator('.station-panel')).toContainText('Through the brick wall');
   let s=await station(page);expect(s.band).toBe('vis');expect(s.reading.blocked).toBe('brick');
   // Light stops at the brick: the pill points at the band keys.
@@ -86,7 +90,8 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   expect(s.station.delivered.map((d:{tier:number})=>d.tier)).toEqual([3,3,3]);
   expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);expect(s.damage).toBe(0);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
-  await expect(page.locator('.result-bonus li.ok')).toHaveCount(3);
+  // Two of three: the tidy run skips the room's chaos bonus (earned in station-cable.spec).
+  await expect(page.locator('.result-bonus li.ok')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 
@@ -97,7 +102,11 @@ test('spectrum delivery: sends that fail are explained, and a better choice reco
   expect((await act(page,'send')).ok).toBe(false);
   await expect(page.locator('.station-toast')).toContainText('pod');expect((await station(page)).mistakes).toBe(0);
   await E(page);await route(page,[[-6.3,4.6]]);await podToStore(page);
+  // The pod is out, but the desk is dead until its lead is plugged in: SEND refuses, no mistake.
   await toDesk(page,[[-10.1,-4.4],[-10.1,-2.2],[-6.4,1.2],...DESK_FRONT]);
+  expect((await act(page,'send')).ok).toBe(false);await expect(page.locator('.station-toast')).toContainText('No power');expect((await station(page)).mistakes).toBe(0);
+  await E(page);await route(page,[[-6.3,3.6]]);await plugBench(page,[[-6.4,1.2]],[[-8.6,1.5],[-6.4,1.45]]);
+  await toDesk(page,DESK_FRONT);
   // Visible light at the brick wall: a failed send with the reason.
   await steps(page,[['power',100],['send']]);
   let s=await station(page);expect(s.mistakes).toBe(1);expect(s.job).toBe(0);

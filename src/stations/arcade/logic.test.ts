@@ -96,6 +96,13 @@ describe('arcade circuit rules',()=>{
   });
 });
 
+describe('arcade story cabinets',()=>{
+  it('each needs a different chain (R5-033): no answer carries over from the last cabinet',()=>{
+    const answers=JOBS.map(j=>JSON.stringify(best(j)));expect(new Set(answers).size).toBe(JOBS.length);
+    // The handheld needs a longer run than the claw: three 470s for the battery-friendly ★ zone.
+    expect(best(JOBS.find(j=>j.id==='handheld')!)).toEqual([[470],[470],[470]]);
+  });
+});
 describe('arcade rush cabinets',()=>{
   it('are always fixable elegantly from the bins, and start broken',()=>{
     const r=rng(11);for(let i=0;i<120;i++){const j=rushJob(r,i),fix=best(j);expect(fix,j.ask).toBeDefined();
@@ -114,6 +121,10 @@ describe('arcade rush cabinets',()=>{
       // Stories describe symptoms, never the cause.
       expect(j.story).not.toMatch(/across|backwards|socket is empty/i);}
     expect(glaring).toBeGreaterThan(20);expect(dim).toBeGreaterThan(5);
+  },30000);
+  it('never repeat the previous cabinet answer',()=>{
+    const r=rng(7);let prev:ReturnType<typeof rushJob>|undefined;
+    for(let i=0;i<200;i++){const j=rushJob(r,i,prev);if(prev)expect(JSON.stringify(best(j))).not.toBe(JSON.stringify(best(prev)));prev=j;}
   },30000);
   it('signing off the elegant chain wastes nothing',()=>{
     const r=rng(5);for(let i=0;i<40;i++){const j=rushJob(r,i),fix=best(j)!;expect(partsCost(s(fix))-minCost(j,3),j.ask).toBe(0);}

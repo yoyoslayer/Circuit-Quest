@@ -28,3 +28,29 @@
 ## Not done
 - R5-164 (cable pull spring and Meeting reel length): it's a P2 and a tuning risk. The 'single reel' spec margin is thin (2.27 m measured against a 2.3 m limit on one run).
 - Lunch cable feel, `furnitureNear`, drum spin and seated Lunch NPCs (R5-086/145/146/302): these wait for the lunch2 merge, because they touch `lunch-runtime.ts`.
+
+## Round 3, later
+| ID | Change | Files | Checked |
+|---|---|---|---|
+| R5-033 (P1) | Story cabinets need different chains: the handheld's band is 3–9 mA, so it needs three 470s (battery about 101 h) instead of repeating the claw's pair. Rush never deals a cabinet whose best chain equals the previous cabinet's. | `src/stations/arcade/logic.ts`, `station.ts`, `logic.test.ts`, `tests/station-arcade.spec.ts` | unit tests (distinct answers, no back-to-back repeats); station-arcade spec |
+| R5-130 follow-up | Only solid coworkers (the ones with a capsule) bend the cable. A coworker knocked off a chair used to become a cable obstacle by the Meeting route and stole the single reel's sprint reach. | `src/game.ts` | routes spec "single reel" |
+| R5-069 (Lunch part) | Already in place: the fridge only starts warming when the kitchen door first opens. The rest of the entry, the job order and concept curve, is a product-owner question (below). | - | code read |
+
+Merged: `lunch3` (bots snag a cable only where their path crosses it; seated Lunch coworkers, R5-302), `perf` (draw calls down 28–45%), and `astra/work` stages 1–3.
+
+## Questions for the product owner
+- R5-069: should the job order change so the concept curve doesn't spike at Lunch (job 02)? The review suggests moving Lunch later and reusing ideas between jobs. Nothing has been reordered yet.
+- Grade pars (time, damage and cost limits) haven't been measured from real play. Both Astra and the lead kept the current limits.
+| R5-257 (lead part) | One strain ramp, `STRAIN_RAMP`/`STRAIN_WARN`/`STRAIN_HOT` in `sim/cable.ts`: the hose and `strainColor` both use it, and the whole hose shows the strain (`.85+.15u`). The HUD bar and hum are Astra's files (see FIXED.md). | `src/sim/cable.ts`, `src/render/actors.ts`, `src/game.ts` | unit tests |
+| R5-321 | A held plug pressed into furniture is pulled back toward Pip until it's outside every box, so the prop stays in the cable route and the cable bends round it. Footprints include the height axis. | `src/game.ts` | routes, smoke, objectives specs |
+| R5-166 | New `tests/respawn.spec.ts`: the strip stranded in the sealed closet goes home, and a job item knocked out of the room comes straight back. | `tests/respawn.spec.ts` | 2 passed |
+| R5-170 | Grab preference: the item under the job card's marker wins by 2.5 m, other job items by 1.5 m (still ahead of clutter), and bonus pins get no head start. | `src/game.ts` reach() | routes (coffee corner), station and lunch specs |
+| R5-220 | The Rush shift clock starts when the tray reaches the bench (or after 20 s if the tray is never fetched), so the fetch no longer eats the shift. The time limit is RUSH_TIME+30. | `src/stations/arcade/station.ts`, `tests/astra-grading.spec.ts` | station-arcade-rush, astra-grading, station-cable specs |
+
+Merged: `stationcable` (R5-079, a bench mains lead in every station plus a physical chaos bonus; `fixlog/stationcable.md`). The action bar keeps F in station rooms that have a lead.
+| R5-264 | Lenses are now distinct framings: Close is ~15% tighter and Wide shows ~25% more room than Standard. Standard and the bench views are unchanged. | `src/render/lens.ts` | type check; the default lens is untouched, so specs are unaffected |
+| R5-224 | Slingshot kicks (release and recoil) are capped at mass×14, so light litter leaves at ~14 m/s, not 50+. The direction is unchanged; Lunch's whip direction is in lunch-runtime. | `src/game.ts` | routes "slingshot" specs |
+| R5-326 | `respawn(prop)`: a puff where the item was (clamped inside the room) and at home, plus a pop and a rising tone for job items. Used for stranded items and for falls out of the room. | `src/game.ts` | respawn spec |
+| R5-161 | Covered by R5-004: at a bench every key the station doesn't use is swallowed (Space, Tab, F and R do nothing). The C-key orbit reset is in GameUI (Astra's). | - | R5-004 checks |
+| R5-185 | Connector genders are truthful: the live cable's end is a trailing socket (a cream slotted face, no prongs), and the loads carry the prongs: the Meeting strip's inlet end and the Playground lamp inlet. The prompt wording ("Pick up the cable end") is Astra's file. | `src/props/prefabs.ts`, `src/levels/decor.ts` | smoke, routes, layout; [shot](../shots-full/fix-r2-plug-seated.png) |
+| R5-246 (part) | Key chips on the Arcade bench: 1–4 on the bin rims, P by the power lever, Enter under the sign-off stamp (lemon chips, ink text). The bench E/Esc meaning change is not done. | `src/stations/arcade/station.ts` | station-arcade specs; [shot](../shots-full/fix-r2-arcade-keys.png) |

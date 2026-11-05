@@ -20,17 +20,25 @@ const props:PropSpec[]=[
   {kind:'mop',x:-6.8,z:-6.9},{kind:'cart',x:-1,z:6.6,color:'#5f8fa8'},
   {kind:'paper',x:-3.4,z:4.6},{kind:'paper',x:.8,z:4.2},{kind:'paper',x:5.2,z:3.6},
 ];
+// The parcel stack on the robot's route (R5-079 chaos bonus): bowl it over before the robot drives.
+// It stands by the bench lead's line, so a slingshot off the lead can do it too.
+export const parcelStack:PropSpec[]=[{kind:'box',x:-7.35,z:1,color:'#d7a56d'},{kind:'box',x:-6.65,z:1,rotation:.08,color:'#c98f5a'},{kind:'box',x:-7,z:1,y:.95,rotation:-.12,color:'#e0b47a'}];
+props.push(...parcelStack);
+// The bench's mains lead (R5-079): its reel stands at the bench's left end; the wall socket is under the
+// bolt sign on the left wall past the tyre stack, so the lead crosses the robot's painted route and bends
+// round the tyres.
+const lead={anchor:{x:-2.75,z:-1.3},plug:{x:-2.6,z:-.45},target:{x:-10.55,z:5.75},length:12.5,route:[[-2.6,-.45],[-4.5,1.9],[-8.5,4],[-8.9,5.6],[-9.75,5.8]] as [number,number][]};
 // Three mechanics: one at the tool chest, one by the charging bays, one having a tea by the desk.
 const npcs:NpcSpot[]=[
   {x:-3.6,z:-6.3,standing:true,acc:['cap'],mood:'happy',yaw:Math.PI*.9},{x:8.2,z:-3.4,standing:true,acc:['glasses'],yaw:-Math.PI*.7},
   {x:7.6,z:4.6,standing:true,acc:['headphones','mug'],mood:'sleepy',yaw:-Math.PI/2},
 ];
 export const garage:Level={id:'garage',name:'ROBOT GARAGE',number:'04',tagline:'The robot resets its brain every time it stops. Tame the kick.',badge:'robot',station:'garage',
-  width:22,depth:16,spawn:{x:-1.2,z:3.4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,obstacles:[],props,npcs,
+  width:22,depth:16,spawn:{x:-1.2,z:3.4},anchor:{x:-10,z:6},target:{x:0,z:-1.55},length:10,stationCable:lead,obstacles:[],props,npcs,
   // Shop clutter around the fixtures; the robot's painted route and the walk from the door to the
   // charging pad, the test stand and the bench stay clear.
   clutter:{seed:4,fill:['box','box','cone','box','litter'],max:220,step:1.9,recipes:['crates','cones','parts','cart','cabinets','crates','parts','crates','cart','cones'],colors:['#3f7fd6','#e5484d','#2b4a55','#9fb8c8'],jitter:.6,fillSkip:.1,
-    lanes:[{points:[[.7,-4.45],[3.6,-4.45],[3.9,1.9],[-6.4,2.3],[-8.1,-1.2],[-8.1,-5.6]],r:1.1},
+    lanes:[{points:lead.route,r:.8},{points:[[.7,-4.45],[3.6,-4.45],[3.9,1.9],[-6.4,2.3],[-8.1,-1.2],[-8.1,-5.6]],r:1.1},
       {points:[[-1.2,3.4],[6.4,-4.2],[3.4,-4],[2.5,-4.4],[2.9,-4],[2.9,-1.1],[0,-1.55]],r:1},
       // Keep-out round the test stand and behind the bench, so the bench camera sees the stand, not a cabinet column (R5-312).
       {points:[[-2.8,-4.6],[2.8,-4.6]],r:1.4},{points:[[-3.5,-2.6],[3.5,-2.6]],r:1.2}]}};

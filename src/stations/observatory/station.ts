@@ -9,7 +9,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
 import {dressObservatory,RX} from './room';
-import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL} from '../../render/kit';
+import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL,freezeBench} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import {signOff,fault as benchFault} from '../shared';
 import {JOBS,KINDS,VALUES,DEFAULT,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,REROUTE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,
@@ -73,6 +73,8 @@ export class ObservatoryBench implements Station {
   // The fitted whip starts as the long 1.5 m rod, so the gust that lays it flat is a big, visible swing (R5-044).
   series?:Part;shunt?:Part;held?:Kind;knobSlot?:Slot;rerouted=false;rod:RodId='r150';vertical=true;listening=true;scopeMode:'signal'|'step'='signal';
   jobIndex=0;logged:{job:string;verdict:Verdict}[]=[];mistakes=0;spent=0;cartMoved=false;cartDistance=0;active=false;
+  /** The motor cart has been rolled into a far wall (R5-079 chaos bonus). */
+  cartWall=false;
   /** Near misses: decodes logged below the job's minimum tier (not mistakes; the job stays open). */
   nearMisses=0;
   /** A whip was swapped during the antenna job (the key prompt moves on to standing it up). */
@@ -97,14 +99,17 @@ export class ObservatoryBench implements Station {
     this.job={goal:'Decode three transmissions at the signal bench',
       steps:[
         {text:'Roll the noisy motor cart away from the receiver',done:()=>this.cartMoved,at:()=>this.cart?.body.translation()??RX},
+        // The bench's mains lead (R5-079): no decode can be logged until it is plugged in at the wall.
+        ...game.leadStep(),
         {text:'Sit at the signal bench (E)',done:()=>this.active||this.logged.length>0,at:()=>this.stand},
         ...JOBS.map((j,i)=>({text:`Transmission ${i+1}: ${j.title}`,done:()=>this.logged.length>i,at:()=>this.stand}))],
       bonuses:[
-        {text:'Every decode reliable (S/N ≥ 12 dB, latch held)',ok:()=>this.logged.every(l=>l.verdict.tier>=2)},
+        // A chaos bonus in the room (R5-079): send the motor cart rolling all the way into a far wall.
+        {text:'Roll the motor cart into the far wall',ok:()=>this.cartWall},
         {text:'Elegant: the leanest filter each time',ok:()=>this.logged.every(l=>l.verdict.tier===3)},
         {text:'No failed decode logged',ok:()=>this.mistakes===0}]};
     game.root.add(this.root);game.root.add(this.motor);
-    this.buildBench();this.redraw();
+    this.buildBench();this.redraw();freezeBench(this.root,this,game,[this.top]);
   }
   dress(kit:RoomKit){this.room=dressObservatory(this.game,kit);return this.room;}
   private setup(){this.ready=true;this.cart=this.game.props.find(p=>p.spec.id==='motor');this.buildMotor();}
@@ -220,7 +225,7 @@ export class ObservatoryBench implements Station {
       case 'listen':{this.listening=!this.listening;a.pop();break;}
       // The scope already prints the switch-on caption; no toast repeats it (R5-066).
       case 'scope':{const m=arg as 'signal'|'step';this.scopeMode=m==='step'?'step':'signal';this.stepAnim=0;a.tone(m==='step'?700:560,.05,.03);break;}
-      case 'log':{const v=judge(j,this.state()),c=cost(this.state());
+      case 'log':{if(this.game.benchDead()){this.say("No power: the bench lead isn't plugged in.",'bad');return false;}const v=judge(j,this.state()),c=cost(this.state());
         if(v.tier===0){this.mistakes++;this.spent+=c;this.say(`The decode fails: ${v.problems[0]}`,'bad');a.verdictFail('weak');a.voice('groan',1);benchFault(this.game,.06);this.game.alarm({x:this.table.x,z:this.table.z},5);return true;}
         // A decode that only just gets through doesn't finish a job that needs a clean margin: a near
         // miss, not a mistake (R5-063).
@@ -370,6 +375,9 @@ export class ObservatoryBench implements Station {
     // The motor rides on its cart; its noise falls with distance from the receiver.
     if(this.cart){const p=this.cart.body.translation(),q=this.cart.body.rotation();this.motor.position.set(p.x,p.y+.33,p.z);this.motor.quaternion.set(q.x,q.y,q.z,q.w);
       this.cartDistance=+Math.hypot(p.x-RX.x,p.z-RX.z).toFixed(2);if(this.cartDistance>=CART_SAFE&&this.game.held!==this.cart)this.cartMoved=true;
+      // Rolled (not carried) up against an outer wall at least 9 m from the receiver: the far-wall bonus.
+      const l=this.game.level,wall=Math.min(l.width/2-Math.abs(p.x),l.depth/2-Math.abs(p.z));
+      if(!this.cartWall&&this.game.held!==this.cart&&wall<1.15&&this.cartDistance>=9){this.cartWall=true;this.game.burst({x:p.x,y:1,z:p.z},'#ffcf52',24,'confetti');this.game.audio.thud(4);this.game.cheerNear(p,8);}
       const running=!!this.current()?.cart;this.fan.rotation.x+=dt*(running?40:4);
       this.sparkClock-=dt;if(running&&this.sparkClock<=0){this.sparkClock=.5+Math.random()*.6;this.game.burst({x:p.x,y:p.y+.55,z:p.z},'#9fd8ff',3,'spark');}}
     this.stepAnim=Math.min(1,this.stepAnim+dt*.8);
@@ -428,6 +436,7 @@ export class ObservatoryBench implements Station {
         `<p class="profile">Decoder: S/N ≥ ${SPEC.decodeSnr} dB decodes, ≥ ${SPEC.reliableSnr} dB is reliable; latch needs ≥ ${CIRCUIT.latchMin} V. Game tuning values.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
+    {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}
     const j=this.current();if(!j)return null;
     if(!atBench){const p=this.game.player.translation(),near=Math.hypot(p.x-this.stand.x,p.z-this.stand.z)<1.6;
       if(this.game.held===this.cart&&this.cart)return {key:'E',text:this.cartDistance>=CART_SAFE?'Set the cart down':'Keep rolling it away'};
@@ -459,6 +468,6 @@ export class ObservatoryBench implements Station {
   winFocus(){return new T.Vector3(-6.1,1.4,-5.3);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const j=this.current();return {job:this.jobIndex,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,snr:l.verdict.snr})),series:this.series??null,shunt:this.shunt??null,held:this.held??null,knob:this.knobSlot??null,rerouted:this.rerouted,rod:this.rod,vertical:this.vertical,
-    cartDistance:this.cartDistance,cartMoved:this.cartMoved,mistakes:this.mistakes,spent:this.spent,reading:j?read(j,this.state()):undefined,scope:this.scopeMode,listening:this.listening,
+    cartDistance:this.cartDistance,cartMoved:this.cartMoved,cartWall:this.cartWall,mistakes:this.mistakes,spent:this.spent,reading:j?read(j,this.state()):undefined,scope:this.scopeMode,listening:this.listening,
     nearMisses:this.nearMisses,shutter:this.room?.shutterOpen??true,decodedText:j?decoded(j.message,read(j,this.state()).snr,Math.floor(this.game.time/1.2),read(j,this.state()).level):null};}
 }

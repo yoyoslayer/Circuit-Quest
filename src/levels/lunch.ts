@@ -31,7 +31,7 @@ export const lunch:Level={id:'lunch',name:'LUNCH RUSH',number:'02',tagline:'Hot 
       {points:[[5,-6.1],[5,-6.1]],r:.6},{points:[[-6.9,-8.55],[-4.9,-8.55]],r:.75},{points:[[13.3,-5.4],[13.3,-4.2]],r:.8},{points:[[-10,-3],[-10,-3]],r:.5},{points:[[10.6,-7],[13.4,-7]],r:1.4}]},spawn:{x:-10,z:5},anchor:{x:-13,z:7},target:{x:12,z:-6},length:27,props,npcs:[
   // Chef by the oven, the liftman, and a hungry lunch crowd in the corridor.
   {x:-1.2,z:-5.9,color:'#fffaf0',acc:['tuft'],yaw:2.8,chef:true},{x:13,z:0,color:'#b392f0',acc:['headphones'],yaw:0},
-  {x:-3.8,z:8.55,color:'#5b9cf0',acc:['mug','tuft'],mood:'happy',yaw:.2},{x:-2.4,z:8.5,color:'#f08a4b',acc:['glasses'],yaw:-.3},
+  {x:-4.2,z:9.45,seated:true,color:'#5b9cf0',acc:['mug','tuft'],mood:'happy',yaw:Math.PI+.2},{x:-2.6,z:9.45,seated:true,color:'#f08a4b',acc:['glasses'],yaw:Math.PI-.3},
   {x:11.9,z:7.5,color:'#b392f0',acc:['bun','mug'],mood:'sleepy',yaw:2.5},{x:15.3,z:9.3,color:'#f78fd0',acc:['bun'],mood:'happy',yaw:3.3},
   {x:5.1,z:9.1,color:'#8fd3c8',acc:['glasses'],yaw:2.2},{x:-11.2,z:5.2,color:'#6cc58a',acc:['tuft','glasses'],yaw:.9},{x:-6.6,z:-7.4,color:'#a7d3f0',acc:['cap'],mood:'happy',yaw:.3}],obstacles:[
   {id:'store-divider-1',minX:-7.9,maxX:-7.6,minZ:-10,maxZ:-6.5},

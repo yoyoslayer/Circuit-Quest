@@ -31,17 +31,20 @@ const props:PropSpec[]=[
   // Quiet room: a reading desk.
   {kind:'desk',x:7.4,z:7.1,variant:3},{kind:'chair',x:7.4,z:6.2,color:'#8b7be8'},{kind:'plant',x:6.1,z:7.3},
 ];
+// The desk's mains lead (R5-079): its reel stands behind the dispatch desk; the wall socket is on the
+// left wall by the storeroom walk, so the lead runs behind the desk and bends round the green cart.
+const lead={anchor:{x:-2.6,z:1.35},plug:{x:-3.3,z:1.15},target:{x:-10.6,z:.6},length:11,route:[[-3.3,1.15],[-6.4,1.45],[-8.6,1.5],[-9.9,.8]] as [number,number][]};
 // Four coworkers: the storeroom keeper, a lab scientist, a reader in the quiet room, and whoever burnt the toast.
 const npcs:NpcSpot[]=[
   {x:-9.8,z:-6.6,standing:true,acc:['cap'],yaw:.6},{x:3.4,z:-4.7,standing:true,acc:['glasses'],yaw:2.6,mood:'happy'},
   {x:6.3,z:5.5,standing:true,acc:['headphones'],mood:'sleepy',yaw:2.2},{x:3.8,z:5.7,standing:true,acc:['mug'],mood:'alarm',yaw:-2.6},
 ];
 export const spectrum:Level={id:'spectrum',name:'SPECTRUM DELIVERY',number:'07',tagline:'Brick, glass, metal, smoke. Pick the band that gets through.',badge:'spectrum',station:'spectrum',
-  width:22,depth:16,spawn:{x:-8,z:5.6},anchor:{x:-10.6,z:-7.7},target:{x:-3.5,z:3.55},length:10,obstacles:[],props,npcs,
+  width:22,depth:16,spawn:{x:-8,z:5.6},anchor:{x:-10.6,z:-7.7},target:{x:-3.5,z:3.55},length:10,stationCable:lead,obstacles:[],props,npcs,
   // Research-hall clutter around the walk routes Pip takes with the pod and the mirror boards.
   // Walk lanes at r .8 (still 1.6 m wide, DR-16) so the hall can be dressed (R5-157).
   clutter:{seed:9,fill:['box','box','litter','bin','cone'],max:220,step:1.5,fillStep:.95,jitter:.6,fillBand:3,recipes:['pod','shelf','crates','cart','reading','crates','plants','cart','bins'],colors:['#9fd8c8','#e5484d','#2f5fb8','#4f7d6a','#c4553b'],
-    lanes:[{points:[[-8,5.6],[-6.4,6.4],[-10.1,3],[-10.1,-2.2],[-10.1,-4.4],[-9.3,-5.5]],r:.8},{points:[[-10.1,-2.2],[-6.4,1.2],[-6.3,3.6],[-3.5,3.55]],r:.8},
+    lanes:[{points:lead.route,r:.8},{points:[[-8,5.6],[-6.4,6.4],[-10.1,3],[-10.1,-2.2],[-10.1,-4.4],[-9.3,-5.5]],r:.8},{points:[[-10.1,-2.2],[-6.4,1.2],[-6.3,3.6],[-3.5,3.55]],r:.8},
       {points:[[-6.3,3.6],[-6.3,4.6]],r:.9},{points:[[-10.1,-4.2],[-10.1,-1.4],[0,-1.4],[10.2,-1.4],[10.2,-4.6],[8.4,-5.6]],r:.8},
       {points:[[10.2,-1.8],[-.9,-1.8],[-.9,-4.55]],r:.8},{points:[[-.9,-1.6],[2.6,-.2],[1.5,1.2],[.6,4.2],[-.2,4.2],[.4,.2],[1,-1.8],[9,-1.8],[10.2,-2.6]],r:.8},
       {points:[[10.2,-4.4],[8.1,-5.35]],r:.8},{points:[[10.2,-4.4],[10.2,2.8],[9.4,3.9]],r:.8},{points:[[10.2,.6],[4.5,-.6],[-.2,4.2],[-3.5,3.55]],r:.8},...beamLanes,

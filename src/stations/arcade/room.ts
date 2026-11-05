@@ -20,7 +20,7 @@ export interface ArcadeRoom {light(k:number,title?:string):void;lightUp():void}
 // A dusty-mauve carpet with a light scatter of pastel confetti: arcade, but quiet enough to sit
 // behind the props and the bench (the house brief is pale wood, cream and pastels).
 const confetti=()=>TX.tex('arcade-carpet',512,512,c=>{
-  c.fillStyle='#6a5480';c.fillRect(0,0,512,512);const r=TX.rng(11);
+  c.fillStyle='#8f7aa6';c.fillRect(0,0,512,512);const r=TX.rng(11);
   c.fillStyle='rgba(255,255,255,.035)';for(let y=0;y<512;y+=64)for(let x=0;x<512;x+=64)if((x+y)%128===0)c.fillRect(x,y,64,64);
   const cols=['#f6b3cf','#a9e6d3','#f3de96','#c2b2ee','#a9d4f2','#f4c0a2'];c.globalAlpha=.75;
   for(let k=0;k<60;k++){const x=r()*512,y=r()*512,col=cols[k%cols.length];c.fillStyle=col;c.strokeStyle=col;c.save();c.translate(x,y);c.rotate(r()*6.3);c.scale(.8,.8);

@@ -17,6 +17,9 @@ import {STORE,LAB,QUIET,HATCH,BANDS,BAND_IDS,POD_HOME,PADS,DOORS,DOOR_IDS,type D
 
 export const CREAM='#fbf6ec',PAPER='#fffdf8',BRICK='#c8674a',COPPER='#cf8a4e',STEEL='#8e9bb0';
 const RAINBOW=BAND_IDS.map(b=>BANDS[b].color);
+// The room's decorative bands (floor stripes, wall rail): only Visible keeps a solid real hue; the invisible
+// bands are greyed false-colour tints, so the decor never says near-IR is pink light (R5-050, DR-35).
+const DECOR_BANDS=BAND_IDS.map(b=>b==='vis'?BANDS[b].color:'#'+new T.Color(BANDS[b].color).lerp(new T.Color('#b9b4aa'),.6).getHexString());
 const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-ui, sans-serif`;
 /** A wall material that can fade when it hides Pip (each wall gets its own copy). */
 const fading=(m:T.Material)=>{const c=m.clone();c.transparent=true;return c;};
@@ -67,16 +70,16 @@ export interface SpectrumRoom {hatchDoor:T.Object3D;smoke:T.Sprite[];doors:Swing
 export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   const l=game.level,r=game.decorRoot,W=l.width/2,D=l.depth/2;
   // ---- Floors: pale research-hall tiles; warm oak in the storeroom; pale blue lino in the lab; a rug in the quiet room.
-  kit.floor(-W,W,-D,D,TX.kitchenTiles('#f6f2ea','#e7eef5',6),3.2);
+  kit.floor(-W,W,-D,D,TX.kitchenTiles('#d9d2c4','#cdd5dc',6),3.2); // mid grey-cream, inside DR-54's luma band (R5-154)
   kit.floor(STORE.x0,STORE.x1,STORE.z0,STORE.z1,TX.woodPlanks('#d9ae78'),2.6,.004);
-  kit.floor(LAB.x0,LAB.x1,LAB.z0,LAB.z1,TX.kitchenTiles('#eaf4fb','#d3e6f3',4),2.4,.004);
+  kit.floor(LAB.x0,LAB.x1,LAB.z0,LAB.z1,TX.kitchenTiles('#c9dbe8','#b8cfe0',4),2.4,.004);
   kit.floor(QUIET.x0,QUIET.x1,QUIET.z0,QUIET.z1,TX.carpetTiles('#c9b8ea'),2.4,.004);
   rug(r,8.3,5,3.2,2.4,'#8b7be8','#e2dbff');rug(r,-6.4,5.4,2.4,2,'#3fae6a','#d5f2de');
   // Rainbow wayfinding stripes on the floor, from the entrance along the front of the hall: flat decals
   // in front of the pod dock's rug (not under it). They glow in place when the last message lands.
-  const stripes=RAINBOW.map((c,i)=>{const m=part(r,new T.PlaneGeometry(13.5,.1),toon(c),-3.9,.006,7.4-i*.16,false);m.rotation.x=-Math.PI/2;m.userData.noAO=true;return m;});
+  const stripes=DECOR_BANDS.map((c,i)=>{const m=part(r,new T.PlaneGeometry(13.5,.1),toon(c),-3.9,.006,7.4-i*.16,false);m.rotation.x=-Math.PI/2;m.userData.noAO=true;return m;});
   // A rainbow band at rail height on the back and side walls.
-  RAINBOW.forEach((c,i)=>{part(kit.back,box(l.width-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);part(kit.side,box(l.depth-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);});
+  DECOR_BANDS.forEach((c,i)=>{part(kit.back,box(l.width-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);part(kit.side,box(l.depth-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);});
   // Windows light the (sunny) lab, with strong sun shafts; the storeroom has none and the hall's back wall holds the exhibits.
   kit.backWindows(x=>x<LAB.x0+.6,.3);
   // Sunlight lands on the lab pad and the benches: the glare the visible-light detector has to fight.

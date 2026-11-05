@@ -12,7 +12,8 @@ const beamLanes=[{points:[xz(TX),xz(SPOTS.A),[(HATCH.x0+HATCH.x1)/2,HATCH.z]] as
 // quiet room front right, with the smoky tea corner between. The receiver pod waits on its dock by
 // the entrance; two mirror boards stand by the exhibits case. Geometry lives in stations/spectrum/logic.
 const props:PropSpec[]=[
-  {kind:'coolbox',id:'pod',x:-6.4,z:5.2,color:'#fbf3e2'},
+  // The receiver pod is the job item you carry, so it wears job yellow (R5-101).
+  {kind:'coolbox',id:'pod',x:-6.4,z:5.2,color:'#ffc629'},
   {kind:'whiteboard',id:'mirror1',x:-3.4,z:-5.5,color:'#dfe8f0'},
   {kind:'whiteboard',id:'mirror2',x:-.9,z:-5.5,color:'#dfe8f0'},
   // Storeroom stock (kept to the back and right so the doorway path stays clear).
@@ -22,9 +23,9 @@ const props:PropSpec[]=[
   {kind:'chair',x:4.2,z:-6.3,color:'#5b9cf0'},{kind:'chair',x:9.6,z:-7.3,color:'#6cc58a'},{kind:'plant',x:2.7,z:-4},{kind:'bin',x:3.1,z:-6},{kind:'cabinet',x:10.3,z:-7.4,color:'#dfe3ea'},
   // Hall: chairs, plants, cones and clutter (all of it can be knocked about).
   {kind:'plant',x:-10.3,z:7.1},{kind:'plant',x:.2,z:7.2},{kind:'plant',x:-4,z:-2.7},
-  {kind:'chair',x:-4.4,z:4.6,color:'#ffc94d'},{kind:'chair',x:-7.2,z:2.3,color:'#e5484d'},{kind:'chair',x:3.9,z:6.8,color:'#8b7be8'},
+  {kind:'chair',x:-4.4,z:4.6,color:'#5b9cf0'},{kind:'chair',x:-7.2,z:2.3,color:'#e5484d'},{kind:'chair',x:3.9,z:6.8,color:'#8b7be8'},
   {kind:'bin',x:-1.2,z:5.6},{kind:'bin',x:-8.4,z:-1.9},{kind:'cone',x:-8.8,z:3.6},{kind:'cone',x:4.6,z:1},{kind:'cone',x:5.1,z:.4},
-  {kind:'box',x:-9.5,z:6.8,color:'#e5484d'},{kind:'box',x:-8.7,z:7.1,color:'#ffc94d'},{kind:'box',x:-2.4,z:7.2,color:'#5b9cf0'},
+  {kind:'box',x:-9.5,z:6.8,color:'#d7a56d'},{kind:'box',x:-8.7,z:7.1,color:'#c98f5a'},{kind:'box',x:-2.4,z:7.2,rotation:.3,color:'#b9875a'},
   {kind:'cart',x:-7.8,z:.6,color:'#3fae6a'},{kind:'lamp',x:-3.2,z:6.9},
   {kind:'mug',x:3,z:5.6},{kind:'paper',x:-2.8,z:5.2},{kind:'paper',x:1.2,z:1.4},{kind:'paper',x:-6.2,z:-1.1},{kind:'paper',x:6.6,z:-.9},
   // Quiet room: a reading desk.
@@ -38,8 +39,11 @@ const npcs:NpcSpot[]=[
 export const spectrum:Level={id:'spectrum',name:'SPECTRUM DELIVERY',number:'07',tagline:'Brick, glass, metal, smoke. Pick the band that gets through.',badge:'spectrum',station:'spectrum',
   width:22,depth:16,spawn:{x:-8,z:5.6},anchor:{x:-10.6,z:-7.7},target:{x:-3.5,z:3.55},length:10,obstacles:[],props,npcs,
   // Research-hall clutter around the walk routes Pip takes with the pod and the mirror boards.
-  clutter:{seed:7,fill:['box','box','litter'],max:220,step:2.1,recipes:['pod','shelf','crates','cart','pod','crates','shelf','cart'],colors:['#ffd66b','#c98f5a','#d7a56d','#b0406a'],
-    lanes:[{points:[[-8,5.6],[-6.4,6.4],[-10.1,3],[-10.1,-2.2],[-10.1,-4.4],[-9.3,-5.5]],r:1},{points:[[-10.1,-2.2],[-6.4,1.2],[-6.3,3.6],[-3.5,3.55]],r:1},
-      {points:[[-6.3,3.6],[-6.3,4.6]],r:.9},{points:[[-10.1,-4.2],[-10.1,-1.4],[0,-1.4],[10.2,-1.4],[10.2,-4.6],[8.4,-5.6]],r:1},
-      {points:[[10.2,-1.8],[-.9,-1.8],[-.9,-4.55]],r:1},{points:[[-.9,-1.6],[2.6,-.2],[1.5,1.2],[.6,4.2],[-.2,4.2],[.4,.2],[1,-1.8],[9,-1.8],[10.2,-2.6]],r:1},
-      {points:[[10.2,-4.4],[8.1,-5.35]],r:1},{points:[[10.2,-4.4],[10.2,2.8],[9.4,3.9]],r:1},{points:[[10.2,.6],[4.5,-.6],[-.2,4.2],[-3.5,3.55]],r:1},...beamLanes]}};
+  // Walk lanes at r .8 (still 1.6 m wide, DR-16) so the hall can be dressed (R5-157).
+  clutter:{seed:9,fill:['box','box','litter','bin','cone'],max:220,step:1.5,fillStep:.95,jitter:.6,fillBand:3,recipes:['pod','shelf','crates','cart','reading','crates','plants','cart','bins'],colors:['#9fd8c8','#e5484d','#2f5fb8','#4f7d6a','#c4553b'],
+    lanes:[{points:[[-8,5.6],[-6.4,6.4],[-10.1,3],[-10.1,-2.2],[-10.1,-4.4],[-9.3,-5.5]],r:.8},{points:[[-10.1,-2.2],[-6.4,1.2],[-6.3,3.6],[-3.5,3.55]],r:.8},
+      {points:[[-6.3,3.6],[-6.3,4.6]],r:.9},{points:[[-10.1,-4.2],[-10.1,-1.4],[0,-1.4],[10.2,-1.4],[10.2,-4.6],[8.4,-5.6]],r:.8},
+      {points:[[10.2,-1.8],[-.9,-1.8],[-.9,-4.55]],r:.8},{points:[[-.9,-1.6],[2.6,-.2],[1.5,1.2],[.6,4.2],[-.2,4.2],[.4,.2],[1,-1.8],[9,-1.8],[10.2,-2.6]],r:.8},
+      {points:[[10.2,-4.4],[8.1,-5.35]],r:.8},{points:[[10.2,-4.4],[10.2,2.8],[9.4,3.9]],r:.8},{points:[[10.2,.6],[4.5,-.6],[-.2,4.2],[-3.5,3.55]],r:.8},...beamLanes,
+      // The roof-hatch ladder's foot stays clear (R5-312).
+      {points:[[.9,-7.6],[.9,-6]],r:.8}]}};

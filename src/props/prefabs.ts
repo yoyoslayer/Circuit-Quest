@@ -18,7 +18,7 @@ export interface Prefab {size:[number,number,number];mass:number;cost:number;col
 export const prefabs:Record<PropKind,Prefab>={
   box:{size:[.7,.6,.7],mass:2,cost:5,color:'#c98f5a'},desk:{size:[1.6,.95,.85],mass:15,cost:80,color:'#f1ebe0'},
   chair:{size:[.62,.95,.62],mass:3,cost:25,color:'#3f7fd6'},monitor:{size:[.63,.48,.17],mass:1.5,cost:130,color:INK},
-  mug:{size:[.16,.2,.16],mass:.15,cost:5,color:'#ffc94d'},paper:{size:[.3,.03,.23],mass:.05,cost:1,color:'#fffaf0'},
+  mug:{size:[.16,.2,.16],mass:.15,cost:5,color:'#f4efe6'},paper:{size:[.3,.03,.23],mass:.05,cost:1,color:'#fffaf0'},
   plant:{size:[.58,1.25,.58],mass:2,cost:15,color:'#4caf50'},cabinet:{size:[.7,1.6,.7],mass:22,cost:110,color:'#aab3c2'},
   sofa:{size:[2.6,1.1,1.0],mass:30,cost:180,color:'#e5484d'},bin:{size:[.38,.48,.38],mass:.5,cost:8,color:'#3a3d55'},
   reel:{size:[.7,.7,.55],mass:2,cost:15,color:'#ffc94d'},coupler:{size:[.36,.24,.24],mass:.4,cost:4,color:'#56d2c6'},
@@ -32,7 +32,7 @@ export const prefabs:Record<PropKind,Prefab>={
   supply:{size:[1.7,1.3,1.1],mass:40,cost:120,color:'#f2b93b'},capcart:{size:[1.6,1.2,1.0],mass:20,cost:150,color:'#3f7fd6'},
   coolbox:{size:[1.0,.6,.65],mass:6,cost:30,color:'#e9f0f2'},splitter:{size:[.5,.24,.4],mass:.6,cost:6,color:'#ffc94d'},
   plug:{size:[.3,.22,.22],mass:.2,cost:0,color:INK},wedge:{size:[.8,.35,.5],mass:2,cost:5,color:'#ffc94d'},
-  beanbag:{size:[.9,.6,.9],mass:4,cost:20,color:'#ffc94d'},cone:{size:[.5,.62,.5],mass:1,cost:3,color:'#ff8a3d'},strip:{size:[.9,.14,.26],mass:1.2,cost:8,color:'#ff8a3d'},
+  beanbag:{size:[.9,.6,.9],mass:4,cost:20,color:'#e07a4f'},cone:{size:[.5,.62,.5],mass:1,cost:3,color:'#ff8a3d'},strip:{size:[.9,.14,.26],mass:1.2,cost:8,color:'#ff8a3d'},
   // A bowling pin (Playground bonus): tall and narrow on a small foot, so it topples when struck.
   pin:{size:[.26,.7,.26],mass:1.5,cost:3,color:'#fffaf0'},
   // An arcade bar stool: round padded seat on a post, foot ring, weighted base.
@@ -67,14 +67,15 @@ function deskClutter(g:T.Group,top:number,variant:number){
   if(v!==5){part(c,box(.46,.025,.15),toon('#ffffff',{map:keyboardTex()}),-.05,top+.013,.2,false);part(c,rbox(.07,.03,.11,.03),toon('#e9e6dd'),.3,top+.015,.2,false);}
   if(v===0){part(c,cyl(.05,.045,.1,8),toon('#e07a4f'),-.55,top+.05,-.05);for(const [dx,dy] of [[0,.07],[.02,.12]])part(c,cyl(.018,.022,.1,6),toon('#6cc58a'),-.55+dx,top+dy+.02,-.05);}
   if(v===1){const f=part(c,box(.14,.18,.02),toon(['#3f7fd6','#e5484d','#b392f0'][variant%3]),-.6,top+.09,-.1);f.rotation.set(-.2,.4,0);}
-  if(v===2){part(c,cyl(.04,.04,.1,10),toon('#3a3d55'),-.62,top+.05,0);for(let k=0;k<3;k++)part(c,cyl(.006,.006,.14,4),toon(['#e5484d','#3f7fd6','#ffc94d'][k]),-.62+(k-1)*.015,top+.12,0,false).rotation.z=(k-1)*.2;}
-  if(v===3)for(let k=0;k<3;k++)part(c,box(.24,.03,.17),toon(['#fffaf0','#e9f0f2','#ffe36e'][k]),-.5,top+.016+k*.03,.05,false).rotation.y=(k-1)*.2;
-  if(v===4){const lamp=new T.Group();lamp.position.set(.62,top,-.18);lamp.rotation.y=-Math.PI/2-.5;c.add(lamp);const col=['#e5484d','#3f7fd6','#ffc94d','#6cc58a'][variant%4];
+  if(v===2){part(c,cyl(.04,.04,.1,10),toon('#3a3d55'),-.62,top+.05,0);for(let k=0;k<3;k++)part(c,cyl(.006,.006,.14,4),toon(['#e5484d','#3f7fd6','#6cc58a'][k]),-.62+(k-1)*.015,top+.12,0,false).rotation.z=(k-1)*.2;}
+  if(v===3)for(let k=0;k<3;k++)part(c,box(.24,.03,.17),toon(['#fffaf0','#e9f0f2','#bfe3f5'][k]),-.5,top+.016+k*.03,.05,false).rotation.y=(k-1)*.2;
+  if(v===4){const lamp=new T.Group();lamp.position.set(.62,top,-.18);lamp.rotation.y=-Math.PI/2-.5;c.add(lamp);const col=['#e5484d','#3f7fd6','#b392f0','#6cc58a'][variant%4];
     part(lamp,cyl(.1,.12,.03,14),toon(INK),0,.015,0);part(lamp,cyl(.018,.018,.38,6),toon(col),0,.2,0).rotation.z=.35;part(lamp,cyl(.018,.018,.3,6),toon(col),.12,.42,0).rotation.z=-1;
     const sh=part(lamp,new T.ConeGeometry(.1,.16,14,1,true),toon(col),.26,.46,0);sh.rotation.z=2.3;}
   const tail=new T.CatmullRomCurve3([[0,top+.02,-.25],[.1,top-.05,-.36],[.18,.05,-.4],[.3,-top+.03,-.3],[.55,-top+.03,-.15]].map(p=>new T.Vector3(...p)));part(c,cached(`deskTail${top}`,()=>new T.TubeGeometry(tail,20,.014,5)),toon(INK),0,0,0,false);
 }
-const books=['#e5484d','#3f7fd6','#6cc58a','#ffc94d','#b392f0','#8fd3c8'];
+// Desaturated book spines (DR-51), none near job yellow (R5-101/339).
+const books=['#c46a6a','#6f8fb8','#7fa58a','#c9a46a','#9a88b8','#86b5ae'];
 function build(kind:PropKind,c:string,variant=0):T.Group{
   const g=new T.Group(),[w,h,d]=prefabs[kind].size,bottom=-h/2,m=toon(c);
   switch(kind){
@@ -101,7 +102,7 @@ function build(kind:PropKind,c:string,variant=0):T.Group{
       break;}
     case 'monitor':
       part(g,box(w,h*.8,.05),toon(INK),0,.05,-.04);part(g,new T.PlaneGeometry(w*.88,h*.64),screenMaterial(SCREENS[variant%SCREENS.length]),0,.05,-.013,false);
-      if(variant%3===1)for(let k=0;k<2;k++)part(g,box(.07,.07,.005),toon(['#ffe36e','#f7a8c4'][k]),w*.36-k*.09,.2-k*.05,-.012,false).rotation.z=(k-.5)*.3;
+      if(variant%3===1)for(let k=0;k<2;k++)part(g,box(.07,.07,.005),toon(['#9fd8c8','#f7a8c4'][k]),w*.36-k*.09,.2-k*.05,-.012,false).rotation.z=(k-.5)*.3;
       part(g,box(.06,h*.35,.06),toon(INK),0,bottom+.1,-.05);part(g,box(.3,.03,.15),toon(INK),0,bottom+.015,-.03);
       // Rear housing bump with an off-white logo dot, so the back reads from an orbit.
       part(g,rbox(w*.5,h*.4,.04,.03),toon('#3a3d55'),0,.06,-.083);part(g,cyl(.025,.025,.008,10,'z'),toon('#e9e6dd'),0,.1,-.104,false);break;

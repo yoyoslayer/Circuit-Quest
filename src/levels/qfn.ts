@@ -5,13 +5,13 @@ import type {PropSpec} from '../props/prefabs';
 const props:PropSpec[]=[
   {kind:'box',id:'parts',x:-8.8,z:2.2,color:'#ffc629'},
   // Stock boxes, carts and clutter (all of it can be knocked about).
-  ...[[-9.6,5.2],[-8.5,5.6],[-9.7,-1.4],[-8.6,-1.9],[-7.4,6.4]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#b9bfeb':'#d7a56d'})),
-  {kind:'cart',x:-5.6,z:4.8,color:'#8f96d8'},{kind:'cart',x:4.6,z:-3.6,color:'#ffc629'},
-  {kind:'chair',x:6.6,z:4.9,color:'#8f96d8'},{kind:'chair',x:8.4,z:4.9,color:'#ffc94d'},{kind:'chair',x:-3.4,z:2.8,color:'#b392f0'},{kind:'chair',x:3.9,z:1.2,color:'#6cc58a'},
+  ...[[-9.6,5.2],[-8.5,5.6],[-9.7,-1.4],[-8.6,-1.9],[-7.4,6.4]].map(([x,z],i)=>({kind:'box' as const,x,z,color:i%2?'#c98f5a':'#d7a56d'})),
+  {kind:'cart',x:-5.6,z:4.8,color:'#8f96d8'},{kind:'cart',x:4.6,z:-3.6,color:'#9aa3dc'},
+  {kind:'chair',x:6.6,z:4.9,color:'#8f96d8'},{kind:'chair',x:8.4,z:4.9,color:'#e5484d'},{kind:'chair',x:-3.4,z:2.8,color:'#b392f0'},{kind:'chair',x:3.9,z:1.2,color:'#6cc58a'},
   {kind:'plant',x:-10.2,z:6.8},{kind:'plant',x:10.2,z:6.8},{kind:'plant',x:10.1,z:-3.8},{kind:'bin',x:-3.6,z:-.4},{kind:'bin',x:4.2,z:-.2},{kind:'bin',x:9.6,z:2.2},
   {kind:'cone',x:-2.2,z:4.4},{kind:'cone',x:2.6,z:5.2},{kind:'cabinet',x:10.2,z:-1.9},
   {kind:'mug',x:-2.8,z:3},{kind:'paper',x:-5.6,z:1.3},{kind:'paper',x:1.4,z:3.2},{kind:'paper',x:5.1,z:6.1},{kind:'paper',x:-1.2,z:6.6},
-  {kind:'box',x:-9.3,z:-3.4,color:'#4c9f76'},{kind:'box',x:9.1,z:-4.4,color:'#b9bfeb'},
+  {kind:'box',x:-9.3,z:-3.4,color:'#b9875a'},{kind:'box',x:9.1,z:-4.4,rotation:.3,color:'#e0b47a'},
 ];
 // Crew at the machines and the layout desks.
 const npcs:NpcSpot[]=[
@@ -23,5 +23,8 @@ export const qfn:Level={id:'qfn',name:'FABRICATION BAY',number:'05',tagline:'Sli
   // Fab bay clutter: parts carts, reels and crates around the bench (no office desks, bookshelves or
   // filing towers: the room's own ESD benches, reel towers and drawers carry the fab look); the walk
   // from the door to the stock shelf and the bench stays clear.
-  clutter:{seed:5,fill:['box','box','litter','box'],max:220,step:2.1,recipes:['crates','cart','parts','crates','cart','parts'],colors:['#c98f5a','#d7a56d','#9aa3dc','#c7b8ff','#7fe6c6'],
-    lanes:[{points:[[-6.6,3.2],[-8.8,2.95],[1.3,-.6],[0,-.5]],r:1.05}]}};
+  clutter:{seed:5,fill:['crates','box','litter','bin'],max:220,step:1.9,jitter:.7,fillSkip:.15,recipes:['crates','cart','parts','crates','cart','crates'],colors:['#8f96d8','#e5484d','#3f7fd6','#e9e7f7'],families:{cart:['#9aa3dc','#8f96d8']},
+    lanes:[{points:[[-6.6,3.2],[-8.8,2.95],[1.3,-.6],[0,-.5]],r:1.05},
+      // Keep-outs: the machine apron in front of the pick-and-place, oven and AOI (the room's showpieces), and the bench
+      // with its camera view (R5-312). Side-wall fill can still sit at x < -9.5 and x > 9.5.
+      {points:[[-9,-4.6],[9,-4.6]],r:1.4},{points:[[-2.6,-2.2],[3.6,-2.2]],r:2.3}]}};

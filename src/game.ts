@@ -545,7 +545,7 @@ export class Game {
   homeZoom(){return this.level.id==='playground'?17:this.station?18.5:this.hub?23:22;}
   /** Start and reset orbit. The lobby turns a little toward its left wall so those doors clear the job card. */
   homeYaw(){return this.level.hub?.4:.14;}
-  winFocus(){const l=this.level;if(this.station)return this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
+  winFocus(){const l=this.level;if(this.station)return this.station.winFocus?.()??this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
   /** Feeds Pip's rig (src/render/pipRig.ts) with movement, poses and what to glance at. */

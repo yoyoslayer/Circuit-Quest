@@ -70,7 +70,7 @@ export class GameUI {
   beforeBegin(){if(this.screen==='jobs'&&levels[this.sel].id!==this.game.level.id){this.playSelected();return true;}return false;}
   started(){this.show('play');(document.activeElement as HTMLElement|null)?.blur?.();}
   paused(on:boolean){
-    if(on){const g=this.game,set=(k:string,v:string)=>{const el=g.hud.querySelector(`.pause-screen [data-p="${k}"]`);if(el)el.textContent=v;};set('time',clock(g.time));set('damage',String(g.damage));set('cost',String(g.cost));
+    if(on){const g=this.game,set=(k:string,v:string)=>{const el=g.hud.querySelector(`.pause-screen [data-p="${k}"]`);if(el)el.textContent=v;};set('time',clock(g.time));const extra=g.station&&!g.won?g.station.score():{mistakes:0,cost:0};set('damage',String(g.damage+extra.mistakes));set('cost',String(Math.round((g.cost+extra.cost)*10)/10));
       // The three bonus goals behind the job card's stars, with what's done so far.
       const list=g.hud.querySelector('.pause-screen .pause-bonus');if(list)list.innerHTML=this.objectives.results().map(b=>`<li class="${b.ok?'ok':''}"><i>★</i>${b.text}</li>`).join('');}
     this.show(on?'pause':'play');if(!on)(document.activeElement as HTMLElement|null)?.blur?.();
@@ -167,7 +167,9 @@ export class GameUI {
   update(){
     this.pollPad();
     const g=this.game;if(!g.running||this.screen!=='play')return;
-    const rush=g.station?.rushStatus?.();this.setTally('time',clock(rush?rush.left:g.time));this.setTally('damage',String(g.damage),g.damage>0);this.setTally('cost',String(g.cost),g.cost>0);
+    // Station mistakes and parts cost join the tallies live (the win adds them for the grade), so the HUD matches the result card.
+    const extra=g.station&&!g.won?g.station.score():{mistakes:0,cost:0},dmg=g.damage+extra.mistakes,cost=Math.round((g.cost+extra.cost)*10)/10;
+    const rush=g.station?.rushStatus?.();this.setTally('time',clock(rush?rush.left:g.time));this.setTally('damage',String(dmg),dmg>0);this.setTally('cost',String(cost),cost>0);
     const deadline=g.level.deadline??240,left=Math.max(0,1-g.time/deadline);
     this.ring.style.strokeDasharray=`${(left*RING).toFixed(1)} ${RING.toFixed(1)}`;this.badge.classList.toggle('late',g.time>deadline);
     this.layer.classList.toggle('won',g.won);

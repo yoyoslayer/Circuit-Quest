@@ -49,6 +49,8 @@ export interface Station {
   /** A prop was set down in the room (the station may take it, e.g. a crate onto the counter). */
   dropped?(prop:Game['props'][number]):void;
   complete():boolean;
+  /** Optional: what the win camera should push in on (world), when the payoff isn't the tabletop (e.g. the dome). */
+  winFocus?():T.Vector3;
   /** Mistakes and process cost for the result card (on top of broken props). */
   score():{mistakes:number;cost:number};
   snapshot():unknown;

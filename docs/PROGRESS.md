@@ -494,3 +494,10 @@ Pausing now cancels unfinished bench drags and strokes, clears held movement/res
 Gamepad floor movement and camera axes no longer run while a station or the HQ job picker owns the controls. Previously the floor movement was zeroed first, then gamepad axes were added back, moving the invisible player under the bench camera. The regression uses a controller fixture while retaining real physics and verifies that Pip stays planted.
 
 Verified: build, 173 unit tests, and three focused browser checks pass (pause/keyboard/camera/touch input, focus-loss QFN drag cancellation plus gamepad isolation and keyboard notes, and rendered smoke). Evidence: `mockups/review5/tools/astra-finish/input-{build,unit,final}.log`.
+
+
+## 2026-11-06 — QFN feedback follows the edited layout
+
+A successful layout edit or Undo now clears the previous check/rejection toast. Previously an obsolete connector, overlap or layer diagnosis could remain visible after the player changed the board. A newly joined net still gets its fresh confirmation after the edit. The real failed-shipment/recovery playthrough now checks edit and Undo invalidation explicitly.
+
+Verified: build, 173 unit tests, QFN rejection/repair/undo/shipment, and rendered smoke pass. Evidence: `mockups/review5/tools/astra-finish/feedback-{build,unit,browser}.log`.

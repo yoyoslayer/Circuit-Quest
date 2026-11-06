@@ -69,6 +69,9 @@ test('QFN bench: a board shipped with the connector inside is sent back, then fi
   // A move onto another part is refused with a reason; so is a track that would join two nets.
   expect((await act(page,'move',{part:'R1',at:[10,1]})).ok).toBe(false);
   await expect(page.locator('.station-toast')).toContainText('overlap');
+  // A successful edit invalidates that diagnosis; undo must not revive stale feedback either.
+  await ok(page,'move',{part:'R1',at:[1,4]});await expect(page.locator('.station-toast')).toBeHidden();
+  await ok(page,'undo');await expect(page.locator('.station-toast')).toBeHidden();
   await playReference(page,0);
   // The send-back's problem rings described the old layout: moving parts cleared them.
   expect((await snapshot(page)).station.rings).toBe(0);
@@ -77,7 +80,7 @@ test('QFN bench: a board shipped with the connector inside is sent back, then fi
   // Layer 2 stays locked on the single-layer board.
   expect((await act(page,'layer',2)).ok).toBe(false);
   // Undo takes back the last track; the net opens again, then it is redrawn.
-  await ok(page,'undo');s=(await snapshot(page)).station;expect(s.report.nets.find((n:{net:string})=>n.net==='SIG').done).toBe(false);
+  await ok(page,'undo');await expect(page.locator('.station-toast')).toBeHidden();s=(await snapshot(page)).station;expect(s.report.nets.find((n:{net:string})=>n.net==='SIG').done).toBe(false);
   await ok(page,'trace',{cells:REFERENCE.sensor.traces[3].cells,layer:1});
   await ship(page);s=(await snapshot(page)).station;
   expect(s.board).toBe(1);expect(s.shipped[0].tier).toBe(3);

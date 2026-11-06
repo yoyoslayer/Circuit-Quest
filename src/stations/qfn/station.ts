@@ -304,7 +304,7 @@ export class QfnBench implements Station {
   }
 
   // ---------- actions ----------
-  private commit(){this.history.push(structuredClone(this.design));if(this.history.length>60)this.history.shift();}
+  private commit(){if(this.toast)this.toast.hidden=true;this.history.push(structuredClone(this.design));if(this.history.length>60)this.history.shift();}
   act(name:string,arg?:unknown):boolean{const ok=this.run(name,arg);this.updatePanel();return ok;}
   private run(name:string,arg?:unknown):boolean{
     const b=this.board(),d=this.design,a=this.game.audio;
@@ -339,7 +339,7 @@ export class QfnBench implements Station {
       case 'via':{const c=arg as XY,v=viaProblem(b,d,c);if(v.why){this.say(v.why,'bad');a.tone(170,.14,.05,'square');return false;}
         this.commit();d.vias.push({at:[c[0],c[1]],net:v.net!});a.noise(.12,.05,2400,'bandpass');a.tone(900,.05,.03);break;}
       case 'erase':{const c=arg as XY,before=structuredClone(d);if(!erase(d,this.layer,c)){return false;}this.history.push(before);a.noise(.05,.04,3000,'highpass');break;}
-      case 'undo':{const prev=this.history.pop();if(!prev){this.say('Nothing to undo on this board.');return false;}this.design=prev;this.syncParts();a.tone(300,.06,.04,'triangle');break;}
+      case 'undo':{const prev=this.history.pop();if(!prev){this.say('Nothing to undo on this board.');return false;}this.design=prev;if(this.toast)this.toast.hidden=true;this.syncParts();a.tone(300,.06,.04,'triangle');break;}
       case 'check':{const r=check(b,d);this.checks++;this.showMarks(r);this.burstT=3;if(b.spare&&!pinOrderOk(b,d))this.stuck=true;
         this.say(r.tier===0?`Check: ${r.problems.slice(0,2).join(' ')}`:`${TIERS[r.tier]}. ${r.tier===3?'Reliable, and at or under par.':r.notes[0]??''}`,r.tier===0?'bad':'ok');
         if(r.tier>0)a.bell(1175,.4,.04);else a.verdictFail('layout');this.redraw();return true;}

@@ -290,7 +290,9 @@ export class Game {
         if(touches.size>=2){const after=pinch();this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom-(after-before)*.05,9,38);}
         else{this.yaw-=dx*.006;this.pitch=T.MathUtils.clamp(this.pitch+dy*.004,-.3,.45);}
         return;}
-      if(e.pointerType!=='touch')mouseButtons(e);
+      // A move only changes buttons for a press that began on the canvas: a button pressed on the HUD
+      // and dragged over the canvas is not a grab.
+      if(e.pointerType!=='touch'&&mouse!==0)mouseButtons(e);
       if(this.atBench&&!this.orbit)benchPointer('move',e);if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
     canvas.addEventListener('wheel',e=>{if(this.atBench)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
@@ -669,10 +671,12 @@ export class Game {
     if(this.grounded&&!wasGrounded&&this.airborne>.25){this.squash=Math.min(1,this.airborne*1.4);this.burst({x:p.x,y:.1,z:p.z},'#d9d2c3',5,'dust');this.audio.thud(3);}
     this.airborne=this.grounded?0:this.airborne+dt;if(this.grounded&&this.vertical<0)this.vertical=-.1;
     // Sprinting kicks up a small puff behind each footfall, alternating feet.
-    const pace=Math.hypot(delta.x,delta.z)/Math.max(dt,1e-3);this.pace=pace;
+    // Pace is measured after the room clamp, so pushing into a room edge reads as standing still.
+    const nx=T.MathUtils.clamp(p.x+delta.x,-this.level.width/2+.5,this.level.width/2-.5),nz=T.MathUtils.clamp(p.z+delta.z,-this.level.depth/2+.5,this.level.depth/2-.5);
+    const pace=Math.hypot(nx-p.x,nz-p.z)/Math.max(dt,1e-3);this.pace=pace;
     if(this.grounded&&pace>5.5&&!this.atBench){this.stepT+=dt;if(this.stepT>.19){this.stepT=0;this.stepSide=-this.stepSide;const hx=Math.sin(this.heading),hz=Math.cos(this.heading);
       this.burst({x:p.x-hx*.25+hz*.13*this.stepSide,y:.06,z:p.z-hz*.25-hx*.13*this.stepSide},'#e6dfd2',1,'dust');}}else this.stepT=.12;
-    this.player.setNextKinematicTranslation({x:T.MathUtils.clamp(p.x+delta.x,-this.level.width/2+.5,this.level.width/2-.5),y:p.y+delta.y,z:T.MathUtils.clamp(p.z+delta.z,-this.level.depth/2+.5,this.level.depth/2-.5)});
+    this.player.setNextKinematicTranslation({x:nx,y:p.y+delta.y,z:nz});
     // Light things are carried at chest height; heavy furniture is pushed along the floor so it stays upright.
     // Light things are held level and square in front of the chest, between both mitts (tall flat
     // boards edge-on, low); carts and heavy things roll along upright, handle towards Pip.

@@ -89,3 +89,26 @@ test('pad A during the win beat waits for the result card, then retries straight
   // The retry flag took us straight back into play, not to the title or Jobs board.
   await expect.poll(()=>snapshot(page).then(s=>s.running)).toBe(true);
 });
+
+test('pushing into a room edge reads as standing still: no walk cycle on the spot (game-b-5 follow-up)',async({page})=>{
+  await open(page,'meeting');await wait(page,.2);
+  // Walks with D held for 0.6 s from a spot and returns Pip's pace and how far he moved.
+  const walkFrom=(x:number)=>page.evaluate(x=>{const G=(window as any).__game,at={x,y:.8,z:0};G.player.setTranslation(at,true);G.player.setNextKinematicTranslation(at);G.yaw=0;
+    (window as any).__circuitCrew.drive.advance(.6,['KeyD']);G.keys=new Set(['KeyD']);G.step(1/60);G.keys.clear();
+    return {pace:G.pace,moved:Math.abs(G.player.translation().x-x)};},x);
+  // Open floor first, which also tells the test which way D walks.
+  const free=await walkFrom(0);expect(free.pace).toBeGreaterThan(1.5);
+  const right=await page.evaluate(()=>(window as any).__game.player.translation().x>0);
+  const edge=await page.evaluate(()=>{const G=(window as any).__game;return G.level.width/2-.5;});
+  const pushed=await walkFrom(right?edge:-edge);
+  expect(pushed.moved).toBeLessThan(.05);expect(pushed.pace).toBeLessThan(.3);
+});
+
+test('a button pressed on the HUD and dragged onto the canvas does not grab (game-a-06 follow-up)',async({page})=>{
+  await open(page,'meeting');await wait(page,.2);
+  const box=(await page.locator('canvas').first().boundingBox())!;
+  await page.evaluate(()=>{(window as any).__grabs=0;const G=(window as any).__game,a=G.action.bind(G);G.action=(n:string)=>{if(n==='grab')(window as any).__grabs++;return a(n);};});
+  // A move with the left button already held (as from a press that began on a HUD element).
+  await page.locator('canvas').first().dispatchEvent('pointermove',{pointerType:'mouse',buttons:1,clientX:box.x+box.width/2,clientY:box.y+box.height/2,pointerId:1});
+  expect(await page.evaluate(()=>(window as any).__grabs)).toBe(0);
+});

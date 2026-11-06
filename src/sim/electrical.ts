@@ -29,8 +29,11 @@ export class Circuit {
       const visit=(node:string,path:Lead[],seen:Set<string>)=>{
         if(seen.has(node))return;const next=new Set(seen).add(node);
         for(const edge of this.leads.filter(e=>e.from===node&&e.closed&&e.returnClosed!==false&&!e.dead)){
-          if(edge.wet){source.tripped=true;this.events.push({time:this.time,kind:'short',id:source.id});return;}
-          if(!routes.has(edge.to))routes.set(edge.to,{source,path:[...path,edge]});visit(edge.to,[...path,edge],next);
+          // A short trips the supply like any other trip, but its routes are still traced, so every load
+          // it fed reads 'brownout' (not 'off'), whatever order the leads were plugged in.
+          if(edge.wet&&!source.tripped){source.tripped=true;this.events.push({time:this.time,kind:'short',id:source.id});}
+          // A node another supply feeds live is not claimed by one that has just shorted.
+          const had=routes.get(edge.to);if(!had||had.source.tripped&&!source.tripped)routes.set(edge.to,{source,path:[...path,edge]});visit(edge.to,[...path,edge],next);
         }
       };visit(source.id,[],new Set());
     }

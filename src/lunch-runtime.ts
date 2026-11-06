@@ -14,7 +14,9 @@ import {gameUI} from './ui/game-ui';
 import {solid} from './levels/decor';
 import {cablePath,type Prop} from './game';
 /** A socket. One on a prop rides with it: `lift` above the body's centre, or at `local` in the prop's own frame. */
-type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;local?:T.Vector3;ring:T.Mesh;capacity:number};
+type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;local?:T.Vector3;ring:T.Mesh;capacity:number;
+  /** How far the socket has been moving lately (decays each step): an over-strained cable pops out of the one being pulled away. */
+  moved?:number};
 type Cable={pulses:Pulses;id:string;rating:number;active:0|1;ends:[T.Vector3,T.Vector3];ports:[string|null,string|null];rope:Rope;mesh:T.Mesh;plugs:[T.Group,T.Group];lead:Lead;points:Point[];
   /** Why a dead cable is dead (a door cut is mended with a splice, a scorch needs a new length). */
   cause?:'cut'|'scorch';
@@ -96,6 +98,8 @@ export class LunchRuntime {
   surgeHint?:'lift'|'conveyor';surgeBadge!:T.Sprite;surgeUntil=0;beltJerk=0;
   /** Each kind of fault names its cause once, in the prompt pill, the first time it happens. */
   told=new Set<Fault>();telling?:{fault:Fault;until:number};
+  /** Why each cart last cut out (recorded when its trip is handled), for the badge over it. */
+  cause=new Map<string,Fault>();
   /** Followers: meshes that ride along with batched props (cart letters, budget pips, charge cans). */
   followers:{prop:Prop;group:T.Group}[]=[];budget=new Map<string,T.Mesh[]>();
   dollyPark?:Point;resetAt=0;trayHop=0;lastStrainAlarm=0;liftOnFor=0;
@@ -274,7 +278,13 @@ export class LunchRuntime {
   fed(node:string,seen=new Set<string>()):boolean{
     const source=this.circuit.sources.find(s=>s.id===node);if(source)return !source.tripped;if(seen.has(node))return false;seen.add(node);
     return this.circuit.leads.some(l=>l.to===node&&l.closed&&!l.dead&&this.fed(l.from,seen));}
-  lit(){return this.powered('store-lamp')||(this.powered('kitchen-lamp')&&this.prop('portable-lamp')!.body.translation().x< -7.8);}
+  /** Whether a node is wired back to a supply by leads other than `except` (tripped or not): which side
+   *  of a splitter-to-splitter cable the power comes from. */
+  wiredToSupply(node:string,except:Lead,seen=new Set<string>()):boolean{
+    if(this.circuit.sources.some(s=>s.id===node))return true;if(seen.has(node))return false;seen.add(node);
+    return this.circuit.leads.some(l=>l!==except&&l.to===node&&l.closed&&this.wiredToSupply(l.from,except,seen));}
+  // The portable lamp lights the storeroom only from inside it (not through its wall from the corridor).
+  lit(){return this.powered('store-lamp')||(this.powered('kitchen-lamp')&&this.inStore(this.prop('portable-lamp')!.body.translation()));}
   /** A cable runs through the kitchen doorway (where the leaves would shut on it). */
   throughDoor(cable:Cable){return cable.points.slice(1).some((b,i)=>segmentHits(cable.points[i],b,{id:'door',minX:-1.55,maxX:1.55,minZ:-.2,maxZ:.5}));}
   doorBusy(){return this.cables.some(c=>!c.lead.dead&&(c.ports[0]||c.ports[1])&&this.throughDoor(c));}
@@ -282,32 +292,34 @@ export class LunchRuntime {
    *  out from under cables running through the door (the leaves would shut and cut them). */
   canGrab(p:Point){
     const wedge=this.prop('wedge');if(wedge&&distance(p,wedge.body.translation())<.05&&this.doorWedged()&&this.doorBusy())return false;
+    // Once the tray is locked to the belt (or the lift) it rides on its own: it can't be picked back up.
+    const tray=this.prop('tray');if(tray&&distance(p,tray.body.translation())<.05&&['conveyor','lift','delivered'].includes(this.job.tray))return false;
     return this.lit()||!this.inStore(p);}
-  /** The socket a held plug would go into: the one nearest the plug itself, not Pip's body. */
-  plugTarget(cable:Cable,end:0|1){const pos=this.game.player.translation(),other=(1-end) as 0|1,plug=cable.ends[end];
-    return this.ports.filter(p=>Math.min(distance(pos,p.pos)-.3,distance(plug,p.pos))<1.4&&p.id!==cable.ports[other]&&(this.lit()||!this.inStore(p.pos))&&!(p.id==='lift'&&this.capDocked)).sort((a,b)=>distance(plug,a.pos)-distance(plug,b.pos))[0];}
+  /** The socket a held plug would go into: the nearest usable one to the plug itself, not Pip's body.
+   *  A full socket, or one of the same role as the other end's (out to out, in to in), is skipped, so a
+   *  free socket beside it still wins and the prompt and F agree. */
+  plugTarget(cable:Cable,end:0|1){const pos=this.game.player.translation(),other=(1-end) as 0|1,plug=cable.ends[end],otherPort=this.ports.find(p=>p.id===cable.ports[other]);
+    const full=(p:Port)=>this.cables.reduce((n,c)=>n+c.ports.filter(id=>id===p.id).length,0)>=p.capacity,clash=(p:Port)=>!!otherPort&&(p.role==='out'&&otherPort.role==='out'||p.role==='in'&&otherPort.role==='in');
+    return this.ports.filter(p=>Math.min(distance(pos,p.pos)-.3,distance(plug,p.pos))<1.4&&p.id!==cable.ports[other]&&(this.lit()||!this.inStore(p.pos))&&!(p.id==='lift'&&this.capDocked)&&!full(p)&&!clash(p)).sort((a,b)=>distance(plug,a.pos)-distance(plug,b.pos))[0];}
   interact(cableOnly:boolean):boolean{
     const g=this.game,pos=g.player.translation();
     if(g.held)return false;
-    if(this.held){const {cable,end}=this.held,other=(1-end) as 0|1;
+    if(this.held){const {cable,end}=this.held;
+      // plugTarget only offers free sockets of a compatible role.
       const target=this.plugTarget(cable,end);
-      if(target&&cable.rope.strain<1.1){
-        const otherPort=this.ports.find(p=>p.id===cable.ports[other]);
-        const count=this.cables.reduce((n,c)=>n+c.ports.filter(id=>id===target.id).length,0);
-        const validRole=!otherPort||!(target.role==='out'&&otherPort.role==='out')&&!(target.role==='in'&&otherPort.role==='in');
-        if(count<target.capacity&&validRole){cable.ports[end]=target.id;cable.ends[end].copy(target.pos);cable.pluggedAt=g.time;
-          // Only the mechanical click now; the chime waits a step to see whether the connection holds.
-          g.audio.noise(.025,.08,3200,'highpass');g.audio.noise(.025,.07,2600,'highpass',.05);this.chimeAt={time:this.circuit.time,events:this.circuit.events.length};
-          g.plugFlash(target.pos);this.held=undefined;g.holdingPlug=false;return true;}
-      }
+      if(target&&cable.rope.strain<1.1){cable.ports[end]=target.id;cable.ends[end].copy(target.pos);cable.pluggedAt=g.time;
+        // Only the mechanical click now; the chime waits a step to see whether the connection holds.
+        g.audio.noise(.025,.08,3200,'highpass');g.audio.noise(.025,.07,2600,'highpass',.05);this.chimeAt={time:this.circuit.time,events:this.circuit.events.length};
+        g.plugFlash(target.pos);this.held=undefined;g.holdingPlug=false;return true;}
       this.release();return true;
     }
     if(!cableOnly){
       if(this.job.tray==='baked'&&distance(pos,this.prop('tray')!.body.translation())<1.65)return false;
-      const source=this.ports.find(p=>(p.id==='a'||p.id==='b')&&distance(pos,p.pos)<2);
-      if(source&&this.circuit.sources.find(s=>s.id===source.id)!.tripped){this.circuit.resetBreaker(source.id);this.resetAt=g.time;g.audio.noise(.08,.1,500);g.audio.tone(140,.1,.06,'square');return true;}
+      // The tripped cart in reach is reset (the same test as the prompt), even with an untripped one nearer.
+      const carts=this.ports.filter(p=>(p.id==='a'||p.id==='b')&&distance(pos,p.pos)<2),source=carts.find(p=>this.circuit.sources.find(s=>s.id===p.id)!.tripped);
+      if(source){this.circuit.resetBreaker(source.id);this.resetAt=g.time;g.audio.noise(.08,.1,500);g.audio.tone(140,.1,.06,'square');return true;}
       // A second press right after a reset does nothing (a double tap never pulls a cable out).
-      if(source&&g.time-this.resetAt<.6)return true;
+      if(carts.length&&g.time-this.resetAt<.6)return true;
       const switches:Record<string,Point>={oven:{x:-2.5,z:-6.9},conveyor:{x:5,z:-5},lift:WINCH,'store-lamp':{x:-10,z:-3}};
       const machine=Object.entries(switches).find(([,p])=>distance(pos,p)<1.25);
       if(machine){const load=this.load(machine[0]);load.enabled=!load.enabled;g.audio.noise(.03,.06,2500,'highpass');g.audio.tone(load.enabled?320:160,.1,.04);return true;}
@@ -402,8 +414,9 @@ export class LunchRuntime {
     return [...FIXED.filter(o=>near({x:(o.minX+o.maxX)/2,z:(o.minZ+o.maxZ)/2},2+Math.max(o.maxX-o.minX,o.maxZ-o.minZ)/2)),...props].filter(o=>!inside(o,cable.rope.anchor)&&!inside(o,end));
   }
   step(dt:number){const g=this.game,p=g.player.translation(),before=this.circuit.events.length;
-    for(const port of this.ports)if(port.bodyId){const prop=this.prop(port.bodyId);if(prop){const pos=prop.body.translation();
-      if(port.local){const q=prop.body.rotation();port.pos.copy(port.local).applyQuaternion(new T.Quaternion(q.x,q.y,q.z,q.w)).add(pos);}else port.pos.set(pos.x,pos.y+port.lift,pos.z);}}
+    for(const port of this.ports)if(port.bodyId){const prop=this.prop(port.bodyId);if(prop){const pos=prop.body.translation(),wx=port.pos.x,wz=port.pos.z;
+      if(port.local){const q=prop.body.rotation();port.pos.copy(port.local).applyQuaternion(new T.Quaternion(q.x,q.y,q.z,q.w)).add(pos);}else port.pos.set(pos.x,pos.y+port.lift,pos.z);
+      port.moved=(port.moved??0)*.9+Math.hypot(port.pos.x-wx,port.pos.z-wz);}}
     const wedged=this.doorWedged(),open=wedged||distance(p,{x:0,z:.2})<2.6;
     if(this.doorAngle<.05&&!wedged)this.doorSide=p.z>DOOR.z?-1:1;
     this.doorAngle=T.MathUtils.lerp(this.doorAngle,open?1:0,dt*7);const shut=this.doorWasOpen&&this.doorAngle<=.15&&!wedged;if(this.doorWasOpen!==this.doorAngle>.15)g.audio.noise(.22,.035,shut?260:700);
@@ -433,7 +446,10 @@ export class LunchRuntime {
       const active=this.held?.cable===cable?this.held.end:cable.active,other=(1-active) as 0|1;
       if(active!==cable.active){cable.rope.flip(cable.ends[other]);cable.active=active;}
       cable.rope.anchor=cable.ends[other];cable.points=cable.rope.update(cable.ends[active],[...g.level.obstacles,...this.wrapObstacles(cable,cable.ends[active])]);
-      const port0=this.ports.find(q=>q.id===cable.ports[0]);const reversed=port0?.role==='in'||(port0?.role==='both'&&this.ports.find(q=>q.id===cable.ports[1])?.role==='out');
+      // A cable has no direction: it runs from whichever end is on the supply side. Between two splitters
+      // that is the one wired back to a cart by the other leads, whichever plug went in where.
+      const port0=this.ports.find(q=>q.id===cable.ports[0]),port1=this.ports.find(q=>q.id===cable.ports[1]);
+      const reversed=port0?.role==='in'||(port0?.role==='both'&&(port1?.role==='out'||port1?.role==='both'&&this.wiredToSupply(port1.id,cable.lead)&&!this.wiredToSupply(port0.id,cable.lead)));
       cable.lead.from=(reversed?cable.ports[1]:cable.ports[0])??'';cable.lead.to=(reversed?cable.ports[0]:cable.ports[1])??'';cable.lead.closed=!!cable.lead.from&&!!cable.lead.to;
       cable.lead.wet=this.wet(cable);
       // A plug still in a live cart with its other end lying bare in the water leaks to earth: the cart cuts out.
@@ -442,7 +458,13 @@ export class LunchRuntime {
         if(puddle&&!source.tripped){source.tripped=true;this.circuit.events.push({time:this.circuit.time,kind:'short',id:live});this.wetAt={x:puddle[0],z:puddle[1]};}}
       // The leaves snap shut across the whole opening and cut any cable left through it.
       if(shut&&this.throughDoor(cable)&&!cable.lead.dead){cable.lead.dead=true;cable.cause='cut';g.audio.tone(80,.2,.08,'sawtooth');g.burst({x:0,y:.5,z:.15},'#fff3a3',16,'spark');g.alarm(DOOR);this.scar({x:cable.points[1]?.x??0,z:.15},'pinched');}
-      if(cable.rope.strain>1.25&&cable.lead.closed){cable.ports[1]=null;cable.lead.closed=false;g.audio.tone(110,.2,.05);}
+      // Over-strained, the plug in the socket being pulled away pops out (a carried splitter, a pushed cart;
+      // if neither moved, a socket on a prop before a fixed one) and drops to the floor a little back along
+      // the route, so it visibly leaves the socket instead of hanging there looking plugged in.
+      if(cable.rope.strain>1.25&&cable.lead.closed){const [m0,m1]=cable.ports.map(id=>this.ports.find(q=>q.id===id)) as [Port|undefined,Port|undefined],a=m0?.moved??0,b=m1?.moved??0;
+        const e:0|1=a>b+1e-3?0:b>a+1e-3?1:m0?.bodyId&&!m1?.bodyId?0:1,pts=cable.points,toward=e===active?pts[pts.length-2]:pts[1],plug=cable.ends[e];
+        cable.ports[e]=null;cable.lead.closed=false;g.audio.tone(110,.2,.05);g.burst(plug,'#fff3a3',6,'spark');
+        if(toward){const d=distance(plug,toward),k=d>1e-3?Math.min(.5,d*.5)/d:0;plug.set(plug.x+(toward.x-plug.x)*k,.15,plug.z+(toward.z-plug.z)*k);}else plug.y=.15;}
     }
     this.doorWasOpen=this.doorAngle>.15;
     // Cleaner bots snag a live cable lying across their line and drag its plug along for a while.
@@ -464,6 +486,7 @@ export class LunchRuntime {
     // The circuit counts that charging current on the cart and its leads; 0.4 bar while the lift runs
     // keeps conveyor 1.5 + lift 3 + 0.4 under the cart's 5.
     const lift=this.load('lift'),cap=lift.capacitor!;cap.chargeRate=lift.state==='on'?.4:1;const charge=cap.charge;
+    const motors=['conveyor','lift'].map(id=>this.load(id)),running=motors.filter(m=>m.state==='on');
     this.circuit.tick(dt);
     if(cap.charge<charge-1e-6&&Math.random()<dt*14){g.burst({x:12.62,y:.5,z:-4.8},'#6fe9ff',3,'spark');}
     if(cap.charge<charge-1e-6&&charge-cap.charge>.04&&this.circuit.time-lift.started<dt*1.5)g.audio.thud(18);
@@ -471,11 +494,14 @@ export class LunchRuntime {
     // until it is switched on again, one at a time, rather than every motor kicking at once.
     const trips=this.circuit.events.slice(before).filter(e=>e.kind==='trip'||e.kind==='short');
     if(trips.length){const starting=this.circuit.loads.filter(l=>(l.kick??0)>0&&l.enabled&&this.circuit.time-l.started<1.5&&l.state!=='on').sort((a,b)=>b.started-a.started)[0];
+      // Each cart remembers why it cut out, for its badge, until it trips again.
       for(const trip of trips){
-        if(trip.kind==='short'){if(this.wetAt)this.scar(this.wetAt,'leak');}
-        else if(starting){this.surgeHint=starting.id as 'lift'|'conveyor';this.surgeUntil=g.time+6;this.tell('surge');if(starting.id==='conveyor'){this.beltJerk=1;g.audio.tone(70,.45,.08,'sawtooth');}}
-        else this.tell('overload');}
-      for(const motor of ['conveyor','lift'].map(id=>this.load(id)))if(motor.state==='brownout')motor.enabled=false;}
+        if(trip.kind==='short'){this.cause.set(trip.id,'leak');if(this.wetAt)this.scar(this.wetAt,'leak');}
+        else if(starting){this.cause.set(trip.id,'surge');this.surgeHint=starting.id as 'lift'|'conveyor';this.surgeUntil=g.time+6;this.tell('surge');if(starting.id==='conveyor'){this.beltJerk=1;g.audio.tone(70,.45,.08,'sawtooth');}}
+        else {this.cause.set(trip.id,'overload');this.tell('overload');}}
+      // A motor that was running and has stopped with this trip dropped out too (a leak cuts the cart
+      // before the circuit steps, so its motors read 'off', not 'brownout').
+      for(const motor of motors)if(motor.state==='brownout'||running.includes(motor)&&motor.state!=='on')motor.enabled=false;}
     // The plug chime plays once the new connection has held for a step without tripping anything.
     if(this.chimeAt&&this.circuit.time>this.chimeAt.time){const failed=this.circuit.events.slice(this.chimeAt.events).some(e=>e.kind==='trip'||e.kind==='short');if(!failed)[880,1109,1319].forEach((f,i)=>g.audio.bell(f,.5,.04,i*.07));this.chimeAt=undefined;}
     for(const event of this.circuit.events.slice(this.eventIndex)){
@@ -550,7 +576,7 @@ export class LunchRuntime {
     for(const [id,{gauge,mount,button}] of this.supplyGauges){const prop=this.prop(`supply-${id}`)!,source=this.circuit.sources.find(s=>s.id===id)!,draw=this.circuit.draw.get(id)??0;
       // A tripped cart wears a pulsing breaker badge until someone presses its reset button.
       let alert=this.alerts.get(id);if(!alert){alert=new T.Sprite(new T.SpriteMaterial({map:faultTexture('overload'),depthTest:false}));alert.renderOrder=9;g.root.add(alert);this.alerts.set(id,alert);}
-      alert.visible=source.tripped;if(source.tripped){const last=[...this.circuit.events].reverse().find(e=>e.id===id&&(e.kind==='trip'||e.kind==='short'));const kind:Fault=last?.kind==='short'?'leak':this.surgeHint&&g.time<this.surgeUntil?'surge':'overload';
+      alert.visible=source.tripped;if(source.tripped){const kind:Fault=this.cause.get(id)??'overload';
         if(alert.material.map!==faultTexture(kind)){alert.material.map=faultTexture(kind);alert.material.needsUpdate=true;}
         alert.position.copy(prop.mesh.position).setY(2.4+Math.sin(g.time*6)*.08);alert.scale.setScalar(1.05+Math.sin(g.time*10)*.12);}
       gauge.set(source.tripped?1:draw/6);mount.position.copy(prop.mesh.position).add(new T.Vector3(.15,.75,-.05).applyQuaternion(prop.mesh.quaternion));mount.quaternion.copy(prop.mesh.quaternion);mount.rotateX(-.5);
@@ -606,6 +632,6 @@ export class LunchRuntime {
   }
   snapshot(){const lift=this.load('lift');return {job:{...this.job},water:this.water,doorWedged:this.doorWedged(),doorBusy:this.doorBusy(),capDocked:this.capDocked,capHint:this.capHint,surgeHint:this.surgeHint??null,liftRan:this.liftRan,capCharge:+lift.capacitor!.charge.toFixed(2),
     door:{angle:this.doorAngle,side:this.doorSide},bots:this.bots.map(b=>({x:+b.group.position.x.toFixed(2),z:+b.group.position.z.toFixed(2),snag:b.snag?.cable.id})),cablePoints:Object.fromEntries(this.cables.map(c=>[c.id,c.points.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)}))])),
-    lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,draw:Object.fromEntries(this.circuit.draw),told:[...this.told],
+    lit:this.lit(),held:this.held?{id:this.held.cable.id,end:this.held.end}:null,sources:this.circuit.sources,loads:this.circuit.loads,draw:Object.fromEntries(this.circuit.draw),told:[...this.told],cause:Object.fromEntries(this.cause),
     cables:this.cables.map(c=>({id:c.id,ports:c.ports,ends:c.ends.map(p=>({x:p.x,y:p.y,z:p.z})),dead:c.lead.dead,cause:c.cause??null,nicked:!!c.nicked,wet:!!c.lead.wet,heat:c.lead.heat,strain:c.rope.strain,length:+c.rope.length.toFixed(2),maxLength:c.rope.maxLength})),events:this.circuit.events};}
 }

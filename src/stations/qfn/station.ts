@@ -55,7 +55,8 @@ interface Stroke {layer:Layer;net:string;cells:XY[];warned:boolean}
 /** SHIP powers the board for its bring-up test, so it needs the bench lead plugged in (R5-079). */
 const SHIP_DEAD="No power for the bring-up test: the bench lead isn't plugged in.";
 export class QfnBench implements Station {
-  readonly view={distance:5.6,pitch:1.02,lookY:-.1,width:3.6};
+  // width: the full span of the side button rows (TURN, LAYER, VIA on the left; CHECK, SHIP on the right).
+  readonly view={distance:5.6,pitch:1.02,lookY:-.1,width:4.6};
   readonly limits={time:720,damage:1,cost:0};
   readonly stand={x:0,z:-.5};readonly table=new T.Vector3(0,.92,-2.2);readonly facing=Math.PI;
   readonly job:StationJob;

@@ -69,6 +69,8 @@ interface Npc {group:T.Group;body:T.Group;bubble:T.Sprite;sweat:T.Sprite;calm:T.
 const ACCESSORIES:Accessory[][]=[['tuft'],['headphones'],['glasses','tie'],['mug'],['bun'],['cap'],['sprout'],['glasses'],['headphones','tuft'],[],['tie'],['bun','glasses']];
 const MOODS:Mood[]=['calm','calm','happy','calm','sleepy','calm','happy','calm'];
 interface Batch {mesh:T.InstancedMesh;parts:{prop:Prop;part:T.Mesh}[]}
+/** How much closer than each station's tuned view.distance the bench camera sits (1 = as tuned). ?benchfill= overrides it. */
+const BENCH_FILL=Number(new URLSearchParams(location.search).get('benchfill')??.86);
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
@@ -711,8 +713,9 @@ export class Game {
       target=st.table.clone().add(new T.Vector3(0,v.lookY,0)).addScaledVector(new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw)),portrait?0:v.lookX??0);
       // Narrow screens pull back until the whole bench (every tappable control) fits across the screen.
       // Bench distances are tuned for a 30 degree lens (lensScale), so its half-width at the table is d*tan(15 deg)*aspect.
-      const fit=v.width?v.width/2*1.08/(Math.tan(T.MathUtils.degToRad(15))*cam.aspect):0;
-      distanceTo=Math.max(v.distance*T.MathUtils.clamp(1.25/cam.aspect,1,2.1),fit);pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
+      // BENCH_FILL (review 6): every bench sits closer, so the station fills the screen when you sit at it.
+      const fit=v.width?v.width/2*1.02/(Math.tan(T.MathUtils.degToRad(15))*cam.aspect):0;
+      distanceTo=Math.max(v.distance*BENCH_FILL*T.MathUtils.clamp(1.25/cam.aspect,1,2.1),fit);pitch=v.pitch;const want=Math.atan2(st.stand.x-st.table.x,st.stand.z-st.table.z);this.yaw+=Math.atan2(Math.sin(want-this.yaw),Math.cos(want-this.yaw))*(this.manual?1:Math.min(1,dt*4));}
     if(pushing){const shot=this.winFrame();target=shot.target;distanceTo=shot.distance;pitch=shot.pitch;
       // The camera swings round to the shot for the first moments, then the player's orbit is theirs again.
       if(performance.now()-this.winAt<1600||this.manual)this.yaw+=Math.atan2(Math.sin(shot.yaw-this.yaw),Math.cos(shot.yaw-this.yaw))*(this.manual?1:Math.min(1,dt*3));}
@@ -726,12 +729,14 @@ export class Game {
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo*lensScale(this.fov,this.atBench||titling));
     const wanted=this.focus.clone().add(offset);
     // The camera never sits inside furniture or a pillar on the free-roam view: a ray from Pip toward the
-    // wanted spot stops at the first fixed solid (shell walls and lips fold away, so they are ignored),
-    // and the camera pulls in just short of it.
-    if(this.running&&!this.atBench&&!this.survey&&!pushing&&!titling){const dir=wanted.clone().sub(this.focus),len=dir.length();
+    // wanted spot stops at the first fixed solid that blocks the view (decor.ts cameraPasses lists the ones
+    // it passes through), and the camera pulls in just short of it.
+    // The ray starts at Pip's chest (never the eased focus, which can lie inside a desk), and a solid within
+    // 1.2 m of him is left to the see-through oval: pulling in that far would put the camera in his head.
+    if(this.running&&!this.atBench&&!this.survey&&!pushing&&!titling){const o=new T.Vector3(p.x,p.y+.3,p.z),dir=wanted.clone().sub(o),len=dir.length();
       if(len>.01){const u=dir.multiplyScalar(1/len);
-        const hit=this.world.castRay(new RAPIER.Ray({x:this.focus.x,y:this.focus.y,z:this.focus.z},{x:u.x,y:u.y,z:u.z}),len,true,undefined,undefined,undefined,undefined,c=>!this.cameraIgnore.has(c.handle)&&!!c.parent()?.isFixed());
-        if(hit&&hit.timeOfImpact<len)wanted.copy(this.focus).addScaledVector(u,Math.max(.8,hit.timeOfImpact-.25));}}
+        const hit=this.world.castRay(new RAPIER.Ray({x:o.x,y:o.y,z:o.z},{x:u.x,y:u.y,z:u.z}),len,true,undefined,undefined,undefined,undefined,c=>!this.cameraIgnore.has(c.handle)&&!!c.parent()?.isFixed());
+        if(hit&&hit.timeOfImpact>1.2&&hit.timeOfImpact<len)wanted.copy(o).addScaledVector(u,hit.timeOfImpact-.25);}}
     wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
     // Cutaway: a shell wall drops to a 0.9 m stub once the camera is outside its plane (or within
@@ -768,7 +773,9 @@ export class Game {
     const depth=(x:number,y:number,z:number)=>-new T.Vector3(x,y,z).applyMatrix4(cam.matrixWorldInverse).z;
     const chest=screen(new T.Vector3(p.x,p.y+.1,p.z)),tall=screen(new T.Vector3(p.x,p.y+.85,p.z)).distanceTo(screen(new T.Vector3(p.x,p.y-.77,p.z)));
     let near=depth(p.x,p.y+.1,p.z)-.25;if(this.held){const q=this.held.body.translation();near=Math.min(near,depth(q.x,q.y,q.z)-.5);}
-    Object.assign(seeThrough,{x:chest.x,y:chest.y+tall*.08,z:tall*.78,w:near});
+    // An ellipse fitted to Pip (review 6): about half his height across and a little more than his height
+    // tall (toon.ts squashes y by .55), so props beside him are no longer dithered.
+    Object.assign(seeThrough,{x:chest.x,y:chest.y+tall*.08,z:tall*.5,w:near});
     const t=Math.tan(T.MathUtils.degToRad(cam.fov/2));Object.assign(seeProj,{x:t*cam.aspect,y:t,z:size.x,w:size.y});
     const e=cam.matrixWorld.elements;Object.assign(seeY,{x:e[1],y:e[5],z:e[9],w:e[13]});seeClip.x=cam.near;seeClip.y=cam.far;
   }

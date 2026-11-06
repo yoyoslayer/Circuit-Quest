@@ -4,6 +4,7 @@
 import * as T from 'three';
 import type {Game} from '../game';
 import {prefabs,type PropKind} from '../props/prefabs';
+import {seeOff} from '../render/toon';
 type At=(g:Game)=>{x:number;z:number}|undefined;
 /** at: where the bouncing marker points for this step. */
 interface Step {text:string;done:(g:Game)=>boolean;at?:At;recheck?:boolean|((g:Game)=>boolean)}
@@ -113,7 +114,7 @@ export class ObjectivesHUD{
     const rim=new T.MeshBasicMaterial({color:'#262a40',side:T.BackSide,depthTest:false,depthWrite:false});rim.userData.outlineParameters={visible:false};
     const cone=new T.ConeGeometry(.22,.42,20).rotateX(Math.PI);this.marker=new T.Mesh(cone,m);this.marker.renderOrder=13;
     const shell=new T.Mesh(cone,rim);shell.scale.setScalar(1.16);shell.renderOrder=12;this.marker.add(shell);
-    this.marker.userData.noAO=true;this.marker.visible=false;g.root.add(this.marker);
+    this.marker.userData.noAO=true;this.marker.visible=false;seeOff(this.marker);g.root.add(this.marker);
     this.edge=document.createElement('div');this.edge.className='marker-edge';this.edge.hidden=true;layer.append(this.edge);
   }
   /** Steps latch once done so the list only ever moves forward. */

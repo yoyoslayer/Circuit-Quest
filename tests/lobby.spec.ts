@@ -18,15 +18,20 @@ test('the bare URL opens the HQ lobby: a door per job, and E at a door walks int
   expect(errors).toEqual([]);
 });
 
-test('the back wall between two doors is still solid: Pip cannot walk through it',async({page})=>{
+test('the back wall is open at each unlocked door and solid beside it and above it (collider probe)',async({page})=>{
   await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
   await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);
   const s=await snapshot(page);const door=s.hub.doors.find((d:{id:string})=>d.id==='arcade');
-  // 1.2 m beside the arcade door is past the post (the gap's edge is 0.84 m out), so it is wall.
-  const r=await page.evaluate(([x,z])=>(window as any).__circuitCrew.drive.walkTo(x,z,.1,40),[door.at.x+1.2,-9.75] as const);
-  expect(r.arrived).toBe(false);
-  expect(r.state.player.z).toBeGreaterThan(-9.7);
-  expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().level)).toBe('lobby');
+  // Pip is kept half a metre inside the room bounds, so walking cannot test the wall: cast rays at it instead.
+  // A ray from z -9 toward the back wall (inner face z -9.875) at waist height or lintel height.
+  const toi=(x:number,y:number)=>page.evaluate(([x,y])=>{const G=(window as any).__game;
+    const hit=G.world.castRay({origin:{x,y,z:-9},dir:{x:0,y:0,z:-1}},2,true,undefined,undefined,undefined,undefined,(c:any)=>!!c.parent()?.isFixed());
+    return hit?hit.timeOfImpact:-1;},[x,y] as const);
+  expect(await toi(door.at.x+1.2,1)).toBeCloseTo(.875,1);   // wall beside the door (the gap ends at 0.84 m)
+  expect(await toi(door.at.x,1)).toBe(-1);                  // the doorway itself is open
+  expect(await toi(door.at.x,2.7)).toBeCloseTo(.875,1);     // the lintel above it is solid
+  const locked=s.hub.doors.find((d:{locked:boolean})=>d.locked);
+  if(locked)expect(await toi(locked.at.x,1)).toBeCloseTo(.875,1); // a locked door keeps its wall
 });
 
 test('walking into an open door goes through it, with no E pressed',async({page})=>{

@@ -50,7 +50,7 @@ export const seeClip={x:.1,y:200};
   const test=`
 #ifndef SEE_OFF
   if(seeThrough.z>0.){
-    vec2 seeD=gl_FragCoord.xy-seeThrough.xy;seeD.y*=.8;float seeR=length(seeD)/seeThrough.z;
+    vec2 seeD=gl_FragCoord.xy-seeThrough.xy;seeD.y*=.55;float seeR=length(seeD)/seeThrough.z;
     if(seeR<1.){
       float seeZ=gl_FragCoord.z*2.-1.,seeV=2.*seeClip.x*seeClip.y/(seeClip.y+seeClip.x-seeZ*(seeClip.y-seeClip.x));
       vec2 seeN=gl_FragCoord.xy/seeProj.zw*2.-1.;vec3 seeP=vec3(seeN.x*seeV*seeProj.x,seeN.y*seeV*seeProj.y,-seeV);
@@ -157,7 +157,9 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
   // Ink outline (R5-375, DR-56): linear [.035,.037,.072] shows as about #34364c (luma ≤ 70), 2–3 px.
-  const effect = new OutlineEffect(renderer,{defaultThickness:.0055,defaultColor:[.035,.037,.072]});
+  // Thin ink (review 6): .0035 is about 2 px at 1080p. The old .0055 hull read as a dark glow round
+  // every model and threw fins off box corners that slid about with the camera. ?ink= overrides it for tuning.
+  const effect = new OutlineEffect(renderer,{defaultThickness:Number(params.get('ink')??.0035),defaultColor:[.035,.037,.072]});
   const scene = new T.Scene();
   const hemi = new T.HemisphereLight('#dbe6ff','#b08a6a',.7);const ambient=new T.AmbientLight('#fff4e6',.12);scene.add(hemi,ambient);
   const sun = new T.DirectionalLight('#ffe2b8',1.75); sun.position.set(-11,21,13); sun.castShadow=true;

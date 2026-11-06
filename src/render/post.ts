@@ -27,7 +27,7 @@ export function toonGTAO(scene:T.Scene,camera:T.Camera,width:number,height:numbe
   const pass=new GTAOPass(scene,camera,width,height),inner=pass as unknown as {_overrideVisibility:()=>void;_visibilityCache:T.Object3D[]};
   const base=inner._overrideVisibility.bind(pass);
   inner._overrideVisibility=()=>{base();scene.traverse(o=>{if(!o.visible)return;const m=(o as T.Mesh).material as T.Material|undefined;
-    if((o as T.Sprite).isSprite||o.userData.noAO||(m&&!Array.isArray(m)&&((m.transparent&&m.opacity<.99)||m.blending===T.AdditiveBlending||m.defines?.SEE_OFF!==undefined))||((o as T.Mesh).isMesh&&tiny(o))){o.visible=false;inner._visibilityCache.push(o);}});};
+    if((o as T.Sprite).isSprite||o.userData.noAO||(m&&!Array.isArray(m)&&((m.transparent&&m.opacity<.99)||m.blending===T.AdditiveBlending||(m.defines?.SEE_OFF!==undefined&&!m.userData.keepAO)))||((o as T.Mesh).isMesh&&tiny(o))){o.visible=false;inner._visibilityCache.push(o);}});};
   return pass;
 }
 /** Display-space grade: warm/cool split tone, saturation, contrast, vignette, fine grain. */

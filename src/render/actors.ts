@@ -19,7 +19,7 @@ export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965,se
         float s = smoothstep(specEdge, specEdge + .012, dot(normalize(normal), H));
         outgoingLight = mix(outgoingLight, vec3(1.,.98,.93) * max(1., length(outgoingLight)), s * specK); }
       #include <opaque_fragment>`);};
-  if(seeExempt)m.defines={...m.defines,SEE_OFF:''};
+  if(seeExempt){m.defines={...m.defines,SEE_OFF:''};m.userData.keepAO=true;}
   m.customProgramCacheKey=()=>(noRim?'glossyToon':'glossyToonRim')+spec+size+(seeExempt?'seeoff':'');glossy.set(key,m);return m;
 }
 /** HDR unlit colour for bloom (colour * k survives the 1.3 bloom threshold). */

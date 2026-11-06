@@ -871,7 +871,7 @@ export class Game {
   }
   /** A Lunch failure (food spoiled or tray burned): where it happened, once seen. */
   failAt?:Point;
-  winFocus(){const l=this.level;if(this.failAt)return new T.Vector3(this.failAt.x,1.3,this.failAt.z);if(this.station)return this.station.winFocus?.()??this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-8.6):new T.Vector3(l.target.x,1.5,l.target.z);}
+  winFocus(){const l=this.level;if(this.failAt)return new T.Vector3(this.failAt.x,1.3,this.failAt.z);if(this.station)return this.station.winFocus?.()??this.station.table.clone().add(new T.Vector3(0,.5,0));return l.id==='lunch'?new T.Vector3(12,2.2,-7):l.id==='meeting'?new T.Vector3(12.2,1.7,-10.6):new T.Vector3(l.target.x,1.5,l.target.z);}
 
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
   /** Feeds Pip's rig (src/render/pipRig.ts) with movement, poses and what to glance at. */

@@ -165,8 +165,10 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
     c.fillStyle='#ffe36e';c.beginPath();c.arc(210,60,24,0,7);c.fill();c.stroke();for(let k=0;k<8;k++){c.beginPath();c.moveTo(210+Math.cos(k*.8)*32,60+Math.sin(k*.8)*32);c.lineTo(210+Math.cos(k*.8)*42,60+Math.sin(k*.8)*42);c.stroke();}
     c.beginPath();c.moveTo(200,110);c.lineTo(210,86);c.stroke();}));
   const board=group(side,0,1.85,.16);part(board,box(1.9,1.3,.05),toon(INK));const face=new T.Mesh(new T.PlaneGeometry(1.8,1.2),toon('#ffffff',{map:howto}));face.position.z=.03;board.add(face);
-  // The graph poster hangs on the pier between the windows at x 5.0 and 8.2, not on the glass (R5-317).
-  wallArt(side,'bolt',-4,1.9,.16);wallArt(back,'graph',6.6,1.75,.18,0,.8);
+  // The graph poster hangs on the pier between two back windows, not on the glass (R5-317): the pier
+  // nearest x 6.6, found from the windows themselves so it follows the room's width.
+  const wx=windowXs(l.width),piers=wx.slice(1).map((x,i)=>(x+wx[i])/2),pier=piers.reduce((a,b)=>Math.abs(b-6.6)<Math.abs(a-6.6)?b:a,piers[0]??6.6);
+  wallArt(side,'bolt',-4,1.9,.16);wallArt(back,'graph',pier,1.75,.18,0,.8);
   // START: a taped square with a chevron where Pip begins, by the reel.
   const tape=toon('#ffc629');for(const [w,d,dx,dz] of [[1.8,.1,0,-.85],[1.8,.1,0,.85],[.1,1.8,-.85,0],[.1,1.8,.85,0]] as const)part(r,box(w,.012,d),tape,l.spawn.x+dx,.008,l.spawn.z+dz,false);
   for(const s of [-1,1]){const c=part(r,box(.55,.012,.12),tape,l.spawn.x+.25+s*0,.009,l.spawn.z+s*.18,false);c.rotation.y=s*.6;}

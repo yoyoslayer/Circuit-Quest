@@ -10,7 +10,7 @@ const beamLanes=[{points:[xz(TX),xz(SPOTS.A),[(HATCH.x0+HATCH.x1)/2,HATCH.z]] as
 // Spectrum Delivery: a bright research hall (30 × 20 m). The dispatch desk and the transmitter tower
 // stand front centre; the brick storeroom fills the back left corner, the shuttered glass lab the back
 // right, the copper-mesh quiet room the front right, with the smoky tea corner between. The receiver
-// pod waits on its dock by the entrance; two mirror boards stand by the exhibits case. The rooms' inner
+// pod waits on its dock by the entrance; two mirror boards stand mid-floor, in front of the exhibits case. The rooms' inner
 // walls (the ones a beam meets) keep their places, so the deliveries are the same; the rooms run on to
 // the hall's walls. Geometry lives in stations/spectrum/logic.
 const props:PropSpec[]=[

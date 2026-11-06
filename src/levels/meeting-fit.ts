@@ -54,9 +54,7 @@ export function fitMeetingRoom(game:Game){
     game.beam.position.copy(from).lerp(to,.5);game.beam.scale.set(1,1,len/5.1);game.beam.lookAt(to);}
   // The win's screen light and its floor pool land in front of the moved screen.
   const lightUp=game.lightUp;if(lightUp)game.lightUp=()=>{const before=new Set(root.children);lightUp();for(const o of root.children)if(!before.has(o)&&o.position.z< -8)o.position.z-=2;};
-  // The win shot frames the lit screen: its focus (game.ts winFocus, laid out against the old screen) steps
-  // back with it. A failure or a station keeps its own focus.
-  const winFocus=game.winFocus.bind(game);game.winFocus=()=>{const f=winFocus();if(!game.failAt&&!game.station)f.z-=2;return f;};
+  // The win shot's focus on the lit screen is in game.ts winFocus (z -10.6, the screen's new place).
   // A window now lands where the deadline clock hung: move it onto the pier between the windows at
   // x -6.2 and -3.0.
   const clock=game.clock?.face.parent;if(clock)clock.position.x=-4.6;

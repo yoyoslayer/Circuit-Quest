@@ -72,7 +72,7 @@ export class Lobby {
     pendant(g.root,-3.4,.4,{y:2.8,color:'#5ED6CC'});pendant(g.root,3.4,.4,{y:2.8,color:'#5ED6CC',light:false});lampPool(g.root,0,.4,4.6,.16);
     // Benches, plants and a water cooler around the ring.
     // The right bench (x 4.2-6.2) stays clear of the Workshop arch's left post (x 6.35).
-    for(const [x,z,ry] of [[-5.2,4,0],[5.2,4,0]] as const){const b=group(r,x,0,z,ry);part(b,rbox(2,.12,.6,.05),toon('#c98a55'),0,.46,0);for(const s of [-.8,.8])part(b,box(.1,.44,.5),toon(INK),s,.22,0);solid(g,2,.5,.6,x,.25,z);}
+    for(const [x,z,ry] of [[-4.8,4,0],[4.8,4,0]] as const){const b=group(r,x,0,z,ry);part(b,rbox(2,.12,.6,.05),toon('#c98a55'),0,.46,0);for(const s of [-.8,.8])part(b,box(.1,.44,.5),toon(INK),s,.22,0);solid(g,2,.5,.6,x,.25,z);}
     // Side-wall local x is -world z: a poster mid-wall, the crew café's cork board over its counter, a poster by the front.
     wallArt(kit.side,'bolt',1,1.9,.16,0,.8);wallArt(kit.side,'cork',-6.6,2.15,.16,0,.8);wallArt(kit.side,'mountain',-(D-1.6),1.9,.16,0,.8);
     // The Workshop arch, free-standing on the right of the atrium.

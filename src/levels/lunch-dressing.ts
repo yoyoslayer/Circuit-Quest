@@ -28,7 +28,9 @@ function shifts(game:Game):Shift[]{
     // The café table, its chairs and rug, and the floor lamp in the front-right corner.
     {minX:11.5,maxX:16.5,minZ:6.2,maxZ:10,dx:ex,dz:ez},
     // The potted plants by the right-hand edge (x 15.6-15.8).
-    {minX:15.2,maxX:16.5,minZ:-2,maxZ:5.6,dx:ex,dz:0}];
+    {minX:15.2,maxX:16.5,minZ:-2,maxZ:5.6,dx:ex,dz:0},
+    // The two cardboard box stacks by the front edge (decor.ts, at x -8.9 and 7.8, z ~9.1).
+    {minX:-9.4,maxX:-8.4,minZ:8.6,maxZ:9.7,dx:0,dz:ez},{minX:7.3,maxX:8.3,minZ:8.6,maxZ:9.8,dx:0,dz:ez}];
 }
 const inside=(s:Shift,x:number,z:number)=>x>=s.minX&&x<=s.maxX&&z>=s.minZ&&z<=s.maxZ;
 

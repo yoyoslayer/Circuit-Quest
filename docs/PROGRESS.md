@@ -13,7 +13,7 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M4 Juice | Done | Sounds, particles, shake, squash/stretch, coworker reactions |
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
-Verification on the last commit: `npm run build` and `npm test` (142 unit tests) pass,
+Verification on the last commit (2026-11-06): tsc, `npm test` (199 unit tests) and the full browser suite (93 tests) pass.
 and `npm run smoke` passes (see below for the latest browser-suite count). Browser tests run twice in a row with
 identical results (simulation is deterministic in `?manual` mode).
 
@@ -461,7 +461,20 @@ What a player notices:
   - Rush runs don't count as best times.
   - The lobby card is pre-ticked.
   - Return doors no longer go stale.
-- **Bigger rooms:** see the next section.
+- **Bigger rooms** (`mockups/review6/ROOMS_BRIEF.md`). The job layouts stayed where they were. Wall pieces, sockets and
+  cable routes moved out with the walls. The new floor went to wider aisles (lanes r ≥ 1.1) and new set pieces,
+  and prop density went down. Time pars went up where the walk grew.
+
+  | Room | Before (m) | Now (m) |
+  |---|---|---|
+  | Five station rooms | 22 × 16 | 30 × 20 |
+  | Playground | 20 × 20 | 26 × 20 |
+  | Meeting and Lunch | 33 × 20 | 36 × 24 |
+  | Lobby | 30 × 20 | 34 × 24 |
+
+  Tech debt: the shared room builder (`src/levels/decor.ts`) still places Meeting's and Lunch's dressing for the
+  old shells. `src/levels/meeting-fit.ts` and `src/levels/lunch-dressing.ts` move those pieces out after they are
+  built. Folding those moves into decor.ts (so it uses W and D) would remove both files.
 
 Open questions for the product owner:
 - **Roofs.** Rooms are open-topped dioramas so the orbit and survey cameras can see in. A ceiling would hide the

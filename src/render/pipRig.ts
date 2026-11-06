@@ -16,6 +16,8 @@ export interface PipState {
   lookAt?:T.Vector3;
 }
 type Joint=T.Group;
+/** How long Pip has to stand still after a run before it reads as a hard stop (s): longer than a render frame with no physics step. */
+const STOP_HOLD=.04;
 const ease=(j:T.Object3D,x:number,y:number,z:number,k:number)=>{j.rotation.x+=(x-j.rotation.x)*k;j.rotation.y+=(y-j.rotation.y)*k;j.rotation.z+=(z-j.rotation.z)*k;};
 
 export class PipRig {
@@ -27,7 +29,9 @@ export class PipRig {
   private phase=0;private blinkAt=2;private idleTime=0;private idleLook=0;private hatTilt=new T.Vector2();private hatVel=new T.Vector2();private lastSpeed=0;private spd=0;private sway=0;
   private eyes:T.Object3D[]=[];private glints:T.Object3D[]=[];private eyeScale=1;private mouth?:T.Object3D;private face=new T.Vector2(1,1);
   private wasAir=false;private wasBumped=false;private wasFailed=false;private wasWon=false;
-  private previousCarry:PipState['carrying']='none';private previousPlug=false;private lastRawSpeed=0;
+  private previousCarry:PipState['carrying']='none';private previousPlug=false;private sinceFast=9;private stillFor=0;
+  /** Pip is mid-stumble (a bump or a hard stop), for tests. */
+  get stumbling(){return this.bumpAge<.45;}
   private landingAge=2;private pickupAge=2;private bumpAge=2;private failureAge=2;private celebrationAge=2;
   constructor(private model:T.Object3D){
     model.updateMatrixWorld(true);
@@ -65,7 +69,10 @@ export class PipRig {
     if(this.wasAir&&!air)this.landingAge=0;this.wasAir=air;
     if((s.carrying!=='none'&&this.previousCarry==='none')||(s.holdingPlug&&!this.previousPlug))this.pickupAge=0;
     this.previousCarry=s.carrying;this.previousPlug=s.holdingPlug;
-    const hardStop=this.lastRawSpeed>4.5&&s.speed<.4&&s.grounded;this.lastRawSpeed=s.speed;
+    // A hard stop is a run that drops to standing and stays there for 40 ms (render-1): one render frame that
+    // ran no physics step (most of them on a high-refresh screen, or a hitstop) reads 0 and must not stumble.
+    if(dt>0){this.sinceFast=s.speed>4.5?0:this.sinceFast+dt;this.stillFor=s.speed<.4?this.stillFor+dt:0;}
+    const hardStop=dt>0&&s.grounded&&this.stillFor>=STOP_HOLD&&this.stillFor-dt<STOP_HOLD&&this.sinceFast<=this.stillFor+.1;
     if((s.bumped&&!this.wasBumped)||hardStop)this.bumpAge=0;this.wasBumped=!!s.bumped;
     if(s.failed&&!this.wasFailed)this.failureAge=0;this.wasFailed=!!s.failed;
     if(winning&&!this.wasWon)this.celebrationAge=0;this.wasWon=winning;

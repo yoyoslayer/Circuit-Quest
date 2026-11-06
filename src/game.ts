@@ -74,7 +74,7 @@ const BENCH_FILL=Number(new URLSearchParams(location.search).get('benchfill')??.
 export class Game {
   view=createRenderer(document.querySelector('canvas')!);
   world=new RAPIER.World({x:0,y:-18,z:0});
-  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];switchedOn=false;flung=false;lastHeading=0;twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:PipRig;stride=0;lastPos=new T.Vector3();profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
+  props:Prop[]=[];obstacles:Obstacle[]=[];occluders:T.Mesh[]=[];npcs:Npc[]=[];fx:Particles;squash=0;airborne=0;padHeld:boolean[]=[];switchedOn=false;flung=false;lastHeading=0;twang=new T.Group();hitstop=0;slowAvg=1/60;qualityTimer=0;hand=new T.Group();pulses!:Pulses;lastVoice=-9;wrapped=new Set<Prop>();rig?:PipRig;stride=0;profile={step:0,render:0,draw:0};stuck=new Map<Prop,number>();
   player:RAPIER.RigidBody;playerCollider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;
   avatar=new T.Group();rope:Rope;ropePoints:Point[]=[];ropeMesh:T.Mesh;plug:T.Group;target:T.Mesh;screen?:T.Mesh;beam?:T.Object3D;lightUp?:()=>void;clock?:Decor['clock'];
   /** Playground lamp (R5-031/067): the decor's switch lever, pilots and lamp, and how long the lamp has been lit. */
@@ -269,16 +269,28 @@ export class Game {
     const pinch=()=>{const [a,b]=[...touches.values()];return a&&b?Math.hypot(a.x-b.x,a.y-b.y):0;};
     const touchUp=(e:PointerEvent)=>{const t=touches.get(e.pointerId);if(!t)return false;touches.delete(e.pointerId);
       if(e.type==='pointerup'&&touches.size===0&&Math.hypot(e.clientX-t.sx,e.clientY-t.sy)<10&&performance.now()-t.t<280&&this.running)this.action('grab');return true;};
-    canvas.addEventListener('pointercancel',touchUp);
-    canvas.addEventListener('pointerdown',e=>{this.audio.start();if(this.atBench&&e.button===0&&this.running&&!this.paused&&!this.won){benchPointer('down',e);return;}
-      if(e.pointerType==='touch'){touches.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()});canvas.setPointerCapture(e.pointerId);return;}
-      if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
-    canvas.addEventListener('pointerup',e=>{this.orbit=false;if(touchUp(e))return;if(this.atBench&&e.button===0)benchPointer('up',e);});
+    // Mouse buttons come from e.buttons (1 left, 2 right): a second button pressed or released while one is
+    // held arrives only as a pointermove, so pointerdown/up per button would miss it (game-a-06). The pointer
+    // is captured while any button is down, so a release off the canvas still ends a bench drag (game-a-08).
+    let mouse=0;
+    const mouseButtons=(e:PointerEvent,now=e.buttons&3)=>{const was=mouse;mouse=now;if(now===was)return;const at=(kind:'down'|'up')=>this.benchPointerAt(kind,e.clientX,e.clientY,0);
+      if(now&2&&!(was&2)){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;}else if(!(now&2)&&was&2)this.orbit=false;
+      if(now&1&&!(was&1)){if(this.atBench&&this.running&&!this.paused&&!this.won)at('down');else if(this.running)this.action('grab');}
+      else if(!(now&1)&&was&1&&this.atBench)at('up');
+      if(now&&!was)try{canvas.setPointerCapture(e.pointerId);}catch{/* pointer already gone */}};
+    canvas.addEventListener('pointercancel',e=>{if(!touchUp(e)&&e.pointerType!=='touch')mouseButtons(e,0);});
+    canvas.addEventListener('lostpointercapture',e=>{if(e.pointerType!=='touch')mouseButtons(e,0);});
+    canvas.addEventListener('pointerdown',e=>{this.audio.start();
+      if(e.pointerType==='touch'){if(this.atBench&&e.button===0&&this.running&&!this.paused&&!this.won){benchPointer('down',e);return;}
+        touches.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()});canvas.setPointerCapture(e.pointerId);return;}
+      mouseButtons(e);});
+    canvas.addEventListener('pointerup',e=>{if(touchUp(e))return;if(e.pointerType==='touch'){if(this.atBench&&e.button===0)benchPointer('up',e);return;}mouseButtons(e);});
     canvas.addEventListener('pointermove',e=>{const t=touches.get(e.pointerId);
       if(t){const before=pinch(),dx=e.clientX-t.x,dy=e.clientY-t.y;t.x=e.clientX;t.y=e.clientY;
         if(touches.size>=2){const after=pinch();this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom-(after-before)*.05,9,38);}
         else{this.yaw-=dx*.006;this.pitch=T.MathUtils.clamp(this.pitch+dy*.004,-.3,.45);}
         return;}
+      if(e.pointerType!=='touch')mouseButtons(e);
       if(this.atBench&&!this.orbit)benchPointer('move',e);if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
     canvas.addEventListener('wheel',e=>{if(this.atBench)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
@@ -295,7 +307,10 @@ export class Game {
   pollPad(dt=1/60){const pad=navigator.getGamepads?.()[0];if(!pad)return;
     const bench=this.atBench&&this.running&&!this.paused&&!this.won;if(bench)this.padBench(pad,dt);
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
-      if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
+      if(!this.running){if(i===0||i===9)this.begin();return;}
+      // After the job, A (also Jump, and the bench's mouse button, so often still being mashed) only acts once
+      // the result or fail card is up, and restarts through the UI so the reload goes straight back in (ui-1).
+      if(this.won){const ui=gameUI(this);if(i===0&&(ui?.screen==='result'||ui?.screen==='fail'))ui.restart();return;}
       if(this.menu){this.hub?.padPicker(i);return;}
       // At a bench: A clicks through the cursor (padBench), Y presses the bench's main key, B stands up.
       if(bench){if(i===1)this.leaveBench();else if(i===3)this.station!.key('Enter');else if(i===9)this.action('pause');return;}
@@ -320,7 +335,11 @@ export class Game {
     ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-((clientY-r.top)/r.height)*2+1),this.view.camera);this.station.pointer({kind,ray,button});
   }
   togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.audio.paused(this.paused);document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);this.audio.strain(0);}
-  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&p.spec.kind!=='glass'&&!p.spec.id?.startsWith('pin-')&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
+  /** Props that sit fixed until picked up and may be picked up from there: the doorstop, the Meeting strip and
+   *  second reel, and the Spectrum pod and mirrors on their pads. Any other fixed or kinematic body (an item a
+   *  station has taken, the robot on its stand, the tray on the belt) can't be grabbed (game-a-03). */
+  regrabbable(p:Prop){const id=p.spec.id;return p.body.isDynamic()||id==='wedge'||id==='strip'||id==='extension'||id==='pod'||!!id?.startsWith('mirror');}
+  nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&p.spec.kind!=='glass'&&this.regrabbable(p)&&!p.spec.id?.startsWith('pin-')&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. The
    *  Meeting mail cart only carries the job's reel, so the reel on it wins over the cart. */
   /** Grab preference (R5-170): the item the job card's marker points at wins by 2.5 m, other job items by
@@ -346,7 +365,7 @@ export class Game {
       p.body.setLinvel({x:0,y:0,z:0},true);p.body.setAngvel({x:0,y:0,z:0},true);
       this.lunch?.dropped(p);this.station?.dropped?.(p);
       if(p.spec.id==='strip'&&distance(pos,this.level.target)<2.6){const t=this.level.target;p.body.setTranslation({x:t.x,y:.08,z:t.z+.3},true);p.body.setRotation(new T.Quaternion(),true);p.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);this.audio.plug();this.burst({x:t.x,y:.2,z:t.z+.3},'#8ff3ea',1,'ring');}
-      this.held=undefined;return;
+      this.putDown(p);return;
     }
     // Big Meeting's strip: unplug an appliance, or reset the strip's tripped breaker (E).
     if(!cableOnly&&!this.held&&!this.holdingPlug&&this.strip?.interact(pos))return;
@@ -372,13 +391,23 @@ export class Game {
    *  or the robot swings it past him instead of leaving it stuck behind him. */
   private heldProp?:Prop;
   get held(){return this.heldProp;}
-  set held(p:Prop|undefined){if(this.heldProp===p)return;const set=(q:Prop,g:number)=>{for(let i=0;i<q.body.numColliders();i++)q.body.collider(i).setCollisionGroups(g);};
-    if(this.heldProp)set(this.heldProp,ALL_GROUPS);this.heldProp=p;if(p&&this.isCart(p))set(p,HELD_GROUPS);}
+  set held(p:Prop|undefined){if(this.heldProp===p)return;
+    // Its carry speed is not an impact: a put-down (or a snap into place) at a sprint is not a crash (game-a-07).
+    if(this.heldProp){this.groups(this.heldProp,ALL_GROUPS);this.heldProp.lastSpeed=0;}if(p&&p===this.released?.p){this.groups(p,ALL_GROUPS);this.released=undefined;}
+    this.heldProp=p;if(p&&this.isCart(p))this.groups(p,HELD_GROUPS);}
+  private groups(q:Prop,g:number){for(let i=0;i<q.body.numColliders();i++)q.body.collider(i).setCollisionGroups(g);}
+  /** A prop just put down (game-a-01): it overlaps Pip, so until it is clear of him neither his controller nor his
+   *  capsule touches it, or the push resolving the overlap would launch it faster than a throw. */
+  private released?:{p:Prop;until:number};
+  private putDown(p:Prop){this.held=undefined;if(this.released)this.groups(this.released.p,ALL_GROUPS);this.groups(p,HELD_GROUPS);this.released={p,until:this.time+.3};}
+  private passThrough(c:RAPIER.Collider){const h=c.parent()?.handle;return h!==undefined&&(h===this.held?.body.handle||h===this.released?.p.body.handle);}
+  private clearReleased(p:Point){const r=this.released;if(!r)return;const q=r.p.body.translation(),[w,,d]=prefabs[r.p.spec.kind].size;
+    if(this.time>r.until+2||!r.p.body.isEnabled()||(this.time>r.until&&Math.hypot(q.x-p.x,q.z-p.z)>.37+Math.hypot(w,d)/2)){this.groups(r.p,ALL_GROUPS);this.released=undefined;}}
   /** Sends a stuck or fallen prop home with a puff where it was (clamped inside the room) and at home;
    *  a job item also gets a pop and a rising tone, so the player sees where it went (R5-326). */
   respawn(prop:Prop){const q=prop.body.translation(),w=this.level.width/2-.3,d=this.level.depth/2-.3;
     this.burst({x:T.MathUtils.clamp(q.x,-w,w),y:Math.max(.1,Math.min(q.y,2.4)),z:T.MathUtils.clamp(q.z,-d,d)},'#fffaf0',6,'dust');
-    prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);prop.body.setAngvel({x:0,y:0,z:0},true);this.burst(prop.home,'#fffaf0',6,'dust');
+    prop.body.setTranslation(prop.home,true);prop.body.setLinvel({x:0,y:0,z:0},true);prop.body.setAngvel({x:0,y:0,z:0},true);prop.lastSpeed=0;this.burst(prop.home,'#fffaf0',6,'dust');
     if(prop.spec.id){this.audio.pop();this.audio.tone(520,.12,.04,'triangle');setTimeout(()=>this.audio.tone(780,.1,.035,'triangle'),90);}}
   thrownAt=-9;releasedAt=-9;
   /** A job item thrown in a station room: once it comes to rest it is offered to the bench like a
@@ -442,7 +471,7 @@ export class Game {
     const pip=this.player.translation(),strip=this.needsStrip()&&!this.stripPlaced()?this.props.find(q=>q.spec.id==='strip'&&q!==this.held):undefined;
     const from=strip?{x:pip.x,z:pip.z}:{x:this.plugPosition.x,z:this.plugPosition.z},to=strip?{x:strip.body.translation().x,z:strip.body.translation().z}:this.level.target;
     const lane=strip?undefined:this.level.clutter?.lanes?.find(l=>{const e=l.points[l.points.length-1];return distance({x:e[0],z:e[1]},to)<1.5;});
-    if(lane){const pts=lane.points.map(([x,z])=>({x,z}));let k=0;pts.forEach((q,i)=>{if(distance(q,from)<distance(pts[k],from))k=i;});return [from,...pts.slice(k+1)];}
+    if(lane){const pts=lane.points.map(([x,z])=>({x,z}));let k=0;pts.forEach((q,i)=>{if(distance(q,from)<distance(pts[k],from))k=i;});return [from,...pts.slice(k+1),to];}
     const heavy=this.props.filter(q=>q.mesh.visible&&q!==this.held&&prefabs[q.spec.kind].mass>=3&&segmentDistance(q.body.translation(),from,to)<2).slice(0,30).map(q=>{const t=q.body.translation(),[w,,d]=prefabs[q.spec.kind].size,h=Math.max(w,d)/2+.05;return {id:'hint',minX:t.x-h,maxX:t.x+h,minZ:t.z-h,maxZ:t.z+h};})
       .filter(o=>!(from.x>o.minX&&from.x<o.maxX&&from.z>o.minZ&&from.z<o.maxZ)&&!(to.x>o.minX&&to.x<o.maxX&&to.z>o.minZ&&to.z<o.maxZ));
     return detour(from,to,[...this.obstacles,...heavy]);
@@ -454,7 +483,7 @@ export class Game {
   stripPlaced(){const q=this.props.find(q=>q.spec.id==='strip');return !q||(q!==this.held&&distance(q.body.translation(),this.level.target)<1.4&&q.body.translation().y<.6);}
   /** Plug-in beat: a short hit-stop, a star flash, sparks and a floor shockwave. */
   plugFlash(at:{x:number;y:number;z:number}){this.freeze(.09);this.cheerNear(at);this.beat('spark');this.burst(at,'#fff3a3',16,'spark');this.burst({x:at.x,y:at.y+.35,z:at.z},'#fff3c8',1,'flash');this.burst({x:at.x,y:.05,z:at.z},'#8ff3ea',1,'ring');this.burst(at,'#ffe36e',5,'star');this.shake=Math.max(this.shake,.12);}
-  consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);}
+  consume(p:Prop){p.mesh.visible=false;p.body.setEnabled(false);p.lastSpeed=0;}
   private knocked=new Map<Prop,number>();
   /** Impact dust: a small puff at the floor, nudged away from coworkers so it never hides the startle (R5-327). */
   impactDust(pos:Point&{y?:number}){const at={x:pos.x,y:.1,z:pos.z};for(const n of this.npcs){const d=distance(n.group.position,at);if(d<1){const k=(1-d)*.5/Math.max(d,.05);at.x+=(at.x-n.group.position.x)*k;at.z+=(at.z-n.group.position.z)*k;}}
@@ -485,7 +514,10 @@ export class Game {
   /** Forgiving plug-in (AGENTS 7): close enough to the socket and not overstretched seats the plug. */
   canSeat(){const pos=this.player.translation();return Math.min(distance(pos,this.level.target)-.6,distance(this.plugPosition,this.level.target))<1.6&&this.rope.strain<1.12;}
   /** Where a seated plug sits: the Meeting strip's inlet (R5-030), the Playground socket's face plate (R5-152), or the socket. */
-  seatAt(){return this.strip&&this.stripPlaced()?this.strip.seatAt():this.pg?.seat.clone()??new T.Vector3(this.level.target.x,.28,this.level.target.z);}
+  /** Before the Meeting strip is set down, the plug waits on the floor where its inlet will be (game-a-05). */
+  seatAt(){return this.strip?this.strip.seatAt():this.pg?.seat.clone()??new T.Vector3(this.level.target.x,.28,this.level.target.z);}
+  /** The plug went into the Meeting strip while it stood at the door (so lifting the strip pulls it out). */
+  private stripSeated=false;
   seat(){return this.seatAt();}
   trySeat(){
     if(!this.holdingPlug||!this.canSeat())return false;
@@ -581,7 +613,9 @@ export class Game {
   }
   /** Where a held plug is drawn: Pip's right glove (gameplay keeps using plugPosition). */
   handPosition(){return this.rig?this.hand.getWorldPosition(new T.Vector3()):this.plugPosition.clone();}
-  drawCable(){
+  /** Strain beats (0.7 s of sim time) already flinched coworkers along a red-hot cable. */
+  private strainBeat=-1;
+  drawCable(dt=0){
     // The spool: wound cross-section is proportional to the length still on it.
     if(this.spool){const left=this.coffeeReused?1:Math.max(0,1-this.rope.length/this.rope.maxLength),r=Math.sqrt(.07*.07+(.31*.31-.07*.07)*left);this.spool.scale.set(r,r,1);}
     const end=this.holdingPlug?this.handPosition():this.plugPosition.clone();this.plug.position.copy(end);
@@ -593,11 +627,13 @@ export class Game {
         let dx=q.x-pip.x,dz=q.z-pip.z;const d=Math.hypot(dx,dz);if(d>=R)continue;if(d<1e-3){dx=-Math.sin(this.heading);dz=-Math.cos(this.heading);}else{dx/=d;dz/=d;}q.x=pip.x+dx*R;q.z=pip.z+dz*R;}}
     // Near its limit the cable buzzes: it jitters, sparks and twangs at the corner it is biting,
     // and coworkers along it flinch.
-    const bite=this.rope.bends.at(-1),frantic=this.holdingPlug&&this.rope.strain>.97;
+    const bite=this.rope.bends.at(-1),frantic=this.holdingPlug&&this.rope.strain>.97,playing=this.running&&!this.paused&&!this.won;
     if(frantic)for(let i=1;i<points.length-1;i++){points[i].x+=(Math.random()-.5)*.04;points[i].z+=(Math.random()-.5)*.04;}
     this.twang.visible=frantic&&!!bite;if(frantic&&bite){this.twang.position.set(bite.x,.25,bite.z);this.twang.rotation.y=this.last*.02;this.twang.scale.setScalar(1+Math.sin(this.last*.05)*.15);
-      if(Math.random()<.12)this.burst({x:bite.x,y:.2,z:bite.z},'#fff3a3',3,'spark');}
-    if(this.holdingPlug&&this.rope.strain>.9&&Math.floor(this.last/700)!==Math.floor((this.last-16)/700))for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];this.alarm({x:(a.x+b.x)/2,z:(a.z+b.z)/2},2.2);}
+      // Sparks at about 7.7 a second whatever the refresh rate, and none behind the pause menu (game-b-8).
+      if(playing&&Math.random()<1-Math.exp(-7.7*dt))this.burst({x:bite.x,y:.2,z:bite.z},'#fff3a3',3,'spark');}
+    // Coworkers along it flinch once per 0.7 s of play (sim time, so it holds while paused).
+    const beat=Math.floor(this.time/.7);if(playing&&this.holdingPlug&&this.rope.strain>.9&&beat!==this.strainBeat){this.strainBeat=beat;for(let i=1;i<this.ropePoints.length;i++){const a=this.ropePoints[i-1],b=this.ropePoints[i];this.alarm({x:(a.x+b.x)/2,z:(a.z+b.z)/2},2.2);}}
     // The hero cable: strain builds from the reel toward Pip's hand; gold once it is plugged in,
     // with current pulses flowing to the load.
     // Pulses mean current, and only that (R5-040): they run whenever the supply carries any (in the
@@ -620,18 +656,20 @@ export class Game {
     if(this.stick){x+=this.stick.x;z+=this.stick.z;}
     if(this.menu){x=0;z=0;}
     if(this.atBench){x=0;z=0;this.heading=this.station!.facing;}
-    const pad=navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
+    // The pad's sticks walk and orbit only on the floor: at a bench the left stick is the bench cursor, and
+    // the lobby picker's modal reads the pad itself (game-a-02).
+    const pad=this.menu||this.atBench?undefined:navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
     const move=new T.Vector3(x,0,z);if(move.length()>1)move.normalize();move.applyAxisAngle(new T.Vector3(0,1,0),this.yaw);
     if(move.length()>.1)this.heading=Math.atan2(move.x,move.z);
     let speed=this.keys.has('ShiftLeft')?6.8:4.2;if(this.held)speed/=1+prefabs[this.held.spec.kind].mass/25;if(this.lunch?.held?.cable.rating===10)speed*=.65;
     const pull=this.lunch?this.lunch.pull():this.holdingPlug?this.rope.pull(p):{x:0,z:0};
-    this.vertical=Math.max(-20,this.vertical-18*dt);
-    this.controller.computeColliderMovement(this.playerCollider,{x:(move.x*speed+pull.x)*dt,y:this.vertical*dt,z:(move.z*speed+pull.z)*dt},undefined,undefined,c=>!this.held||c.parent()?.handle!==this.held.body.handle);
+    this.vertical=Math.max(-20,this.vertical-18*dt);this.clearReleased(p);
+    this.controller.computeColliderMovement(this.playerCollider,{x:(move.x*speed+pull.x)*dt,y:this.vertical*dt,z:(move.z*speed+pull.z)*dt},undefined,undefined,c=>!this.passThrough(c));
     const delta=this.controller.computedMovement(),wasGrounded=this.grounded;this.grounded=this.controller.computedGrounded();
     if(this.grounded&&!wasGrounded&&this.airborne>.25){this.squash=Math.min(1,this.airborne*1.4);this.burst({x:p.x,y:.1,z:p.z},'#d9d2c3',5,'dust');this.audio.thud(3);}
     this.airborne=this.grounded?0:this.airborne+dt;if(this.grounded&&this.vertical<0)this.vertical=-.1;
     // Sprinting kicks up a small puff behind each footfall, alternating feet.
-    const pace=Math.hypot(delta.x,delta.z)/Math.max(dt,1e-3);
+    const pace=Math.hypot(delta.x,delta.z)/Math.max(dt,1e-3);this.pace=pace;
     if(this.grounded&&pace>5.5&&!this.atBench){this.stepT+=dt;if(this.stepT>.19){this.stepT=0;this.stepSide=-this.stepSide;const hx=Math.sin(this.heading),hz=Math.cos(this.heading);
       this.burst({x:p.x-hx*.25+hz*.13*this.stepSide,y:.06,z:p.z-hz*.25-hx*.13*this.stepSide},'#e6dfd2',1,'dust');}}else this.stepT=.12;
     this.player.setNextKinematicTranslation({x:T.MathUtils.clamp(p.x+delta.x,-this.level.width/2+.5,this.level.width/2-.5),y:p.y+delta.y,z:T.MathUtils.clamp(p.z+delta.z,-this.level.depth/2+.5,this.level.depth/2-.5)});
@@ -667,7 +705,12 @@ export class Game {
     // All six pins down: a strike.
     if(this.level.id==='playground')this.trackPins();
     if(this.level.id==='playground'&&!this.pinsCheered&&Math.floor(this.time*4)!==Math.floor((this.time-dt)*4)&&this.pinsDown()>=6){this.pinsCheered=true;this.audio.milestone();this.freeze(.06);this.burst({x:5,y:1.5,z:5.3},'#ffcf52',40,'confetti');}
-    if(this.lunch){this.lunch.step(dt);this.lunchWarnings(dt);}else if(this.station){if(this.cabled)this.stepLead(dt);this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);this.simulateCable();this.strip?.step(dt);this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);
+    if(this.lunch){this.lunch.step(dt);this.lunchWarnings(dt);}else if(this.station){if(this.cabled)this.stepLead(dt);this.station.update(dt);if(this.station.complete()&&!this.won)this.win();}else if(this.hub)this.hub.update(dt);else{this.stepRecoil(dt);
+      // A plug seated in the Meeting strip rides its inlet (one plugged in at the door first moves in once the
+      // strip is set there); once the strip is lifted or knocked off its spot the plug is out, lying where the inlet was (game-a-05).
+      if(this.strip){if(!this.connected)this.stripSeated=false;else if(this.stripPlaced()){this.plugPosition.copy(this.seatAt());this.stripSeated=true;}
+        else if(this.stripSeated){this.connected=false;this.stripSeated=false;this.plugPosition.y=.22;this.audio.tone(180,.25,.05,'triangle');}}
+      this.simulateCable();this.strip?.step(dt);this.circuit.leads[0].closed=this.connected&&this.stripPlaced();this.circuit.loads[0].enabled=!this.level.switchAt||this.switchedOn;this.circuit.tick(dt);
       // The lamp/projector follows the circuit. The Playground lets the lamp burn 1.2 s before the win (R5-067);
       // a Meeting projector on an overloaded strip only runs until its breaker trips, so it doesn't count (R5-041).
       this.lampLit=this.circuit.loads[0].state==='on';this.litFor=this.lampLit?this.litFor+dt:0;if(this.lampLit&&!this.won&&!this.strip?.overloaded&&this.litFor>=(this.pg?1.2:0))this.win();}
@@ -679,6 +722,8 @@ export class Game {
     else if(j.temperature>=.7&&this.fridgeT<=0){this.fridgeT=4;this.audio.fridgeWarn(false);}}
   /** The Lunch job failed (lunch-runtime sets won): a held, coral beat at the fridge or oven, and the camera goes there. */
   private lunchFailed(){const j=this.lunch!.job,burned=j.tray==='burned',at=burned?LUNCH_OVEN:LUNCH_FRIDGE;this.failAt=at;this.winShot=undefined;
+    // Stamped here too, so the camera's 1.6 s swing onto the fail shot runs in real play, not just under ?manual (game-b-4).
+    this.winAt=performance.now();
     this.audio.fail(burned?'burn':'spoil');this.audio.strain(0);this.freeze(.15);this.flash('#ff7a6b',.3);this.beat('fail');
     this.burst({x:at.x,y:1.4,z:at.z},'#fff3c8',1,'flash');for(let k=0;k<8;k++){const a=k/8*Math.PI*2;this.burst({x:at.x+Math.cos(a)*.6,y:.1,z:at.z+Math.sin(a)*.6},'#e9e4d6',1,'dust');}}
   win(){this.won=true;this.winAt=performance.now();this.survey=false;this.winShot=undefined;this.audio.win();this.audio.strain(0);if(this.lightUp)this.lightUp();else if(this.screen){(this.screen.material as T.MeshToonMaterial)=toon('#f9df88',{emissive:'#ffd76a',ei:.5});}if(this.beam)this.beam.visible=true;
@@ -738,7 +783,7 @@ export class Game {
         const hit=this.world.castRay(new RAPIER.Ray({x:o.x,y:o.y,z:o.z},{x:u.x,y:u.y,z:u.z}),len,true,undefined,undefined,undefined,undefined,c=>!this.cameraIgnore.has(c.handle)&&!!c.parent()?.isFixed());
         if(hit&&hit.timeOfImpact>1.2&&hit.timeOfImpact<len)wanted.copy(o).addScaledVector(u,hit.timeOfImpact-.25);}}
     wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
-    cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
+    cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=Math.exp(-dt*6.3);
     // Cutaway: a shell wall drops to a 0.9 m stub once the camera is outside its plane (or within
     // 0.6 m inside it). The signed distance to the plane works at corners and diagonal orbits, where
     // the direction to the wall's centre did not. Frame-rate independent.
@@ -827,8 +872,11 @@ export class Game {
   /** Procedural walk cycle: legs and arms swing with ground speed; arms reach forward to carry or hold a plug. */
   /** Feeds Pip's rig (src/render/pipRig.ts) with movement, poses and what to glance at. */
   pipSpeed=0;
+  /** Pip's ground speed from the last physics step's controller move (m/s). Rendered frames that run no step
+   *  (most of them on a 120-144 Hz screen) keep it instead of reading 0 and then 2.4x (game-b-5). */
+  pace=0;
   animateRig(dt:number){
-    if(!this.rig)return;const p=this.player.translation(),speed=dt>0?Math.min(9,Math.hypot(p.x-this.lastPos.x,p.z-this.lastPos.z)/dt):0;this.lastPos.set(p.x,p.y,p.z);
+    if(!this.rig)return;const p=this.player.translation(),speed=this.running&&!this.paused&&!this.won&&!this.atBench?Math.min(9,this.pace):0;
     const lastStride=this.stride;this.stride+=dt*speed*2.2;if(this.grounded&&speed>1&&Math.floor(lastStride/Math.PI)!==Math.floor(this.stride/Math.PI))this.audio.step();
     const turn=dt>0?Math.atan2(Math.sin(this.heading-this.lastHeading),Math.cos(this.heading-this.lastHeading))/dt:0;this.lastHeading=this.heading;
     const titling=!this.running&&document.body.dataset.screen==='title';
@@ -878,7 +926,7 @@ export class Game {
       if(npc.bubble.visible){const s=age<.12?age/.12*1.2:age<.25?1.2-(age-.12)/.13*.2:1;npc.bubble.scale.setScalar(.45*s);
         // Bubbles over Pip's head fade so the hero stays readable.
         npc.bubble.getWorldPosition(dot).project(this.view.camera);(npc.bubble.material as T.SpriteMaterial).opacity=Math.hypot((dot.x-head.x)*px,(dot.y-head.y)*py)<80?.35:1;}}
-    if(this.lunch)this.lunch.render(dt);else if(this.cabled){this.drawCable();this.strip?.render(dt);this.leadLamp(dt);}this.socketCue();this.pg?.update(dt,this.switchedOn,this.lampLit||this.won,this.connected);
+    if(this.lunch)this.lunch.render(dt);else if(this.cabled){this.drawCable(dt);this.strip?.render(dt);this.leadLamp(dt);}this.socketCue();this.pg?.update(dt,this.switchedOn,this.lampLit||this.won,this.connected);
     // The reticle marks what E would grab (or the part a held plug would attach to); hidden when nothing is in reach.
     const nearest=this.nearest(),attach=this.holdingPlug?this.props.find(q=>q.mesh.visible&&((q.spec.id==='coupler'&&!this.coupler)||(q.spec.id==='extension'&&!this.extension))&&distance(p,q.body.translation())<1.9):undefined;
     const plugFirst=!this.lunch&&this.cabled&&!this.holdingPlug&&distance(p,this.plugPosition)<1.75&&!(nearest&&this.reach(p,nearest)<distance(p,this.plugPosition));
@@ -904,7 +952,7 @@ export class Game {
     const idle=this.time-45;
     if(idle>0&&idle%40<12&&!this.connected&&!this.lunch&&!this.station&&!this.hub&&!this.won){this.hint.visible=true;if(Math.floor(this.time)!==this.hintAt||!this.hintPath){this.hintAt=Math.floor(this.time);this.hintPath=this.hintRoute();}
       const path=this.hintPath,shown=(idle%40)*6;
-      this.hint.children.forEach((d,k)=>{let along=.9+k*.8;d.visible=k<shown;for(let q=1;q<path.length&&d.visible;q++){const len=distance(path[q-1],path[q]);if(along<=len){d.position.set(T.MathUtils.lerp(path[q-1].x,path[q].x,along/len),.014,T.MathUtils.lerp(path[q-1].z,path[q].z,along/len));d.rotation.y=-Math.atan2(path[q].z-path[q-1].z,path[q].x-path[q-1].x);break;}along-=len;if(q===path.length-1)d.visible=false;}});}
+      this.hint.children.forEach((d,k)=>{let along=.9+k*.8;d.visible=k<shown&&path.length>1;for(let q=1;q<path.length&&d.visible;q++){const len=distance(path[q-1],path[q]);if(along<=len){d.position.set(T.MathUtils.lerp(path[q-1].x,path[q].x,along/len),.014,T.MathUtils.lerp(path[q-1].z,path[q].z,along/len));d.rotation.y=-Math.atan2(path[q].z-path[q-1].z,path[q].x-path[q-1].x);break;}along-=len;if(q===path.length-1)d.visible=false;}});}
     else this.hint.visible=false;
     gameUI(this)?.update();
     // Count every pass of the frame (composer + outlines) for snapshot().drawCalls.
@@ -922,7 +970,9 @@ export class Game {
   frame(t:number){requestAnimationFrame(n=>this.frame(n));const dt=Math.min((t-this.last)/1000||1/60,.1);this.last=t;this.pollPad(dt);this.holdRestart();if(this.menu){this.keys.clear();this.stick=undefined;}
     const t0=performance.now();
     if(this.hitstop>0)this.hitstop-=dt;
-    else if(this.running&&!this.paused&&!this.won&&!this.manual){this.accumulator+=dt;let steps=0;while(this.accumulator>=1/60&&steps++<5){this.step(1/60);this.accumulator-=1/60;}}
+    else if(this.running&&!this.paused&&!this.won&&!this.manual){this.accumulator+=dt;let steps=0;while(this.accumulator>=1/60&&steps++<5){this.step(1/60);this.accumulator-=1/60;}
+      // Past the 5-step cap the rest of the debt is dropped, not replayed later at up to 5x speed (game-b-7).
+      if(this.accumulator>=1/60)this.accumulator%=1/60;}
     this.frames++;this.frameWindow+=dt;if(this.frameWindow>=1){this.fps=this.frames/this.frameWindow;this.frames=0;this.frameWindow=0;}
     const t1=performance.now();this.render(dt);const t2=performance.now();this.adaptQuality(dt);
     // Rolling averages (ms) for tools/perf.mjs.

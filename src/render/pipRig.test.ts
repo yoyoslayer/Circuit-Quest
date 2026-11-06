@@ -44,3 +44,17 @@ it('keeps every joint finite through low-frame-rate pose changes',()=>{
     expect([...joint.position.toArray(),...joint.scale.toArray(),joint.rotation.x,joint.rotation.y,joint.rotation.z].every(Number.isFinite)).toBe(true);
   }
 });
+// render-1: the hard-stop stumble reads the run, not one render frame that ran no physics step.
+function feed(r:PipRig,frames:number,dt:number,speed:(i:number)=>number,seen={stumbled:false}){for(let i=0;i<frames;i++){r.update({...rest,dt,time:i*dt,speed:speed(i)});if(r.stumbling)seen.stumbled=true;}return seen;}
+it('does not stumble while sprinting on a 144 Hz screen, where most frames run no physics step',()=>{
+  // A 6.8 m/s sprint measured per rendered frame at 144 Hz: a step lands on about 1 frame in 2.4.
+  const r=rig(),dt=1/144;feed(r,144,dt,()=>6.8);
+  expect(feed(r,288,dt,i=>i%12===0||i%12===5||i%12===10?16:0).stumbled).toBe(false);
+});
+it('does not stumble on one 60 Hz frame that ran no step mid-sprint (a hitstop frame or a timing slip)',()=>{
+  const r=rig();feed(r,60,1/60,()=>6.8);expect(feed(r,60,1/60,i=>i===20?0:i===21?13.6:6.8).stumbled).toBe(false);
+});
+it('still stumbles on a real hard stop from a sprint, once',()=>{
+  const r=rig();feed(r,60,1/60,()=>6.8);const stop=feed(r,20,1/60,()=>0);expect(stop.stumbled).toBe(true);
+  expect(feed(r,60,1/60,()=>0).stumbled).toBe(true);expect(r.stumbling).toBe(false);
+});

@@ -1,7 +1,23 @@
 import {it,expect,vi} from 'vitest';
 import * as T from 'three';
 vi.hoisted(()=>vi.stubGlobal('location',{search:''}));
-import {blob} from './actors';
+import {blob,glossyToon} from './actors';
+import {seeOff} from './toon';
+
+// render-3: a clone (seeOff on Pip's hat, gloves and boots; fading occluders) must keep the gloss and rim.
+const compiled=(m:T.Material)=>{const s={uniforms:{} as Record<string,{value:unknown}>,vertexShader:'',fragmentShader:'#include <common>\n#include <opaque_fragment>'};m.onBeforeCompile(s as unknown as T.WebGLProgramParametersWithUniforms,{} as T.WebGLRenderer);return s;};
+it('keeps the glossy highlight and rim on a cloned glossyToon material',()=>{
+  const m=glossyToon('#ffc629',{spec:.7,size:.97}),c=m.clone(),s=compiled(c);
+  expect(s.uniforms.specK?.value).toBe(.7);expect(s.uniforms.specEdge?.value).toBe(.97);expect(s.uniforms.rimStrength).toBeDefined();
+  expect(s.fragmentShader).toContain('specEdge + .012');expect(c.customProgramCacheKey()).toBe(m.customProgramCacheKey());
+  const mesh=new T.Mesh(new T.BoxGeometry(),m);seeOff(mesh);const off=mesh.material as T.Material;
+  expect(off).not.toBe(m);expect(off.defines?.SEE_OFF).toBe('');expect(compiled(off).uniforms.specK?.value).toBe(.7);expect(off.customProgramCacheKey()).toContain('seeoff');
+  expect(m.defines?.SEE_OFF).toBeUndefined();
+});
+it('keeps SEE_OFF and keepAO when a see-exempt glossy material is cloned',()=>{
+  const m=glossyToon('#ffffff',{vertexColors:true,spec:.75,size:.982,seeExempt:true}),c=m.clone();
+  expect(c.defines?.SEE_OFF).toBe('');expect(c.defines?.TOON).toBe('');expect(c.userData.keepAO).toBe(true);expect(c.defines).not.toBe(m.defines);
+});
 
 it('turns a coworker face without moving the body or changing its neighbours',()=>{
   const a=blob('#84b2b5','calm',['glasses']),b=blob('#84b2b5','calm',['glasses']);

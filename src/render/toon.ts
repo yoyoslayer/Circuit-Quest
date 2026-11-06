@@ -149,7 +149,9 @@ export const MOODS:Record<string,Mood>={
 };
 export function createRenderer(canvas:HTMLCanvasElement) {
   // Automated tests (?manual) and ?lowfx skip the expensive passes; software rendering can't afford them.
-  const params=new URLSearchParams(location.search),low=params.has('lowfx')||(params.has('manual')&&!params.has('fullfx')),pixelRatio=Math.min(devicePixelRatio,1.5);
+  const params=new URLSearchParams(location.search),low=params.has('lowfx')||(params.has('manual')&&!params.has('fullfx'));
+  // Re-read on every resize (render-5): browser zoom or a move to another monitor changes it mid-session.
+  let pixelRatio=Math.min(devicePixelRatio,1.5);
   const renderer = new T.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(pixelRatio);
   renderer.shadowMap.enabled = true;
@@ -170,7 +172,8 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   const rim = new T.DirectionalLight('#ffd6f0',.35); rim.position.set(6,12,-18); scene.add(fill,rim);
   const camera = new T.PerspectiveCamera(30,1,.1,200);
   // Composer: scene + outlines, ambient occlusion, bloom (only hot emissives), ACES output, grade.
-  const target=new T.WebGLRenderTarget(innerWidth*pixelRatio,innerHeight*pixelRatio,{type:T.HalfFloatType,samples:low?0:4});
+  // The depth texture lets the AO blend tell where something the AO pass skipped (Pip) stands in front (render-2).
+  const target=new T.WebGLRenderTarget(innerWidth*pixelRatio,innerHeight*pixelRatio,{type:T.HalfFloatType,samples:low?0:4,depthTexture:new T.DepthTexture(innerWidth*pixelRatio,innerHeight*pixelRatio)});
   const composer=new EffectComposer(renderer,target);composer.setPixelRatio(pixelRatio);
   composer.addPass(new OutlineRenderPass(effect,scene,camera));
   const ao=toonGTAO(scene,camera,innerWidth,innerHeight);ao.blendIntensity=.85;
@@ -182,10 +185,15 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   // ?lowfx (or a slow machine, see Game.adaptQuality) drops the expensive passes.
   // Quality 2: everything; 1: no AO; 0: no AO or bloom and a lower pixel ratio.
   let quality:0|1|2=2;
-  const setQuality=(level:0|1|2)=>{quality=level;ao.enabled=level>=2;bloom.enabled=level>=1;const pr=level===0?Math.min(pixelRatio,1):pixelRatio;renderer.setPixelRatio(pr);composer.setPixelRatio(pr);resize();};
+  const setQuality=(level:0|1|2)=>{quality=level;ao.enabled=level>=2;bloom.enabled=level>=1;resize();};
   const getQuality=()=>quality;
-  const resize = () => { renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); grade.uniforms.resolution.value.set(innerWidth*pixelRatio,innerHeight*pixelRatio); };
+  const resize = () => {
+    pixelRatio=Math.min(devicePixelRatio,1.5);const pr=quality===0?Math.min(pixelRatio,1):pixelRatio;
+    if(renderer.getPixelRatio()!==pr){renderer.setPixelRatio(pr);composer.setPixelRatio(pr);}
+    renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); grade.uniforms.resolution.value.set(innerWidth*pr,innerHeight*pr); };
   addEventListener('resize',resize); resize();
+  // A monitor move at the same window size changes the ratio without a resize event: watch it too.
+  const watchRatio=()=>globalThis.matchMedia?.(`(resolution: ${devicePixelRatio}dppx)`).addEventListener('change',()=>{resize();watchRatio();},{once:true});watchRatio();
   if(low)setQuality(0);
   const render=()=>{
     darkAmount.x=Math.max(0,Math.min(1,darkness.amount));darkAmount.y=darkness.tint.r;darkAmount.z=darkness.tint.g;darkAmount.w=darkness.tint.b;

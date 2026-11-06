@@ -6,21 +6,30 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {toon,toonRamp,INK,rimShader} from './toon';
 const noRim=new URLSearchParams(location.search).has('norim');
 
-/** Toon plus a hard, stepped view-space highlight: glossy plastic that still reads as toon. */
-const glossy=new Map<string,T.MeshToonMaterial>();
+// The rim goes in first (R5-372): the spec mix chains on the same opaque_fragment anchor after it.
+function glossCompile(this:GlossyToonMaterial,s:T.WebGLProgramParametersWithUniforms){if(!noRim)rimShader(s);s.uniforms.specK={value:this.spec};s.uniforms.specEdge={value:this.size};
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform float specK; uniform float specEdge;').replace('#include <opaque_fragment>',`
+    { vec3 L = normalize(vec3(-.35,.75,.55)); vec3 V = normalize(vViewPosition); vec3 H = normalize(L + V);
+      float s = smoothstep(specEdge, specEdge + .012, dot(normalize(normal), H));
+      outgoingLight = mix(outgoingLight, vec3(1.,.98,.93) * max(1., length(outgoingLight)), s * specK); }
+    #include <opaque_fragment>`);}
+function glossKey(this:GlossyToonMaterial){return (noRim?'glossyToon':'glossyToonRim')+this.spec+this.size+(this.defines?.SEE_OFF!==undefined?'seeoff':'');}
+/** Toon plus a hard, stepped view-space highlight: glossy plastic that still reads as toon. A subclass
+ *  so that clone() keeps the gloss and rim (render-3): Material.copy() drops onBeforeCompile and
+ *  customProgramCacheKey, and seeOff clones Pip's hat, gloves and boots. The constructor puts the hooks
+ *  back; copy() carries spec, size and the defines (SEE_OFF on the cable, which copy() would also drop). */
+export class GlossyToonMaterial extends T.MeshToonMaterial{
+  spec=.9;size=.965;
+  constructor(params?:T.MeshToonMaterialParameters,spec=.9,size=.965){super(params);this.spec=spec;this.size=size;this.onBeforeCompile=glossCompile;this.customProgramCacheKey=glossKey;}
+  copy(source:GlossyToonMaterial){super.copy(source);this.spec=source.spec;this.size=source.size;this.defines={...source.defines};return this;}
+}
+const glossy=new Map<string,GlossyToonMaterial>();
 /** seeExempt: the material is never cut away by the see-through oval (SEE_OFF). The cable uses it: the cable is the star. */
 export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965,seeExempt=false}={}){
   const key=`${color}|${vertexColors}|${spec}|${size}|${seeExempt}`;let m=glossy.get(key);if(m)return m;
-  m=new T.MeshToonMaterial({color,gradientMap:toonRamp,vertexColors});
-  // The rim goes in first (R5-372): the spec mix chains on the same opaque_fragment anchor after it.
-  m.onBeforeCompile=s=>{if(!noRim)rimShader(s);s.uniforms.specK={value:spec};s.uniforms.specEdge={value:size};
-    s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform float specK; uniform float specEdge;').replace('#include <opaque_fragment>',`
-      { vec3 L = normalize(vec3(-.35,.75,.55)); vec3 V = normalize(vViewPosition); vec3 H = normalize(L + V);
-        float s = smoothstep(specEdge, specEdge + .012, dot(normalize(normal), H));
-        outgoingLight = mix(outgoingLight, vec3(1.,.98,.93) * max(1., length(outgoingLight)), s * specK); }
-      #include <opaque_fragment>`);};
+  m=new GlossyToonMaterial({color,gradientMap:toonRamp,vertexColors},spec,size);
   if(seeExempt){m.defines={...m.defines,SEE_OFF:''};m.userData.keepAO=true;}
-  m.customProgramCacheKey=()=>(noRim?'glossyToon':'glossyToonRim')+spec+size+(seeExempt?'seeoff':'');glossy.set(key,m);return m;
+  glossy.set(key,m);return m;
 }
 /** HDR unlit colour for bloom (colour * k survives the 1.3 bloom threshold). */
 export function hot(color:string,k=3){const m=new T.MeshBasicMaterial({color});m.color.multiplyScalar(k);m.userData.outlineParameters={visible:false};return m;}

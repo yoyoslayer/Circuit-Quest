@@ -1,6 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,route,wait,snapshot} from './navigation';
-import {plugBench} from './station-lead';
+import {plugBench,lead} from './station-lead';
 
 // R5-079: every station room has a real cable act (the bench's mains lead) and a physical or chaos
 // bonus that reads the room's physics. These play each one the way a player would.
@@ -41,13 +41,14 @@ test('arcade: a dead bench refuses power, the lead brings it to life, a yank cut
   s=await station(page);expect(s.soakDone).toBe(true);await steps(page,[['signoff']]);expect((await station(page)).served.length).toBe(1);
   // Power the next cabinet on, then go and pull the plug out of the wall: the bench drops dead.
   await steps(page,[['power']]);expect((await station(page)).powered).toBe(true);
-  await page.keyboard.press('Escape');await route(page,[[2.9,-1.2],[2.9,-4],[-2.2,-6.85]]);
+  await page.keyboard.press('Escape');const l=await lead(page);await route(page,[[2.9,-1.2],[2.9,-4],l.route[l.route.length-1]]);
   await page.keyboard.press('KeyF');await wait(page,.2);s=await snapshot(page);
   expect(s.holdingPlug).toBe(true);expect(s.benchLive).toBe(false);expect(s.station.powered).toBe(false);expect(s.station.mistakes).toBe(0);
   await page.keyboard.press('KeyF');await wait(page,.2);expect((await snapshot(page)).connected).toBe(true);
   // The prize pyramid in front of the shelf: barge into it.
   expect((await bonus(page,0)).ok).toBe(false);
-  await walk(page,1.4,-5.4,.4);await shove(page,1.4,-7.2);await wait(page,1.5);
+  // The pyramid stands at PYRAMID (src/stations/arcade/room.ts, z -8.75): come at it from 2 m south.
+  await walk(page,1.4,-7.4,.4);await shove(page,1.4,-9.2);await wait(page,1.5);
   expect((await station(page)).prizesDown).toBeGreaterThanOrEqual(3);
   expect(await bonus(page,0)).toEqual({text:'Knock the prize pyramid over',ok:true});
   expect(errors).toEqual([]);

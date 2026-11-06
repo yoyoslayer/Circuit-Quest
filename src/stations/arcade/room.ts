@@ -20,7 +20,7 @@ const FONT=(n:number,w=700)=>`${w} ${n}px "Fredoka Variable", "Fredoka", system-
  *  knocks the pyramid over (R5-079 chaos bonus). The station keeps its mesh on the body. */
 export interface Prize {mesh:T.Object3D;body:RAPIER.RigidBody;home:T.Vector3}
 /** Where the prize pyramid stands (the level keeps clutter off it). */
-export const PYRAMID={x:1.4,z:-6.75};
+export const PYRAMID={x:1.4,z:-8.75};
 export interface ArcadeRoom {light(k:number,title?:string):void;lightUp():void;prizes:Prize[]}
 
 // A dusty-mauve carpet with a light scatter of pastel confetti: arcade, but quiet enough to sit
@@ -33,6 +33,12 @@ const confetti=()=>TX.tex('arcade-carpet',512,512,c=>{
     const kind=k%4;if(kind===0){c.fillRect(-9,-3,18,6);}else if(kind===1){c.beginPath();c.arc(0,0,5,0,7);c.fill();}
     else if(kind===2){c.lineWidth=4;c.beginPath();c.moveTo(-10,0);c.quadraticCurveTo(-5,-7,0,0);c.quadraticCurveTo(5,7,10,0);c.stroke();}
     else{c.beginPath();c.moveTo(0,-7);c.lineTo(6,5);c.lineTo(-6,5);c.closePath();c.fill();}c.restore();}c.globalAlpha=1;
+});
+// The back-row runner: lilac with pink edge stripes and a row of pale stars, seamless along x.
+const runner=()=>TX.tex('arcade-runner',256,256,c=>{
+  c.fillStyle='#b9a6dc';c.fillRect(0,0,256,256);c.fillStyle='#ff9fc8';c.fillRect(0,14,256,16);c.fillRect(0,226,256,16);
+  c.fillStyle='#f3eaff';c.fillRect(0,40,256,4);c.fillRect(0,212,256,4);
+  c.fillStyle='rgba(255,250,240,.75)';for(const x of [64,192]){c.save();c.translate(x,128);c.beginPath();for(let k=0;k<10;k++){const a=k*Math.PI/5-Math.PI/2,rr=k%2?14:32;c.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);}c.closePath();c.fill();c.restore();}
 });
 function plaque(text:string,w:number,h:number,bg:string,fg=INK,size=48,radius=22){
   return canvasTex(w,h,c=>{c.fillStyle=bg;c.beginPath();c.roundRect(4,4,w-8,h-8,radius);c.fill();c.lineWidth=6;c.strokeStyle=fg;c.stroke();
@@ -89,14 +95,20 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   kit.floor(-W,-6.4,2.6,D,TX.woodPlanks('#d8ad72'),3.2,.004);
   kit.interiorWall({id:'store-a',minX:-W,maxX:-8.6,minZ:2.45,maxZ:2.75},undefined,undefined,1.35);
   kit.interiorWall({id:'store-b',minX:-6.55,maxX:-6.25,minZ:2.45,maxZ:5.4},undefined,undefined,1.35);
-  kit.backWindows(x=>Math.abs(x)<9.8,.1);
-  rug(r,0,-1.2,5.6,2.2,PINK,'#ffd1e3');rug(r,5.4,2.6,3.2,2.4,GRAPE,'#e3d9ff');
+  // The bigger room's storeroom reaches the front edge: a stub wall leaves a 2.2 m doorway on the hall side.
+  kit.interiorWall({id:'store-c',minX:-6.55,maxX:-6.25,minZ:7.6,maxZ:D},undefined,undefined,1.35);
+  // An arcade has no windows: the hall is lit by its cabinets.
+  kit.backWindows(x=>Math.abs(x)<W,.1);
+  rug(r,0,-1.2,5.6,2.2,PINK,'#ffd1e3');rug(r,8,3.9,4.6,3.4,GRAPE,'#e3d9ff');
+  // A candy runner along the back row, where people queue for the cabinets (it tiles along x, so it
+  // spans the hall at any width), and a mat under the skee-ball pair.
+  kit.floor(-W+3,W-3,-6.9,-5.5,runner(),1.4,.006);rug(r,W-2.4,6.75,4,3.2,MINT,'#d9f7ee');
   // ---- The five broken cabinets along the back wall (dark until signed off).
   const lit:{face:T.Mesh;screen:T.Mesh;at:T.Vector3;title:string;done?:boolean}[]=[];
   // Cabinets stay on root but are merged in place at the end (R5-026); the broken ones keep their
   // marquee face and screen separate, because light(k) swaps them.
   const cabs:{group:T.Group;live:T.Object3D[]}[]=[];
-  const spots:[number,number][]=[[-7.8,-6.9],[-5.2,-6.9],[4.6,-6.9],[7.2,-6.9],[9.7,-3.2]];
+  const spots:[number,number][]=[[-9.4,-D+1.1],[-6.2,-D+1.1],[5.2,-D+1.1],[8.4,-D+1.1],[W-1.3,-3.2]];
   JOBS.forEach((j,k)=>{const [x,z]=spots[k],ry=k===4?-Math.PI/2:0,cab=cabinet(game.root,x,z,ry,['#ff9fc8','#9ff0d2','#ffe08a','#c7b6ff','#ffb38a'][k],j.cabinet,false,k);
     cabs.push({group:cab.group,live:[cab.face,cab.screen]});cab.group.updateMatrixWorld(true);solid(game,1,2.2,.9,x,1.1,z,ry);lit.push({face:cab.face,screen:cab.screen,at:cab.group.localToWorld(new T.Vector3(0,2.1,.4)),title:j.cabinet});
     // Each broken cabinet has a tell: a pinball table, a dance pad, a claw box, a handheld, a hopper.
@@ -110,8 +122,8 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
     if(j.id==='hopper'){const s=group(g,0,0,.9);part(s,rbox(1.2,.9,.5,.05),toon('#ffb38a'),0,.45,0);for(let n=0;n<5;n++)part(s,sphere(.11,12,8),toon([PINK,MINT,LEMON,GRAPE,SKY][n]),-.44+n*.22,1.0,0);for(let n=0;n<6;n++)part(s,cyl(.05,.05,.015,14),toon('#d9a441'),-.3+n*.12,.92,.2);solid(game,.5,1,1.2,x-.9,.5,z);}
   });
   // ---- Working cabinets along the right wall and the left of the hall (the "too many lamps").
-  [[9.7,-.6],[9.7,1.2],[9.7,3]].forEach(([x,z],k)=>{cabs.push({live:[],group:cabinet(game.root,x,z,-Math.PI/2,['#9ff0d2','#ff9fc8','#c7b6ff'][k],['STAR BLASTER','KART DASH','BLOCK DROP'][k],true,k).group});solid(game,.9,2.2,1,x,1.1,z,-Math.PI/2);});
-  [[-9.9,-3.4],[-9.9,-1.5],[-9.9,.4]].forEach(([x,z],k)=>{cabs.push({live:[],group:cabinet(game.root,x,z,Math.PI/2,['#ffe08a','#9ff0d2','#ff9fc8'][k],['SNAKE','SPACE ROCKS','PONG'][k],true,k+1).group});solid(game,.9,2.2,1,x,1.1,z,Math.PI/2);});
+  [[W-1.3,-.6],[W-1.3,1.2],[W-1.3,3],[W-1.3,-6.6]].forEach(([x,z],k)=>{cabs.push({live:[],group:cabinet(game.root,x,z,-Math.PI/2,['#9ff0d2','#ff9fc8','#c7b6ff','#ffe08a'][k],['STAR BLASTER','KART DASH','BLOCK DROP','DINO RUN'][k],true,k).group});solid(game,.9,2.2,1,x,1.1,z,-Math.PI/2);});
+  [[-W+1.1,-3.4],[-W+1.1,-1.5],[-W+1.1,.4]].forEach(([x,z],k)=>{cabs.push({live:[],group:cabinet(game.root,x,z,Math.PI/2,['#ffe08a','#9ff0d2','#ff9fc8'][k],['SNAKE','SPACE ROCKS','PONG'][k],true,k+1).group});solid(game,.9,2.2,1,x,1.1,z,Math.PI/2);});
   // ---- Back wall: the neon sign between the cabinets, and the LED basics poster.
   const bw=kit.back;
   const neon=new T.Mesh(new T.PlaneGeometry(4.6,.9),flat(canvasTex(1024,200,c=>{c.clearRect(0,0,1024,200);c.textAlign='center';c.textBaseline='middle';let fs=96;c.font=FONT(fs);while(c.measureText('OVERHEATING ARCADE').width>940){fs--;c.font=FONT(fs);}
@@ -121,8 +133,8 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   const poster=group(bw,3.05,1.45,.16);part(poster,box(.84,1.12,.04),toon(INK));const pf=new T.Mesh(new T.PlaneGeometry(.78,1.06),toon('#ffffff',{map:basicsPoster()}));pf.position.z=.025;poster.add(pf);
   wallArt(bw,'bolt',-1.9,1.5,.16,0,.9);
   // Change machine and a prize shelf behind the bench (low, so the bench view stays clear).
-  const cm=group(r,-1.2,0,-7.4);part(cm,rbox(.8,1.5,.6,.06),toon(SKY),0,.75,0);part(cm,box(.5,.3,.02),toon('#2a1c33'),0,1.1,.31);part(cm,box(.3,.06,.02),toon(LEMON),0,.7,.31);solid(game,.8,1.5,.6,-1.2,.75,-7.4);
-  const ps=group(r,1.4,0,-7.5);part(ps,rbox(2,.9,.45,.05),toon(CREAM),0,.45,0);for(let n=0;n<6;n++)part(ps,sphere(.13,12,8),toon([PINK,MINT,LEMON,GRAPE,SKY,'#ff9a6b'][n]),-.8+n*.32,1.02,0);solid(game,2,1,.45,1.4,.5,-7.5);
+  const cm=group(r,-1.2,0,-D+.6);part(cm,rbox(.8,1.5,.6,.06),toon(SKY),0,.75,0);part(cm,box(.5,.3,.02),toon('#2a1c33'),0,1.1,.31);part(cm,box(.3,.06,.02),toon(LEMON),0,.7,.31);solid(game,.8,1.5,.6,-1.2,.75,-D+.6);
+  const ps=group(r,1.4,0,-D+.5);part(ps,rbox(2,.9,.45,.05),toon(CREAM),0,.45,0);for(let n=0;n<6;n++)part(ps,sphere(.13,12,8),toon([PINK,MINT,LEMON,GRAPE,SKY,'#ff9a6b'][n]),-.8+n*.32,1.02,0);solid(game,2,1,.45,1.4,.5,-D+.5);
   // The prize pyramid on the floor in front of the shelf: ten candy gift boxes stacked 4-3-2-1, asleep
   // until something hits them (a thrown beanbag, a flung box, a shoved trolley, or Pip himself).
   const prizes:Prize[]=[],gift=rbox(.3,.3,.3,.04),ribbon=box(.31,.31,.07);let n=0;
@@ -135,22 +147,55 @@ export function dressArcade(game:Game,kit:RoomKit):ArcadeRoom{
   const tick=new T.Mesh(new T.PlaneGeometry(3.4,.6),flat(plaque('WIN TICKETS · FIX CABINETS',900,160,LEMON,PLUM,64)));tick.position.set(2.2,2.2,.16);side.add(tick);
   wallArt(side,'sun',-2.4,1.9,.16);wallArt(side,'cat',5.6,1.9,.16);
   // ---- Storeroom: shelves of resistor stock and a counter where the tray waits.
-  const shelf=group(r,-9.6,0,7.2);for(const y of [.5,1.2,1.9])part(shelf,box(2.4,.06,.6),toon('#a8734a'),0,y,0);for(const sx of [-1.15,1.15])part(shelf,box(.07,2,.6),toon(DMETAL),sx,1,0);
+  const shelf=group(r,-W+1.4,0,D-.8);for(const y of [.5,1.2,1.9])part(shelf,box(2.4,.06,.6),toon('#a8734a'),0,y,0);for(const sx of [-1.15,1.15])part(shelf,box(.07,2,.6),toon(DMETAL),sx,1,0);
   // The stock is kraft cartons with a white label, like every other carton (DR-51/52).
   for(let n=0;n<9;n++){const y=[.5,1.2,1.9][n%3],bx=-.8+Math.floor(n/3)*.8;part(shelf,rbox(.5,.22,.4,.04),toon(['#c98f5a','#d7a56d','#b9875a'][(n+Math.floor(n/3))%3]),bx,y+.14,0);part(shelf,box(.2,.08,.01),toon('#fffaf0'),bx,y+.14,.205,false);}
-  solid(game,2.4,2,.6,-9.6,1,7.2);
+  solid(game,2.4,2,.6,-W+1.4,1,D-.8);
   const counter=group(r,-9.2,0,4.3);part(counter,rbox(1.6,.84,.8,.05),toon('#e9c38e'),0,.42,0);part(counter,box(1.64,.04,.84),toon(PLUM),0,.85,0);solid(game,1.6,.86,.8,-9.2,.43,4.3);
   // The STOREROOM plaque hangs under a header beam carried on two posts that rise from the ends of
   // the storeroom walls, so it is mounted, has a back, and reads from both sides.
   for(const x of [-8.65,-6.4])part(r,box(.1,1.1,.12),toon(DMETAL),x,1.9,2.6);part(r,rbox(2.5,.16,.16,.04),toon(PLUM),-7.5,2.38,2.6);
   plaqueBoard(r,plaque('STOREROOM',512,124,GRAPE,'#fffaf0',60),1.5,.36,-7.6,2.1,2.6,{board:PLUM});
+  // ---- Set pieces in the bigger hall (review 6): each stands on its own collider.
+  // Photo booth in the back-left corner: a candy box with a striped curtain on the side facing the hall.
+  {const bx=-W+1.6,bz=-D+1.4,b=group(r,bx,0,bz);part(b,rbox(1.8,2.3,1.6,.08),toon('#ffd1e3'),0,1.15,0);part(b,rbox(1.9,.12,1.7,.05),toon(PLUM),0,2.34,0);
+    for(let k=0;k<6;k++)part(b,box(.2,1.8,.04),toon(k%2?PINK:CREAM),.94,1.0,-.55+k*.2,false);
+    part(b,box(.06,.06,1.3),toon(DMETAL),.94,1.95,0,false);
+    const top=new T.Mesh(new T.PlaneGeometry(1.5,.34),flat(plaque('PHOTO',384,88,LEMON,PLUM,54)));top.position.set(0,2.0,.81);b.add(top);
+    for(let k=0;k<4;k++)part(b,box(.36,.26,.02),toon(['#ffe08a','#9ff0d2','#c7b6ff','#ffb38a'][k]),-.45+(k%2)*.5,.9+Math.floor(k/2)*.32,.81,false);
+    solid(game,1.8,2.3,1.6,bx,1.15,bz);}
+  // A twin racer, two seats under one wide screen, facing the back wall (the seat backs face the door).
+  {const rx=-8.8,rz=-4.4,g=group(r,rx,0,rz);part(g,rbox(2.1,.18,1.7,.05),toon(PLUM),0,.09,0);
+    part(g,rbox(2.1,1.9,.6,.08),toon(SKY),0,.95,-.55);const scr=part(g,box(1.8,.8,.03),hot('#2f5a6e',1.2),0,1.35,-.24);scr.userData.noAO=true;
+    const mq=new T.Mesh(new T.PlaneGeometry(1.9,.3),flat(marqueeTex('TURBO TWINS',true,2)));mq.position.set(0,2.05,-.24);g.add(mq);
+    for(const s of [-.5,.5]){part(g,rbox(.62,.5,.6,.08),toon(PINK),s,.43,.45);part(g,rbox(.62,.75,.14,.06),toon(PINK),s,.85,.72);
+      part(g,cyl(.16,.16,.05,18,'z'),toon(INK),s,.95,-.1);part(g,box(.05,.3,.05),toon(DMETAL),s,.8,-.12,false);}
+    solid(game,2.1,1.9,.6,rx,.95,rz-.55);solid(game,2.1,.9,1.1,rx,.45,rz+.3);}
+  // Air hockey between the bench and the right-wall row: a long table with a rail, two mallets and a puck.
+  {const ax=8.8,az=-3.6,g=group(r,ax,0,az);part(g,rbox(2.3,.6,1.25,.06),toon(GRAPE),0,.3,0);part(g,rbox(2.4,.1,1.35,.04),toon(CREAM),0,.65,0);
+    part(g,box(2.2,.02,1.15),toon('#e9f4ff'),0,.71,0);part(g,box(.02,.005,1.1),toon(PINK),0,.722,0,false);
+    for(const s of [-1,1]){part(g,cyl(.09,.09,.06,16),toon(s<0?PINK:MINT),s*.85,.75,0);part(g,box(.05,.03,.36),toon(INK),s*1.11,.72,0,false);}
+    part(g,cyl(.05,.05,.015,14),toon(INK),.2,.73,.15);for(const lx of [-1,1])for(const lz of [-1,1])part(g,box(.08,.3,.08),toon(PLUM),lx*1.05,.08,lz*.52,false);
+    solid(game,2.4,.76,1.35,ax,.38,az);}
+  // Skee-ball pair against the right edge: ramps rise to the ring targets under a lit hood.
+  for(const sz of [6.15,7.35]){const sx=W-2.4,g=group(r,sx,0,sz);part(g,rbox(2.9,.55,1,.06),toon('#ffe08a'),0,.28,0);
+    const ramp=part(g,box(2.5,.04,.7),toon('#d7a56d'),-.1,.7,0);ramp.rotation.z=.14;
+    for(const s of [-1,1])part(g,box(2.7,.22,.06),toon(PLUM),-.1,.72,s*.42,false);
+    const hood=group(g,1.25,0,0);part(hood,rbox(.5,2.2,1.05,.06),toon(PINK),0,1.1,0);for(let k=0;k<3;k++)part(hood,cyl(.13-k*.03,.13-k*.03,.03,18,'x'),toon([CREAM,MINT,LEMON][k]),-.27,.95+k*.32,0);
+    const mq=new T.Mesh(new T.PlaneGeometry(.95,.24),flat(marqueeTex('SKEE',true,sz>7?1:0)));mq.position.set(-.27,2.0,0);mq.rotation.y=-Math.PI/2;hood.add(mq);
+    solid(game,2.9,.9,1,sx,.45,sz);solid(game,.5,2.2,1.05,sx+1.25,1.1,sz);}
+  // Storeroom: a second rack of stock along the left wall and a spare cabinet under a dust sheet.
+  {const g=group(r,-W+.45,0,5.6,Math.PI/2);for(const y of [.5,1.2,1.9])part(g,box(2.4,.06,.6),toon('#a8734a'),0,y,0);for(const sx of [-1.15,1.15])part(g,box(.07,2,.6),toon(DMETAL),sx,1,0);
+    for(let n=0;n<9;n++){const y=[.5,1.2,1.9][n%3],bx=-.8+Math.floor(n/3)*.8;part(g,rbox(.5,.22,.4,.04),toon(['#d7a56d','#b9875a','#c98f5a'][(n+Math.floor(n/3))%3]),bx,y+.14,0);part(g,box(.2,.08,.01),toon('#fffaf0'),bx,y+.14,.205,false);}
+    solid(game,.6,2,2.4,-W+.45,1,5.6);
+    const sheet=group(r,-10.4,0,D-.75);part(sheet,rbox(1.05,2.15,.9,.18),toon('#efe6f2'),0,1.08,0);part(sheet,rbox(1.15,.12,1,.06),toon('#dcd0e2'),0,.06,0);solid(game,1.05,2.15,.9,-10.4,1.08,D-.75);}
   // ---- Lights: warm over the bench, candy colours around the hall. No hanging lamps over the bench.
   // Three room lights (the bench LED is the fourth, and the only one that changes); the lilac
   // corner and the storeroom get painted light pools instead of lamps.
   pointLamp(game.root,0,2.7,-1.8,{color:'#fff1e0',intensity:5,distance:5.5});lampPool(game.root,0,-2.3,2.8,.2);
-  const pink=pointLamp(game.root,-4,2.4,-5.4,{color:'#ff9fd0',intensity:4,distance:8});pointLamp(game.root,5,2.4,-3,{color:'#9ff0ff',intensity:4,distance:8});
-  lampPool(game.root,8.4,1.2,2.2,.16,'#c7b6ff');lampPool(game.root,-8.6,5.4,2,.18,'#ffe0b0');
-  for(const [x,z,c] of [[-8.6,-2,'rgba(255,224,138,1)'],[8.6,1.2,'rgba(159,240,210,1)']] as const)glow(game.root,c,3,.1).position.set(x,1.6,z);
+  const pink=pointLamp(game.root,-6,2.4,-D+3,{color:'#ff9fd0',intensity:4,distance:9.5});pointLamp(game.root,7,2.4,-4.6,{color:'#9ff0ff',intensity:4,distance:9.5});
+  lampPool(game.root,8,3.9,2.6,.16,'#c7b6ff');lampPool(game.root,-10.6,6.4,2.8,.18,'#ffe0b0');lampPool(game.root,12.6,6.75,2.2,.14,'#9ff0d2');lampPool(game.root,-12.6,-D+1.6,1.8,.14,'#ffd1e3');
+  for(const [x,z,c] of [[-W+2.4,-2,'rgba(255,224,138,1)'],[W-2.4,1.2,'rgba(159,240,210,1)']] as const)glow(game.root,c,3,.1).position.set(x,1.6,z);
   for(const c of cabs)freeze(c.group,o=>c.live.includes(o));
   return {prizes,
     light(k:number,title?:string){const m=lit[k];if(!m||m.done)return;m.done=true;(m.face.material as T.MeshBasicMaterial).map=marqueeTex(title??m.title,true,k);(m.face.material as T.MeshBasicMaterial).needsUpdate=true;

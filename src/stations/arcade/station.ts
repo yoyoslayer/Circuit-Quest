@@ -88,7 +88,8 @@ export class ArcadeBench implements Station {
    *  the kid are in frame with the board (R5-080); it eases back once the cabinet is signed off. */
   private static readonly REST={distance:5.9,pitch:.98,lookX:0};private static readonly SOAK={distance:7.2,pitch:.85,lookX:-1.8};
   private kidStartle=0;private cabMarquee?:T.Object3D;private signedAt=-9;
-  readonly limits={time:480,damage:2,cost:0};
+  // 486 s: the back wall moved 2 m out (review 6), so the walk to the lead's socket and back is 4 m longer.
+  readonly limits={time:486,damage:2,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   index=0;setup:Setup;held?:Block;powered=false;soak=0;soakDone=false;verdict?:Verdict;heat:Heat;
   /** The PTC fuse: tripped while hot; it conducts again once `cooling` runs out. */
@@ -607,7 +608,7 @@ export class ArcadeBench implements Station {
     return this.setup.chain.some(p=>p.length)?{key:'P',text:this.touched?'Power on':'Power on to see the fault'}:{key:'1–4',text:'Take a block'};
   }
   /** The win shot frames Pip with the lit back wall of fixed cabinets (R5-077). */
-  winFocus(){return new T.Vector3(0,1.6,-6.4);}
+  winFocus(){return new T.Vector3(0,1.6,-this.game.level.depth/2+1.6);}
   complete(){return this.rush?this.shift()>=RUSH_TIME&&!this.overtime():this.served.length>=JOBS.length;}
   /** Rush: cabinets fixed and seconds left, for the HUD clock and the result card. */
   rushStatus(){return this.rush?{served:this.served.length,left:Math.max(0,RUSH_TIME-this.shift())}:undefined;}

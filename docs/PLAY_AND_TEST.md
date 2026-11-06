@@ -36,6 +36,16 @@ To build a static copy: `npm run build` (type check, then Vite build into `dist/
 
 Walking into an open doorway enters that job, as E does. Locked doors rattle.
 
+A gamepad works too: left stick walks, right stick orbits, A jumps (and presses the main button on the result
+card), X grabs, B is the cable, Y throws, Start pauses.
+
+## Look tuning (URL parameters)
+
+Add these to the address to compare looks:
+- `?ink=0.005`: the outline thickness (0.0035 by default).
+- `?benchfill=0.9`: how much of the screen a station bench fills (0.86 by default).
+- `?lowfx`: the cheap rendering path.
+
 ## What to check by hand
 
 Walk the lobby first. Then play, in order: Cable Playground, Big Meeting, Lunch Rush,

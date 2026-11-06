@@ -430,6 +430,43 @@ What a player notices:
 
 Product-owner questions from this round are in `mockups/review5/fixlog/lead2.md`, `stationcable.md` and `astra.md`.
 
+## Review 6: playability, looks and code review (2026-11-06)
+
+Two reviews:
+- the playability and looks review (`mockups/review6/PLAYABILITY_LOOKS_REVIEW.md`);
+- a code review (`mockups/review6/CODE_REVIEW.md`, 63 verified findings, all fixed).
+
+How to play and test on PC: `docs/PLAY_AND_TEST.md`.
+
+What a player notices:
+- **Lobby doors are real doorways.**
+  - The back and side walls have gaps at open doors. Walking into one enters the job, and E still works.
+  - Sliding along the wall past a door does not enter it, and neither does walking up while carrying something.
+  - The portal shows a sharp, cover-fit picture of the room behind it.
+  - The door leaf is a thick slab.
+- **Camera.**
+  - The free camera pulls in short of pillars and furniture instead of sitting inside them.
+  - It still passes through the room's own shell walls, which fold away.
+  - The see-through oval round Pip is a tight ellipse, and it never cuts the cable or the objective marker.
+- **No more dark halo.** The ink outline is thinner (0.0035). The old one read as a black glow that slid round
+  every model as the camera moved. Try `?ink=0.005` to compare.
+- **Benches fill the screen** when Pip sits at a station (`?benchfill=` tunes it; 0.86 by default).
+- **Code-review fixes**, grouped by area (game, Lunch, sim, stations, render, ui). Each fix has a browser test that fails on the old code.
+  - Put-downs no longer launch props.
+  - A seated Meeting plug follows the strip.
+  - Fixed or kinematic items can't be grabbed.
+  - Mouse chords and pointer capture are fixed.
+  - Effects use real time, not frame rate.
+  - The pad is ignored at a bench and handled on the result card.
+  - Rush runs don't count as best times.
+  - The lobby card is pre-ticked.
+  - Return doors no longer go stale.
+- **Bigger rooms:** see the next section.
+
+Open questions for the product owner:
+- **Roofs.** Rooms are open-topped dioramas so the orbit and survey cameras can see in. A ceiling would hide the
+  floor from every angle above eye level. The current choice is no roof, with walls that fold away.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

@@ -42,7 +42,7 @@ tests\astra-bench-budget.spec.ts:37:71 › spectrum: clean-route task names and 
 {"level":"spectrum","phase":"working","text":"Enter\nSend Esc\nStand up Through the brick wall\nPod\nstoreroom ✓","words":11,"small":[]}
 
 [7/7] tests\station-observatory.spec.ts:84:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2
-  1) tests\station-observatory.spec.ts:84:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2 
+  1) tests\station-observatory.spec.ts:84:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2
 
     Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'values')
         at eval (eval at evaluate (:311:30), <anonymous>:4:46)
@@ -58,5 +58,5 @@ tests\astra-bench-budget.spec.ts:37:71 › spectrum: clean-route task names and 
 
 
   1 failed
-    tests\station-observatory.spec.ts:84:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2 
+    tests\station-observatory.spec.ts:84:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2
   6 passed (4.1m)

@@ -9,7 +9,7 @@ Running 7 tests using 1 worker
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 [1/7] tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay
-  1) tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay 
+  1) tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay
 
     Error: expect(received).toBeCloseTo(expected, precision)
 
@@ -40,7 +40,7 @@ Running 7 tests using 1 worker
 [3/7] tests\station-garage.spec.ts:30:1 › robot garage: catch the kick, clamp it, brake fast, star-ground the controller, then the delivery run
 [4/7] tests\station-observatory.spec.ts:19:1 › signal observatory: move the motor, filter the line, keep the latch, tune the whip
 [5/7] tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2
-  2) tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2 
+  2) tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2
 
     Error: expect(received).toBeLessThan(expected)
 
@@ -73,6 +73,6 @@ tests\station-qfn.spec.ts:30:1 › QFN bench: three boards laid out, each reliab
 
 [7/7] tests\station-spectrum.spec.ts:30:1 › spectrum delivery: radio through brick, near IR through the hatch by mirror, thermal IR past smoke and mesh
   2 failed
-    tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay 
-    tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2 
+    tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay
+    tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2
   5 passed (4.9m)

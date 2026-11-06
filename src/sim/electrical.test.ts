@@ -38,3 +38,14 @@ it('conveyor running, then the capped lift: the 0.4-bar recharge after the kick 
   for(let i=0;i<20;i++)c.tick(.1);lift.enabled=true;let peak=0;
   for(let i=0;i<60;i++){c.tick(.1);peak=Math.max(peak,c.draw.get('s')??0);}
   expect(c.sources[0].tripped).toBe(false);expect(peak).toBeLessThanOrEqual(4.9+1e-9);expect(lift.capacitor.charge).toBeLessThan(12);expect(lift.capacitor.charge).toBeGreaterThan(6);});
+it('a short browns out every load its supply fed, whatever order the leads are in (sim-2)',()=>{
+  for(const wetFirst of [true,false]){const wet=lead('w','s','split',10);wet.wet=true;const rest=[lead('b','split','conveyor'),lead('c','s','lift')];
+    const c=new Circuit([{id:'s',limit:5,tripped:false}],wetFirst?[wet,...rest]:[...rest,wet],[load('conveyor',1.5,3),load('lift',3,9)]);c.tick(.1);
+    expect(c.sources[0].tripped).toBe(true);expect(c.events.filter(e=>e.kind==='short')).toHaveLength(1);
+    expect(c.loads.map(l=>l.state)).toEqual(['brownout','brownout']);expect(c.draw.get('s')??0).toBe(0);}
+});
+it('a supply that shorts does not claim a node another live supply feeds',()=>{
+  const wet=lead('w','a','split',10);wet.wet=true;
+  const c=new Circuit([{id:'a',limit:5,tripped:false},{id:'b',limit:5,tripped:false}],[wet,lead('x','b','split',10),lead('y','split','fridge')],[load('fridge',2)]);c.tick(.1);
+  expect(c.sources.map(s=>s.tripped)).toEqual([true,false]);expect(c.loads[0].state).toBe('on');expect(c.draw.get('b')).toBe(2);
+});

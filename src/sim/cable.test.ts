@@ -21,5 +21,14 @@ describe('rope geometry',()=>{
     for(let t=0;t<=1;t+=.02)r.update({x:10,z:1-t*4},walls);
     expect(r.bends.some(b=>b.x>7.9)).toBe(true);expect(r.length).toBeGreaterThan(24);
   });
+  it('re-routes round a prop shoved onto one of its bends',()=>{
+    const r=new Rope({x:-4,z:0},30);r.update({x:-4,z:4},[pillar]);for(let x=-4;x<=4;x+=.25)r.update({x,z:4},[pillar]);for(let z=4;z>=0;z-=.25)r.update({x:4,z},[pillar]);
+    const bend=r.bends.find(b=>b.x>1&&b.z>1);expect(bend).toBeDefined();
+    // A cabinet slides over that corner bend; the end does not move.
+    const cabinet={id:'c',minX:bend!.x-.6,maxX:bend!.x+.6,minZ:bend!.z-.4,maxZ:bend!.z+.8},obstacles=[pillar,cabinet],before=r.length;
+    const path=r.update({x:4,z:0},obstacles);
+    path.slice(1).forEach((p,i)=>expect(clear(path[i],p,obstacles)).toBe(true));
+    expect(r.bends.some(b=>b.x>cabinet.minX&&b.x<cabinet.maxX&&b.z>cabinet.minZ&&b.z<cabinet.maxZ)).toBe(false);expect(r.length).toBeGreaterThan(before);
+  });
   it('finds props touching a rope segment',()=>{expect(segmentDistance({x:1,z:.2},{x:0,z:0},{x:3,z:0})).toBeCloseTo(.2);});
 });

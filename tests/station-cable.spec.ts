@@ -105,7 +105,7 @@ test('QFN bench: a crate tossed onto the bench counts, and SHIP needs the bench 
 test('signal observatory: the motor cart rolled into the far wall, then a decode logged on mains power',async({page})=>{
   const errors=await open(page,'observatory');await wait(page,.1);
   await walk(page,-3.7,-.1,.6);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('motor');
-  await walk(page,-6,3.5,.6);await shove(page,-6.3,6.4,8);await page.keyboard.press('KeyQ');await wait(page,2);
+  await walk(page,-6,3.5,.6);await shove(page,-6.3,8.4,8);await page.keyboard.press('KeyQ');await wait(page,2);
   let s=await station(page);expect(s.cartMoved).toBe(true);expect(s.cartWall).toBe(true);expect((await bonus(page,0)).ok).toBe(true);
   await plugBench(page,[[-.5,-.9]],[[2.95,-3.8],[2.95,-1.5]]);
   await walk(page,0,-1.55,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);

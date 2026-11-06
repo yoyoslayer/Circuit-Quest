@@ -8,7 +8,7 @@ import * as T from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import type {Game} from '../../game';
 import type {Station,StationJob,Pointer,Prompt,RoomKit} from '../types';
-import {dressObservatory,RX} from './room';
+import {dressObservatory,RX,DOME} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL,freezeBench} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import {signOff,fault as benchFault} from '../shared';
@@ -70,7 +70,9 @@ const FLOOR_ROUTE={
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
 export class ObservatoryBench implements Station {
   readonly view={distance:6.3,pitch:.88,lookY:.4,width:4.6};
-  readonly limits={time:360,damage:1,cost:0};
+  // Par time: the 30 × 20 m room (review 6) put the wall socket 2 m further back, about 2.7 m more
+  // walking with the lead and back, so +4 s.
+  readonly limits={time:364,damage:1,cost:0};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   // Bench state.
   // The fitted whip starts as the long 1.5 m rod, so the gust that lays it flat is a big, visible swing (R5-044).
@@ -287,7 +289,7 @@ export class ObservatoryBench implements Station {
   private driveShutter(latchOk:boolean){
     const room=this.room;if(!room)return;room.setShutter(latchOk);const open=room.shutterOpen;
     if(this.ready&&this.shutterWas&&!open){const a=this.game.audio;setTimeout(()=>{a.thud(6);a.clatter();this.game.burst(room.shutterAt,'#e9dcc0',8,'dust');},230);
-      this.game.alarm({x:-3.4,z:-3.7},1.5);}
+      this.game.alarm({x:DOME.x+2.7,z:DOME.z+1.6},1.5);}
     this.shutterWas=open;
   }
   /** Scope screen: live decoder trace, the spectrum before/after the filter, and the decode line. */
@@ -469,7 +471,7 @@ export class ObservatoryBench implements Station {
   }
   complete(){return this.logged.length>=JOBS.length;}
   /** The win shot frames Pip with the dome whose sky lights up (R5-077). */
-  winFocus(){return new T.Vector3(-6.1,1.4,-5.3);}
+  winFocus(){return new T.Vector3(DOME.x,1.4,DOME.z);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
   snapshot(){const j=this.current();return {job:this.jobIndex,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,snr:l.verdict.snr})),series:this.series??null,shunt:this.shunt??null,held:this.held??null,knob:this.knobSlot??null,rerouted:this.rerouted,rod:this.rod,vertical:this.vertical,
     cartDistance:this.cartDistance,cartMoved:this.cartMoved,cartWall:this.cartWall,mistakes:this.mistakes,spent:this.spent,reading:j?read(j,this.state()):undefined,scope:this.scopeMode,listening:this.listening,

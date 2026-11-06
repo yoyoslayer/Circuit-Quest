@@ -15,6 +15,9 @@ import {C_LIGHT} from './logic';
 const BRASS='#d6a24e',CREAM='#fbf3e2',VIOLET='#8b7be8',NIGHT='#1f2a52';
 /** Where the receiver's cable leaves the rack (the motor's noise is measured from here). */
 export const RX={x:-3.25,z:-2.45};
+/** The dome's centre: back left, its shell just clear of the back wall (review 6: the back wall moved
+ *  2 m back in the 30 × 20 m room, so the dome went with it). */
+export const DOME={x:-6.1,z:-7.3};
 
 const starfield=(seed:number,w=1024,h=512,band=true)=>canvasTex(w,h,c=>{
   const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,'#0d1333');g.addColorStop(.6,'#1c2a5e');g.addColorStop(1,'#34407a');c.fillStyle=g;c.fillRect(0,0,w,h);
@@ -66,7 +69,7 @@ export function dressObservatory(game:Game,kit:RoomKit){
   kit.floor(-W,W,-3.2,D,TX.woodPlanks('#c99a63'),3.2);kit.floor(-W,W,-D,-3.2,TX.carpetTiles('#4b4f86'),2.4);
   rug(r,0,1.2,5.2,2.6,VIOLET,'#d9d0ff');rug(r,-6.4,3.6,3,2.2,'#d6a24e','#fbe7b8');
   // ---- The dome: a half-shell open to the room, painted inside with the night sky.
-  const dx=-6.1,dz=-5.3,R=2.55;
+  const dx=DOME.x,dz=DOME.z,R=2.55;
   part(r,cyl(R+.25,R+.3,.14,40),toon('#c9b8f0'),dx,.07,dz);part(r,cyl(R+.05,R+.05,.02,40),toon(NIGHT),dx,.15,dz,false);solid(game,1.2,2,1.2,dx,1,dz);
   // Colliders (R5-021): the platform is a real 16 cm step (Pip's controller climbs it, props rest on
   // it), and a low ring of segments just inside the back half of the shell keeps Pip and thrown props
@@ -128,16 +131,59 @@ export function dressObservatory(game:Game,kit:RoomKit){
   // Exhibit plinths in front of the gallery: a dish, a prism with its rainbow, a lead-lined box.
   const plinth=(x:number,z:number)=>{const g=group(r,x,0,z);part(g,rbox(.7,.9,.7,.06),toon(CREAM),0,.45,0);part(g,box(.74,.05,.74),toon(BRASS),0,.92,0);solid(game,.7,1,.7,x,.5,z);return g;};
   // The dish needs both faces: it gets its own material, so the shared toon one stays front-sided (R5-330).
-  const dish=plinth(3.2,-6.3),dishMat=toon('#dfe3ea').clone();dishMat.side=T.DoubleSide;const bowl=part(dish,new T.SphereGeometry(.34,24,12,0,Math.PI*2,0,Math.PI/2.6),dishMat,0,1.3,0);bowl.rotation.x=Math.PI*.8;part(dish,cyl(.03,.03,.36,8),toon(DMETAL),0,1.1,0);
-  const prism=plinth(6.2,-6.3);const glass=part(prism,cyl(.2,.2,.3,3),toon('#cfefff',{opacity:.6}),0,1.1,0);glass.rotation.z=Math.PI/2;
+  const dish=plinth(3.2,-D+1.7),dishMat=toon('#dfe3ea').clone();dishMat.side=T.DoubleSide;const bowl=part(dish,new T.SphereGeometry(.34,24,12,0,Math.PI*2,0,Math.PI/2.6),dishMat,0,1.3,0);bowl.rotation.x=Math.PI*.8;part(dish,cyl(.03,.03,.36,8),toon(DMETAL),0,1.1,0);
+  const prism=plinth(6.2,-D+1.7);const glass=part(prism,cyl(.2,.2,.3,3),toon('#cfefff',{opacity:.6}),0,1.1,0);glass.rotation.z=Math.PI/2;
   ['#e5484d','#f08a4b','#ffd66b','#6cc58a','#5b9cf0','#8b7be8'].forEach((c,k)=>{const b=part(prism,box(.4,.012,.035),toon(c),.35,1.1+k*.0,-.09+k*.036,false);b.rotation.y=-.35+k*.06;});
-  const lead=plinth(9,-6.3);part(lead,rbox(.46,.36,.46,.05),toon('#6b7385'),0,1.13,0);part(lead,new T.PlaneGeometry(.3,.3),flat(plaque('☢',128,128,'#ffd66b',INK,80)),0,1.13,.235,false);
+  const lead=plinth(9,-D+1.7);part(lead,rbox(.46,.36,.46,.05),toon('#6b7385'),0,1.13,0);part(lead,new T.PlaneGeometry(.3,.3),flat(plaque('☢',128,128,'#ffd66b',INK,80)),0,1.13,.235,false);
   // ---- Side wall: a big star chart mural and two posters.
   const mural=new T.Mesh(new T.PlaneGeometry(5.6,2.1),flat(starfield(21,1024,384,false)));mural.position.set(1.4,1.9,.16);kit.side.add(mural);part(kit.side,box(5.8,2.3,.04),toon(BRASS),1.4,1.9,.13);
-  wallArt(kit.side,'sun',-3.4,1.9,.16);wallArt(kit.side,'mountain',5.6,1.9,.16);
+  wallArt(kit.side,'sun',-3.4,1.9,.16);wallArt(kit.side,'mountain',5.2,1.9,.16);
+  // The longer wall (review 6) gets two more posters, clear of the atlas shelves at its back end.
+  wallArt(kit.side,'graph',-6.8,1.9,.16);wallArt(kit.side,'plant',-8.6,1.9,.16,0,.9);
   // Warm light over the bench (no hanging lamps in the bench camera's view).
   pointLamp(game.root,0,2.7,-1.6,{color:'#fff1d6',intensity:5,distance:5.5});lampPool(game.root,0,-2.2,2.6,.2);
   pointLamp(game.root,-4,2.4,3,{color:'#ffd9a8',intensity:3,distance:6});
+  // ---- Review 6: the bigger room's new set pieces. Each one is a fixed exhibit with its own collider;
+  // the clutter keeps a ring clear round it (see the level's lanes).
+  const cylSolid=(x:number,z:number,rad:number,h:number)=>game.world.createCollider(RAPIER.ColliderDesc.cylinder(h/2,rad).setFriction(.7),game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,h/2,z)));
+  // An orrery on a round table on the right: a glowing sun, four planets on brass arms that turn slowly.
+  const ox=W-6,oz=1,orr=group(r,ox,0,oz),WOODD='#7a5232';
+  part(orr,cyl(.5,.56,.06,24),toon(WOODD),0,.03,0);part(orr,cyl(.12,.18,.78,16),toon(WOODD),0,.45,0);part(orr,cyl(.78,.78,.07,40),toon('#9a6a3e'),0,.86,0);part(orr,cyl(.8,.8,.03,40),toon(BRASS),0,.9,0,false);
+  part(orr,new T.TorusGeometry(.66,.012,6,48),toon(BRASS),0,.92,0,false).rotation.x=Math.PI/2;
+  part(orr,cyl(.03,.03,.34,8),toon(BRASS),0,1.08,0);part(orr,sphere(.15,20,14),hot('#ffd66b',1.6),0,1.3,0);
+  const arms:{g:T.Group;w:number}[]=[];
+  ([[.3,'#b9b0a0',.035,.9],[.42,'#e8b04a',.05,.6],[.55,'#5b9cf0',.055,.42],[.7,'#e5484d',.045,.28]] as const).forEach(([rad,col,sz,w],k)=>{
+    const g=group(orr,0,1.12+k*.03,0,k*1.9);part(g,box(rad,.016,.016),toon(BRASS),rad/2,0,0,false);part(g,cyl(.01,.01,.08,6),toon(BRASS),rad,.04,0,false);
+    part(g,sphere(sz,14,10),toon(col),rad,.08+sz,0);if(k===2)part(g,sphere(.018,8,6),toon('#dfe3ea'),rad+.1,.13,0,false);arms.push({g,w});});
+  cylSolid(ox,oz,.8,.95);lampPool(game.root,ox,oz,1.8,.16);pointLamp(game.root,ox,2.3,oz,{color:'#ffe3a8',intensity:3,distance:4.5});
+  rug(r,ox,oz,3.4,3.4,'#2f3a6e','#8b7be8');
+  // A radio-telescope model in the back right corner: a big white dish on a turntable yoke, aimed up at
+  // the roof, with its feed horn on three struts (the bench's signal comes from its big brother).
+  const rdx=W-3,rdz=-D+3.2,rd=group(r,rdx,0,rdz,-.6);
+  part(rd,cyl(.95,1.05,.22,32),toon('#c9b8f0'),0,.11,0);part(rd,cyl(.6,.7,.5,24),toon(NIGHT),0,.47,0);part(rd,cyl(.72,.72,.05,32),toon(BRASS),0,.73,0,false);
+  part(rd,box(2.14,.12,.3),toon('#dfe3ea'),0,.8,0);
+  for(const s of [-1,1]){part(rd,box(.14,1.1,.26),toon('#dfe3ea'),s*1.02,1.3,0);part(rd,cyl(.09,.09,.1,14,'x'),toon(BRASS),s*.96,1.76,0);}
+  // The bowl is a shallow spherical cap opening upward, tipped toward the room on its trunnions.
+  const tilt=group(rd,0,1.76,0);tilt.rotation.x=.7;const rdMat=toon('#f4efe6').clone();rdMat.side=T.DoubleSide;
+  const CAP=.92,RB=1.15,bowlBig=part(tilt,new T.SphereGeometry(RB,32,10,0,Math.PI*2,Math.PI-CAP,CAP),rdMat,0,RB*.55-.12,0);bowlBig.scale.y=.55;
+  part(tilt,cyl(.14,.18,.2,16),toon(NIGHT),0,-.1,0);
+  const rimR=Math.sin(CAP)*RB,rimY=.55*RB*(1-Math.cos(CAP))-.12,feed=new T.Vector3(0,.86,0),up=new T.Vector3(0,1,0);
+  for(let k=0;k<3;k++){const a=k/3*Math.PI*2+Math.PI/2,foot=new T.Vector3(Math.cos(a)*rimR*.96,rimY,Math.sin(a)*rimR*.96),dir=feed.clone().sub(foot),len=dir.length();
+    const st=part(tilt,cyl(.016,.016,len,6),toon(DMETAL),0,0,0,false);st.position.copy(foot).addScaledVector(dir,.5);st.quaternion.setFromUnitVectors(up,dir.normalize());}
+  part(tilt,cyl(.07,.1,.22,12),toon(BRASS),0,.92,0);part(tilt,sphere(.04,10,8),hot('#ff6b6b',2),0,1.05,0,false);
+  cylSolid(rdx,rdz,1.05,1.6);plaqueBoard(rd,plaque('RADIO DISH · 1:20 MODEL',512,96,'#ffd66b'),.9,.17,0,.47,.72,{back:false,depth:.03});
+  pointLamp(game.root,rdx-1,2.6,rdz+1.2,{color:'#d9d0ff',intensity:3.5,distance:5});
+  // A celestial globe on a wooden floor stand by the front corner: the sky's star chart on a ball in a
+  // brass meridian ring, tilted to the pole star.
+  const gx=-W+4.6,gz=D-3.6,gl=group(r,gx,0,gz,.5);
+  part(gl,cyl(.36,.42,.06,20),toon(WOODD),0,.03,0);for(let k=0;k<3;k++){const a=k/3*Math.PI*2,leg=part(gl,cyl(.035,.05,.8,8),toon(WOODD),Math.cos(a)*.22,.42,Math.sin(a)*.22);leg.rotation.set(Math.sin(a)*.25,0,-Math.cos(a)*.25);}
+  part(gl,new T.TorusGeometry(.5,.035,8,40),toon(BRASS),0,1.3,0).rotation.x=Math.PI/2;for(const s of [-1,1])part(gl,cyl(.02,.02,.5,6),toon(BRASS),s*.5,1.05,0,false);
+  const ball=group(gl,0,1.3,0);ball.rotation.z=.41;part(ball,new T.SphereGeometry(.42,32,20),flat(starfield(33,512,256,false)),0,0,0);
+  part(ball,new T.TorusGeometry(.45,.022,6,40),toon(BRASS),0,0,0);part(ball,cyl(.012,.012,1.04,6),toon(DMETAL),0,0,0,false);
+  cylSolid(gx,gz,.52,1.75);
+  // Warm light for the library behind the dome and the tea corner along the front.
+  pointLamp(game.root,-W+3,2.5,-D+2.6,{color:'#ffd9a8',intensity:3.5,distance:5.5});lampPool(game.root,-W+3.4,-D+2.6,2,.16);
+  pointLamp(game.root,-1,2.5,D-1.6,{color:'#ffe3c0',intensity:3,distance:5});rug(r,-.6,D-1.6,4.4,2,'#c9a46a','#fbe7b8');
   // When the last transmission is decoded, the dome's stars brighten.
   let won=false;
   const lightUp=()=>{won=true;glow(game.root,'rgba(200,190,255,1)',6,.35).position.set(dx,1.8,dz-1.2);pointLamp(game.root,dx,1.8,dz,{color:'#c9c0ff',intensity:8,distance:8});};
@@ -154,7 +200,7 @@ export function dressObservatory(game:Game,kit:RoomKit){
     tick(dt:number,hum:boolean){
       const goal=open?OPEN:0,rate=open?.45:2.2;shutter.rotation.y+=Math.sign(goal-shutter.rotation.y)*Math.min(Math.abs(goal-shutter.rotation.y),rate*dt);
       tube.rotation.x+=((open?TUBE_UP:TUBE_DOWN)-tube.rotation.x)*Math.min(1,dt*(open?1.5:6));
-      s+=dt;domeMotor.position.copy(motorHome);
+      s+=dt;domeMotor.position.copy(motorHome);for(const a of arms)a.g.rotation.y+=a.w*dt;
       if(hum){domeMotor.position.x+=Math.sin(s*190)*.002;domeMotor.position.z+=Math.cos(s*170)*.002;pulse-=dt;
         if(pulse<=0){pulse=.8;game.burst({x:motorHome.x,y:.6,z:motorHome.z},'#ffd66b',1,'ring');}}
     }};

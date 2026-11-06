@@ -48,6 +48,9 @@ export class MeetingStrip {
   private projectorCord:Cord;private led:T.Mesh;private rocker:T.Object3D;private hum=0;
   private toast?:HTMLElement;private toastUntil=0;private unpluggedAtTrip=-1;
   private towerCheered=false;
+  /** One glow material per lamp mesh, recoloured in place: a fresh hot() every frame grows
+   *  OutlineEffect's per-material cache without bound (sim-1). */
+  private glows=new Map<T.Mesh,T.MeshBasicMaterial>();
   constructor(private game:Game){
     const c=game.circuit,root=game.root;
     // The reel feeds the strip (a heavy reel: the strip's breaker is the limit, not the cable). The
@@ -105,6 +108,8 @@ export class MeetingStrip {
     const coil=part(root,new T.TorusGeometry(.12,.025,6,20).rotateX(Math.PI/2),mat,0,-5,0,false);coil.visible=false;
     return {mesh,head,coil,pulses:new Pulses(root,2,.035),key:'',length:0};
   }
+  /** Lights a lamp mesh like hot(color,k), reusing that mesh's own material. */
+  private glow(mesh:T.Mesh,color:string,k:number){let m=this.glows.get(mesh);if(!m){m=hot(color,k);this.glows.set(mesh,m);}else m.color.set(color).multiplyScalar(k);return m;}
   private stripProp(){return this.game.props.find(p=>p.spec.id==='strip');}
   /** The strip's world frame (its body), or undefined while it is not set at the door. */
   private frame(){const p=this.stripProp();if(!p||!this.game.stripPlaced())return;const q=p.body.translation(),r=p.body.rotation();
@@ -135,7 +140,8 @@ export class MeetingStrip {
   interact(pos:Point):boolean{
     const g=this.game,a=g.audio;
     if(this.atReset(pos)){g.circuit.resetBreaker('supply');this.heat=0;a.noise(.08,.1,500);a.tone(640,.06,.04,'triangle');return true;}
-    const near=this.nearAppliance(pos);if(!near)return false;
+    // Plugs come out of a strip that is there: before it is set at the door the cords already lie on the floor.
+    const near=g.stripPlaced()&&this.nearAppliance(pos);if(!near)return false;
     const total=()=>this.demand().reduce((s,l)=>s+l.draw,0),before=total();
     near.plugged=!near.plugged;a.pop();a.noise(.03,.06,2400,'highpass');
     if(!near.plugged){this.unplugged++;
@@ -147,7 +153,7 @@ export class MeetingStrip {
   }
   prompt(pos:Point):{key:string;text:string}|null{
     if(this.atReset(pos))return {key:'E',text:'Reset the strip'};
-    const near=this.nearAppliance(pos);
+    const near=this.game.stripPlaced()&&this.nearAppliance(pos);
     return near?{key:'E',text:`${near.plugged?'Unplug':'Plug in'} the ${near.name}`}:null;
   }
   /** Before each circuit tick: plugs follow the appliances, and the thermal breaker heats on the
@@ -202,10 +208,10 @@ export class MeetingStrip {
     if(overloaded&&g.running&&!g.paused){this.hum-=dt;if(this.hum<=0){this.hum=.22;g.audio.tone(90+60*this.heat/THERMAL_TRIP,.24,.045,'sawtooth');}}else this.hum=0;
     // The load board.
     this.drawBoard(live,placed,overloaded);
-    (this.boardLamp.material as T.Material)=this.tripped&&placed?hot('#ff5a4d',1.4+Math.sin(time*10)*.4):toon('#5a5f70');
+    this.boardLamp.material=this.tripped&&placed?this.glow(this.boardLamp,'#ff5a4d',1.4+Math.sin(time*10)*.4):toon('#5a5f70');
     // The strip's switch pops up and pulses while tripped, and the flag rises beside it.
     const tripShown=this.tripped&&placed;this.resetCap.visible=tripShown;this.flag.visible=tripShown;
-    if(tripShown){const s=this.onStrip(.39,.1);this.resetCap.position.set(s.x,s.y+.02+Math.sin(time*8)*.015,s.z);this.resetCap.material=hot('#ff5a4d',1.4+Math.sin(time*10)*.4);
+    if(tripShown){const s=this.onStrip(.39,.1);this.resetCap.position.set(s.x,s.y+.02+Math.sin(time*8)*.015,s.z);this.resetCap.material=this.glow(this.resetCap,'#ff5a4d',1.4+Math.sin(time*10)*.4);
       this.flagUp=Math.min(1,this.flagUp+dt/.25);this.flag.position.set(s.x,s.y-.05,s.z+.06);this.flag.scale.set(1,this.flagUp,1);this.flag.rotation.y=Math.sin(time*3)*.15;}
     const coupler=g.props.find(p=>p.spec.id==='coupler');this.couplerBadge.visible=g.couplerHint&&!g.coupler&&!!coupler?.mesh.visible;
     if(this.couplerBadge.visible){const q=coupler!.body.translation();this.couplerBadge.position.set(q.x,q.y+1.1+Math.sin(time*4)*.08,q.z);}
@@ -213,7 +219,7 @@ export class MeetingStrip {
     // the strip hums they flicker. Its cord runs to its outlet on the strip, or lies coiled.
     const flicker=overloaded&&Math.sin(time*37)>.2;
     for(const x of this.appliances){const on=x.load.state==='on';
-      x.lamp.material=on&&!flicker?hot(x.id==='urn'?'#ff5a4d':'#ff8a3d',x.id==='urn'?1.6:1.3):toon('#5a5f70');
+      x.lamp.material=on&&!flicker?this.glow(x.lamp,x.id==='urn'?'#ff5a4d':'#ff8a3d',x.id==='urn'?1.6:1.3):toon('#5a5f70');
       if(on&&x.id==='urn'&&Math.random()<dt*2.5)g.burst({x:x.at.x-.08,y:1.35,z:x.at.z-.02},'#fffaf0',1,'smoke');
       const from=x.id==='urn'?[new T.Vector3(x.at.x-.2,.84,x.at.z-.14),new T.Vector3(x.at.x-.34,.78,x.at.z-.16),new T.Vector3(x.at.x-.36,.35,x.at.z-.12),new T.Vector3(x.at.x-.42,.03,x.at.z+.02)]
         :[new T.Vector3(x.at.x-.24,.12,x.at.z-.06),new T.Vector3(x.at.x-.4,.03,x.at.z+.05)];
@@ -222,7 +228,7 @@ export class MeetingStrip {
     // strip is set down it lies on the floor where the strip belongs.
     {const t=g.level.target,proj=c.loads[0];
       this.drawCord(this.projectorCord,[new T.Vector3(PROJ.x+.1,.9,PROJ.z+.2),new T.Vector3(PROJ.x+.2,.3,PROJ.z+.6),new T.Vector3(PROJ.x+.4,.03,PROJ.z+1.3)],placed?0:undefined,-1,new T.Vector3(t.x-.3,.03,t.z+.15),proj.state==='on',0);
-      this.led.material=!g.switchedOn?toon('#5a5f70'):proj.state==='on'&&!overloaded?hot('#57e38f',1.8):hot('#ffb340',1.6+Math.sin(time*6)*.3);
+      this.led.material=!g.switchedOn?toon('#5a5f70'):proj.state==='on'&&!overloaded?this.glow(this.led,'#57e38f',1.8):this.glow(this.led,'#ffb340',1.6+Math.sin(time*6)*.3);
       this.rocker.rotation.x=g.switchedOn?.35:-.35;}
     // The paper tower: all down is a chaos win worth a cheer (the bonus itself lives on the job card).
     if(!this.towerCheered&&this.towerDown()){this.towerCheered=true;g.burst({x:8,y:1.2,z:-2.35},'#ffcf52',40,'confetti');g.audio.jingle();g.alarm({x:8,z:-2.35},6);}
@@ -257,5 +263,7 @@ export class MeetingStrip {
     c.restore();
   }
   snapshot(){return {pulses:this.game.pulses.group.visible,tripped:this.tripped,trips:this.trips,unplugged:this.unplugged,heat:this.heat,overloaded:this.overloaded,towerDown:this.towerDown(),draw:this.game.circuit.draw.get('supply')??0,
-    demand:this.demand().reduce((s,l)=>s+l.draw,0),appliances:this.appliances.map(x=>({id:x.id,plugged:x.plugged,state:x.load.state}))};}
+    demand:this.demand().reduce((s,l)=>s+l.draw,0),appliances:this.appliances.map(x=>({id:x.id,plugged:x.plugged,state:x.load.state})),
+    // Which material each lamp wears: a lit lamp keeps the same one from frame to frame.
+    lamps:[...this.appliances.map(x=>x.lamp),this.led,this.boardLamp,this.resetCap].map(m=>(m.material as T.Material).uuid)};}
 }

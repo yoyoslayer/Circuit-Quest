@@ -12,6 +12,8 @@ export function segmentHits(a:Point,b:Point,r:Obstacle):boolean {
   }
   return hi>1e-5&&lo<1-1e-5;
 }
+/** Strictly inside a box (a bend wrapped on its corner sits CORNER outside it). */
+export const inside=(p:Point,o:Obstacle)=>p.x>o.minX&&p.x<o.maxX&&p.z>o.minZ&&p.z<o.maxZ;
 export function clear(a:Point,b:Point,obstacles:Obstacle[]){return !obstacles.some(o=>segmentHits(a,b,o));}
 // Visibility graph supplies the shortest collision-free detour when a segment
 // crosses a corner. Existing bends stay until their neighbours have line of sight.
@@ -58,7 +60,9 @@ export class Rope {
   // Bends wrap the corner the moving end actually swept past, so a cable dragged down
   // one corridor never jumps through a door on the other side of a wall.
   update(end:Point,obstacles:Obstacle[]){
-    const points=[this.anchor,...this.bends,end];
+    // A prop shoved onto a bend (or tipped so its box grows over it) swallows that bend: drop it, so
+    // the routing below takes its neighbours around the prop instead of straight through it.
+    const points=[this.anchor,...this.bends.filter(b=>!obstacles.some(o=>inside(b,o))),end];
     for(let i=1;i<points.length-1;){if(canUnwrap(points[i-1],points[i],points[i+1],obstacles)){points.splice(i,1);i=Math.max(1,i-1);}else i++;}
     const routed=[points[0]];
     for(let i=1;i<points.length-1;i++)routed.push(...detour(points[i-1],points[i],obstacles).slice(1));

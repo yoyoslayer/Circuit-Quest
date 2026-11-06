@@ -15,10 +15,14 @@ const backToReel=(page:Page)=>route(page,[[6,-1.2],[-8,-1.4],[-10,-6.2]]);
 // with the 5.5 A demand left as a ghost. Unplug one load (the boardroom groans) and reset the strip.
 async function switchProjector(page:Page){
   await wait(page,.2);let s=await snapshot(page);expect(s.strip.draw).toBeCloseTo(4.5);expect(s.strip.pulses).toBe(true);
+  // The lit urn and heater lamps keep one material each (a new one per frame grows OutlineEffect's cache).
+  await wait(page,.2);expect((await snapshot(page)).strip.lamps).toEqual(s.strip.lamps);
   await route(page,[[12.3,-1.2],[12.3,-3.2]],.4);await page.keyboard.press('KeyE');
   await wait(page,.3);s=await snapshot(page);expect(s.strip.overloaded).toBe(true);expect(s.strip.tripped).toBe(false);expect(s.won).toBe(false);
   await wait(page,2.7);s=await snapshot(page);expect(s.strip.tripped).toBe(true);expect(s.won).toBe(false);expect(s.strip.draw).toBe(0);expect(s.strip.demand).toBeCloseTo(5.5);expect(s.strip.pulses).toBe(false);
   await expect(page.locator('.meeting-toast')).toContainText('cut out');
+  // Tripped: the board lamp, the reset cap and the projector LED pulse on their own materials.
+  await wait(page,.2);expect((await snapshot(page)).strip.lamps).toEqual(s.strip.lamps);
   await route(page,[[12.3,-1.2],[14.3,-.9]],.4);await page.keyboard.press('KeyE');await wait(page,.2);
   s=await snapshot(page);expect(s.strip.unplugged).toBe(1);expect(s.alarmed).toBeGreaterThanOrEqual(1);expect(s.strip.demand).toBeCloseTo(3);
   await walk(page,12.3,-1.45,.3);await expect(page.locator('.prompt-pill')).toContainText('Reset the strip');await page.keyboard.press('KeyE');await wait(page,.2);}

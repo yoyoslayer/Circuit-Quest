@@ -12,6 +12,8 @@ const OVEN_WINDOW=hot('#ff9a3c',1.6),HOT_WINDOW=hot('#ff4a2a',2),DEAD=new T.Colo
 import {lunchHud} from './ui/lunch-hud';
 import {gameUI} from './ui/game-ui';
 import {solid} from './levels/decor';
+import {dressLunch,lunchDressingObstacles} from './levels/lunch-dressing';
+import {lunch as LUNCH} from './levels/lunch';
 import {cablePath,type Prop} from './game';
 /** A socket. One on a prop rides with it: `lift` above the body's centre, or at `local` in the prop's own frame. */
 type Port={id:string;role:'out'|'in'|'both';pos:T.Vector3;bodyId?:string;lift:number;local?:T.Vector3;ring:T.Mesh;capacity:number;
@@ -40,10 +42,10 @@ const BELT_START=-.5,BELT_END=10.4;
 const FIXED:Obstacle[]=[
   {id:'oven',minX:-3.8,maxX:-1.2,minZ:-8.75,maxZ:-7.45},{id:'fridge',minX:-6.1,maxX:-5.1,minZ:-2.95,maxZ:-1.65},{id:'post',minX:-4.3,maxX:-3.7,minZ:-3.55,maxZ:-3.15},
   {id:'motor',minX:4.65,maxX:5.35,minZ:-6.4,maxZ:-5.8},{id:'prep',minX:-7,maxX:-4.8,minZ:-9,maxZ:-8.1},{id:'winch',minX:12.75,maxX:13.85,minZ:-5.5,maxZ:-4.1},
-  {id:'shaft',minX:10.6,maxX:13.4,minZ:-8.2,maxZ:-5.8},{id:'store-lamp',minX:-10.25,maxX:-9.75,minZ:-3.25,maxZ:-2.75},{id:'vending',minX:-7.4,maxX:-6.4,minZ:8.9,maxZ:9.7},
-  {id:'water',minX:-5.85,maxX:-5.35,minZ:9.15,maxZ:9.65},{id:'lounge',minX:12.5,maxX:13.9,minZ:7.4,maxZ:8.8},{id:'bench-1',minX:-4.85,maxX:-3.55,minZ:9.22,maxZ:9.68},
-  {id:'bench-2',minX:-3.25,maxX:-1.95,minZ:9.22,maxZ:9.68},{id:'plant-1',minX:15.34,maxX:15.86,minZ:4.94,maxZ:5.46},{id:'plant-2',minX:-7.46,maxX:-6.94,minZ:.94,maxZ:1.46},
-  {id:'plant-3',minX:15.54,maxX:16.06,minZ:-1.76,maxZ:-1.24},{id:'rack',minX:-16.35,maxX:-15.5,minZ:2.9,maxZ:6.7}];
+  {id:'shaft',minX:10.6,maxX:13.4,minZ:-8.2,maxZ:-5.8},{id:'store-lamp',minX:-10.25,maxX:-9.75,minZ:-3.25,maxZ:-2.75},
+  {id:'plant-2',minX:-7.46,maxX:-6.94,minZ:.94,maxZ:1.46},
+  // The corridor and wall fixtures moved out with the walls of the 36 × 24 m room, and the kitchen's back counters.
+  ...lunchDressingObstacles(LUNCH.width,LUNCH.depth)];
 /** Solid furniture a cable can be dragged round. Carts, splitters, bridges, the mop and the tray are
  *  left out: cables plug into them or are meant to lie on them. */
 const WRAPS=new Set<PropKind>(['desk','bookshelf','cabinet','sofa','printer','cooler','vending','cart','coolbox']);
@@ -105,6 +107,8 @@ export class LunchRuntime {
   dollyPark?:Point;resetAt=0;trayHop=0;lastStrainAlarm=0;liftOnFor=0;
   lamps=new Map<string,{bulb:T.Mesh;glow:T.Sprite;light:T.PointLight}>();
   constructor(public game:Game){
+    // Fit decor.ts's old-shell fixtures to the bigger room first (before anything below is built).
+    dressLunch(game);
     game.ropeMesh.visible=false;game.plug.visible=false;game.target.visible=false;if(game.screen)game.screen.visible=false;
     // The generic level target's socket box would sit inside the lift shaft; the winch has its own socket.
     for(const o of game.root.children)if(o instanceof T.Mesh&&o.geometry instanceof T.BoxGeometry&&Math.abs(o.position.x-game.level.target.x)<.01&&Math.abs(o.position.z-game.level.target.z)<.01)o.visible=false;
@@ -149,7 +153,7 @@ export class LunchRuntime {
     // The unlit storeroom (R5-141): every material inside its walls is darkened toward a blue-violet
     // tint by the toon pass (render/toon.ts darkBox/darkness), fading up once a lamp in there is
     // powered. The uniform is global, so it is cleared again when the page (the level) goes away.
-    Object.assign(darkBox,{x:-16.6,y:-7.75,z:-10.2,w:0});darkness.amount=1;
+    Object.assign(darkBox,{x:-game.level.width/2-.1,y:-7.75,z:-game.level.depth/2-.2,w:0});darkness.amount=1;
     addEventListener('pagehide',()=>this.dispose(),{once:true});
     // A pulsing warning over the oven while a baked tray sits in it past BURN_WARNING (R5-088).
     this.burnBadge=new T.Sprite(new T.SpriteMaterial({map:cachedTexture('burn-warning',()=>glyph(c=>{disc(c);c.fillStyle='#c7ccd6';c.beginPath();c.roundRect(46,170,164,30,10);c.fill();c.stroke();

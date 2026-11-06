@@ -150,7 +150,7 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
     pilot.material=lit?pilotOn:pilotOff;socketPilot.material=connected?pilotOn:pilotOff;
     if(lit!==shown){shown=lit;bulb.material=lit?bulbOn:bulbOff;halo.visible=lit;pool.visible=lit;light.intensity=lit?6:0;}};
   // Pallets side by side: three stringers and five slatted top boards each.
-  for(const [x,z] of [[8.55,7.75],[8.55,8.7],[-8.5,-8.5]]){const p=group(r,x,0,z);for(const dz of [-.4,0,.4])part(p,box(1.1,.09,.1),toon('#a9784a'),0,.045,dz);for(let k=0;k<5;k++)part(p,box(.18,.03,.9),toon('#c9925e'),-.46+k*.23,.105,0);solid(game,1.1,.12,.9,x,.06,z);}
+  for(const [x,z] of [[l.width/2-.8,9.2],[l.width/2-1.95,9.2],[-l.width/2+3,-8.5]]){const p=group(r,x,0,z);for(const dz of [-.4,0,.4])part(p,box(1.1,.09,.1),toon('#a9784a'),0,.045,dz);for(let k=0;k<5;k++)part(p,box(.18,.03,.9),toon('#c9925e'),-.46+k*.23,.105,0);solid(game,1.1,.12,.9,x,.06,z);}
   // A practice wall of sockets and a wordless how-to poster: wall outlet, reel, plug, socket, lamp.
   for(let k=0;k<5;k++){const x=-6+k*1.2;part(back,rbox(.38,.38,.1,.06),toon('#f0ece2'),x,.55,.18);part(back,cyl(.1,.1,.05,14,'z'),toon(INK),x,.55,.24);}
   // The reel's own lead runs to a live outlet on the wall beside it: the power comes from the wall, not the reel.
@@ -170,13 +170,13 @@ function playground(game:Game,back:T.Group,side:T.Group):Decor{
   // START: a taped square with a chevron where Pip begins, by the reel.
   const tape=toon('#ffc629');for(const [w,d,dx,dz] of [[1.8,.1,0,-.85],[1.8,.1,0,.85],[.1,1.8,-.85,0],[.1,1.8,.85,0]] as const)part(r,box(w,.012,d),tape,l.spawn.x+dx,.008,l.spawn.z+dz,false);
   for(const s of [-1,1]){const c=part(r,box(.55,.012,.12),tape,l.spawn.x+.25+s*0,.009,l.spawn.z+s*.18,false);c.rotation.y=s*.6;}
-  // Supply cage in the corner: wire mesh with a door, spare reels on cradles and boxes.
-  const cage=group(r,-8.3,0,-5.2);const wire=toon(DMETAL);for(const [x,z] of [[-1,-.8],[1,-.8],[-1,.8],[1,.8]])part(cage,box(.06,1.8,.06),wire,x,.9,z);
+  // Supply cage against the left wall (it follows the wall as the floor grows): wire mesh with a door, spare reels on cradles and boxes.
+  const cageX=-l.width/2+1.7,cage=group(r,cageX,0,-5.2);const wire=toon(DMETAL);for(const [x,z] of [[-1,-.8],[1,-.8],[-1,.8],[1,.8]])part(cage,box(.06,1.8,.06),wire,x,.9,z);
   for(const y of [.05,.9,1.8]){part(cage,box(2,.04,.04),wire,0,y,-.8);part(cage,box(2,.04,.04),wire,0,y,.8);part(cage,box(.04,.04,1.6),wire,-1,y,0);part(cage,box(.04,.04,1.6),wire,1,y,0);}
   for(let k=0;k<9;k++){part(cage,box(.02,1.8,.02),wire,-1+k*.25,.9,-.8,false);part(cage,box(.02,1.8,.02),wire,-1+k*.25,.9,.8,false);}
   part(cage,box(.06,1.7,.06),wire,0,.9,.82);part(cage,box(.05,.1,.04),toon('#c7ccd6'),.08,1,.85);
   for(const [x,z,c] of [[-.4,-.2,'#c9a66b'],[.4,.3,'#8a8fa6']] as const){part(cage,box(.5,.06,.3),toon(INK),x,.03,z);const reelGroup=group(cage,x,.32,z);for(const s of [-1,1])part(reelGroup,cyl(.32,.32,.06,20,'z'),toon(c),0,0,s*.2);part(reelGroup,cyl(.24,.24,.34,20,'z'),toon('#f4efe6'));}
-  part(cage,rbox(.6,.5,.6,.05),toon('#c98f5a'),.5,.25,-.35);solid(game,2,1.8,1.6,-8.3,.9,-5.2);
+  part(cage,rbox(.6,.5,.6,.05),toon('#c98f5a'),.5,.25,-.35);solid(game,2,1.8,1.6,cageX,.9,-5.2);
   return {lightUp:()=>update(0,true,true,true),playground:{update,seat:new T.Vector3(t.x-.39,.2,t.z)}};
 }
 function meeting(game:Game,back:T.Group,side:T.Group):Decor{

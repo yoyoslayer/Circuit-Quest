@@ -1,0 +1,37 @@
+
+[WebServer] (node:39748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+
+(node:17984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/2] tests\astra-input.spec.ts:25:2 › phone thumbstick › pause releases the finger and a second finger cannot steal the stick
+  1) tests\astra-input.spec.ts:25:2 › phone thumbstick › pause releases the finger and a second finger cannot steal the stick
+
+    Error: expect(received).toBeNull()
+
+    Received: {"x": 0.7936507936507937, "z": 0}
+
+      32 |   await page.keyboard.press('Escape');expect((await snapshot(page)).paused).toBe(true);await expect(page.locator('.stick')).not.toHaveClass(/held/);
+      33 |   expect(await page.evaluate(()=>(window as any).__game.stick??null)).toBeNull();await page.getByRole('button',{name:'Resume',exact:true}).click();
+    > 34 |   const before=(await snapshot(page)).player;await touch('touchMove',[{id:1,x:x+40,y}]);await wait(page,.4);expect(await page.evaluate(()=>(window as any).__game.stick??null)).toBeNull();
+         |                                                                                                                                                                                 ^
+      35 |   const after=(await snapshot(page)).player;expect(Math.hypot(after.x-before.x,after.z-before.z)).toBeLessThan(.05);
+      36 |   await touch('touchEnd',[]);await touch('touchStart',[{id:3,x:x+25,y}]);await expect.poll(()=>page.evaluate(()=>(window as any).__game.stick?.x??0)).toBeGreaterThan(.2);
+      37 |   await touch('touchEnd',[]);await expect(page.locator('.stick')).not.toHaveClass(/held/);await cdp.detach();await page.screenshot({path:'artifacts/astra-phone-stick-reset.png'});
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-input.spec.ts:34:177
+
+    Error Context: test-results\astra\astra-input-phone-thumbsti-8a1ee-nger-cannot-steal-the-stick\error-context.md
+
+
+
+(node:33372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/2] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+  1 failed
+    tests\astra-input.spec.ts:25:2 › phone thumbstick › pause releases the finger and a second finger cannot steal the stick
+  1 passed (24.4s)

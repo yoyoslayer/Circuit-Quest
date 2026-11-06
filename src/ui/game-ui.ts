@@ -71,6 +71,7 @@ export class GameUI {
   beforeBegin(){if(this.screen==='jobs'&&levels[this.sel].id!==this.game.level.id){this.playSelected();return true;}return false;}
   started(){this.show('play');(document.activeElement as HTMLElement|null)?.blur?.();}
   paused(on:boolean){
+    if(on){this.stickId=undefined;this.game.stick=undefined;this.layer.querySelector('.stick')?.classList.remove('held');const knob=this.layer.querySelector<HTMLElement>('.stick .knob');if(knob)knob.style.transform='';}
     if(on){const g=this.game,set=(k:string,v:string)=>{const el=g.hud.querySelector(`.pause-screen [data-p="${k}"]`);if(el)el.textContent=v;};set('time',clock(g.time));const extra=g.station&&!g.won?g.station.score():{mistakes:0,cost:0};set('damage',String(g.damage+extra.mistakes));set('cost',String(Math.round((g.cost+extra.cost)*10)/10));
       // The three bonus goals behind the job card's stars, with what's done so far.
       const list=g.hud.querySelector('.pause-screen .pause-bonus');if(list)list.innerHTML=this.objectives.results().map(b=>`<li class="${b.ok?'ok':''}"><i>★</i>${b.text}</li>`).join('');}
@@ -145,9 +146,9 @@ export class GameUI {
     const move=(e:PointerEvent)=>{const r=stick.getBoundingClientRect(),max=r.width*.36;let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);const d=Math.hypot(dx,dy);if(d>max){dx*=max/d;dy*=max/d;}
       knob.style.transform=`translate(${dx}px,${dy}px)`;const m=Math.hypot(dx,dy)/max;this.game.stick=m>.15?{x:dx/max,z:dy/max}:undefined;};
     const end=(e:PointerEvent)=>{if(e.pointerId!==this.stickId)return;this.stickId=undefined;stick.classList.remove('held');knob.style.transform='';this.game.stick=undefined;};
-    stick.addEventListener('pointerdown',e=>{e.preventDefault();this.stickId=e.pointerId;stick.setPointerCapture(e.pointerId);stick.classList.add('held');this.game.audio.start();move(e);});
+    stick.addEventListener('pointerdown',e=>{if(this.stickId!==undefined||!this.game.running||this.game.paused||this.game.won||this.game.atBench||this.game.menu)return;e.preventDefault();this.stickId=e.pointerId;stick.setPointerCapture(e.pointerId);stick.classList.add('held');this.game.audio.start();move(e);});
     stick.addEventListener('pointermove',e=>{if(e.pointerId===this.stickId)move(e);});
-    stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);
+    stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);stick.addEventListener('lostpointercapture',end);
   }
   /** The pause menu's View tile names the current lens. */
   syncLens(){const name=LENS_NAMES[FOVS.indexOf(this.game.fov as Lens)]??'Standard';for(const el of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-p="lens"]')))el.textContent=`View: ${name}`;}

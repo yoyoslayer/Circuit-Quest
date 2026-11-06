@@ -501,3 +501,10 @@ Verified: build, 173 unit tests, and three focused browser checks pass (pause/ke
 A successful layout edit or Undo now clears the previous check/rejection toast. Previously an obsolete connector, overlap or layer diagnosis could remain visible after the player changed the board. A newly joined net still gets its fresh confirmation after the edit. The real failed-shipment/recovery playthrough now checks edit and Undo invalidation explicitly.
 
 Verified: build, 173 unit tests, QFN rejection/repair/undo/shipment, and rendered smoke pass. Evidence: `mockups/review5/tools/astra-finish/feedback-{build,unit,browser}.log`.
+
+
+## 2026-11-06 — Phone thumbstick ownership
+
+Pausing releases the thumbstick's finger ID and recentres its knob, so a finger still resting on the screen cannot start walking again after Resume. A second finger cannot take over an existing drag. Losing pointer capture also releases the control. The phone regression uses actual Chromium touch events, including two simultaneous fingers, pause/resume with one still held, and a fresh touch afterward.
+
+Verified: production build, 173 unit tests, phone touch regression and rendered smoke pass. The first touch fixture incorrectly ended every active contact while attempting to release only the secondary finger; its active-point sequence was corrected before the passing run. Evidence: `mockups/review5/tools/astra-finish/touch-{build,unit,browser,final}.log`. The phone capture was inspected.

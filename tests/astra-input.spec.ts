@@ -18,3 +18,22 @@ test('pause ignores queued walking and camera input, then fresh controls work',a
  expect(await page.evaluate(()=>{const g=(window as any).__game;return [g.yaw,g.pitch];})).toEqual(beforeTouch);
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();
 });
+
+
+test.describe('phone thumbstick',()=>{
+ test.use({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+ test('pause releases the finger and a second finger cannot steal the stick',async({page})=>{
+  test.setTimeout(180000);await page.goto('/?level=playground&manual&lowfx');await expect(page.locator('body')).toHaveAttribute('data-ready','true');await page.getByRole('button',{name:'Start playing'}).click();
+  const rect=await page.locator('.stick').boundingBox();expect(rect).not.toBeNull();const x=rect!.x+rect!.width/2,y=rect!.y+rect!.height/2;
+  const cdp=await page.context().newCDPSession(page),touch=(type:string,points:any[])=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points});
+  await touch('touchStart',[{id:1,x:x+25,y}]);await expect.poll(()=>page.evaluate(()=>(window as any).__game.stick?.x??0)).toBeGreaterThan(.2);
+  await touch('touchStart',[{id:1,x:x+25,y},{id:2,x:x-25,y}]);expect(await page.evaluate(()=>(window as any).__game.stick?.x??0)).toBeGreaterThan(.2);
+  await touch('touchMove',[{id:1,x:x+25,y}]);
+  await page.keyboard.press('Escape');expect((await snapshot(page)).paused).toBe(true);await expect(page.locator('.stick')).not.toHaveClass(/held/);
+  expect(await page.evaluate(()=>(window as any).__game.stick??null)).toBeNull();await page.keyboard.press('Escape');expect((await snapshot(page)).paused).toBe(false);
+  const before=(await snapshot(page)).player;await touch('touchMove',[{id:1,x:x+40,y}]);await wait(page,.4);expect(await page.evaluate(()=>(window as any).__game.stick??null)).toBeNull();
+  const after=(await snapshot(page)).player;expect(Math.hypot(after.x-before.x,after.z-before.z)).toBeLessThan(.05);
+  await touch('touchEnd',[]);await touch('touchStart',[{id:3,x:x+25,y}]);await expect.poll(()=>page.evaluate(()=>(window as any).__game.stick?.x??0)).toBeGreaterThan(.2);
+  await touch('touchEnd',[]);await expect(page.locator('.stick')).not.toHaveClass(/held/);await cdp.detach();await page.screenshot({path:'artifacts/astra-phone-stick-reset.png'});
+ });
+});

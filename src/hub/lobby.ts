@@ -9,7 +9,8 @@ import type {Point} from '../sim/cable';
 import {levels} from '../levels';
 import {LOOK,title,thumbUrl} from '../ui/screens';
 import {portal} from '../render/portal';
-import {bestFor,flagAutostart,isLocked,isOptional,campaignProgress} from '../ui/store';
+import {bestFor,flagAutostart,isLocked,isOptional,campaignProgress,markReturn,takeReturn} from '../ui/store';
+import {doorSlots as slots,doorApproach,walksInto,type DoorSlot} from '../levels/lobby';
 import {toon,box,rbox,cyl,sphere,part,group,glow,DMETAL,INK} from '../render/kit';
 import {hot,glossyToon} from '../render/actors';
 import {signPlate} from '../render/labels';
@@ -20,22 +21,12 @@ import {solid,SHELL_THICK} from '../levels/decor';
 /** walk: an unlocked wall door Pip can walk into. face is the wall's room-side face, lateral the door's
  *  position along the wall; back says which axis the wall runs along (z for the back wall, x for a side wall). */
 interface Door {level:Level;at:Point;leaf:T.Group;open:number;vel:number;lamp:T.Mesh;done:boolean;locked:boolean;portal:ReturnType<typeof portal>;spill:T.Mesh;rattle:number;padlock?:T.Mesh;color:string;strips:T.Mesh[];walk?:{back:boolean;face:number;lateral:number}}
-/** sessionStorage: the door Pip went through, so coming back puts him there (R5-235). */
-const FROM_KEY='circuit-crew:from';
 const LOCK_IDLE=toon(DMETAL),LOCK_FLASH=toon('#e5484d'),STRIP_ON=hot('#ffe7a0',1.6),STRIP_OFF=toon('#3a3d55');
 const views=new Map<string,T.Texture>();
 // Anisotropic filtering keeps the far end of the corridor sharp at a grazing angle (three clamps it to the GPU's maximum).
 const viewOf=(id:Level['id'])=>{let t=views.get(id);if(!t){t=new T.TextureLoader().load(thumbUrl(id));t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;views.set(id,t);}return t;};
-/** Door slots: seven along the back wall, then two on the left wall near the back corner, then
- *  free-standing arches on the right. The start view (yaw .4) shows the back wall to x≈9.5 and the
- *  left wall to z≈-3; this keeps all nine doors in it and clear of the job card (R5-241). */
-function slots(width:number,depth:number){
-  const out:{wall:'back'|'side'|'free';x:number;z:number}[]=[];
-  for(let k=0;k<7;k++)out.push({wall:'back',x:-width/2+2.6+k*3.3,z:-depth/2});
-  for(let k=0;k<2;k++)out.push({wall:'side',x:-width/2,z:-depth/2+2.6+k*3.2});
-  for(let k=0;k<6;k++)out.push({wall:'free',x:width/2-2.2,z:-depth/2+4.5+k*2.9});
-  return out;
-}
+// Door slots and approach points (doorSlots, doorApproach) live with the lobby's level data
+// (src/levels/lobby.ts), which builds its clutter keep-out lanes from the same list.
 let spillT:T.Texture|undefined;
 /** A soft wedge of light, brightest at the threshold. */
 function spillTex(){return spillT??=(()=>{const c=document.createElement('canvas');c.width=128;c.height=128;const x=c.getContext('2d')!;
@@ -48,12 +39,14 @@ export class Lobby {
   constructor(private game:Game){
     // Bonus jobs (Rush) get a door but aren't required steps or part of "finish every job".
     const jobs=levels.filter(l=>!isOptional(l));
+    // Records can't change while Pip is in the lobby, so the card reads them once, not every frame.
+    const done=new Set(jobs.filter(l=>!!bestFor(l.id))),progress=campaignProgress(levels);
     this.job={goal:'Circuit Crew HQ: pick a door, fix what\'s behind it',
-      steps:jobs.map(l=>({text:`${l.number} · ${title(l)}`,done:()=>!!bestFor(l.id),at:()=>this.doors.find(d=>d.level===l)?.at})),
+      steps:jobs.map(l=>({text:`${l.number} · ${title(l)}`,done:()=>done.has(l),at:()=>this.doors.find(d=>d.level===l)?.at})),
       bonuses:[
-        {text:'Finish every job',ok:()=>campaignProgress(levels).allJobs},
-        {text:'Crew Gold on three jobs',ok:()=>campaignProgress(levels).goldJobs>=3},
-        {text:'Collect 15 bonus stars',ok:()=>campaignProgress(levels).stars>=15}]};
+        {text:'Finish every job',ok:()=>progress.allJobs},
+        {text:'Crew Gold on three jobs',ok:()=>progress.goldJobs>=3},
+        {text:'Collect 15 bonus stars',ok:()=>progress.stars>=15}]};
   }
   dress(kit:RoomKit){
     const g=this.game,l=g.level,r=g.decorRoot,W=l.width/2,D=l.depth/2;
@@ -82,8 +75,7 @@ export class Lobby {
     const sl=slots(l.width,l.depth);
     levels.forEach((lv,i)=>{const s=sl[i];if(!s)return;this.doors.push(this.door(kit,lv,s));});
     // Back from a job: Pip starts at the door he went through, and a finished wing lights up as he arrives.
-    let from:string|null=null;try{from=sessionStorage.getItem(FROM_KEY);sessionStorage.removeItem(FROM_KEY);}catch{/* storage unavailable */}
-    const back=this.doors.find(d=>d.level.id===from);if(back){l.spawn={x:back.at.x,z:back.at.z};if(back.done){this.ignite={door:back,t:0};back.lamp.scale.setScalar(0);for(const s of back.strips)s.material=STRIP_OFF;}}
+    const from=takeReturn(),back=this.doors.find(d=>d.level.id===from);if(back){l.spawn={x:back.at.x,z:back.at.z};if(back.done){this.ignite={door:back,t:0};back.lamp.scale.setScalar(0);for(const s of back.strips)s.material=STRIP_OFF;}}
     return {};
   }
   /** The shell-wall openings the unlocked doors need: world x on the back wall, world z on a side wall.
@@ -92,14 +84,14 @@ export class Lobby {
     levels.forEach((lv,i)=>{const s=sl[i];if(!s||isLocked(lv))return;if(s.wall==='back')out.back.push(s.x);else if(s.wall==='side')out.side.push(s.z);});return out;}
   /** The return beat: the wing's lamp and post strips flick on with sparks and confetti. */
   private ignite?:{door:Door;t:number};
-  private door(kit:RoomKit,level:Level,s:{wall:'back'|'side'|'free';x:number;z:number}):Door{
+  private door(kit:RoomKit,level:Level,s:DoorSlot):Door{
     const g=this.game,color=LOOK[level.id]?.color??'#5ED6CC',done=!!bestFor(level.id),best=bestFor(level.id),locked=isLocked(level);
     // Wall-local frames: the back wall's local x is world x; the side wall's local x is -world z.
-    let parent:T.Object3D,lx=0,at:Point;
-    if(s.wall==='back'){parent=kit.back;lx=s.x;at={x:s.x,z:s.z+1.1};}
-    else if(s.wall==='side'){parent=kit.side;lx=-s.z;at={x:s.x+1.1,z:s.z};}
+    let parent:T.Object3D,lx=0;const at=doorApproach(s);
+    if(s.wall==='back'){parent=kit.back;lx=s.x;}
+    else if(s.wall==='side'){parent=kit.side;lx=-s.z;}
     // Free-standing doors turn 45° toward the default camera so their signs read from the atrium.
-    else{parent=group(g.root,s.x,0,s.z,-Math.PI/4);lx=0;at={x:s.x-.8,z:s.z+.8};part(parent,box(2.5,3,.3),toon('#efe2c8'),0,1.5,-.2);solid(g,2.5,3,.3,s.x+.14,1.5,s.z-.14,-Math.PI/4);}
+    else{parent=group(g.root,s.x,0,s.z,-Math.PI/4);lx=0;part(parent,box(2.5,3,.3),toon('#efe2c8'),0,1.5,-.2);solid(g,2.5,3,.3,s.x+.14,1.5,s.z-.14,-Math.PI/4);}
     const f=group(parent,lx,0,.14);
     // Side-wall doors face across the room: a blade sign on an arm out of the wall carries the number
     // on both faces (the name stays on the lintel). It hangs from the wall's upper part, so it folds
@@ -186,7 +178,7 @@ export class Lobby {
   /** Through the door: the corridor brightens and the screen fades to the wing colour, then black,
    *  before the job loads (R5-235). Input is held meanwhile. */
   enter(level:Level){
-    if(this.leaving)return;this.leaving=true;flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;try{sessionStorage.setItem(FROM_KEY,level.id);}catch{/* storage unavailable */}
+    if(this.leaving)return;this.leaving=true;flagAutostart(level.id);this.game.hud.dataset.leaving=level.id;markReturn(level.id);
     const g=this.game;g.menu=true;g.keys.clear();g.stick=undefined;const d=this.doors.find(d=>d.level===level);
     const veil=document.createElement('div');Object.assign(veil.style,{position:'fixed',inset:'0',zIndex:'50',pointerEvents:'none',background:d?.color??'#000',opacity:'0',transition:'opacity .25s ease-in, background-color .2s linear .22s'});
     document.body.append(veil);requestAnimationFrame(()=>{veil.style.opacity='1';veil.style.background='#0b0b14';});
@@ -195,10 +187,13 @@ export class Lobby {
   update(dt:number){
     const p=this.game.player.translation();
     // Walking up to an open door's threshold goes through it: Pip's centre within 45 cm of the wall face,
-    // in front of the gap, is enough (the veil then takes over and input is held).
-    if(!this.leaving)for(const d of this.doors){const w=d.walk;if(!w)continue;
+    // in front of the gap, is enough (the veil then takes over and input is held). Only while he is
+    // steering into the wall (within 45°) with empty hands: sliding along the wall past a door, or
+    // shoving a box up to one, stays in the lobby. E at the door still enters either way.
+    const g=this.game;
+    if(!this.leaving&&!g.held&&!g.holdingPlug&&this.steering())for(const d of this.doors){const w=d.walk;if(!w)continue;
       const dn=(w.back?p.z:p.x)-w.face,dl=(w.back?p.x:p.z)-w.lateral;
-      if(dn>=0&&dn<.45&&Math.abs(dl)<.5){this.game.audio.pop();this.enter(d.level);break;}}
+      if(dn>=0&&dn<.45&&Math.abs(dl)<.5&&walksInto(w.back,g.heading)){g.audio.pop();this.enter(d.level);break;}}
     // Doors swing in on a damped spring: a quick open that overshoots a touch and settles, a softer close.
     // The leaf turns into the corridor and is hidden once it is clear of the frame, so it never crosses Pip.
     const t=this.game.time;
@@ -213,6 +208,11 @@ export class Lobby {
       if(before<.5&&ig.t>=.5){const w=ig.door.lamp.getWorldPosition(new T.Vector3());this.game.burst(w,'#fff3a3',14,'spark');this.game.burst({x:ig.door.at.x,y:2.4,z:ig.door.at.z},'#ffcf52',50,'confetti');this.game.audio.jingle();for(const s of ig.door.strips)s.material=STRIP_ON;}
       if(u>=.4)this.ignite=undefined;}
   }
+  /** Movement input this frame (keys, phone stick or pad stick), so Game.heading is where Pip is walking now
+   *  (Pip is clamped short of the wall, so his velocity can't show it). */
+  private steering(){const g=this.game,k=g.keys,pad=navigator.getGamepads?.()[0],ax=(i:number)=>pad&&Math.abs(pad.axes[i]??0)>.15?pad.axes[i]:0;
+    const x=+(k.has('KeyD')||k.has('ArrowRight'))-+(k.has('KeyA')||k.has('ArrowLeft'))+(g.stick?.x??0)+ax(0),z=+(k.has('KeyS')||k.has('ArrowDown'))-+(k.has('KeyW')||k.has('ArrowUp'))+(g.stick?.z??0)+ax(1);
+    return !g.menu&&Math.hypot(x,z)>.1;}
   prompt():Prompt|null{if(this.nearWorkshop(this.game.player.translation()))return {key:'E',text:'Workshop: practice any station'};const d=this.near(this.game.player.translation());if(d?.locked){const need=levels.find(l=>l.id===d.level.requires);return {key:'E',text:`Locked: get a B on ${need?`${need.number} · ${title(need)}`:'the previous job'} first`};}return d?{key:'E',text:`Enter ${d.level.number} · ${title(d.level)}${bestFor(d.level.id)?` (best ${bestFor(d.level.id)!.grade})`:''}`}:null;}
   snapshot(){return {doors:this.doors.map(d=>({id:d.level.id,at:d.at,done:d.done,locked:d.locked})),near:this.near(this.game.player.translation())?.level.id};}
 }

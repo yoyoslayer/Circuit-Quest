@@ -7,12 +7,29 @@ const props:PropSpec[]=[
   {kind:'chair',x:-2,z:4.8,color:'#3f7fd6'},{kind:'chair',x:2.2,z:4.9,color:'#e5484d'},{kind:'beanbag',x:8.6,z:5.8,color:'#4f7d6a'},
   {kind:'cone',x:-3.4,z:7.8},{kind:'mug',x:.9,z:1.3,color:'#e5484d'},{kind:'paper',x:-3.4,z:2.8},{kind:'paper',x:3.3,z:-2.4},
 ];
-// Door approach points (src/hub/lobby.ts doorSlots: six on the back wall, three on the side wall).
-const DOORS:[number,number][]=[...[0,1,2,3,4,5].map(k=>[-11.6+k*4.64,-8.9] as [number,number]),...[0,1,2].map(k=>[-13.9,-5.5+k*4.6] as [number,number])];
+export interface DoorSlot {wall:'back'|'side'|'free';x:number;z:number}
+/** Door slots, shared by the hub's doors (src/hub/lobby.ts) and the clutter lanes below: seven along the back
+ *  wall, then two on the left wall near the back corner, then free-standing arches on the right. The start
+ *  view (yaw .4) shows the back wall to x≈9.5 and the left wall to z≈-3; this keeps all nine doors in it
+ *  and clear of the job card (R5-241). */
+export function doorSlots(width:number,depth:number){
+  const out:DoorSlot[]=[];
+  for(let k=0;k<7;k++)out.push({wall:'back',x:-width/2+2.6+k*3.3,z:-depth/2});
+  for(let k=0;k<2;k++)out.push({wall:'side',x:-width/2,z:-depth/2+2.6+k*3.2});
+  for(let k=0;k<6;k++)out.push({wall:'free',x:width/2-2.2,z:-depth/2+4.5+k*2.9});
+  return out;
+}
+/** Where Pip stands to use a door: 1.1 m into the room from a wall door, in front of a free arch. */
+export const doorApproach=(s:DoorSlot)=>s.wall==='back'?{x:s.x,z:s.z+1.1}:s.wall==='side'?{x:s.x+1.1,z:s.z}:{x:s.x-.8,z:s.z+.8};
+/** Walk-in intent: Pip's heading (atan2(x,z), as Game.heading) points into the door's wall within 45°.
+ *  The back wall is at -z, the side wall at -x. */
+export const walksInto=(back:boolean,heading:number)=>(back?-Math.cos(heading):-Math.sin(heading))>Math.SQRT1_2;
+// Every wall door's approach (the nine jobs use the seven back and two side slots).
+const W=30,D=20,DOORS:[number,number][]=doorSlots(W,D).filter(s=>s.wall!=='free').map(s=>{const a=doorApproach(s);return [a.x,a.z];});
 // The greeter stands just behind the spawn, out of the lane to every door (coworkers are solid now).
 const npcs:NpcSpot[]=[{x:1.4,z:6.8,standing:true,acc:['headphones'],yaw:0,mood:'happy'},{x:-7,z:2.2,standing:true,acc:['mug']},{x:6.8,z:1.6,standing:true,acc:['glasses','tie']}];
 export const lobby:Level={id:'lobby',name:'CIRCUIT CREW HQ',number:'HQ',tagline:'Every door is a job. Pick one.',badge:'jobs',hub:true,
-  width:30,depth:20,spawn:{x:0,z:5.5},anchor:{x:-13,z:8},target:{x:0,z:0},length:10,obstacles:[],props,npcs,
+  width:W,depth:D,spawn:{x:0,z:5.5},anchor:{x:-13,z:8},target:{x:0,z:0},length:10,obstacles:[],props,npcs,
   // HQ clutter (R5-159): lounge corners, plants, parcels and a reading nook round the atrium, so the hub is a
   // toy box. A lane runs from the spawn to every door and the Workshop, and each door's approach and leaf
   // sweep stays clear.

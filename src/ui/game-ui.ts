@@ -8,7 +8,7 @@ import type {LunchJob} from '../sim/lunch';
 import {installIcons} from '../render/icons';
 import {levels} from '../levels';
 import {prefabs} from '../props/prefabs';
-import {bestFor,record,flagAutostart,takeAutostart,isLocked,nextUnfinished,isOptional} from './store';
+import {bestFor,record,flagAutostart,takeAutostart,isLocked,nextUnfinished,isOptional,markReturn,dropStaleReturn} from './store';
 import {ObjectivesHUD} from './objectives';
 import {hudMarkup,titleMarkup,jobsMarkup,pauseMarkup,resultMarkup,failMarkup,clock} from './screens';
 
@@ -28,6 +28,8 @@ export class GameUI {
   objectives!:ObjectivesHUD;
   constructor(public game:Game){
     installIcons();if(game.hub)document.body.dataset.hub='true';if(game.practice)document.body.dataset.practice='true';
+    // A job reached without its door (next job, the Jobs board) must not send Pip back to an older job's door.
+    if(!game.hub)dropStaleReturn(game.level.id);
     const hud=game.hud,params=new URLSearchParams(location.search),bests=levels.map(l=>bestFor(l.id));
     this.sel=Math.max(0,levels.findIndex(l=>l.id===game.level.id));
     hud.innerHTML=hudMarkup(game.level)+titleMarkup(game.level)+jobsMarkup(levels,bests)+pauseMarkup(game.level);
@@ -60,6 +62,8 @@ export class GameUI {
   // ---------- screens ----------
   show(s:Screen){
     this.screen=s;document.body.dataset.screen=s;
+    // The card owns pad A from its first frame (see pollPad), so Game.pollPad's reload never fires under it.
+    if(s==='result'||s==='fail')this.game.padHeld[0]=true;
     for(const el of Array.from(this.game.hud.querySelectorAll<HTMLElement>('.screen')))el.hidden=el.dataset.screen!==s;
     this.layer.hidden=s!=='play';
     if(s==='jobs')this.selectJob(this.sel);
@@ -77,8 +81,10 @@ export class GameUI {
     this.show(on?'pause':'play');if(!on)(document.activeElement as HTMLElement|null)?.blur?.();
   }
   restart(){flagAutostart(this.game.level.id);location.reload();}
-  /** "Jobs" from pause or the result card walks back into the HQ lobby. */
-  toJobs(){flagAutostart('lobby');location.href='?level=lobby';}
+  /** "Jobs" from pause or the result card walks back into the HQ lobby, at this job's door (practice runs came from the Workshop). */
+  toJobs(){if(!this.game.hub&&!this.game.practice)markReturn(this.game.level.id);flagAutostart('lobby');location.href='?level=lobby';}
+  /** The card's primary button: HQ on a result, Retry on a fail. Enter and pad A both press it. */
+  pressPrimary(s:'result'|'fail'){this.game.hud.querySelector<HTMLElement>(`.screen[data-screen="${s}"] .btn.primary`)?.click();}
   playSelected(){const l=levels[this.sel];if(l.id===this.game.level.id){this.game.begin();return;}if(isLocked(l)){this.game.audio.tone(140,.2,.06,'square');return;}flagAutostart(l.id);location.href=`?level=${l.id}`;}
 
   selectJob(i:number){
@@ -131,7 +137,7 @@ export class GameUI {
       if(e.code==='Escape')this.show('title');
     }
     else if(s==='play'){if(e.code==='KeyC'&&this.game.running&&!this.game.paused&&!this.game.won)this.game.action('camera');}
-    else if((s==='result'||s==='fail')&&e.code==='Enter'&&!onButton){e.preventDefault();this.game.hud.querySelector<HTMLElement>(`.screen[data-screen="${s}"] .btn.primary`)?.click();}
+    else if((s==='result'||s==='fail')&&e.code==='Enter'&&!onButton){e.preventDefault();this.pressPrimary(s);}
   }
   /** Phone thumbstick: sets game.stick in screen space (x right, z down) only while dragged. */
   setupStick(){
@@ -148,20 +154,22 @@ export class GameUI {
   syncSound(){const muted=this.game.audio.muted;
     for(const b of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-ui="sound"]'))){b.setAttribute('aria-pressed',String(muted));b.classList.toggle('on',!muted);const use=b.querySelector('use');use?.setAttribute('href',muted?'#i-mute':'#i-sound');}}
   syncPad(){const on=[...(navigator.getGamepads?.()??[])].some(p=>!!p);this.layer.classList.toggle('gp',on);this.game.hud.querySelector('.padind')?.classList.toggle('on',on);}
-  /** Menu navigation on a pad: d-pad / stick to pick a job, B to go back, A on pause resumes.
-   *  (A and Start on the title/jobs reach Game.begin through Game.pollPad.) */
+  /** Menu navigation on a pad: d-pad / stick to pick a job, B to go back, A on pause resumes, A on the
+   *  result or fail card presses its primary button and Y retries. (A and Start on the title/jobs reach
+   *  Game.begin through Game.pollPad.) */
   pollPad(){
     if(++this.padFrame%30===0)this.syncPad();
     const pad=navigator.getGamepads?.()[0];if(!pad)return;
     const edge=(i:number)=>{const p=!!pad.buttons[i]?.pressed,was=!!this.padPrev[i];this.padPrev[i]=p;return p&&!was;};
-    const left=edge(14),right=edge(15),a=edge(0),b=edge(1);
+    const left=edge(14),right=edge(15),a=edge(0),b=edge(1),y=edge(3);
     const axis=Math.abs(pad.axes[0]??0)>.6?Math.sign(pad.axes[0]):0,flick=axis!==this.padAxis?axis:0;this.padAxis=axis;
     const s=this.screen;
     if(s==='jobs'){if(left||flick<0)this.selectJob(this.sel-1);if(right||flick>0)this.selectJob(this.sel+1);if(b)this.show('title');}
     else if(s==='title'){if(right||flick>0)this.show('jobs');}
     else if(s==='pause'){if(a||b)this.game.togglePause();}
-    // Game.pollPad reloads on A once the job is over; flag it so the reload goes straight back in.
-    else if((s==='result'||s==='fail')&&a)flagAutostart(this.game.level.id);
+    // Game.pollPad reloads on A once the job is over; the card keeps A for itself by holding Game's
+    // edge latch down, so A goes where Enter goes (HQ on a result) rather than restarting the job.
+    else if(s==='result'||s==='fail'){this.game.padHeld[0]=true;if(a)this.pressPrimary(s);else if(y)this.restart();}
   }
 
   // ---------- HUD ----------

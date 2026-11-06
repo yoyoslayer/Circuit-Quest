@@ -29,7 +29,10 @@ function floor(game:Game,x0:number,x1:number,z0:number,z1:number,map:T.Texture,t
 /** Dressed back/side wall: wallpaper, wainscot, rail, baseboard and a thick cap. The upper part
  *  (above the rail) folds away when the camera swings behind it. The returned group's local +z
  *  points into the room and y=0 is the floor, for windows and wall art. */
-function shellWall(game:Game,length:number,x:number,z:number,normal:[number,number],h=3,thick=.25){
+/** Doorway openings in a shell wall: DOOR_HALF is the clear half-width between the door posts, and
+ *  DOOR_TOP the underside of the lintel. Pip walks through a gap; the wall above it stays solid. */
+export const DOOR_HALF=.84,DOOR_TOP=2.42,SHELL_THICK=.25;
+function shellWall(game:Game,length:number,x:number,z:number,normal:[number,number],h=3,thick=SHELL_THICK,openings:number[]=[]){
   const wall=group(game.root,x,0,z,normal[0]!==0?-Math.PI/2*normal[0]:normal[1]<0?0:Math.PI);
   const face=thick/2,upper=group(wall,0,1.06,0),inside=group(upper,0,-1.06,0);
   part(wall,box(length,1.06,thick),plain(WALL_LOW),0,.53,0);part(wall,box(length,.16,.07),toon(BASE),0,.08,face+.035);part(wall,box(length,1,.05),toon(WALL_LOW),0,.55,face+.025);
@@ -38,7 +41,13 @@ function shellWall(game:Game,length:number,x:number,z:number,normal:[number,numb
   part(inside,box(length+.04,.14,thick+.22),toon(CAP),0,h+.07,.02);part(inside,box(length+.06,.04,thick+.26),toon(CAP_DARK),0,h+.16,.02);
   wall.traverse(o=>{o.receiveShadow=false;});
   game.shellWalls.push({group:upper,normal:new T.Vector3(normal[0],0,normal[1]),height:h});
-  solid(game,normal[0]!==0?thick:length,h,normal[0]!==0?length:thick,x,h/2,z);
+  // Collider: solid between the openings, with a lintel over each one. Openings are world coordinates
+  // along the wall (x for the back wall, z for a side wall, whose centre is at z=0).
+  const back=normal[0]===0,base=back?x:z,to=base+length/2;let cur=base-length/2;
+  const piece=(a:number,b:number)=>{if(b-a<=.01)return;if(back)solid(game,b-a,h,thick,(a+b)/2,h/2,z);else solid(game,thick,h,b-a,x,h/2,(a+b)/2);};
+  for(const o of [...openings].sort((p,q)=>p-q)){piece(cur,o-DOOR_HALF);cur=o+DOOR_HALF;
+    const lh=h-DOOR_TOP,ly=DOOR_TOP+lh/2;if(back)solid(game,DOOR_HALF*2,lh,thick,o,ly,z);else solid(game,thick,lh,DOOR_HALF*2,x,ly,o);}
+  piece(cur,to);
   return inside;
 }
 function interiorWall(game:Game,o:Obstacle,upperColor=WALL_UP,lowerColor=WALL_LOW,h=1.35){
@@ -74,7 +83,9 @@ function frontLips(game:Game){
 const windowXs=(width:number)=>{const xs:number[]=[];for(let x=-width/2+2.2;x<width/2-1.5;x+=3.2)xs.push(x);return xs;};
 export function decorate(game:Game):Decor{
   const l=game.level;slab(game);frontLips(game);
-  const back=shellWall(game,l.width,0,-l.depth/2,[0,-1]),side=shellWall(game,l.depth,-l.width/2,0,[-1,0]);
+  // The hub leaves a gap in each shell wall for every unlocked door (src/hub/lobby.ts openings()).
+  const open=game.hub?.openings()??{back:[],side:[]};
+  const back=shellWall(game,l.width,0,-l.depth/2,[0,-1],3,SHELL_THICK,open.back),side=shellWall(game,l.depth,-l.width/2,0,[-1,0],3,SHELL_THICK,open.side);
   if(game.hub||game.station)return (game.hub??game.station)!.dress({floor:(x0,x1,z0,z1,map,tile,y)=>floor(game,x0,x1,z0,z1,map,tile,y),backWindows:(skip,o)=>backWindows(game,back,skip,o),interiorWall:(o,u,d,h)=>interiorWall(game,o,u,d,h),back,side});
   if(l.id==='meeting')return meeting(game,back,side);
   if(l.id==='lunch')return lunch(game,back,side);

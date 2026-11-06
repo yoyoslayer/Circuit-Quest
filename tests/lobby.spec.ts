@@ -18,6 +18,29 @@ test('the bare URL opens the HQ lobby: a door per job, and E at a door walks int
   expect(errors).toEqual([]);
 });
 
+test('the back wall between two doors is still solid: Pip cannot walk through it',async({page})=>{
+  await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+  await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);
+  const s=await snapshot(page);const door=s.hub.doors.find((d:{id:string})=>d.id==='arcade');
+  // 1.2 m beside the arcade door is past the post (the gap's edge is 0.84 m out), so it is wall.
+  const r=await page.evaluate(([x,z])=>(window as any).__circuitCrew.drive.walkTo(x,z,.1,40),[door.at.x+1.2,-9.75] as const);
+  expect(r.arrived).toBe(false);
+  expect(r.state.player.z).toBeGreaterThan(-9.7);
+  expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().level)).toBe('lobby');
+});
+
+test('walking into an open door goes through it, with no E pressed',async({page})=>{
+  await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+  await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);
+  const s=await snapshot(page);const door=s.hub.doors.find((d:{id:string})=>d.id==='arcade');
+  // The back wall's inner face is at z -9.875; walking to z -9.75 is through the opening.
+  // The walk ends early on purpose: entering the door freezes input, so the walk never "arrives".
+  await page.evaluate(([x,z])=>(window as any).__circuitCrew.drive.walkTo(x,z,.1,40),[door.at.x,-9.75] as const);
+  await page.waitForURL(/level=arcade/,{timeout:15000});
+  await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+  expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().level)).toBe('arcade');
+});
+
 test('the Workshop arch opens a practice picker; practice runs are flagged and never recorded',async({page})=>{
   await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
   await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);

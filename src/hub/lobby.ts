@@ -15,9 +15,11 @@ import {hot,glossyToon} from '../render/actors';
 import {signPlate} from '../render/labels';
 import * as TX from '../render/textures';
 import {wallArt,pendant,lampPool,pointLamp,rug} from '../levels/dressing';
-import {solid} from '../levels/decor';
+import {solid,SHELL_THICK} from '../levels/decor';
 
-interface Door {level:Level;at:Point;leaf:T.Group;open:number;vel:number;lamp:T.Mesh;done:boolean;locked:boolean;portal:ReturnType<typeof portal>;spill:T.Mesh;rattle:number;padlock?:T.Mesh;color:string;strips:T.Mesh[]}
+/** walk: an unlocked wall door Pip can walk into. face is the wall's room-side face, lateral the door's
+ *  position along the wall; back says which axis the wall runs along (z for the back wall, x for a side wall). */
+interface Door {level:Level;at:Point;leaf:T.Group;open:number;vel:number;lamp:T.Mesh;done:boolean;locked:boolean;portal:ReturnType<typeof portal>;spill:T.Mesh;rattle:number;padlock?:T.Mesh;color:string;strips:T.Mesh[];walk?:{back:boolean;face:number;lateral:number}}
 /** sessionStorage: the door Pip went through, so coming back puts him there (R5-235). */
 const FROM_KEY='circuit-crew:from';
 const LOCK_IDLE=toon(DMETAL),LOCK_FLASH=toon('#e5484d'),STRIP_ON=hot('#ffe7a0',1.6),STRIP_OFF=toon('#3a3d55');
@@ -83,6 +85,10 @@ export class Lobby {
     const back=this.doors.find(d=>d.level.id===from);if(back){l.spawn={x:back.at.x,z:back.at.z};if(back.done){this.ignite={door:back,t:0};back.lamp.scale.setScalar(0);for(const s of back.strips)s.material=STRIP_OFF;}}
     return {};
   }
+  /** The shell-wall openings the unlocked doors need: world x on the back wall, world z on a side wall.
+   *  Locked doors and the free-standing arches leave their wall solid. */
+  openings(){const l=this.game.level,sl=slots(l.width,l.depth),out={back:[] as number[],side:[] as number[]};
+    levels.forEach((lv,i)=>{const s=sl[i];if(!s||isLocked(lv))return;if(s.wall==='back')out.back.push(s.x);else if(s.wall==='side')out.side.push(s.z);});return out;}
   /** The return beat: the wing's lamp and post strips flick on with sparks and confetti. */
   private ignite?:{door:Door;t:number};
   private door(kit:RoomKit,level:Level,s:{wall:'back'|'side'|'free';x:number;z:number}):Door{
@@ -124,7 +130,8 @@ export class Lobby {
     const lamp=part(f,sphere(.07,12,8),done?hot('#ffe7a0',2.2):toon('#8a8fa6'),-1.3,2.69,.2,false);
     const strips=[-.95,.95].map(x=>part(f,box(.07,2.2,.02),done?STRIP_ON:STRIP_OFF,x,1.2,.14,false));
     if(done)glow(lamp,'rgba(255,220,140,1)',.4,.45).position.set(0,0,.08);
-    return {level,at,leaf,open:0,vel:0,lamp,done,locked,portal:way,spill,rattle:0,padlock,color,strips};
+    const L=g.level,walk=!locked&&s.wall!=='free'?{back:s.wall==='back',face:s.wall==='back'?-L.depth/2+SHELL_THICK/2:-L.width/2+SHELL_THICK/2,lateral:s.wall==='back'?s.x:s.z}:undefined;
+    return {level,at,leaf,open:0,vel:0,lamp,done,locked,portal:way,spill,rattle:0,padlock,color,strips,walk};
   }
   private workshop(){
     const g=this.game,w=this.workshopAt,a=group(g.root,w.x,0,w.z-1.2);
@@ -169,7 +176,7 @@ export class Lobby {
     document.querySelector('[data-layer="hud"]')?.append(el);this.picker=el;this.pickerButtons()[0]?.focus();
   }
   near(pos:Point){return this.doors.find(d=>Math.hypot(pos.x-d.at.x,pos.z-d.at.z)<1.5);}
-  /** E at a door walks through it into that job. A locked door rattles, its padlock flashes red and Pip shrugs. */
+  /** E at a door, or walking into an open one, goes through it into that job. A locked door rattles, its padlock flashes red and Pip shrugs. */
   interact(pos:Point){if(this.leaving)return true;if(this.nearWorkshop(pos)){this.game.audio.pop();this.openPicker();return true;}const d=this.near(pos);if(!d)return false;
     if(d.locked){this.game.audio.tone(140,.2,.06,'square');this.game.audio.knock(1.2);d.rattle=.4;this.game.shrug();return true;}
     this.game.audio.pop();this.enter(d.level);return true;}
@@ -185,6 +192,11 @@ export class Lobby {
   }
   update(dt:number){
     const p=this.game.player.translation();
+    // Walking up to an open door's threshold goes through it: Pip's centre within 45 cm of the wall face,
+    // in front of the gap, is enough (the veil then takes over and input is held).
+    if(!this.leaving)for(const d of this.doors){const w=d.walk;if(!w)continue;
+      const dn=(w.back?p.z:p.x)-w.face,dl=(w.back?p.x:p.z)-w.lateral;
+      if(dn>=0&&dn<.45&&Math.abs(dl)<.5){this.game.audio.pop();this.enter(d.level);break;}}
     // Doors swing in on a damped spring: a quick open that overshoots a touch and settles, a softer close.
     // The leaf turns into the corridor and is hidden once it is clear of the frame, so it never crosses Pip.
     const t=this.game.time;

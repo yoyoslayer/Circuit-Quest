@@ -515,3 +515,10 @@ Verified: production build, 173 unit tests, phone touch regression and rendered 
 Changing the fitted Garage circuit clears the old pulse/test caption while retaining its stale-capture cue to pulse again. Observatory clears old decode feedback when a can, value, whip or orientation actually changes; rerouting still shows its fresh explanation. Invalid actions leave the relevant old feedback in place. The existing fault-and-recovery routes now assert these distinctions.
 
 Verified: build, 173 unit tests, Garage fault recovery, Observatory failed-decode/latch recovery, and rendered smoke pass. Evidence: `mockups/review5/tools/astra-finish/diagnosis-{build,unit,browser}.log`.
+
+
+## 2026-11-06 — Reconnected controller slots
+
+Gameplay, bench cursors, menus and the controller indicator now choose the first connected controller instead of assuming slot zero. Empty slots and disconnected objects left in the browser list are ignored. When no controller is present, button-edge and menu-stick history resets, allowing fresh presses after reconnection.
+
+Verified: build, 173 unit tests, a real-game device fixture in slot two (movement, Start pause, A Resume, disconnected-object rejection) and rendered smoke pass. Evidence: `mockups/review5/tools/astra-finish/controller-{build,unit,browser}.log`.

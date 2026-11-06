@@ -37,3 +37,16 @@ test.describe('phone thumbstick',()=>{
   await touch('touchEnd',[]);await expect(page.locator('.stick')).not.toHaveClass(/held/);await cdp.detach();await page.screenshot({path:'artifacts/astra-phone-stick-reset.png'});
  });
 });
+
+
+test('a controller in a nonzero slot drives gameplay and pause menus',async({page})=>{
+ await page.goto('/?level=playground&manual&lowfx');await expect(page.locator('body')).toHaveAttribute('data-ready','true');await page.getByRole('button',{name:'Start playing'}).click();
+ await page.evaluate(()=>{const pad={axes:[1,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,value:0})),connected:true,index:2,id:'reconnected pad',mapping:'standard',timestamp:0};(window as any).__testPad=pad;Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[null,null,pad,null]});});
+ const before=(await snapshot(page)).player;await wait(page,.5);expect((await snapshot(page)).player.x).toBeGreaterThan(before.x+.5);
+ await page.evaluate(()=>{const p=(window as any).__testPad;p.axes=[0,0,0,0];p.buttons[9].pressed=true;(window as any).__game.pollPad();});expect((await snapshot(page)).paused).toBe(true);
+ await page.evaluate(()=>{const p=(window as any).__testPad;p.buttons[9].pressed=false;(window as any).__game.pollPad();p.buttons[0].pressed=true;});
+ await expect.poll(async()=>(await snapshot(page)).paused).toBe(false);
+ // A disconnected object is ignored even if the browser has not yet replaced its slot with null.
+ await page.evaluate(()=>{const p=(window as any).__testPad;p.connected=false;p.axes=[1,0,0,0];});const stopped=(await snapshot(page)).player;await wait(page,.5);
+ const after=(await snapshot(page)).player;expect(Math.hypot(after.x-stopped.x,after.z-stopped.z)).toBeLessThan(.05);
+});

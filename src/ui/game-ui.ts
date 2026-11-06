@@ -2,6 +2,7 @@
 // Icons, rings and meters carry the state; a short objective card and key prompts say what to do
 // (src/ui/objectives.ts).
 import type {Game} from '../game';
+import {connectedGamepad} from '../input/gamepad';
 import {FOVS,LENS_NAMES,type Lens} from '../render/lens';
 import {crewGold,gradeRush,type Grade} from '../sim/grade';
 import type {LunchJob} from '../sim/lunch';
@@ -154,12 +155,12 @@ export class GameUI {
   syncLens(){const name=LENS_NAMES[FOVS.indexOf(this.game.fov as Lens)]??'Standard';for(const el of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-p="lens"]')))el.textContent=`View: ${name}`;}
   syncSound(){const muted=this.game.audio.muted;
     for(const b of Array.from(this.game.hud.querySelectorAll<HTMLElement>('[data-ui="sound"]'))){b.setAttribute('aria-pressed',String(muted));b.classList.remove('on');const label=b.querySelector('[data-p="sound"]');if(label)label.textContent=muted?'Muted':'Sound on';const use=b.querySelector('use');use?.setAttribute('href',muted?'#i-mute':'#i-sound');}}
-  syncPad(){const on=[...(navigator.getGamepads?.()??[])].some(p=>!!p);this.layer.classList.toggle('gp',on);this.game.hud.querySelector('.padind')?.classList.toggle('on',on);}
+  syncPad(){const on=!!connectedGamepad();this.layer.classList.toggle('gp',on);this.game.hud.querySelector('.padind')?.classList.toggle('on',on);}
   /** Menu navigation on a pad: d-pad / stick to pick a job, B to go back, A on pause resumes.
    *  (A and Start on the title/jobs reach Game.begin through Game.pollPad.) */
   pollPad(){
     if(++this.padFrame%30===0)this.syncPad();
-    const pad=navigator.getGamepads?.()[0];if(!pad)return;
+    const pad=connectedGamepad();if(!pad){this.padPrev=[];this.padAxis=0;return;}
     const edge=(i:number)=>{const p=!!pad.buttons[i]?.pressed,was=!!this.padPrev[i];this.padPrev[i]=p;return p&&!was;};
     const left=edge(14),right=edge(15),a=edge(0),b=edge(1);
     const axis=Math.abs(pad.axes[0]??0)>.6?Math.sign(pad.axes[0]):0,flick=axis!==this.padAxis?axis:0;this.padAxis=axis;

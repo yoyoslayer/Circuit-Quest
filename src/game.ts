@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {connectedGamepad} from './input/gamepad';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon,seeOff,seeThrough,seeProj,seeY,seeClip} from './render/toon';
@@ -293,7 +294,7 @@ export class Game {
   }
   begin(){if(this.running)return;const ui=gameUI(this);if(ui?.beforeBegin())return;this.running=true;this.survey=false;this.audio.start();ui?.started();}
   /** Gamepad buttons are read every frame so Start/A also work on the intro card and while paused. */
-  pollPad(dt=1/60){const pad=navigator.getGamepads?.()[0];if(!pad)return;
+  pollPad(dt=1/60){const pad=connectedGamepad();if(!pad){this.padHeld=[];return;}
     const bench=this.atBench&&this.running&&!this.paused&&!this.won;if(bench)this.padBench(pad,dt);
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
       if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
@@ -627,7 +628,7 @@ export class Game {
     if(this.stick){x+=this.stick.x;z+=this.stick.z;}
     if(this.menu){x=0;z=0;}
     if(this.atBench){x=0;z=0;this.heading=this.station!.facing;}
-    const pad=navigator.getGamepads?.()[0];if(pad&&!this.atBench&&!this.menu){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
+    const pad=connectedGamepad();if(pad&&!this.atBench&&!this.menu){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
     const move=new T.Vector3(x,0,z);if(move.length()>1)move.normalize();move.applyAxisAngle(new T.Vector3(0,1,0),this.yaw);
     if(move.length()>.1)this.heading=Math.atan2(move.x,move.z);
     let speed=this.keys.has('ShiftLeft')?6.8:4.2;if(this.held)speed/=1+prefabs[this.held.spec.kind].mass/25;if(this.lunch?.held?.cable.rating===10)speed*=.65;

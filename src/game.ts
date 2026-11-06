@@ -88,7 +88,7 @@ export class Game {
   /** A modal menu (the lobby's Workshop picker) is open: walking, survey and action keys do nothing. */
   menu=false;
   running=false;paused=false;won=false;time=0;damage=0;cost=0;vertical=0;grounded=false;heading=0;shake=0;
-  yaw=.14;pitch=0;zoom=26;fov:number=FOVS[1];survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
+  yaw=.14;pitch=0;zoom=26;fov:number=FOVS[1];survey=false;focus=new T.Vector3();lead=new T.Vector3();winAt=0;shellWalls:{group:T.Group;normal:T.Vector3;height:number}[]=[];/** Collider handles the camera ray ignores: shell walls and lips fold away instead of blocking the view. */cameraIgnore=new Set<number>();orbit=false;pointerX=0;pointerY=0;accumulator=0;last=0;frames=0;fps=60;frameWindow=0;
   audio=new Sound();hud=document.querySelector<HTMLDivElement>('#hud')!;root=new T.Group();plugPosition:T.Vector3;hint=new T.Group();reticle=new T.Group();pipRing:T.Mesh;
   batches:Batch[]=[];decorRoot=new T.Group();
   lunch?:LunchRuntime;
@@ -724,7 +724,15 @@ export class Game {
     this.focus.lerp(target,snap?1:this.survey||pushing?ease*.6:titling?1:this.atBench?ease*.8:ease);
     if(cam.fov!==this.fov){cam.fov=this.fov;cam.updateProjectionMatrix();}
     const offset=new T.Vector3(Math.sin(this.yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(this.yaw)*Math.cos(pitch)).multiplyScalar(distanceTo*lensScale(this.fov,this.atBench||titling));
-    const wanted=this.focus.clone().add(offset);wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
+    const wanted=this.focus.clone().add(offset);
+    // The camera never sits inside furniture or a pillar on the free-roam view: a ray from Pip toward the
+    // wanted spot stops at the first fixed solid (shell walls and lips fold away, so they are ignored),
+    // and the camera pulls in just short of it.
+    if(this.running&&!this.atBench&&!this.survey&&!pushing&&!titling){const dir=wanted.clone().sub(this.focus),len=dir.length();
+      if(len>.01){const u=dir.multiplyScalar(1/len);
+        const hit=this.world.castRay(new RAPIER.Ray({x:this.focus.x,y:this.focus.y,z:this.focus.z},{x:u.x,y:u.y,z:u.z}),len,true,undefined,undefined,undefined,undefined,c=>!this.cameraIgnore.has(c.handle)&&!!c.parent()?.isFixed());
+        if(hit&&hit.timeOfImpact<len)wanted.copy(this.focus).addScaledVector(u,Math.max(.8,hit.timeOfImpact-.25));}}
+    wanted.x+=(Math.random()-.5)*this.shake;wanted.y+=(Math.random()-.5)*this.shake;
     cam.position.lerp(wanted,snap?1:1-Math.exp(-dt*(pushing?2.5:6)));cam.lookAt(this.focus);this.shake*=.9;
     // Cutaway: a shell wall drops to a 0.9 m stub once the camera is outside its plane (or within
     // 0.6 m inside it). The signed distance to the plane works at corners and diagonal orbits, where

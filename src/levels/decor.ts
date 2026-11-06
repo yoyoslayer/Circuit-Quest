@@ -20,8 +20,10 @@ const plain=(color:string,map?:T.Texture)=>{const key=color+(map?.uuid??'');let 
 /** Invisible static collider; interior walls are taller than they look so Pip can't hop them. */
 export function solid(game:Game,w:number,h:number,d:number,x:number,y:number,z:number,ry=0){
   const body=game.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z).setRotation(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),ry)));
-  game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2).setFriction(.7),body);
+  return game.world.createCollider(RAPIER.ColliderDesc.cuboid(w/2,h/2,d/2).setFriction(.7),body);
 }
+/** Shell walls and front lips fold away from the camera, so the camera ray ignores their colliders (Game.cameraIgnore). */
+function foldable(game:Game,c:{handle:number}){game.cameraIgnore.add(c.handle);return c;}
 function floor(game:Game,x0:number,x1:number,z0:number,z1:number,map:T.Texture,tile=4,y=0){
   const w=x1-x0,d=z1-z0,t=map.clone();t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(w/tile,d/tile);t.needsUpdate=true;
   const m=part(game.decorRoot,new T.PlaneGeometry(w,d),toon('#ffffff',{map:t}),(x0+x1)/2,y+.002,(z0+z1)/2,false);m.rotation.x=-Math.PI/2;return m;
@@ -48,8 +50,8 @@ function shellWall(game:Game,length:number,x:number,z:number,normal:[number,numb
   game.shellWalls.push({group:upper,normal:new T.Vector3(normal[0],0,normal[1]),height:h});
   // Collider: solid between the openings, with a lintel over each one. Openings are world coordinates
   // along the wall (x for the back wall, z for a side wall, whose centre is at z=0).
-  for(const [a,b] of span){if(back)solid(game,b-a,h,thick,(a+b)/2,h/2,z);else solid(game,thick,h,b-a,x,h/2,(a+b)/2);}
-  for(const o of openings){const lh=h-DOOR_TOP,ly=DOOR_TOP+lh/2;if(back)solid(game,DOOR_HALF*2,lh,thick,o,ly,z);else solid(game,thick,lh,DOOR_HALF*2,x,ly,o);}
+  for(const [a,b] of span){if(back)foldable(game,solid(game,b-a,h,thick,(a+b)/2,h/2,z));else foldable(game,solid(game,thick,h,b-a,x,h/2,(a+b)/2));}
+  for(const o of openings){const lh=h-DOOR_TOP,ly=DOOR_TOP+lh/2;if(back)foldable(game,solid(game,DOOR_HALF*2,lh,thick,o,ly,z));else foldable(game,solid(game,thick,lh,DOOR_HALF*2,x,ly,o));}
   return inside;
 }
 function interiorWall(game:Game,o:Obstacle,upperColor=WALL_UP,lowerColor=WALL_LOW,h=1.35){
@@ -79,8 +81,8 @@ function slab(game:Game){
 }
 function frontLips(game:Game){
   const l=game.level,r=game.decorRoot;
-  part(r,box(l.width,.32,.22),toon('#e3d6c0'),0,.12,l.depth/2);part(r,box(l.width+.02,.06,.28),toon(CAP),0,.31,l.depth/2);solid(game,l.width,1,.22,0,.5,l.depth/2);
-  part(r,box(.22,.32,l.depth),toon('#e3d6c0'),l.width/2,.12,0);part(r,box(.28,.06,l.depth+.02),toon(CAP),l.width/2,.31,0);solid(game,.22,1,l.depth,l.width/2,.5,0);
+  part(r,box(l.width,.32,.22),toon('#e3d6c0'),0,.12,l.depth/2);part(r,box(l.width+.02,.06,.28),toon(CAP),0,.31,l.depth/2);foldable(game,solid(game,l.width,1,.22,0,.5,l.depth/2));
+  part(r,box(.22,.32,l.depth),toon('#e3d6c0'),l.width/2,.12,0);part(r,box(.28,.06,l.depth+.02),toon(CAP),l.width/2,.31,0);foldable(game,solid(game,.22,1,l.depth,l.width/2,.5,0));
 }
 const windowXs=(width:number)=>{const xs:number[]=[];for(let x=-width/2+2.2;x<width/2-1.5;x+=3.2)xs.push(x);return xs;};
 export function decorate(game:Game):Decor{

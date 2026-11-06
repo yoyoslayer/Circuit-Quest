@@ -8,8 +8,9 @@ const noRim=new URLSearchParams(location.search).has('norim');
 
 /** Toon plus a hard, stepped view-space highlight: glossy plastic that still reads as toon. */
 const glossy=new Map<string,T.MeshToonMaterial>();
-export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965}={}){
-  const key=`${color}|${vertexColors}|${spec}|${size}`;let m=glossy.get(key);if(m)return m;
+/** seeExempt: the material is never cut away by the see-through oval (SEE_OFF). The cable uses it: the cable is the star. */
+export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965,seeExempt=false}={}){
+  const key=`${color}|${vertexColors}|${spec}|${size}|${seeExempt}`;let m=glossy.get(key);if(m)return m;
   m=new T.MeshToonMaterial({color,gradientMap:toonRamp,vertexColors});
   // The rim goes in first (R5-372): the spec mix chains on the same opaque_fragment anchor after it.
   m.onBeforeCompile=s=>{if(!noRim)rimShader(s);s.uniforms.specK={value:spec};s.uniforms.specEdge={value:size};
@@ -18,7 +19,8 @@ export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965}={
         float s = smoothstep(specEdge, specEdge + .012, dot(normalize(normal), H));
         outgoingLight = mix(outgoingLight, vec3(1.,.98,.93) * max(1., length(outgoingLight)), s * specK); }
       #include <opaque_fragment>`);};
-  m.customProgramCacheKey=()=>(noRim?'glossyToon':'glossyToonRim')+spec+size;glossy.set(key,m);return m;
+  if(seeExempt)m.defines={...m.defines,SEE_OFF:''};
+  m.customProgramCacheKey=()=>(noRim?'glossyToon':'glossyToonRim')+spec+size+(seeExempt?'seeoff':'');glossy.set(key,m);return m;
 }
 /** HDR unlit colour for bloom (colour * k survives the 1.3 bloom threshold). */
 export function hot(color:string,k=3){const m=new T.MeshBasicMaterial({color});m.color.multiplyScalar(k);m.userData.outlineParameters={visible:false};return m;}
@@ -135,7 +137,8 @@ export function hoseGeometry(points:T.Vector3[],{radius=.085,strain=(u:number)=>
     for(let j=0;j<=radial;j++){const k=(i*(radial+1)+j)*3;col[k]=c.r;col[k+1]=c.g;col[k+2]=c.b;}}
   geo.setAttribute('color',new T.BufferAttribute(col,3));return {geo,curve,length};
 }
-export const hoseMaterial=()=>glossyToon('#ffffff',{vertexColors:true,spec:.75,size:.982});
+/** The cable (Pip's lead and the lunch cables): see-through exempt, so it stays whole where it passes Pip. */
+export const hoseMaterial=()=>glossyToon('#ffffff',{vertexColors:true,spec:.75,size:.982,seeExempt:true});
 /** Glowing current slugs that travel from supply to load along a powered cable. */
 export class Pulses{
   group=new T.Group();private slugs:T.Mesh[]=[];private material=hot('#6fe9ff',2.5);

@@ -99,6 +99,8 @@ export class ObjectivesHUD{
   card:HTMLElement;prompt:HTMLElement;stand:HTMLElement;marker:T.Mesh;edge:HTMLElement;private shown='';private promptShown='';private current:{key:string;text:string}|null=null;private job:Job;private flash=new Set<number>();
   constructor(private g:Game,layer:HTMLElement){
     this.job=g.station||g.hub?stationJob(g):JOBS[g.level.id]??JOBS.playground;
+    // The lobby's steps are finished jobs, true from load: they start ticked, with no bell or flash.
+    if(g.hub)this.job.steps.forEach((s,i)=>{if(s.done(g))this.done.add(i);});
     this.card=document.createElement('section');this.card.className='objective panel';this.card.setAttribute('aria-live','polite');layer.append(this.card);
     this.prompt=document.createElement('div');this.prompt.className='prompt-pill';this.prompt.hidden=true;layer.append(this.prompt);
     // At a bench the walking controls hide; this chip says how to step back.
@@ -122,9 +124,10 @@ export class ObjectivesHUD{
   update(){
     // Steps latch in order: a later step that happens to be true early (sitting at the bench before
     // fetching the item) waits until the ones before it are done, so the card never skips ahead.
-    const g=this.g;
+    // The lobby's steps are jobs, playable in any order, so each one latches on its own.
+    const g=this.g,ordered=!g.hub;
     for(const [i,step] of this.job.steps.entries())if((typeof step.recheck==='function'?step.recheck(g):step.recheck)&&!step.done(g))this.done.delete(i);
-    this.job.steps.forEach((s,i)=>{if(!this.done.has(i)&&this.job.steps.slice(0,i).every((_,k)=>this.done.has(k))&&s.done(g)){this.done.add(i);this.flash.add(i);g.audio.bell(1175,.35,.035);setTimeout(()=>{this.flash.delete(i);this.shown='';},900);}});
+    this.job.steps.forEach((s,i)=>{if(!this.done.has(i)&&(!ordered||this.job.steps.slice(0,i).every((_,k)=>this.done.has(k)))&&s.done(g)){this.done.add(i);this.flash.add(i);g.audio.bell(1175,.35,.035);setTimeout(()=>{this.flash.delete(i);this.shown='';},900);}});
     const current=this.job.steps.findIndex((_,i)=>!this.done.has(i));
     const bonus=this.job.bonuses.map(b=>bonusState(b.text,b.ok(g),g.won));
     const key=`${[...this.done].join()}|${current}|${bonus.join()}|${[...this.flash].join()}`;

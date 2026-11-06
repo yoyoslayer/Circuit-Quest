@@ -46,6 +46,23 @@ test('walking into an open door goes through it, with no E pressed',async({page}
   expect(await page.evaluate(()=>(window as any).__circuitCrew.snapshot().level)).toBe('arcade');
 });
 
+test('sliding along the back wall past an open door stays in the lobby',async({page})=>{
+  await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+  await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);
+  const s=await snapshot(page),door=s.hub.doors.find((d:{id:string})=>d.id==='arcade');expect(door.locked).toBe(false);
+  // Set Pip down inside the Arcade door's walk-in strip (within 45 cm of the wall face, in front of the
+  // gap), then steer him sideways along the wall across it: he stays in the lobby.
+  await page.evaluate(([x])=>{const G=(window as any).__game,p=G.player.translation();G.player.setTranslation({x,y:p.y,z:-9.5},true);},[door.at.x-.4] as const);
+  await page.evaluate(([x])=>(window as any).__circuitCrew.drive.walkTo(x,-9.5,.1,3),[door.at.x+.4] as const);
+  const p=(await snapshot(page)).player;expect(Math.abs(p.x-door.at.x)).toBeLessThan(.5);expect(p.z).toBeLessThan(-9.43);
+  // Entering a door marks the HUD with data-leaving and drops a veil before the job loads.
+  const leaving=()=>page.evaluate(()=>document.querySelector<HTMLElement>('[data-leaving]')?.dataset.leaving??null);
+  expect(await leaving()).toBeNull();expect((await snapshot(page)).level).toBe('lobby');
+  // From the same spot, steering into the wall goes through.
+  await page.evaluate(([x])=>(window as any).__circuitCrew.drive.walkTo(x,-9.75,.1,3),[door.at.x] as const);
+  expect(await leaving()).toBe('arcade');
+});
+
 test('the Workshop arch opens a practice picker; practice runs are flagged and never recorded',async({page})=>{
   await page.goto('/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
   await page.getByRole('button',{name:'Start playing'}).click();await wait(page,.2);

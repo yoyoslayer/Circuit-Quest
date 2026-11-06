@@ -6,18 +6,27 @@ export interface Best {grade:Grade;time:number;damage:number;cost:number;
   stars?:number;
   /** Earned in one run, never synthesized from separate personal bests. */
   crewGold?:boolean;served?:number}
-const KEY='circuit-crew:best:v1',AUTOSTART='circuit-crew:autostart';
+const KEY='circuit-crew:best:v1',AUTOSTART='circuit-crew:autostart',FROM='circuit-crew:from';
+type Records=Partial<Record<LevelId,Best>>;
 // Storage can be missing or throw (private windows, blocked site data); the game never depends on it.
-function read():Partial<Record<LevelId,Best>>{try{const raw=localStorage.getItem(KEY);return raw?JSON.parse(raw)??{}:{};}catch{return {};}}
-function write(all:Partial<Record<LevelId,Best>>){try{localStorage.setItem(KEY,JSON.stringify(all));}catch{/* ignore */}}
+// The parsed record is cached per storage object (the HUD asks every frame); write() and another tab's
+// write (the storage event) refresh it.
+let cache:{store:Storage|undefined;all:Records}|undefined;
+const storage=()=>{try{return localStorage;}catch{return undefined;}};
+function read():Records{const store=storage();if(cache&&cache.store===store)return cache.all;
+  let all:Records={};try{const raw=store?.getItem(KEY);all=raw?JSON.parse(raw)??{}:{};}catch{/* unreadable: start empty */}
+  cache={store,all};return all;}
+function write(all:Records){cache={store:storage(),all};try{localStorage.setItem(KEY,JSON.stringify(all));}catch{/* ignore */}}
+if(typeof addEventListener==='function')addEventListener('storage',e=>{if(e.key===KEY||e.key===null)cache=undefined;});
 export const bestFor=(id:LevelId):Best|undefined=>read()[id];
 /** Merges a finished run into the record; returns the stored best and whether the grade improved. */
 export function record(id:LevelId,run:Best){
-  const all=read(),old=all[id];
-  const best:Best=old?{grade:run.grade<old.grade?run.grade:old.grade,time:Math.min(old.time,run.time),damage:Math.min(old.damage,run.damage),cost:Math.min(old.cost,run.cost),stars:(old.stars??0)|(run.stars??0),crewGold:!!old.crewGold||!!run.crewGold,served:Math.max(old.served??0,run.served??0)}:run;
+  // A Rush shift always runs its clock out, so its time says nothing about how well it went: served counts instead.
+  const all={...read()},old=all[id],rush=run.served!==undefined;
+  const best:Best=old?{grade:run.grade<old.grade?run.grade:old.grade,time:rush?old.time:Math.min(old.time,run.time),damage:Math.min(old.damage,run.damage),cost:Math.min(old.cost,run.cost),stars:(old.stars??0)|(run.stars??0),crewGold:!!old.crewGold||!!run.crewGold,served:Math.max(old.served??0,run.served??0)}:run;
   all[id]=best;write(all);
   // Any better stat or a new star counts as an improvement (the card's star and bell), not only the grade.
-  const improved=!old||(run.served??0)>(old.served??0)||!!run.crewGold&&!old.crewGold||run.grade<old.grade||run.time<old.time||run.damage<old.damage||run.cost<old.cost||((run.stars??0)&~(old.stars??0))!==0;
+  const improved=!old||(run.served??0)>(old.served??0)||!!run.crewGold&&!old.crewGold||run.grade<old.grade||!rush&&run.time<old.time||run.damage<old.damage||run.cost<old.cost||((run.stars??0)&~(old.stars??0))!==0;
   return {best,old,improved,first:!old};
 }
 /** A job with `requires` stays locked until that job has a B or better (a C run doesn't open Rush). */
@@ -29,6 +38,12 @@ export function nextUnfinished(levels:Level[]){const all=read();return levels.fi
 /** Restart and "next job" reload the page; this flag skips the intro once after that reload. */
 export function flagAutostart(id:LevelId){try{sessionStorage.setItem(AUTOSTART,id);}catch{/* ignore */}}
 export function takeAutostart(id:LevelId){try{const v=sessionStorage.getItem(AUTOSTART);sessionStorage.removeItem(AUTOSTART);return v===id;}catch{return false;}}
+/** sessionStorage: the job Pip is coming back to HQ from, so the lobby puts him at its door (R5-235).
+ *  Set when he walks through a door and again whenever a job hands back to HQ, so it is never a door from two jobs ago. */
+export function markReturn(id:LevelId){try{sessionStorage.setItem(FROM,id);}catch{/* storage unavailable */}}
+export function takeReturn(){try{const v=sessionStorage.getItem(FROM);sessionStorage.removeItem(FROM);return v;}catch{return null;}}
+/** A job loaded some other way than through its door (next job, the Jobs board, a URL) drops a key left by another one. */
+export function dropStaleReturn(id:LevelId){try{const v=sessionStorage.getItem(FROM);if(v!==null&&v!==id)sessionStorage.removeItem(FROM);}catch{/* storage unavailable */}}
 
 /** Campaign rewards use actual earned records; optional shifts never block completion. */
 export function campaignProgress(levels:Level[]) {

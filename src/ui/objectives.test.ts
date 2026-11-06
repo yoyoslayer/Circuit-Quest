@@ -1,7 +1,7 @@
 import {it,expect,vi} from 'vitest';
 
 vi.hoisted(()=>vi.stubGlobal('location',{search:''}));
-import {bonusState,propName,promptFor,JOBS,stationJob,NAMES} from './objectives';
+import {bonusState,propName,promptFor,JOBS,stationJob,NAMES,ObjectivesHUD} from './objectives';
 import {prefabs} from '../props/prefabs';
 
 import type {Game} from '../game';
@@ -55,5 +55,20 @@ it('strips duplicate key letters from station task text',()=>{
 
  const g=game({station:{stand:{x:0,z:0},job:{goal:'Test',steps:[{text:'Step up to the bench (E)',done:()=>false}],bonuses:[]}}});expect(stationJob(g).steps[0].text).toBe('Step up to the bench');
 
+});
+
+it('the lobby card starts with every finished job ticked, in any order, and rings no bell for them',()=>{
+ const el=()=>({className:'',hidden:false,innerHTML:'',style:{},setAttribute(){},append(){},addEventListener(){},classList:{toggle(){}}});
+ vi.stubGlobal('document',{createElement:el});
+ // Lunch (step 3) finished before Playground and the Meeting.
+ const done=[false,false,true,false],bell=vi.fn();
+ const g=game({running:false,hub:{job:{goal:'HQ',steps:done.map((_,i)=>({text:`job ${i}`,done:()=>done[i]})),bonuses:[]}},audio:{bell},root:{add(){}}});
+ const hud=new ObjectivesHUD(g,el() as unknown as HTMLElement);hud.update();
+ expect(hud.card.innerHTML).toContain('Step 2 of 4');expect((hud.card.innerHTML.match(/class="done"/g)??[]).length).toBe(1);expect(bell).not.toHaveBeenCalled();
+ // A job's own steps still latch in order: step 2 being true early waits for step 1.
+ const order=[false,true],sb=vi.fn();
+ const st=new ObjectivesHUD(game({running:false,station:{stand:{x:0,z:0},job:{goal:'S',steps:order.map((_,i)=>({text:`s ${i}`,done:()=>order[i]})),bonuses:[]}},audio:{bell:sb},root:{add(){}}}),el() as unknown as HTMLElement);st.update();
+ expect(st.card.innerHTML).toContain('Step 1 of 2');expect(sb).not.toHaveBeenCalled();
+ vi.unstubAllGlobals();vi.stubGlobal('location',{search:''});
 });
 

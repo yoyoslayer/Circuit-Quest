@@ -18,6 +18,7 @@ import {toon,rbox,box,cyl,sphere,part,group,glyph,cachedTexture,decal,INK,METAL,
 import {hot,Pulses} from './render/actors';
 import {solid} from './levels/decor';
 import {TOWER} from './levels/meeting';
+import {fitMeetingRoom} from './levels/meeting-fit';
 import type {PropSpec} from './props/prefabs';
 
 type Point={x:number;z:number};
@@ -52,6 +53,8 @@ export class MeetingStrip {
    *  OutlineEffect's per-material cache without bound (sim-1). */
   private glows=new Map<T.Mesh,T.MeshBasicMaterial>();
   constructor(private game:Game){
+    // The 36 x 24 m shell: refit the room dressing built for the old walls (before freezeDecor merges it).
+    fitMeetingRoom(game);
     const c=game.circuit,root=game.root;
     // The reel feeds the strip (a heavy reel: the strip's breaker is the limit, not the cable). The
     // Circuit's own instant trip is left only for a dead short (THERMAL_INSTANT x); the thermal part

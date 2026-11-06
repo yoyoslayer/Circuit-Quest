@@ -93,11 +93,12 @@ test('pad A during the win beat waits for the result card, then retries straight
 test('pushing into a room edge reads as standing still: no walk cycle on the spot (game-b-5 follow-up)',async({page})=>{
   await open(page,'meeting');await wait(page,.2);
   // Walks with D held for 0.6 s from a spot and returns Pip's pace and how far he moved.
-  const walkFrom=(x:number)=>page.evaluate(x=>{const G=(window as any).__game,at={x,y:.8,z:0};G.player.setTranslation(at,true);G.player.setNextKinematicTranslation(at);G.yaw=0;
+  const walkFrom=(x:number,z=0)=>page.evaluate(([x,z])=>{const G=(window as any).__game,at={x,y:.8,z};G.player.setTranslation(at,true);G.player.setNextKinematicTranslation(at);G.yaw=0;
     (window as any).__circuitCrew.drive.advance(.6,['KeyD']);G.keys=new Set(['KeyD']);G.step(1/60);G.keys.clear();
-    return {pace:G.pace,moved:Math.abs(G.player.translation().x-x)};},x);
-  // Open floor first, which also tells the test which way D walks.
-  const free=await walkFrom(0);expect(free.pace).toBeGreaterThan(1.5);
+    return {pace:G.pace,moved:Math.abs(G.player.translation().x-x)};},[x,z]);
+  // Open floor first, which also tells the test which way D walks: the aisle runner between the back
+  // pods and the middle pods (z -2.1..-0.4), with clear floor to either side.
+  const free=await walkFrom(0,-1.25);expect(free.pace).toBeGreaterThan(1.5);
   const right=await page.evaluate(()=>(window as any).__game.player.translation().x>0);
   const edge=await page.evaluate(()=>{const G=(window as any).__game;return G.level.width/2-.5;});
   const pushed=await walkFrom(right?edge:-edge);

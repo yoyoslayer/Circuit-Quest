@@ -1,27 +1,62 @@
 {
   "unit": {
-    "passed": 171,
+    "passed": 173,
     "failed": 0
   },
   "build": "passed",
   "browser": {
-    "uniquePassedAcrossRuns": 25,
-    "knownFailingWordBudgets": {
-      "arcade": 32,
-      "garage": 34,
-      "qfn": 62,
-      "observatory": 69,
-      "spectrum": 52
+    "uniquePassedAcrossRuns": 15,
+    "knownFailingWordBudgets": {},
+    "steadyStateBenchWords": {
+      "arcade": {
+        "entry": 18,
+        "working": 21
+      },
+      "garage": {
+        "entry": 10,
+        "working": 16
+      },
+      "qfn": {
+        "entry": 25,
+        "working": 25,
+        "selected": 25
+      },
+      "observatory": {
+        "entry": 19,
+        "working": 19
+      },
+      "spectrum": {
+        "entry": 13,
+        "working": 11
+      }
+    },
+    "qfnReadyBoardWords": {
+      "sensor": 11,
+      "mcu": 15,
+      "driver": 21
     },
     "targetWords": 25,
     "allMeasuredHtmlFontsAtLeast14CssPx": true,
+    "pauseNotesVisibleForAllFiveBenches": true,
     "canvasCapHeightVerified": false
   },
+  "animation": {
+    "presentationFixtures": 12,
+    "runtimeErrors": 0,
+    "lunchFailureGameplay": "passed"
+  },
+  "previousWordBudgets": {
+    "arcade": 32,
+    "garage": 34,
+    "qfn": 62,
+    "observatory": 69,
+    "spectrum": 52
+  },
   "remainingSharedDependencies": [
-    "Station panel/monitor/toast copy",
-    "Game and station gameplay assist hooks, then connected UI toggles and Assisted result tag",
-    "Explicit failure/bump animation inputs and NPC bubble anchors",
-    "Human-time par tuning and actual canvas cap-height verification"
+    "Transient toast budgets and remaining canvas duplicates/cap-height verification outside this sampled bench pass",
+    "Gameplay assist hooks and connected UI toggles/Assisted result tag",
+    "Optional explicit bump input and NPC bubble anchors",
+    "Human-time par tuning"
   ],
   "captureServer4192": "stopped"
 }

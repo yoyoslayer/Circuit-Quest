@@ -823,7 +823,7 @@ export class Game {
     const held=this.held?this.heavy(this.held)?'heavy':'light':'none',lunchHeld=this.lunch?.held,hk=this.held?prefabs[this.held.spec.kind].size:undefined;
     const near=this.running&&!this.won&&!this.held&&!this.holdingPlug?this.nearest():undefined;
     this.rig.update({dt,time:this.last/1000,speed,grounded:this.grounded,rising:this.vertical>0,airborne:this.airborne,turnRate:turn,carrying:held,carryWidth:hk?(hk[1]>1.2&&hk[2]<.3?hk[2]:hk[0]):0,sinceThrow:this.time-this.thrownAt,sinceRelease:this.time-this.releasedAt,holdingPlug:this.holdingPlug,
-      strain:lunchHeld?lunchHeld.cable.rope.strain:this.rope.strain,won:this.won&&!this.failAt,waving:titling,lookAt:this.failAt?new T.Vector3(this.failAt.x,1.2,this.failAt.z):near?new T.Vector3().copy(near.body.translation()):undefined});
+      strain:lunchHeld?lunchHeld.cable.rope.strain:this.rope.strain,won:this.won&&!this.failAt,failed:!!this.failAt,waving:titling,lookAt:this.failAt?new T.Vector3(this.failAt.x,1.2,this.failAt.z):near?new T.Vector3().copy(near.body.translation()):undefined});
   }
   render(dt:number){
     const p=this.player.translation();this.avatar.position.set(p.x,p.y-.78,p.z);

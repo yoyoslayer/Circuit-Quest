@@ -22,15 +22,33 @@ async function prepare(page:Page,level:string){
  }
  await page.keyboard.press('KeyE');await wait(page,.4);expect((await snapshot(page)).atBench).toBe(true);
 }
-for(const level of ['arcade','garage','qfn','observatory','spectrum'])test(`${level}: clean-route task names and shared bench word budget`,async({page},testInfo)=>{
- await prepare(page,level);
+async function budget(page:Page,level:string,phase:string,testInfo:import('@playwright/test').TestInfo){
  const report=await page.evaluate(()=>{
   const panels=[...document.querySelectorAll<HTMLElement>('.station-panel,.station-toast,.objective,.prompt-pill,.bench-chip')].filter(el=>!el.hidden&&el.getBoundingClientRect().width>0);
   const text=panels.map(el=>el.innerText.trim()).join(' '),words=text.match(/[\p{L}\p{N}]+(?:['.-][\p{L}\p{N}]+)*/gu)??[];
   const small=panels.flatMap(el=>[el,...el.querySelectorAll<HTMLElement>('*')]).filter(el=>el.getBoundingClientRect().width>0&&el.childElementCount===0&&(el.innerText??'').trim()).filter(el=>parseFloat(getComputedStyle(el).fontSize)<14).map(el=>({text:el.innerText,size:getComputedStyle(el).fontSize}));
   return {text,words:words.length,small};
  });
- await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+ console.log(JSON.stringify({level,phase,...report}));
+ await testInfo.attach(`${phase}-word-budget`,{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench${phase==='entry'?'':'-'+phase}.png`});
  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
- expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+ expect(report.words,'DR-40 shared HTML word budget').toBeLessThanOrEqual(25);
+}
+for(const level of ['arcade','garage','qfn','observatory','spectrum'])test(`${level}: clean-route task names and shared bench word budget`,async({page},testInfo)=>{
+ await prepare(page,level);await budget(page,level,'entry',testInfo);
+ // A real bench action must preserve the compact panel after its transient feedback clears.
+ const action:Record<string,[string,unknown?]>={arcade:['pick',100],garage:['pulse'],qfn:['check'],observatory:['pick','C'],spectrum:['band','radio']};
+ expect((await page.evaluate(([name,arg])=>(window as any).__circuitCrew.drive.act(name,arg),action[level])).ok).toBe(true);
+ const remaining=await page.evaluate(()=>{const g=(window as any).__game;return Math.max(0,(g.station.toastUntil??0)-g.time)+.2;});
+ await wait(page,remaining);await budget(page,level,'working',testInfo);
+ if(level==='qfn'){
+  await page.evaluate(()=>(window as any).__circuitCrew.drive.act('select','R1'));
+  const bodies=(await snapshot(page)).station.bodies;await page.mouse.move(...bodies.R1 as [number,number]);await wait(page,.2);
+  await expect(page.locator('.prompt-pill')).toContainText('click to turn');await budget(page,level,'selected',testInfo);
+ }
+ await page.getByRole('button',{name:'Pause',exact:true}).click();
+ await page.locator('.bench-notes summary').click();await expect(page.locator('.bench-notes p')).toBeVisible();
+ expect((await page.locator('.bench-notes p').innerText()).length).toBeGreaterThan(40);
+ await page.locator('.bench-notes p').scrollIntoViewIfNeeded();
+ if(level==='qfn')await page.screenshot({path:'artifacts/astra-qfn-bench-notes.png'});
 });

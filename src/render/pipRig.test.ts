@@ -38,6 +38,18 @@ it('separates a quiet failure pose from the raised-arm celebration',()=>{
   const r=rig();advance(r,1,{won:true});expect(r.arms[0].rotation.x).toBeLessThan(-2);
   advance(r,1,{failed:true});expect(r.arms[0].rotation.x).toBeGreaterThan(-.7);expect(r.head.rotation.x).toBeGreaterThan(.2);
 });
+it('starts a win with anticipation regardless of the wall clock, then bends the knees',()=>{
+  const a=rig(),b=rig();advance(a,.5);advance(b,.5);
+  a.update({...rest,won:true,time:0});b.update({...rest,won:true,time:123.45});
+  expect(a.body.position.y).toBeLessThan(0);expect(a.body.position.y).toBeCloseTo(b.body.position.y,6);
+  advance(a,.7,{won:true});expect(a.knees[0].rotation.x).toBeGreaterThan(.02);
+  advance(a,1);expect(a.knees[0].rotation.x).toBeLessThan(.01);
+});
+it('lets the hard hat bounce on a stationary landing and settle again',()=>{
+  const r=rig();advance(r,.3,{grounded:false,airborne:.4});advance(r,.05);
+  expect(r.hat.rotation.x).toBeLessThan(-.13);
+  advance(r,2);expect(r.hat.rotation.x).toBeCloseTo(-.12,3);
+});
 it('keeps every joint finite through low-frame-rate pose changes',()=>{
   const r=rig();for(let i=0;i<120;i++)r.update({...rest,dt:.1,time:i*.1,grounded:i%3===0,airborne:.4,speed:i%2?7:0,sinceRelease:i%7/10});
   for(const joint of [r.body,r.torso,r.head,r.hat,...r.arms,...r.legs,...r.knees,...r.elbows]){

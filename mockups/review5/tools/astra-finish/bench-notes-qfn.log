@@ -1,0 +1,19 @@
+
+[WebServer] (node:34448) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+
+(node:38836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/1] tests\astra-bench-budget.spec.ts:37:71 › qfn: clean-route task names and shared bench word budget
+tests\astra-bench-budget.spec.ts:37:71 › qfn: clean-route task names and shared bench word budget
+{"level":"qfn","phase":"entry","text":"Drag\nJ1: edge, mouth out Esc\nStand up Tracks cannot cross\n\nJoined pads\n\nVDD\n1/3\nGND\n1/3\nOUT\n1/2\nSIG\n1/2","words":25,"small":[]}
+
+{"level":"qfn","phase":"working","text":"Drag\nJ1: edge, mouth out Esc\nStand up Tracks cannot cross\n\nJoined pads\n\nVDD\n1/3\nGND\n1/3\nOUT\n1/2\nSIG\n1/2","words":25,"small":[]}
+
+{"level":"qfn","phase":"selected","text":"Drag\nMove · click to turn Esc\nStand up Tracks cannot cross\n\nJoined pads\n\nVDD\n1/3\nGND\n1/3\nOUT\n1/2\nSIG\n1/2","words":25,"small":[]}
+
+  1 passed (2.3m)

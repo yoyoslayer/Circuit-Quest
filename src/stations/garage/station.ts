@@ -568,16 +568,15 @@ export class GarageBench implements Station {
     this.panel.hidden=!j||!this.active;if(!j||!this.active)return;
     // ok: passes (green) · false: fails (red) · null: not graded right now (grey).
     const row=(k:string,v:string,ok?:boolean|null)=>`<li class="${ok===undefined?'':ok===null?'no':ok?'ok':'bad'}"><span>${k}</span><b>${v}</b></li>`;
-    const fit=(slot:SlotId)=>{const f=this.slots[slot];if(!f)return '—';const o=orientation(slot,f);return `${PARTS[f.part].label}${o?` (${o})`:''}`;};
     const v=cap?.verdict,m=(x:string)=>stale?'PULSE again':x,g=(ok:boolean)=>stale?null:ok;
     const coil=jobCoil(j),run=coilRunning(coil);
-    this.panel.innerHTML=`<header><small>JOB ${this.jobIndex+1}/${JOBS.length} · ${partCount(s)} PART${partCount(s)===1?'':'S'} FITTED</small><h4>${j.title}</h4>${this.active?`<p>${j.ask}</p>`:""}</header>`+
-      `<ul class="build">${row(coil.id==='brake'?'Across coil':'Across motor',fit('fly'))}${row('Across switch',fit('switch'))}${row('At controller',fit('ctrl'))}${row('Ground',this.star?'star (own wire)':'shared with motor',this.star?true:undefined)}`+
-      (!this.fuse?row('Fuse',`cooling ${this.cooling.toFixed(1)} s`,false):'')+
-      (v&&v.fault!=='short'&&v.fault!=='cap'?`${row('Stop spike',m(`${Math.round(v.spike)} V`),g(v.spike<=SPEC.spikeReset))}`+
+    // Fitted parts and wiring are visible on the board; show only this job's measured checks.
+    this.panel.innerHTML=`<header><h4>${j.title}</h4>${j.stopSpec?`<p>Coil off ≤ ${msText(j.stopSpec)}</p>`:''}</header>`+
+      `<ul class="build">`+(!this.fuse?row('Fuse',`cooling ${this.cooling.toFixed(1)} s`,false):'')+
+      (v&&v.fault!=='short'&&v.fault!=='cap'?(this.jobIndex<2?row('Stop spike',m(`${Math.round(v.spike)} V`),g(v.spike<=SPEC.spikeReset)):'')+
         (j.stopSpec?row('Coil off',m(msText(v.offTime)),g(v.offTime!==null&&v.offTime<=j.stopSpec)):'')+
-        row('Start sag',m(`${v.dip.toFixed(2)} V`),g(v.dip<=SPEC.dipReset)):'')+`</ul>`+
-      `<p class="profile">The beads on the copper are the current, replayed about ${SLOWMO}× slower than life. Simplified model, this robot's tuning values: ${coil.id==='brake'?`brake coil ${MOTOR.V} V, ${coil.L*1e3} mH, ${coil.R} Ω, ${run} A`:`motor ${MOTOR.V} V, ${MOTOR.L*1e3} mH, ${MOTOR.R} Ω, ${run} A running, ${MOTOR.spinUp*1e3} ms to spin up`}. Switch abs max ${SWITCH.absMax} V. Controller resets above ${SPEC.spikeReset} V at the switch or a ${SPEC.dipReset} V supply sag.</p>`;
+        (this.jobIndex===2?row('Start sag',m(`${v.dip.toFixed(2)} V`),g(v.dip<=SPEC.dipReset)):''):'')+`</ul>`+
+      `<p class="profile">${j.ask} The beads on the copper are the current, replayed about ${SLOWMO}× slower than life. Simplified model, this robot's tuning values: ${coil.id==='brake'?`brake coil ${MOTOR.V} V, ${coil.L*1e3} mH, ${coil.R} Ω, ${run} A`:`motor ${MOTOR.V} V, ${MOTOR.L*1e3} mH, ${MOTOR.R} Ω, ${run} A running, ${MOTOR.spinUp*1e3} ms to spin up`}. Switch abs max ${SWITCH.absMax} V. Controller resets above ${SPEC.spikeReset} V at the switch or a ${SPEC.dipReset} V supply sag.</p>`;
   }
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;

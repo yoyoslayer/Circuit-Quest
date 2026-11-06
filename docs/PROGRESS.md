@@ -474,3 +474,14 @@ mesh each. Not yet measured on a real integrated-GPU laptop.
 
 Level select hub, more floors, WebGPU renderer, controller remapping and accessibility
 options, save data.
+
+
+## 2026-11-05 — Bench copy and Pip reactions (astra/work)
+
+The five station panels now leave instrument readings on their physical monitors and keep the HTML focused on the job. Arcade keeps its target current, parts receipt and battery endurance; Garage shows the current job's stop/brake/start checks; Observatory keeps cart distance, latch voltage and parts; Spectrum keeps pod placement and the hatch. Longer job context is available in an expandable Bench notes section in the pause menu. The former HUD-only pause CSS could not expose it because that HUD is hidden while paused.
+
+QFN shows joined-pad counts while routing. Once every net is connected, it switches to copper cost/par, the most demanding bypass loop, chip temperature where applicable, and the current grade. Connector and placement prompts are shorter, with the same physical requirements. The word-budget tests cover both arrival and a tool interaction after transient feedback clears; they also enforce the existing 14 CSS px desktop label floor.
+
+Pip now crouches into victory hops, bends the knees on each landing, and gives the hard hat a small settling bounce after a jump. Lunch failure is connected to the rig's quiet reaction instead of leaving it unused. New tests exercise the real fridge-spoil outcome and the animation transitions.
+
+Verified: production build, 173 unit tests, all five full station playthroughs and the five bench budgets pass. Entry panels use 18 / 10 / 25 / 19 / 13 words (Arcade / Garage / QFN / Observatory / Spectrum). All five Bench notes open from pause. Focused browser checks also cover real Lunch failure, Observatory fault recovery, clean three-A results and rendering; 15 unique checks pass across the recorded runs. See `mockups/review5/fixlog/astra.md` and `tools/astra-finish/summary.json` under that review for exact coverage and remaining limitations.

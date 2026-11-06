@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot} from './navigation';
 import {plugBench} from './station-lead';
+import {watchMonitorText,monitorText} from './monitor-text';
 
 // The rooms carry 100+ physics props; under software rendering give each test room, like the other stations.
 test.describe.configure({timeout:180000});
@@ -81,12 +82,13 @@ test('signal observatory: a failed decode and a dropped latch are explained, and
 });
 
 test('signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2',async({page})=>{
-  const errors=await open(page,'observatory');await wait(page,.1);
+  await watchMonitorText(page);const errors=await open(page,'observatory');await wait(page,.1);
   await moveCart(page);await toBench(page);
-  // A huge shunt capacitor kills the noise and the message with it: the decoder line garbles and the S/N row is red.
+  // A huge shunt capacitor kills the noise and the message with it: the decoder line garbles and the scope loses its reliable decode.
   await steps(page,[['pick','C'],['slot','shunt'],['value',{slot:'shunt',value:6.8e-5}],['route']]);
   let s=(await snapshot(page)).station;expect(s.reading.level).toBeLessThan(.5);expect(s.decodedText).not.toBe('CQ CQ DE PIP');
-  await expect(page.locator('.station-panel li.bad',{hasText:'Signal/noise'})).toHaveCount(1);
+  // A clean ratio can still be too quiet to decode: the level check above is essential.
+  expect(await monitorText(page,'filter')).toMatch(/S\/N|no signal/);await expect(page.locator('.station-panel .build')).not.toContainText('Signal/noise');
   // 680 nF decodes, but without margin: a near miss, not a mistake, and the job stays open.
   await steps(page,[['value',{slot:'shunt',value:6.8e-7}],['log']]);
   s=(await snapshot(page)).station;expect(s.job).toBe(0);expect(s.mistakes).toBe(0);expect(s.nearMisses).toBe(1);

@@ -62,7 +62,7 @@ export class PipRig {
     const swingAmp=(.32+.26*amount+.12*run)*Math.sqrt(amount),cycle=T.MathUtils.clamp(4*.56*Math.sin(Math.max(.15,swingAmp)),.4,1.6);
     this.phase+=dt*this.spd*Math.PI*2/cycle;
     const sin=Math.sin(this.phase),cos=Math.cos(this.phase);
-    if(this.wasAir&&!air)this.landingAge=0;this.wasAir=air;
+    if(this.wasAir&&!air){this.landingAge=0;this.hatVel.x-=.6;}this.wasAir=air;
     if((s.carrying!=='none'&&this.previousCarry==='none')||(s.holdingPlug&&!this.previousPlug))this.pickupAge=0;
     this.previousCarry=s.carrying;this.previousPlug=s.holdingPlug;
     const hardStop=this.lastRawSpeed>4.5&&s.speed<.4&&s.grounded;this.lastRawSpeed=s.speed;
@@ -70,6 +70,11 @@ export class PipRig {
     if(s.failed&&!this.wasFailed)this.failureAge=0;this.wasFailed=!!s.failed;
     if(winning&&!this.wasWon)this.celebrationAge=0;this.wasWon=winning;
     this.landingAge+=dt;this.pickupAge+=dt;this.bumpAge+=dt;this.failureAge+=dt;this.celebrationAge+=dt;
+    // Start the cheer on its own beat: a small crouch, then soft-kneed hops.
+    // Using event age prevents a win halfway through the idle clock from popping upward.
+    const cheerPhase=Math.max(0,this.celebrationAge-.12)*9;
+    const cheerHop=winning?Math.abs(Math.sin(cheerPhase)):0;
+    const cheerCrouch=winning?Math.max(0,1-this.celebrationAge/.12):0;
     const land=this.landingAge<1?Math.exp(-this.landingAge*10):0;
     const pickup=this.pickupAge<.28?Math.sin(this.pickupAge/.28*Math.PI):0;
     const stumble=this.bumpAge<.45?Math.sin(this.bumpAge/.45*Math.PI)*Math.exp(-this.bumpAge*2)*.2:0;
@@ -82,7 +87,7 @@ export class PipRig {
     // Walking, the body rides highest when the legs pass each other and dips at each heel strike;
     // running, it's highest in the flight between steps. Hips sway over the standing leg.
     const passing=1-Math.abs(sin),walkBob=(passing-.5)*.05,runBob=(Math.abs(sin)-.5)*.07;
-    const bob=(air?0:(walkBob*(1-run)+runBob*run)*amount-.02*run)+(winning?Math.abs(Math.sin(s.time*9))*.14-Math.max(0,1-this.celebrationAge/.12)*.035:0)-land*.035-pickup*.028-tired*.018;
+    const bob=(air?0:(walkBob*(1-run)+runBob*run)*amount-.02*run)+cheerHop*.14-cheerCrouch*.035-land*.035-pickup*.028-tired*.018;
     this.body.position.y+=(bob-this.body.position.y)*gait;
     this.sway+=(sin*.035*amount*(1-run*.5)-this.sway)*gait;this.body.position.x=this.sway;
     ease(this.body,0,0,T.MathUtils.clamp(-s.turnRate*.05,-.18,.18)-this.sway*.6+stumble,slow);
@@ -100,8 +105,8 @@ export class PipRig {
     ease(this.torso,lean+Math.abs(cos)*.03*amount,sin*(.09-.03*run)*amount,-this.sway*.8,gait);
     // Legs: hip swings with the stride; the knee folds the boot back only while that leg swings
     // forward (cosine > 0 for the left leg), so each foot lifts clear and plants flat.
-    const hip=(l:number)=>air?(l?.4:-.55):(l?-sin:sin)*swingAmp;
-    const knee=(l:number)=>{if(air)return l?.35:.9;const c=l?-cos:cos;return Math.max(0,c)*(.55+.55*run)*amount+(run*.2*amount)+pull*.3+land*.22+Math.abs(stumble)*.5;};
+    const hip=(l:number)=>winning?-.12*(1-cheerHop)-cheerCrouch*.1:air?(l?.4:-.55):(l?-sin:sin)*swingAmp;
+    const knee=(l:number)=>{if(winning)return .24*(1-cheerHop)+cheerCrouch*.2;if(air)return l?.35:.9;const c=l?-cos:cos;return Math.max(0,c)*(.55+.55*run)*amount+(run*.2*amount)+pull*.3+land*.22+Math.abs(stumble)*.5;};
     for(const l of [0,1]){ease(this.legs[l],hip(l),0,air?(l?.05:-.05):0,gait);ease(this.knees[l],knee(l),0,0,gait);}
     // Arms: swing opposite the legs by default; poses override.
     // Arms swing a beat behind the legs, elbows bending more as Pip speeds up.

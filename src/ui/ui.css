@@ -281,3 +281,7 @@ body[data-bench] .marker-edge,body[data-menu] .marker-edge{display:none}
 body[data-practice] .jobplate::after{left:auto;right:-8px;top:-8px;bottom:auto;font-size:14px;z-index:2}
 body[data-hub] .pause .head .tallies,body[data-hub] .pause [data-ui="jobs-reload"]{display:none}
 .result .row.result-served{margin:0;text-align:left;position:relative}.served-label{position:absolute;left:44px;top:-13px;font-size:14px;background:var(--paper)}
+
+.station-panel .net-caption{margin:8px 0 0;font-weight:600}
+
+.station-panel .build:empty{display:none}

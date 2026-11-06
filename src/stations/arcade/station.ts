@@ -556,16 +556,13 @@ export class ArcadeBench implements Station {
     if(!this.panel){const l=this.layer();if(!l){this.shown='';return;}this.panel=document.createElement('section');this.panel.className='station-panel panel arc-panel';l.append(this.panel);}
     this.panel.hidden=!j||!r;if(!j||!r)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
-    const isLed=j.load.kind==='led',on=this.live,inBand=r.iLoad>=j.band[0]-1e-9&&r.iLoad<=j.band[1]+1e-9;
-    const hottest=r.blocks.reduce((a,b)=>Math.max(a,b.p),0);
-    // The clock lives on the HUD; the story job card already shows the ask, so only rush repeats it here.
-    this.panel.innerHTML=`<header><small>${this.rush?`RUSH · ${this.served.length} fixed`:`${this.index+1}/${JOBS.length}`} · ${j.cabinet}</small>${this.rush?`<h4>${j.ask}</h4>`:''}${this.active?`<p>${j.story}</p>`:""}</header>`+
-      (this.active&&this.trayReady?`<ul class="build">${row('Chain',chainText(this.setup.chain))}`+
-        `${row('Current',on?`${mA(r.iLoad)} mA`:this.tripped?'fuse cooling':'off',on?inBand:undefined)}`+
-        (on&&r.blocks.length?row('Hottest block',`${watts(hottest)} of ${watts(BLOCK_RATING)}`,hottest<=BLOCK_RATING*HOUSE.margin):'')+
+    const isLed=j.load.kind==='led',on=this.live;
+    // Readings belong to the meter. Keep the numeric target, receipt and battery endurance here.
+    this.panel.innerHTML=`<header><small>${this.rush?`RUSH · ${this.served.length} fixed`:`${this.index+1}/${JOBS.length}`} · ${j.cabinet}</small></header>`+
+      (this.active&&this.trayReady?`<ul class="build">${row('Target',`${Math.round(j.band[0]*1000)}–${Math.round(j.band[1]*1000)} mA`)}`+
         (j.battery&&on&&r.lifeH?row('Battery life',`≈ ${Math.round(r.lifeH)} h`):'')+
         `${row('Parts',`${partsCost(this.setup)} credit${partsCost(this.setup)===1?'':'s'}${this.spent?` · spent ${+this.spent.toFixed(1)}`:''}`)}</ul>`+
-        `<p class="profile">${isLed?'I = (V − V<sub>f</sub>) ÷ R and P = I²R. Simplified LED: fixed V<sub>f</sub>, light ∝ current.':'I = (5 V − 0.7 V) ÷ R. Simplified: the base–emitter junction drops a fixed 0.7 V; β is 100 typical, 40 for a weak part.'} Blocks in a row add; side by side they share. House rule: blocks under ${HOUSE.margin*100} % of ¼ W.</p>`:'');
+        `<p class="profile">${j.story} ${isLed?'I = (V − V<sub>f</sub>) ÷ R and P = I²R. Simplified LED: fixed V<sub>f</sub>, light ∝ current.':'I = (5 V − 0.7 V) ÷ R. Simplified: the base–emitter junction drops a fixed 0.7 V; β is 100 typical, 40 for a weak part.'} Blocks in a row add; side by side they share. House rule: blocks under ${HOUSE.margin*100} % of ¼ W.</p>`:'');
   }
   private hoverHint():Prompt|null{
     const h=this.hovered;if(!h||!this.active)return null;

@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,wait,snapshot,route} from './navigation';
 import {plugBench} from './station-lead';
+import {watchMonitorText,monitorText} from './monitor-text';
 
 // Long walks across the hall: the machine may be busy with other builds.
 test.describe.configure({timeout:300000});
@@ -27,7 +28,7 @@ async function podToStore(page:Page){
 const landed=(page:Page)=>wait(page,1.8);
 
 test('spectrum delivery: radio through brick, near IR through the hatch by mirror, thermal IR past smoke and mesh',async({page})=>{
-  const errors=await open(page,'spectrum');await wait(page,.1);
+  await watchMonitorText(page);const errors=await open(page,'spectrum');await wait(page,.1);
   await expect(page.locator('.objective')).toContainText('Carry the receiver pod');
   // 1 · Brick: light stops at the wall; the 3 m radio wave passes it.
   await podToStore(page);await plugFromStore(page);
@@ -39,12 +40,12 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   // The pod fits the matching detector head by itself.
   await steps(page,[['band','radio']]);
   s=await station(page);expect(s.detector).toBe('dipole');expect(s.reading.margin).toBeGreaterThanOrEqual(10);
-  // Commit, then reveal: before SEND the panel says where the path goes, never how strong it is.
-  await wait(page,.1);expect(s.revealed).toBe(false);await expect(page.locator('.station-panel .build')).not.toContainText(/\d dB/);await expect(page.locator('.station-panel')).toContainText('reaches the pod');
+  // Commit, then reveal: the LINK monitor owns path and measured margin, not the HTML panel.
+  await wait(page,.1);expect(s.revealed).toBe(false);await expect(page.locator('.station-panel .build')).not.toContainText(/\d dB/);expect(s.reading.blocked).toBeNull();expect(s.reading.missed).toBe(false);expect(await monitorText(page,'LINK')).toContain('PATH REACHES THE POD');
   await steps(page,[['send']]);
   // The delivery holds on screen for a beat (the job doesn't flip within a frame), then the next comes up.
   await wait(page,.3);s=await station(page);expect(s.job).toBe(0);expect(s.holding).toBe(true);expect(s.revealed).toBe(true);
-  await expect(page.locator('.station-panel')).toContainText('dB');
+  expect(s.reading.margin).toBeGreaterThanOrEqual(10);expect(await monitorText(page,'LINK')).toMatch(/\d[.]\d dB/);await expect(page.locator('.station-panel .build')).not.toContainText('dB');
   await landed(page);s=await station(page);expect(s.job).toBe(1);expect(s.holding).toBe(false);
   // 2 · The lab: the pod goes in through the lab door, a mirror stands on mark A, the hatch opens.
   await E(page);
@@ -64,7 +65,7 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   const before=(await station(page)).aim.mirrors.A;
   await page.mouse.click(...((await station(page)).map.A as [number,number]));await wait(page,.1);
   s=await station(page);expect(s.reading.spots).toEqual(['A']);expect(s.reading.missed).toBe(true);expect(s.aim.mirrors.A).toBeCloseTo(before,6);
-  await expect(page.locator('.station-panel')).toContainText('misses the pod');
+  expect(await monitorText(page,'LINK')).toContain('MISSES THE POD');await expect(page.locator('.station-panel .build')).not.toContainText('Path');
   // Now the beam reaches the mirror, a drag from it toward the lab pad turns the board: the beam lands on the shut hatch.
   const m=(await station(page)).map as Record<string,[number,number]>;
   await page.mouse.move(...m.A);await page.mouse.down();for(let k=1;k<=6;k++)await page.mouse.move(m.A[0]+(m.lab[0]-m.A[0])*k/6,m.A[1]+(m.lab[1]-m.A[1])*k/6);await page.mouse.up();await wait(page,.1);

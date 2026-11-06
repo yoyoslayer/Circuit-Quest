@@ -193,3 +193,27 @@ Verification before final commit: 171 unit tests pass and production build passe
 Final Stage 5 audit: the corrected QFN return route reaches the bench. Four net pad-count labels inherited a station-specific 13 px rule; the owned desktop CSS override now makes that final font check pass. QFN still measures **62 words** and fails only the strict 25-word budget. Final initial-state budgets are **32 / 34 / 62 / 69 / 52** for Arcade / Garage / QFN / Observatory / Spectrum. All five are explicitly failing regressions awaiting station-copy changes, not expected-failure skips.
 
 Across the 30-case final selection and corrected reruns, **25 unique checks pass** (all gameplay routes, idle D, clean three-A, practice isolation, settings, animation, smoke and layouts), and **five bench word-budget checks fail**. The final QFN-only run confirms the font fix independently. Latest production build passes; unit suite is **171/171**. Exact output: tools/astra-finish/{browser,rerun,qfn-rerun,qfn-final,unit,build}.log. Raw captures remain ignored as required; reproducible specs, compact status and logs are committed. All authorized owned work is at its stopping point; shared-file dependencies above remain open.
+
+
+## Follow-up — five bench budgets and animation (2026-11-05)
+
+The user explicitly asked to resolve the five remaining bench checks and improve animation. This authorizes the necessary station and game integration edits in the isolated `astra/work` worktree; the main/Claude worktree is untouched. This section supersedes the five-copy-failures and unwired-failure-input handoff above.
+
+- Arcade: remove duplicate chain/current/hottest readings from HTML; retain a readable numeric target, parts receipt and battery endurance. Longer story moves to paused notes.
+- Garage: remove duplicate wiring/part descriptions; retain the current job's graded stop spike, brake release or start sag and the brake's actual 2 ms requirement.
+- Observatory: leave signal/noise, tone and filter information on the scope/cans; retain cart distance, relevant latch voltage and parts.
+- Spectrum: leave path, band, power and measured margin on the physical LINK monitor. The playthrough observes actual canvas text to verify that information survives removal of the duplicate HTML.
+- QFN: joined-pad counts during routing; cost/par, worst bypass loop, temperature and grade after connection. Keep the physical edge/orientation requirements in shorter prompts and full ratio explanations in paused notes.
+- Animation: wire the real Lunch failure into Pip's existing failure pose, start victory hops with anticipation using event time, bend the knees, and kick the hat spring gently on landing. Unit checks cover clock-independent entry and settling; gameplay test lets the unpowered fridge spoil naturally.
+
+The first browser pass exposed QFN's longer connector prompt (27 words) and an interrupted Garage route from a live reload. The prompt was shortened without dropping edge/orientation requirements; subsequent runs use stable source. The new failure-pose test initially approached the fridge through a wall; its route now passes through the doorway. These were test/development issues, not hidden skips.
+
+Pause integration: expose each station’s full notes in a native details element inside the pause menu. The former HUD profile CSS was ineffective because pausing hides that entire layer. Each budget route now opens its actual Bench notes and checks that the content is visible.
+
+Verification tooling: `PW_PREVIEW=1` uses the built game and bundled Fredoka font, avoiding the shared node_modules junction’s dev-server font denial. Use a single merged object in defineConfig: multiple config arguments concatenate web servers and started duplicate servers. No dependencies were installed.
+
+Test corrections: wait for Pip’s initial failure dip to settle before checking the resting squash. Observatory’s over-filtered message can have high S/N while its absolute level is too low; verify low level, garbled decode, and actual scope text rather than requiring low S/N. The monitor observer must be installed before navigation.
+
+Final verification: production build passes; 173 unit tests pass. Across focused runs, 15 unique browser checks pass: five entry/working bench budgets (plus selected QFN and all five pause notes), five full station completions, Observatory fault recovery, real Lunch failure pose, full-render coworker animation, clean three-A result, and smoke. The final six-case production run and QFN scrolled-notes capture pass without skips. Entry budgets are 18 / 10 / 25 / 19 / 13 words; working budgets are 21 / 16 / 25 / 19 / 11. Ready QFN boards use 11 / 15 / 21 words. All measured shared HTML labels are at least 14 CSS px. Twelve animation presentation captures report no runtime errors; landing, cheer and failure poses and the production QFN ready-board/expanded-notes captures were inspected.
+
+Evidence: tools/astra-finish/bench-{unit,build,playthroughs,production-final,notes-final,notes-qfn,animation}.log and summary.json. Earlier failed runs remain for traceability; the corrected final runs supersede them. The sampled budgets cover steady bench states after transient feedback clears; remaining canvas legibility/duplicates and transient-toast budgets are not claimed complete.

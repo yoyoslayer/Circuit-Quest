@@ -540,18 +540,11 @@ export class SpectrumDesk implements Station {
     if(!this.panel){this.panel=document.createElement('section');this.panel.className='station-panel panel spectrum-panel';this.layer()?.append(this.panel);}
     this.panel.hidden=!j;if(!j)return;
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'no'}"><span>${k}</span><b>${v}</b></li>`;
-    const b=BANDS[this.band];
-    // The path row: where it goes before a send; after it, each loss it met (smoke −25 · mesh −3).
-    const NAME:Record<string,string>={distance:'distance',brick:'brick',wood:'wood',glass:'glass',hatch:'hatch',mesh:'mesh',smoke:'smoke',mirror:'mirror',sun:'sunlight'};
-    const losses=shown?shown.terms.filter(t=>t.kind!=='sent'&&t.kind!=='distance').map(t=>`${NAME[t.kind]??t.kind} ${Math.round(t.db)}`.replace('-','−')):[];
-    const path=r.route.blocked?`stopped: ${MATERIAL_NAMES[r.route.blocked.mat]}`:r.route.missed?'misses the pod':shown?(losses.length?losses.join(' · '):'clear'):'reaches the pod';
-    this.panel.innerHTML=`<header><small>DELIVERY ${this.jobIndex+1}/${JOBS.length} · TO THE ${PAD_NAMES[j.pad].toUpperCase()}</small><h4>${j.title}</h4>${this.active?`<p>${j.ask}</p>`:""}</header>`+
-      (this.active?`<ul class="build">${row('Pod',r.podOk?`on the ${PAD_NAMES[j.pad]} pad`:'not on the pad',r.podOk)}`+
-        `${row('Band',`<i class="sp-chip" style="--c:${b.color}"></i>${b.name}`)}${row('Power',`${this.power} mW`)}`+
-        (j.hatch||this.hatchOpen?row('Lab hatch',this.hatchOpen?'open':'shut'):'')+
-        (j.hatch||r.route.spots.length?row('Mirrors in beam',String(r.route.spots.length)):'')+`${row('Path',path,!r.route.blocked&&!r.route.missed)}`+
-        (shown?row('Link margin',Number.isFinite(shown.margin)?`${shown.margin.toFixed(1)} dB`:'no signal',shown.margin>=SPEC.reliable):row('Link margin','SEND to measure'))+`</ul>`+
-        `<p class="profile">Simplified link model: ≥ ${SPEC.works} dB works, ≥ ${SPEC.reliable} dB is reliable. Game values, not a real link budget. Light links use wide LED beams, not lasers.</p>`:'');
+    // The map and LINK screen own path, band, power and measured margin.
+    this.panel.innerHTML=`<header><h4>${j.title}</h4></header>`+
+      (this.active?`<ul class="build">${row('Pod',r.podOk?`${PAD_NAMES[j.pad]} ✓`:`needs ${PAD_NAMES[j.pad]} pad`,r.podOk)}`+
+        (j.hatch||this.hatchOpen?row('Lab hatch',this.hatchOpen?'open':'shut'):'')+`</ul>`+
+        `<p class="profile">${j.ask} Simplified link model: ≥ ${SPEC.works} dB works, ≥ ${SPEC.reliable} dB is reliable. Game values, not a real link budget. Light links use wide LED beams, not lasers.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
     {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}

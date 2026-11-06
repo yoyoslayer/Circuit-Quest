@@ -1,0 +1,78 @@
+
+[WebServer] (node:5884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 7 tests using 1 worker
+
+(node:27492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/7] tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay
+  1) tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay 
+
+    Error: expect(received).toBeCloseTo(expected, precision)
+
+    Expected: 0.98
+    Received: 0.9002219110609913
+
+    Expected precision:    1
+    Expected difference: < 0.05
+    Received difference:   0.07977808893900873
+
+      23 |   await expect.poll(()=>page.evaluate(()=>(window as any).__game.rig.torso.rotation.x)).toBeCloseTo(.12,1);
+      24 |   const pose=await page.evaluate(()=>{const r=(window as any).__game.rig;return {arms:r.arms.map((a:any)=>a.rotation.x),squash:r.body.scale.y};});
+    > 25 |   expect(pose.arms.every((x:number)=>x>-.7&&x<-.15)).toBe(true);expect(pose.squash).toBeCloseTo(.98,1);
+         |                                                                                     ^
+      26 |   await page.screenshot({path:'artifacts/astra-lunch-failure-pose.png'});
+      27 | });
+      28 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-animation.spec.ts:25:85
+
+    Error Context: test-results\astra\astra-animation-a-spoiled--703cc--pose-through-real-gameplay\error-context.md
+
+
+
+(node:37528) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/7] tests\station-arcade.spec.ts:23:1 › arcade: five cabinets fixed in the ★ zone; powering them on as found to look is free
+[3/7] tests\station-garage.spec.ts:30:1 › robot garage: catch the kick, clamp it, brake fast, star-ground the controller, then the delivery run
+[4/7] tests\station-observatory.spec.ts:19:1 › signal observatory: move the motor, filter the line, keep the latch, tune the whip
+[5/7] tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2
+  2) tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2 
+
+    Error: expect(received).toBeLessThan(expected)
+
+    Expected: < 12
+    Received:   25.7
+
+      87 |   await steps(page,[['pick','C'],['slot','shunt'],['value',{slot:'shunt',value:6.8e-5}],['route']]);
+      88 |   let s=(await snapshot(page)).station;expect(s.reading.level).toBeLessThan(.5);expect(s.decodedText).not.toBe('CQ CQ DE PIP');
+    > 89 |   expect(s.reading.snr).toBeLessThan(12);await expect(page.locator('.station-panel .build')).not.toContainText('Signal/noise');
+         |                         ^
+      90 |   // 680 nF decodes, but without margin: a near miss, not a mistake, and the job stays open.
+      91 |   await steps(page,[['value',{slot:'shunt',value:6.8e-7}],['log']]);
+      92 |   s=(await snapshot(page)).station;expect(s.job).toBe(0);expect(s.mistakes).toBe(0);expect(s.nearMisses).toBe(1);
+        at C:\Users\yousi\Circuit-Quest-astra\tests\station-observatory.spec.ts:89:25
+
+    Error Context: test-results\astra\station-observatory-signal-912dc-citor-does-not-finish-job-2\error-context.md
+
+
+
+(node:17864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[6/7] tests\station-qfn.spec.ts:30:1 › QFN bench: three boards laid out, each reliable and at par
+tests\station-qfn.spec.ts:30:1 › QFN bench: three boards laid out, each reliable and at par
+{"board":"sensor","phase":"ready","words":11}
+
+{"board":"mcu","phase":"ready","words":15}
+
+{"board":"driver","phase":"ready","words":21}
+
+[7/7] tests\station-spectrum.spec.ts:30:1 › spectrum delivery: radio through brick, near IR through the hatch by mirror, thermal IR past smoke and mesh
+  2 failed
+    tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay 
+    tests\station-observatory.spec.ts:83:1 › signal observatory: the readout agrees with LOG, a thin decode is a near miss, and one capacitor does not finish job 2 
+  5 passed (4.9m)

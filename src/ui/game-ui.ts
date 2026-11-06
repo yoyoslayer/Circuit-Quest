@@ -74,6 +74,12 @@ export class GameUI {
     if(on){const g=this.game,set=(k:string,v:string)=>{const el=g.hud.querySelector(`.pause-screen [data-p="${k}"]`);if(el)el.textContent=v;};set('time',clock(g.time));const extra=g.station&&!g.won?g.station.score():{mistakes:0,cost:0};set('damage',String(g.damage+extra.mistakes));set('cost',String(Math.round((g.cost+extra.cost)*10)/10));
       // The three bonus goals behind the job card's stars, with what's done so far.
       const list=g.hud.querySelector('.pause-screen .pause-bonus');if(list)list.innerHTML=this.objectives.results().map(b=>`<li class="${b.ok?'ok':''}"><i>★</i>${b.text}</li>`).join('');}
+    if(on){
+      const body=this.game.hud.querySelector('.pause-screen .body'),profile=this.game.atBench?this.layer.querySelector<HTMLElement>('.station-panel .profile'):null;
+      let notes=this.game.hud.querySelector<HTMLDetailsElement>('.bench-notes');
+      if(!notes&&body){notes=document.createElement('details');notes.className='bench-notes';notes.innerHTML='<summary>Bench notes</summary><p></p>';body.append(notes);}
+      if(notes){notes.hidden=!profile;notes.open=false;notes.querySelector('p')!.innerHTML=profile?.innerHTML??'';}
+    }
     this.show(on?'pause':'play');if(!on)(document.activeElement as HTMLElement|null)?.blur?.();
   }
   restart(){flagAutostart(this.game.level.id);location.reload();}

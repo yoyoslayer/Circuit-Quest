@@ -424,16 +424,12 @@ export class ObservatoryBench implements Station {
     this.panel.hidden=!j;if(!j||!r)return;
     // Failing rows are red ('bad'), so a row can't read fine while LOG is going to fail (R5-115).
     const row=(k:string,v:string,ok?:boolean)=>`<li class="${ok===undefined?'':ok?'ok':'bad'}"><span>${k}</span><b>${v}</b></li>`;
-    const pair=filterCorner(s);
-    const slotText=(sl:Slot)=>{const p=this[sl];if(!p)return sl==='series'?'wire link':'—';const fc=corner(sl,p);return `${valueText(p)} ${p.kind}${fc&&!pair?` · ${passes(sl,p)}-pass ${hz(fc)}`:''}`;};
-    const near=this.cartDistance<REROUTE.far,boost=r.level/Math.max(1e-6,r.tones[0].before);
-    this.panel.innerHTML=`<header><small>TRANSMISSION ${this.jobIndex+1}/${JOBS.length}</small><h4>${j.title}</h4>${this.active?`<p>${j.ask}</p>`:""}</header>`+
-      (this.active?`<ul class="build">${row('Series',slotText('series'))}${row('Shunt',slotText('shunt'))}${row('Filter',`${filterName(s)}${pair?` · cuts above ${hz(pair)}`:''}`)}`+
-        (j.cart?`${row('Motor cart',`${this.cartDistance.toFixed(1)} m from the rack`,this.cartDistance>=CART_SAFE)}${row('Cable',this.rerouted?'round the back':'past the cart bay',near?this.rerouted:undefined)}`:'')+
-        (j.beacon?row('Antenna',`${RODS[this.rod].label} · ${this.vertical?'upright':'flat'}`,r.antenna>=.3):'')+
-        `${row('Tone level',`${Math.round(r.level*100)}%${boost>1.05&&r.antenna>=.3?' (resonance boost)':''}`,r.level>=SPEC.minLevel)}${row('Signal/noise',r.level<.05?'no signal':`${r.snr.toFixed(1)} dB`,r.snr>=SPEC.reliableSnr&&r.level>=SPEC.minLevel)}`+
-        row('Latch',`${r.latch.toFixed(1)} V${j.latch?'':' (not needed yet)'}`,j.latch?r.latchOk:undefined)+`${row('Parts cost',String(cost(s)))}</ul>`+
-        `<p class="profile">Decoder: S/N ≥ ${SPEC.decodeSnr} dB decodes, ≥ ${SPEC.reliableSnr} dB is reliable; latch needs ≥ ${CIRCUIT.latchMin} V. Game tuning values.</p>`:'');
+    // The scope owns signal/noise and tone level; cans carry their own values.
+    this.panel.innerHTML=`<header><h4>${j.title}</h4></header>`+
+      (this.active?`<ul class="build">`+
+        (j.cart?row('Motor cart',`${this.cartDistance.toFixed(1)} m`,this.cartDistance>=CART_SAFE):'')+
+        (j.latch?row('Latch',`${r.latch.toFixed(1)} V`,r.latchOk):'')+`${row('Parts',String(cost(s)))}</ul>`+
+        `<p class="profile">${j.ask} Decoder: S/N ≥ ${SPEC.decodeSnr} dB decodes, ≥ ${SPEC.reliableSnr} dB is reliable; latch needs ≥ ${CIRCUIT.latchMin} V. Game tuning values.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
     {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}

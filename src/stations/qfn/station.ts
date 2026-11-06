@@ -516,14 +516,19 @@ export class QfnBench implements Station {
     this.panel.hidden=done;if(done)return;
     // A row reads green when met, red when it fails a rule the board grades ('bad'), neutral otherwise.
     const row=(k:string,v:string,ok?:boolean,bad=false)=>`<li class="${ok===undefined?'':ok?'ok':bad?'bad':'no'}"><span>${k}</span><b>${v}</b></li>`;
-    const nets=r.nets.map(n=>`<li class="${n.done?'ok':''}"><i style="--c:${netColor(n.net)}"></i><span>${n.net}</span><b>${n.done?'joined':`${n.joined}/${n.pads} pads`}</b></li>`).join('');
-    const loops=r.loops.map(l=>row(`${l.cap??'Cap'} loop (shorter = less sag)`,l.loop===Infinity?'not wired':`${l.loop} cells · ≤ ${l.max}`,l.loop<=l.max,l.loop<Infinity)).join('');
-    const chip=r.thermal?row('Chip',r.thermal.powered?`${r.thermal.temp} °C · ≤ ${r.thermal.limit}`:'— (no power)',r.thermal.powered?r.thermal.temp<=r.thermal.limit:undefined,true):'';
-    const orient=r.problems.find(p=>/mouth/.test(p));
-    this.panel.innerHTML=`<header><small>BOARD ${this.boardIx+1}/${BOARDS.length} · ${b.layers===1?'ONE LAYER':'TWO LAYERS'}</small><h4>${b.title}</h4>${this.active?`<p>${b.ask}</p>`:""}</header>`+
-      (this.active&&this.partsReady?`<ul class="nets">${nets}</ul><ul class="build">${b.layers===2?row("Drawing on",this.layer===1?"L1 · top":"L2 · bottom"):""}${orient?row('Connector','edge, mouth out',false,true):''}${loops}${chip}`+
-        `${row('Track + vias',`${r.cost} · par ${r.par}`,r.tier>0?r.cost<=r.par:undefined)}${row('Grade now',this.bringUp?'Testing…':TIERS[r.tier],r.tier>0)}</ul>`+
-        `<p class="profile">Teaching grid: cell sizes and loop limits are this bench's rules. A real layout still needs the fab's DRC and an electrical review.</p>`:'');
+    const joined=r.nets.every(n=>n.done);
+    const nets=r.nets.map(n=>`<li class="${n.done?'ok':''}"><i style="--c:${netColor(n.net)}"></i><span>${n.net}</span><b aria-label="${n.joined} of ${n.pads} pads joined">${n.done?'✓':`${n.joined}/${n.pads}`}</b></li>`).join('');
+    const worst=r.loops.reduce<typeof r.loops[number]|undefined>((a,l)=>!a||l.loop/l.max>a.loop/a.max?l:a,undefined);
+    const loop=worst?row(`${worst.cap??'Cap'} loop`,worst.loop===Infinity?'unwired':`${worst.loop} ≤ ${worst.max}`,worst.loop<=worst.max,true):'';
+    const chip=r.thermal?.powered?row('Chip °C',`${r.thermal.temp} ≤ ${r.thermal.limit}`,r.thermal.temp<=r.thermal.limit,true):'';
+    const constraint=b.layers===2?'Two layers · keep cool':b.decouple?'Keep the MCU running':'Tracks cannot cross';
+    // While routing, count joined pads. Once connected, make room for the physical checks.
+    // Full constraints and the meaning of each ratio remain available when paused.
+    this.panel.innerHTML=`<header><p>${joined?`Copper ${r.cost} · par ${r.par}`:constraint}</p></header>`+
+      (this.active&&this.partsReady?(!joined?`<p class="net-caption">Joined pads</p><ul class="nets">${nets}</ul>`:'')+(joined||b.layers===2?`<ul class="build">`+
+        (b.layers===2?row('Layer',String(this.layer)):'')+
+        (joined?`${loop}${chip}${row('Grade',this.bringUp?'Testing…':TIERS[r.tier],r.tier>0)}`:'')+`</ul>`:'')+
+        `<p class="profile">${b.title}. ${b.ask} Pad counts show joined/total. Loop counts show cells ≤ limit; shorter loops mean less supply sag. Temperature shows °C ≤ limit. Copper shows track and via cost/par (${r.cost}/${r.par}). ${b.teach} Teaching grid: cell sizes and loop limits are this bench's rules. A real layout still needs the fab's DRC and an electrical review.</p>`:'');
   }
   prompt(atBench:boolean):Prompt|null{
     {const lead=this.game.leadPrompt(atBench);if(lead!==undefined)return lead;}
@@ -535,15 +540,15 @@ export class QfnBench implements Station {
     if(!this.partsReady)return {key:'E',text:'Fetch the parts crate'};
     if(this.bringUp)return null;
     // Placement comes before routing: the prompt asks for it first, then for tracks, then the checks.
-    if(this.drag)return {key:'Drag',text:'Drop it on the board'};
+    if(this.drag)return {key:'Drag',text:'Drop on the board'};
     if(this.stroke)return this.board().layers===2?{key:'V',text:'Via here'}:null;
     if(this.viaArmed)return {key:'Click',text:'Drop the via'};
-    if(this.hoverBody)return {key:'Drag',text:this.selected===this.hoverBody?'Move, or click to turn':'Move'};
+    if(this.hoverBody)return {key:'Drag',text:this.selected===this.hoverBody?'Move · click to turn':'Move'};
     const r=this.live,b=this.board(),d=this.design;
     const place=r.problems.find(p=>/mouth facing out|hangs off/.test(p));
-    if(place){const id=place.split(' ')[0];return {key:'Drag',text:/mouth/.test(place)?`Move ${id} to an edge, mouth out`:`Bring ${id} back onto the board`};}
+    if(place){const id=place.split(' ')[0];return {key:'Drag',text:/mouth/.test(place)?`${id}: edge, mouth out`:`${id} onto the board`};}
     if(this.stuck&&b.spare&&!pinOrderOk(b,d))return {key:'Click',text:'Try the spare header'};
-    if(!d.traces.length&&b.parts.some(p=>p.kind!=='qfn'&&!p.locked&&!this.movedParts.has(p.id)))return {key:'Drag',text:'Slide the parts into place'};
+    if(!d.traces.length&&b.parts.some(p=>p.kind!=='qfn'&&!p.locked&&!this.movedParts.has(p.id)))return {key:'Drag',text:'Place the parts'};
     if(r.nets.some(n=>!n.done))return {key:'Drag',text:'Draw from a pad'};
     if(r.thermal&&r.thermal.powered&&r.thermal.temp>r.thermal.limit)return {key:'V',text:'Cool the chip'};
     if(r.tier<2)return {key:'C',text:'Check'};

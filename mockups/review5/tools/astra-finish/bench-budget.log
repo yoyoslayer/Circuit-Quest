@@ -1,0 +1,84 @@
+
+[WebServer] (node:7404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+(node:27776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/5] tests\astra-bench-budget.spec.ts:25:71 › arcade: clean-route task names and shared bench word budget
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+
+[WebServer] 
+[WebServer] - C:/Users/yousi/Circuit-Quest-astra
+[WebServer] - C:/Users/yousi/Circuit-Quest/node_modules/vite/dist/client
+[WebServer] 
+[WebServer] Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+[WebServer] 
+[2/5] tests\astra-bench-budget.spec.ts:25:71 › garage: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  1) tests\astra-bench-budget.spec.ts:25:71 › garage: clean-route task names and shared bench word budget 
+
+    Error: page.evaluate: Execution context was destroyed, most likely because of a navigation
+
+       at navigation.ts:4
+
+      2 | // Pages opened with ?manual advance simulated time only when a test asks, so routes are
+      3 | // deterministic regardless of how fast the headless renderer draws frames.
+    > 4 | export const snapshot=(page:Page)=>page.evaluate(()=>(window as any).__circuitCrew.snapshot());
+        |                                         ^
+      5 | export async function open(page:Page,level?:string){
+      6 |   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+      7 |   await page.goto(level?`/?level=${level}&manual`:'/?manual');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
+        at snapshot (C:\Users\yousi\Circuit-Quest-astra\tests\navigation.ts:4:41)
+        at prepare (C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:23:70)
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:26:2
+
+    Error Context: test-results\astra\astra-bench-budget-garage--b28b4-nd-shared-bench-word-budget\error-context.md
+
+
+(node:32980) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[3/5] tests\astra-bench-budget.spec.ts:25:71 › qfn: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+  2) tests\astra-bench-budget.spec.ts:25:71 › qfn: clean-route task names and shared bench word budget 
+
+    Error: DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 25
+    Received:    27
+
+      33 |  await testInfo.attach('shared-ui-word-budget',{body:JSON.stringify(report,null,2),contentType:'application/json'});await page.screenshot({path:`artifacts/astra-${level}-bench.png`});
+      34 |  expect.soft(report.small,'Visible shared HTML labels must be at least 14 CSS px').toEqual([]);
+    > 35 |  expect(report.words,'DR-40 shared HTML word budget; canvas monitor copy is separately owned by Claude').toBeLessThanOrEqual(25);
+         |                                                                                                          ^
+      36 | });
+      37 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-bench-budget.spec.ts:35:106
+
+    Error Context: test-results\astra\astra-bench-budget-qfn-cle-93b7d-nd-shared-bench-word-budget\error-context.md
+
+
+
+(node:3168) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[4/5] tests\astra-bench-budget.spec.ts:25:71 › observatory: clean-route task names and shared bench word budget
+
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+[5/5] tests\astra-bench-budget.spec.ts:25:71 › spectrum: clean-route task names and shared bench word budget
+[WebServer] The request id "C:\Users\yousi\Circuit-Quest\node_modules\@fontsource-variable\fredoka\files\fredoka-latin-wdth-normal.woff2" is outside of Vite serving allow list.
+
+  2 failed
+    tests\astra-bench-budget.spec.ts:25:71 › garage: clean-route task names and shared bench word budget 
+    tests\astra-bench-budget.spec.ts:25:71 › qfn: clean-route task names and shared bench word budget 
+  3 passed (2.4m)

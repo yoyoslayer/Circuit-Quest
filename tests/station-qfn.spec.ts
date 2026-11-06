@@ -34,13 +34,21 @@ test('QFN bench: three boards laid out, each reliable and at par',async({page})=
   // Nothing can be placed before the parts arrive.
   expect((await act(page,'rotate','R1')).ok).toBe(false);
   await toBench(page);
-  await expect(page.locator('.station-panel')).toContainText('Sensor breakout');
+  await expect(page.locator('.station-panel header')).toContainText('Tracks cannot cross');
   for(let ix=0;ix<BOARDS.length;ix++){
     await playReference(page,ix);
+    await expect(page.locator('.station-panel header')).toContainText('Copper');
+    await expect(page.locator('.station-panel .build')).toContainText('Elegant');
+    if(ix>0)await expect(page.locator('.station-panel .build')).toContainText('loop');
+    if(ix===2)await expect(page.locator('.station-panel .build')).toContainText('Chip °C');
+    const feedback=await page.evaluate(()=>{const g=(window as any).__game;return Math.max(0,(g.station.toastUntil??0)-g.time)+.2;});await wait(page,feedback);
+    const words=await page.evaluate(()=>[...document.querySelectorAll<HTMLElement>('.station-panel,.station-toast,.objective,.prompt-pill,.bench-chip')].filter(el=>!el.hidden&&el.getBoundingClientRect().width>0).map(el=>el.innerText).join(' ').match(/[\p{L}\p{N}]+(?:['.-][\p{L}\p{N}]+)*/gu)?.length??0);
+    console.log(JSON.stringify({board:BOARDS[ix].id,phase:'ready',words}));expect(words).toBeLessThanOrEqual(25);
+    await page.screenshot({path:`artifacts/astra-qfn-board-${ix+1}-ready.png`});
     const s=(await snapshot(page)).station;expect(s.report.tier,`${BOARDS[ix].id}: ${s.report.problems.join(' ')} ${s.report.notes.join(' ')}`).toBe(3);
     await ok(page,'check');await expect(page.locator('.station-toast')).toContainText('Elegant');
     // The power-on test lit the chip's status LED steady (nothing resets on a reliable board).
-    if(ix<BOARDS.length-1){await ship(page);await expect(page.locator('.station-panel')).toContainText(BOARDS[ix+1].title);}else await ok(page,'ship');
+    if(ix<BOARDS.length-1){await ship(page);expect((await snapshot(page)).station.boardId).toBe(BOARDS[ix+1].id);await expect(page.locator('.station-panel header')).toContainText(ix===0?'Keep the MCU running':'Two layers');}else await ok(page,'ship');
   }
   await wait(page,.1);const s=await snapshot(page);
   expect(s.station.shipped.map((v:{tier:number})=>v.tier)).toEqual([3,3,3]);

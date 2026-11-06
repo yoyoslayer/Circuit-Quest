@@ -51,7 +51,9 @@ const mat=(c:string,opacity=1,outline=true)=>{const k=`${c}|${opacity}|${outline
 const shade=(c:string,k:number)=>'#'+new T.Color(c).lerp(new T.Color(INK),k).getHexString();
 
 interface Clickable {obj:T.Object3D;act:string;arg?:unknown}
-interface Stroke {layer:Layer;net:string;cells:XY[];warned:boolean}
+/** fresh:false marks the stroke a mid-stroke via carries on (it didn't start with this press, so
+ *  releasing it in place is not a tap-to-cut). */
+interface Stroke {layer:Layer;net:string;cells:XY[];warned:boolean;fresh?:boolean}
 /** SHIP powers the board for its bring-up test, so it needs the bench lead plugged in (R5-079). */
 const SHIP_DEAD="No power for the bring-up test: the bench lead isn't plugged in.";
 export class QfnBench implements Station {
@@ -309,7 +311,7 @@ export class QfnBench implements Station {
   act(name:string,arg?:unknown):boolean{const ok=this.run(name,arg);this.updatePanel();return ok;}
   private run(name:string,arg?:unknown):boolean{
     const b=this.board(),d=this.design,a=this.game.audio;
-    if(this.complete())return false;
+    if(this.shipped.length>=BOARDS.length)return false;
     if(!this.partsReady){this.say('No parts yet: bring the parts crate from the stock shelf to the bench.');a.voice('hm',1.4);return false;}
     // The bring-up test is running: the board is powered and hands stay off it until it leaves.
     if(this.bringUp)return false;
@@ -364,7 +366,7 @@ export class QfnBench implements Station {
     if(r.thermal&&r.thermal.temp>r.thermal.limit)return `${name} runs at ${r.thermal.temp} °C and throttles itself to cool down.`;
     return undefined;}
   /** The bring-up test ends: the board joins the stack and the next one drops in. */
-  private finishBringUp(){const bu=this.bringUp!,a=this.game.audio;this.bringUp=undefined;this.burstT=0;
+  private finishBringUp(){const bu=this.bringUp!,a=this.game.audio;this.bringUp=undefined;this.burstT=0;this.drag=this.stroke=this.hold=undefined;
     // Only a reliable board earns the crew's cheer; one that merely works gets a flat chime.
     if(bu.tier>=2)signOff(this.game,this,'#ffcf52',this.complete());else{a.tone(392,.18,.04,'triangle');a.tone(349,.28,.035,'triangle',.16);}
     this.stackShipped();this.boardIx++;
@@ -394,9 +396,11 @@ export class QfnBench implements Station {
     const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true).filter(h=>visible(h.object));let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
     if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.setScalar(1);if(found)found.obj.scale.setScalar(1.08);this.hovered=found;}
-    const cell=found?undefined:this.cellFromRay(e.ray),body=found||!this.partsReady||this.stroke?undefined:this.bodyAt(e.ray);
+    const cell=found?undefined:this.cellFromRay(e.ray),body=found||!this.partsReady||this.stroke||this.bringUp?undefined:this.bodyAt(e.ray);
     document.body.style.cursor=!this.active?'':found?'pointer':this.drag?'grabbing':body?'grab':cell&&(this.viaArmed||this.canStart(cell)||this.stroke)?'crosshair':'';
     this.hoverCell=cell;this.hoverBody=body;this.updateHover();
+    // The bring-up test is running: hands stay off the powered board (no picking parts up or drawing).
+    if(this.bringUp){this.hover.visible=false;if(this.active&&!found)document.body.style.cursor='';return;}
     if(e.kind==='down'){
       if(found){this.act(found.act,found.arg);return;}
       if(!this.partsReady){if(cell)this.act('select','U1');return;}
@@ -425,7 +429,7 @@ export class QfnBench implements Station {
       this.syncParts();this.redraw();}
     // A drag lays a track; a tap on a track (or via) cuts it there.
     if(this.stroke){const s=this.stroke,c=s.cells[0];this.stroke=undefined;if(s.cells.length>1)this.act('trace',{cells:s.cells,layer:s.layer});
-      else if(this.isTrack(c,s.layer))this.act('erase',c);else this.drawPreview();}
+      else if(s.fresh!==false&&this.isTrack(c,s.layer))this.act('erase',c);else this.drawPreview();}
   }
   /** A press on a part's pad that has stayed in its cell for 0.3 s picks the part up instead of starting
    *  a track: the part can be moved by any of it, not only by its body. */
@@ -441,7 +445,7 @@ export class QfnBench implements Station {
     if(s.cells.length>1&&!this.act('trace',{cells:s.cells,layer:s.layer})){this.stroke=undefined;return;}
     if(!this.act('via',head)){this.stroke=undefined;this.drawPreview();return;}
     const next:Layer=s.layer===1?2:1;this.layer=next;a.tone(next===2?380:520,.07,.04,'triangle');
-    const st=strokeNet(b,this.design,next,head);this.stroke=st.why?undefined:{layer:next,net:st.net!,cells:[head],warned:false};this.redraw();
+    const st=strokeNet(b,this.design,next,head);this.stroke=st.why?undefined:{layer:next,net:st.net!,cells:[head],warned:false,fresh:false};this.redraw();
   }
   /** While dragging: the part follows the pointer; the frame turns red where it can't go. */
   private ghost(){const d=this.drag!,g=this.partGroups.get(d.id)!,p=this.at(d.to);g.position.set(p.x,.05,p.z);this.redraw();}
@@ -550,7 +554,8 @@ export class QfnBench implements Station {
     if(r.tier<2)return {key:'C',text:'Check'};
     return {key:'Enter',text:'Ship'};
   }
-  complete(){return this.shipped.length>=BOARDS.length;}
+  /** Done once the last board has shipped and its bring-up test has played out. */
+  complete(){return this.shipped.length>=BOARDS.length&&!this.bringUp;}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent)};}
   snapshot(){const r=this.live;return {tossed:this.tossed,board:this.boardIx,boardId:this.board().id,partsReady:this.partsReady,viaArmed:this.viaArmed,layer:this.layer,selected:this.selected,design:this.design,
     report:{tier:r.tier,problems:r.problems,notes:r.notes,cost:r.cost,par:r.par,nets:r.nets,loops:r.loops,thermal:r.thermal},shipped:this.shipped,mistakes:this.mistakes,spent:this.spent,checks:this.checks,testing:!!this.bringUp,

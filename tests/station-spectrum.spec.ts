@@ -9,6 +9,8 @@ const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window a
 async function steps(page:Page,list:[string,unknown?][]){for(const [n,a] of list)expect((await act(page,n,a)).ok,`${n} ${JSON.stringify(a??'')}`).toBe(true);}
 const E=async(page:Page)=>{await page.keyboard.press('KeyE');await wait(page,.2);};
 const station=async(page:Page)=>(await snapshot(page)).station;
+/** The station's bonus at `i`, read live (what the job card's star shows). */
+const bonusOk=(page:Page,i:number)=>page.evaluate(k=>(window as any).__game.station.job.bonuses[k].ok() as boolean,i);
 // Walking routes around the desk and through the doorways (plan coordinates, metres).
 const DESK_FRONT:[number,number][]=[[-6.3,3.6]];
 /** From the storeroom: plug the desk's mains lead in at the left wall (R5-079), then on to the desk. */
@@ -29,6 +31,8 @@ const landed=(page:Page)=>wait(page,1.8);
 test('spectrum delivery: radio through brick, near IR through the hatch by mirror, thermal IR past smoke and mesh',async({page})=>{
   const errors=await open(page,'spectrum');await wait(page,.1);
   await expect(page.locator('.objective')).toContainText('Carry the receiver pod');
+  // Nothing sent yet: the 'Elegant' star isn't shown as earned.
+  expect(await bonusOk(page,1)).toBe(false);
   // 1 · Brick: light stops at the wall; the 3 m radio wave passes it.
   await podToStore(page);await plugFromStore(page);
   await toDesk(page,DESK_FRONT);
@@ -89,6 +93,8 @@ test('spectrum delivery: radio through brick, near IR through the hatch by mirro
   await wait(page,.2);s=await snapshot(page);
   expect(s.station.delivered.map((d:{tier:number})=>d.tier)).toEqual([3,3,3]);
   expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);expect(s.damage).toBe(0);
+  // The win shot leaves the desk: the room's tower, beam and mirror marks are back in view.
+  expect(await page.evaluate(()=>{const st=(window as any).__game.station;return [st.tower.visible,st.beam.visible,st.markMeshes.every((m:{visible:boolean})=>m.visible)];})).toEqual([true,true,true]);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
   // Two of three: the tidy run skips the room's chaos bonus (earned in station-cable.spec).
   await expect(page.locator('.result-bonus li.ok')).toHaveCount(2);

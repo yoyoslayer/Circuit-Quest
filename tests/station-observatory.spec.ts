@@ -7,6 +7,8 @@ test.describe.configure({timeout:180000});
 
 // Presses the same buttons a player clicks at the signal bench (drive.act).
 const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);
+/** The station's bonus at `i`, read live (what the job card's star shows). */
+const bonusOk=(page:Page,i:number)=>page.evaluate(k=>(window as any).__game.station.job.bonuses[k].ok() as boolean,i);
 async function steps(page:Page,list:[string,unknown?][]){for(const [n,a] of list)expect((await act(page,n,a)).ok,`${n} ${a??''}`).toBe(true);}
 async function moveCart(page:Page){
   await walk(page,-3.7,-.1,.6);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('motor');
@@ -19,6 +21,8 @@ async function toBench(page:Page){await plugBench(page,[[-.5,-.9]],[[2.95,-3.8],
 test('signal observatory: move the motor, filter the line, keep the latch, tune the whip',async({page})=>{
   const errors=await open(page,'observatory');await wait(page,.1);
   await expect(page.locator('.objective')).toContainText('Roll the noisy motor cart');
+  // Nothing logged yet: the 'Elegant' star isn't shown as earned.
+  expect(await bonusOk(page,1)).toBe(false);
   // Noise is heavy while the motor sits by the receiver.
   expect((await snapshot(page)).station.reading.snr).toBeLessThan(0);
   await moveCart(page);await toBench(page);

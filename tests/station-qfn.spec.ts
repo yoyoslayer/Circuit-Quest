@@ -40,9 +40,11 @@ test('QFN bench: three boards laid out, each reliable and at par',async({page})=
     const s=(await snapshot(page)).station;expect(s.report.tier,`${BOARDS[ix].id}: ${s.report.problems.join(' ')} ${s.report.notes.join(' ')}`).toBe(3);
     await ok(page,'check');await expect(page.locator('.station-toast')).toContainText('Elegant');
     // The power-on test lit the chip's status LED steady (nothing resets on a reliable board).
-    if(ix<BOARDS.length-1){await ship(page);await expect(page.locator('.station-panel')).toContainText(BOARDS[ix+1].title);}else await ok(page,'ship');
+    if(ix<BOARDS.length-1){await ship(page);await expect(page.locator('.station-panel')).toContainText(BOARDS[ix+1].title);}
+    // The last board gets its bring-up test too: the win waits for it to play out.
+    else{await ok(page,'ship');const t=await snapshot(page);expect(t.station.testing).toBe(true);expect(t.won).toBe(false);await wait(page,2.5);}
   }
-  await wait(page,.1);const s=await snapshot(page);
+  await wait(page,.1);const s=await snapshot(page);expect(s.station.testing).toBe(false);
   expect(s.station.shipped.map((v:{tier:number})=>v.tier)).toEqual([3,3,3]);
   expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
@@ -78,7 +80,7 @@ test('QFN bench: a board shipped with the connector inside is sent back, then fi
 
 test('QFN bench: the mirrored header can\'t route on one layer; a board that only works shows its flaw on the bring-up test',async({page})=>{
   test.setTimeout(120000);
-  await open(page,'qfn');await wait(page,.1);await toBench(page);
+  const errors=await open(page,'qfn');await wait(page,.1);await toBench(page);
   // Board 1 arrives with the mirrored header: placed on an edge it reports the pin order, and the prompt
   // points at the spare once a track hits a short.
   await ok(page,'move',{part:'J1',at:[3,8],rot:3});
@@ -98,9 +100,20 @@ test('QFN bench: the mirrored header can\'t route on one layer; a board that onl
   await ok(page,'check');await expect(page.locator('.station-toast')).toContainText('inductance');
   await ok(page,'ship');await expect(page.locator('.station-toast')).toContainText('resets when it gets busy');
   s=(await snapshot(page)).station;expect(s.testing).toBe(true);expect(s.mistakes).toBe(0);
-  await wait(page,2.5);s=(await snapshot(page)).station;expect(s.board).toBe(2);expect(s.shipped.map((v:{tier:number})=>v.tier)).toEqual([3,1]);
+  // Hands stay off the powered board: pressing on C2's body during the test picks nothing up, and a
+  // press held across the board change doesn't throw (board 3 has no C2).
+  const bodies=s.bodies as Record<string,[number,number]>;await page.mouse.move(...bodies.C2);await page.mouse.down();
+  await page.mouse.move(bodies.C2[0]-40,bodies.C2[1],{steps:3});expect((await snapshot(page)).station.drag).toBe(null);
+  await wait(page,2.5);await page.mouse.move(bodies.C2[0]-80,bodies.C2[1],{steps:3});await page.mouse.up();
+  s=(await snapshot(page)).station;expect(s.board).toBe(2);expect(s.shipped.map((v:{tier:number})=>v.tier)).toEqual([3,1]);
   // Board 3's chip is cold until VIN and GND reach it.
   expect(s.report.thermal).toMatchObject({powered:false,temp:25});
+  // V mid-stroke: draw GND two cells from U1 pin 2, press V, release in place. The track and the via
+  // stay (the release isn't a tap that cuts the via just dropped), and the pen is on layer 2.
+  const c=s.cells as Record<string,[number,number]>;await page.mouse.move(...c['4,4']);await page.mouse.down();
+  for(const k of ['3,4','2,4'])await page.mouse.move(...c[k],{steps:3});await page.keyboard.press('KeyV');await page.mouse.up();
+  s=(await snapshot(page)).station;expect(s.design.vias).toEqual([{at:[2,4],net:'GND'}]);expect(s.design.traces).toHaveLength(1);expect(s.layer).toBe(2);
+  expect(errors).toEqual([]);
 });
 
 test('QFN bench: the real pointer drags a part and draws a track',async({page})=>{

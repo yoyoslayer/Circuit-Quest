@@ -12,6 +12,7 @@ import {dressObservatory,RX} from './room';
 import {toon,box,rbox,cyl,sphere,part,group,canvasTex,INK,DMETAL,freezeBench} from '../../render/kit';
 import {hot,glossyToon} from '../../render/actors';
 import {signOff,fault as benchFault} from '../shared';
+import {holdLevel} from './speaker';
 import {JOBS,KINDS,VALUES,DEFAULT,RODS,ROD_IDS,CIRCUIT,SPEC,CART_SAFE,REROUTE,read,judge,cost,cheapest,gain,filterName,stepResponse,stepSpan,morse,decoded,
   part as can,valueText,corner,passes,hz,snap,filterCorner,switchOnText,type Kind,type Part,type RodId,type Slot,type Setup,type Verdict,type Job,type Reading} from './logic';
 
@@ -19,6 +20,8 @@ const BRASS='#d6a24e',CREAM='#fbf3e2';
 const KIND_COLOR={R:'#f2c98f',L:BRASS,C:'#b8a6f5'} as const;
 const GLOW_ON=hot('#3dff7a',1.25),GLOW_OFF=toon('#4a3f5c');
 const DOT=.075; // Morse dot length (s)
+/** How long one frame keeps the decoder's speaker up (s): longer than a hitstop, short enough that a pause goes quiet at once. */
+const SPEAKER_HOLD=.3;
 
 /** Label decal texture (auto-fits the words to the plate, as the via counter does). */
 function label(text:string,bg=CREAM,fg=INK,w=256,h=80){
@@ -106,7 +109,7 @@ export class ObservatoryBench implements Station {
       bonuses:[
         // A chaos bonus in the room (R5-079): send the motor cart rolling all the way into a far wall.
         {text:'Roll the motor cart into the far wall',ok:()=>this.cartWall},
-        {text:'Elegant: the leanest filter each time',ok:()=>this.logged.every(l=>l.verdict.tier===3)},
+        {text:'Elegant: the leanest filter each time',ok:()=>this.logged.length>0&&this.logged.every(l=>l.verdict.tier===3)},
         {text:'No failed decode logged',ok:()=>this.mistakes===0}]};
     game.root.add(this.root);game.root.add(this.motor);
     this.buildBench();this.redraw();freezeBench(this.root,this,game,[this.top]);
@@ -403,7 +406,8 @@ export class ObservatoryBench implements Station {
       const src=c.createBufferSource();src.buffer=buf;src.loop=true;const hiss=c.createGain();hiss.gain.value=0;const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=3000;src.connect(hp).connect(hiss).connect(out);src.start();
       this.sound={out,tone,buzz,buzzOsc,hiss};}
     const j=this.current(),live=!!j&&this.active&&this.listening&&!a.muted&&this.game.running&&!this.game.paused&&!this.game.won,t=c.currentTime,snd=this.sound;
-    snd.out.gain.setTargetAtTime(live?1:0,t,.05);if(!j||!live)return;
+    // Each frame holds the speaker up briefly: paused (or blurred, or won) nothing runs here, so it goes quiet.
+    holdLevel(snd.out.gain,live,t,SPEAKER_HOLD);if(!j||!live)return;
     const r=read(j,this.state()),{marks,length}=morse(j.message),u=(this.game.time/DOT)%length,on=marks.some(([s,l])=>u>=s&&u<s+l);
     snd.tone.gain.setTargetAtTime(on?Math.min(.08,.06*r.tones[0].after):0,t,.006);
     const fund=r.tones[1];if(fund){snd.buzzOsc.frequency.setTargetAtTime(fund.f,t,.05);snd.buzz.gain.setTargetAtTime(Math.min(.05,.025*fund.after),t,.05);}

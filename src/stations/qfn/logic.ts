@@ -284,8 +284,9 @@ export function check(b:Board,d:Design):Report{
     const legs=(cap:string,[s,gnd]:[string,string])=>[shortest(g,pinNodes(b,d,`${cap}.1`),pinNodes(b,d,s)),shortest(g,pinNodes(b,d,`${cap}.2`),pinNodes(b,d,gnd))];
     const loopOf=(cap:string,p:[string,string])=>legs(cap,p).reduce((n,x)=>n+x.len,0);
     // Each pair gets its own cap; try every assignment and keep the one with the shortest worst loop.
-    let best:{caps:string[];score:number}|undefined;
-    for(const perm of permutations(caps,pairs.length)){const ls=pairs.map((p,i)=>loopOf(perm[i],p));const score=Math.max(...ls)*100+ls.reduce((a,z)=>a+z,0);if(!best||score<best.score)best={caps:perm,score};}
+    // An unwired loop scores as a big finite number, so one loose cap doesn't make every assignment tie.
+    let best:{caps:string[];score:number}|undefined;const fin=(x:number)=>Number.isFinite(x)?x:1e4;
+    for(const perm of permutations(caps,pairs.length)){const ls=pairs.map((p,i)=>fin(loopOf(perm[i],p)));const score=Math.max(...ls)*100+ls.reduce((a,z)=>a+z,0);if(!best||score<best.score)best={caps:perm,score};}
     pairs.forEach((p,i)=>{const cap=best?.caps[i],loop=cap?loopOf(cap,p):Infinity,[up,down]=cap?legs(cap,p):[undefined,undefined];
       loops.push({pair:p,cap,loop,max,path:loop===Infinity?[]:[...up!.cells,...[...down!.cells].reverse()]});
       if(loop>max){reliable=false;const pins=pairName(b,p);

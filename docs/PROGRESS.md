@@ -485,3 +485,12 @@ QFN shows joined-pad counts while routing. Once every net is connected, it switc
 Pip now crouches into victory hops, bends the knees on each landing, and gives the hard hat a small settling bounce after a jump. Lunch failure is connected to the rig's quiet reaction instead of leaving it unused. New tests exercise the real fridge-spoil outcome and the animation transitions.
 
 Verified: production build, 173 unit tests, all five full station playthroughs and the five bench budgets pass. Entry panels use 18 / 10 / 25 / 19 / 13 words (Arcade / Garage / QFN / Observatory / Spectrum). All five Bench notes open from pause. Focused browser checks also cover real Lunch failure, Observatory fault recovery, clean three-A results and rendering; 15 unique checks pass across the recorded runs. See `mockups/review5/fixlog/astra.md` and `tools/astra-finish/summary.json` under that review for exact coverage and remaining limitations.
+
+
+## 2026-11-06 — Input boundaries around pause and benches
+
+Pausing now cancels unfinished bench drags and strokes, clears held movement/restart/orbit state, and discards in-flight touch gestures. Bench pointer events and camera wheel/orbit input are blocked while paused or after an outcome. Resume requires fresh keyboard input. Space and arrow keys retain their normal browser behavior in pause, so keyboard players can open Bench notes. The pause menu copies the notes before the station deactivates.
+
+Gamepad floor movement and camera axes no longer run while a station or the HQ job picker owns the controls. Previously the floor movement was zeroed first, then gamepad axes were added back, moving the invisible player under the bench camera. The regression uses a controller fixture while retaining real physics and verifies that Pip stays planted.
+
+Verified: build, 173 unit tests, and three focused browser checks pass (pause/keyboard/camera/touch input, focus-loss QFN drag cancellation plus gamepad isolation and keyboard notes, and rendered smoke). Evidence: `mockups/review5/tools/astra-finish/input-{build,unit,final}.log`.

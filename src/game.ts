@@ -248,11 +248,13 @@ export class Game {
   }
   /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
   setupUI(){setupGameUI(this);}
+  private cancelGestures=()=>{};
   setupInput(){
-    addEventListener('keydown',e=>{if(this.menu){if(e.code==='Tab')e.preventDefault();return;}if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+    addEventListener('keydown',e=>{if(this.menu){if(e.code==='Tab')e.preventDefault();return;}if(this.running&&!this.paused&&!this.won&&['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
       // At a bench the station takes the keys; E or Esc steps back. Keys the bench doesn't use do
       // nothing there, so a stray R, Space, Tab or WASD never acts on the floor behind the bench.
       if(this.atBench&&this.running&&!this.paused&&!this.won){if(e.code==='Tab')e.preventDefault();if(e.repeat)return;if(e.code==='KeyE'||e.code==='Escape'){this.leaveBench();return;}if(this.station!.key(e.code))e.preventDefault();return;}
+      if(this.paused){if(!e.repeat&&e.code==='Escape')this.action('pause');else if(!e.repeat&&e.code==='KeyR')this.action('restart');return;}
       this.keys.add(e.code);if(e.repeat)return;
       if(e.code==='KeyE')this.action('grab');if(e.code==='KeyF')this.action('cable');if(e.code==='KeyQ')this.action('throw');if(e.code==='Space')this.action('jump');const playing=this.running&&!this.won;if(e.code==='Tab'&&playing&&!this.paused){e.preventDefault();this.action('survey');}if(e.code==='Escape')this.action('pause');
       // R restarts at once from the pause menu; during play it has to be held (the pause button fills).
@@ -264,21 +266,22 @@ export class Game {
     const benchPointer=(kind:'down'|'move'|'up',e:PointerEvent)=>this.benchPointerAt(kind,e.clientX,e.clientY,e.button);
     // Touch on the floor: one finger drags to orbit, two fingers pinch to zoom, a quick tap grabs.
     const touches=new Map<number,{x:number;y:number;sx:number;sy:number;t:number}>();
+    this.cancelGestures=()=>{this.orbit=false;touches.clear();};
     const pinch=()=>{const [a,b]=[...touches.values()];return a&&b?Math.hypot(a.x-b.x,a.y-b.y):0;};
     const touchUp=(e:PointerEvent)=>{const t=touches.get(e.pointerId);if(!t)return false;touches.delete(e.pointerId);
       if(e.type==='pointerup'&&touches.size===0&&Math.hypot(e.clientX-t.sx,e.clientY-t.sy)<10&&performance.now()-t.t<280&&this.running)this.action('grab');return true;};
     canvas.addEventListener('pointercancel',touchUp);
-    canvas.addEventListener('pointerdown',e=>{this.audio.start();if(this.atBench&&e.button===0&&this.running&&!this.paused&&!this.won){benchPointer('down',e);return;}
+    canvas.addEventListener('pointerdown',e=>{this.audio.start();if(this.paused||this.won)return;if(this.atBench&&e.button===0&&this.running&&!this.paused&&!this.won){benchPointer('down',e);return;}
       if(e.pointerType==='touch'){touches.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()});canvas.setPointerCapture(e.pointerId);return;}
       if(e.button===2){this.orbit=true;this.pointerX=e.clientX;this.pointerY=e.clientY;canvas.setPointerCapture(e.pointerId);}else if(e.button===0&&this.running)this.action('grab');});
     canvas.addEventListener('pointerup',e=>{this.orbit=false;if(touchUp(e))return;if(this.atBench&&e.button===0)benchPointer('up',e);});
-    canvas.addEventListener('pointermove',e=>{const t=touches.get(e.pointerId);
+    canvas.addEventListener('pointermove',e=>{if(this.paused||this.won){this.orbit=false;touches.clear();return;}const t=touches.get(e.pointerId);
       if(t){const before=pinch(),dx=e.clientX-t.x,dy=e.clientY-t.y;t.x=e.clientX;t.y=e.clientY;
         if(touches.size>=2){const after=pinch();this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom-(after-before)*.05,9,38);}
         else{this.yaw-=dx*.006;this.pitch=T.MathUtils.clamp(this.pitch+dy*.004,-.3,.45);}
         return;}
       if(this.atBench&&!this.orbit)benchPointer('move',e);if(this.orbit){this.yaw-=(e.clientX-this.pointerX)*.006;this.pitch=T.MathUtils.clamp(this.pitch+(e.clientY-this.pointerY)*.004,-.3,.45);this.pointerX=e.clientX;this.pointerY=e.clientY;}});
-    canvas.addEventListener('wheel',e=>{if(this.atBench)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
+    canvas.addEventListener('wheel',e=>{if(this.atBench||this.paused||this.won)return;this.survey=false;this.zoom=T.MathUtils.clamp(this.zoom+e.deltaY*.014,9,38);},{passive:true});
   }
   action(action:string){
     if(action==='restart'){const ui=gameUI(this);if(ui)ui.restart();else location.reload();return;}if(action==='sound'){this.audio.muted=!this.audio.muted;return;}if(action==='pause'){this.togglePause();return;}if(action==='survey'){this.survey=!this.survey;return;}if(action==='lens'){this.fov=FOVS[(FOVS.indexOf(this.fov as Lens)+1)%FOVS.length];try{localStorage.setItem('circuit-crew-fov',String(this.fov));}catch{/* storage unavailable */}return;}if(action==='camera'){this.survey=false;this.pitch=0;this.zoom=this.homeZoom();this.yaw=this.homeYaw();return;}
@@ -314,10 +317,16 @@ export class Game {
   }
   /** Sends a pointer event at a screen position to the station (mouse, touch and pad cursor). */
   benchPointerAt(kind:'down'|'move'|'up',clientX:number,clientY:number,button=0){
-    if(!this.station)return;const r=this.view.renderer.domElement.getBoundingClientRect(),ray=new T.Raycaster();
+    if(!this.station||!this.atBench||!this.running||this.paused||this.won)return;const r=this.view.renderer.domElement.getBoundingClientRect(),ray=new T.Raycaster();
     ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-((clientY-r.top)/r.height)*2+1),this.view.camera);this.station.pointer({kind,ray,button});
   }
-  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.audio.paused(this.paused);document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);this.audio.strain(0);}
+  togglePause(){if(!this.running||this.won)return;this.paused=!this.paused;this.audio.paused(this.paused);document.body.toggleAttribute('data-paused',this.paused);gameUI(this)?.paused(this.paused);
+    this.keys.clear();this.stick=undefined;this.orbit=false;this.cancelGestures();this.restartHold=0;
+    // Copy bench notes into pause before deactivating the station. Deactivation cancels
+    // an unfinished stroke/drag without committing it; resuming starts a fresh interaction.
+    if(this.atBench)this.station?.setActive(!this.paused);
+    if(this.padCursor){this.padCursor.down=false;this.padCursor.el.hidden=true;}
+    this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&p.spec.kind!=='glass'&&!p.spec.id?.startsWith('pin-')&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. The
    *  Meeting mail cart only carries the job's reel, so the reel on it wins over the cart. */
@@ -618,7 +627,7 @@ export class Game {
     if(this.stick){x+=this.stick.x;z+=this.stick.z;}
     if(this.menu){x=0;z=0;}
     if(this.atBench){x=0;z=0;this.heading=this.station!.facing;}
-    const pad=navigator.getGamepads?.()[0];if(pad){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
+    const pad=navigator.getGamepads?.()[0];if(pad&&!this.atBench&&!this.menu){x+=Math.abs(pad.axes[0])>.15?pad.axes[0]:0;z+=Math.abs(pad.axes[1])>.15?pad.axes[1]:0;this.yaw-=Math.abs(pad.axes[2])>.15?pad.axes[2]*dt*2:0;this.pitch=T.MathUtils.clamp(this.pitch+(Math.abs(pad.axes[3])>.15?pad.axes[3]*dt:0),-.3,.45);}
     const move=new T.Vector3(x,0,z);if(move.length()>1)move.normalize();move.applyAxisAngle(new T.Vector3(0,1,0),this.yaw);
     if(move.length()>.1)this.heading=Math.atan2(move.x,move.z);
     let speed=this.keys.has('ShiftLeft')?6.8:4.2;if(this.held)speed/=1+prefabs[this.held.spec.kind].mass/25;if(this.lunch?.held?.cable.rating===10)speed*=.65;

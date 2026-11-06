@@ -141,3 +141,20 @@ test('QFN bench: the real pointer drags a part and draws a track',async({page})=
   // Clicking the CHECK button on the bench runs the check.
   await page.keyboard.press('KeyC');expect((await snapshot(page)).station.checks).toBe(1);
 });
+
+
+test('QFN bench: losing focus cancels an unfinished drag without moving the part',async({page})=>{
+ test.setTimeout(180000);await open(page,'qfn');await toBench(page);
+ await expect.poll(async()=>{const s=(await snapshot(page)).station;await page.mouse.move(...s.bodies.C1);return (await snapshot(page)).station.hoverBody;}).toBe('C1');
+ const before=(await snapshot(page)).station.design.place.C1;
+ await page.mouse.down();expect((await snapshot(page)).station.drag).not.toBeNull();
+ await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+ expect((await snapshot(page)).paused).toBe(true);expect((await snapshot(page)).station.drag).toBeNull();
+ await page.mouse.up();await page.getByRole('button',{name:'Resume',exact:true}).click();await wait(page,.1);
+ expect((await snapshot(page)).station.design.place.C1).toEqual(before);
+ await page.mouse.move(20,20);await page.mouse.up();expect((await snapshot(page)).station.design.place.C1).toEqual(before);
+ const planted=(await snapshot(page)).player;
+ await page.evaluate(()=>{const pad={axes:[1,1,1,1],buttons:Array.from({length:17},()=>({pressed:false,value:0})),connected:true,index:0,id:'test pad',mapping:'standard',timestamp:0};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[pad]});});
+ await wait(page,.7);const now=(await snapshot(page)).player;expect(Math.hypot(now.x-planted.x,now.z-planted.z)).toBeLessThan(.05);
+ await page.getByRole('button',{name:'Pause',exact:true}).click();await page.locator('.bench-notes summary').focus();await page.keyboard.press('Space');await expect(page.locator('.bench-notes p')).toBeVisible();
+});

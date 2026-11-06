@@ -1,0 +1,20 @@
+import {test,expect} from '@playwright/test';
+import {wait,snapshot} from './navigation';
+test('pause ignores queued walking and camera input, then fresh controls work',async({page})=>{
+ await page.goto('/?level=playground&manual&lowfx');await expect(page.locator('body')).toHaveAttribute('data-ready','true');await page.getByRole('button',{name:'Start playing'}).click();
+ await page.getByRole('button',{name:'Pause',exact:true}).click();const start=(await snapshot(page)).player;
+ await page.keyboard.down('KeyD');await page.keyboard.down('ShiftLeft');
+ const camera=await page.evaluate(()=>{const g=(window as any).__game;return [g.yaw,g.pitch,g.zoom];});
+ await page.locator('canvas').dispatchEvent('wheel',{deltaY:400});
+ expect(await page.evaluate(()=>{const g=(window as any).__game;return [g.yaw,g.pitch,g.zoom];})).toEqual(camera);
+ await page.getByRole('button',{name:'Resume',exact:true}).click();await wait(page,.5);
+ const after=(await snapshot(page)).player;expect(Math.hypot(after.x-start.x,after.z-start.z)).toBeLessThan(.05);
+ await page.keyboard.up('KeyD');await page.keyboard.up('ShiftLeft');await wait(page,.4,['KeyD']);expect((await snapshot(page)).player.x).toBeGreaterThan(after.x+.5);
+ const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true});
+ const beforeTouch=await page.evaluate(()=>{const g=(window as any).__game;return [g.yaw,g.pitch];});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:200,y:300}]});
+ await page.keyboard.press('Escape');expect((await snapshot(page)).paused).toBe(true);await page.getByRole('button',{name:'Resume',exact:true}).click();
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:300,y:400}]});
+ expect(await page.evaluate(()=>{const g=(window as any).__game;return [g.yaw,g.pitch];})).toEqual(beforeTouch);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();
+});

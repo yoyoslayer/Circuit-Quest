@@ -78,31 +78,34 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   kit.floor(LAB.x0,LAB.x1,LAB.z0,LAB.z1,TX.kitchenTiles('#c9dbe8','#b8cfe0',4),2.4,.004);
   kit.floor(QUIET.x0,QUIET.x1,QUIET.z0,QUIET.z1,TX.carpetTiles('#c9b8ea'),2.4,.004);
   rug(r,8.3,5,3.2,2.4,'#8b7be8','#e2dbff');rug(r,-6.4,5.4,2.4,2,'#3fae6a','#d5f2de');
-  // Rainbow wayfinding stripes on the floor, from the entrance along the front of the hall: flat decals
-  // in front of the pod dock's rug (not under it). They glow in place when the last message lands.
-  const stripes=DECOR_BANDS.map((c,i)=>{const m=part(r,new T.PlaneGeometry(13.5,.1),toon(c),-3.9,.006,7.4-i*.16,false);m.rotation.x=-Math.PI/2;m.userData.noAO=true;return m;});
+  // Rainbow wayfinding stripes on the floor, from the entrance along the front of the hall to the quiet
+  // room's mesh: flat decals well in front of the pod dock's rug. They glow in place when the last message lands.
+  const sx0=-W+1,sx1=QUIET.x0-.5,sz=D-.6;
+  const stripes=DECOR_BANDS.map((c,i)=>{const m=part(r,new T.PlaneGeometry(sx1-sx0,.1),toon(c),(sx0+sx1)/2,.006,sz-i*.16,false);m.rotation.x=-Math.PI/2;m.userData.noAO=true;return m;});
   // A rainbow band at rail height on the back and side walls.
   DECOR_BANDS.forEach((c,i)=>{part(kit.back,box(l.width-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);part(kit.side,box(l.depth-.4,.05,.02),toon(c),0,1.3+i*.055,.14,false);});
   // Windows light the (sunny) lab, with strong sun shafts; the storeroom has none and the hall's back wall holds the exhibits.
   kit.backWindows(x=>x<LAB.x0+.6,.3);
   // Sunlight lands on the lab pad and the benches: the glare the visible-light detector has to fight.
-  lampPool(game.root,PADS.lab.x,PADS.lab.z,1.25,.34,'#ffe39a');lampPool(game.root,4.4,-6.4,1.1,.26,'#ffe39a');lampPool(game.root,8.9,-5.2,.9,.22,'#ffe39a');
+  lampPool(game.root,PADS.lab.x,PADS.lab.z,1.25,.34,'#ffe39a');lampPool(game.root,4.4,-8.4,1.1,.26,'#ffe39a');lampPool(game.root,8.9,-7.2,.9,.22,'#ffe39a');lampPool(game.root,12.6,-8.2,1,.24,'#ffe39a');
 
   // ---- The brick storeroom (back left): brick front with a doorway at the far left, brick side wall with a wooden door.
   const brick=brickTex();brick.repeat.set(1,1);const bm=()=>toon('#ffffff',{map:brick});
   const bh=2.1,s=STORE;
-  slab(game,s.door[1],s.z1,s.x1,s.z1,bh,.3,bm(),true,game.root,1.3);
+  slab(game,s.door[1],s.z1,s.x1,s.z1,bh,.3,bm(),true,game.root,1.3);slab(game,s.x0,s.z1,s.door[0],s.z1,bh,.3,bm(),true,game.root,1.3);
   slab(game,s.x1,s.z0,s.x1,s.wood[0],bh,.3,bm(),true,game.root,1.3);slab(game,s.x1,s.wood[1],s.x1,s.z1,bh,.3,bm(),true,game.root,1.3);
   // The wooden door: planks, frame and handle (closed; the way in is the doorway at the front left).
   const door=group(game.root,s.x1,0,(s.wood[0]+s.wood[1])/2);part(door,box(.12,2,s.wood[1]-s.wood[0]),toon('#b98552'),0,1,0);for(const dz of [-.45,0,.45])part(door,box(.14,1.9,.02),toon('#9c6d42'),0,1,dz,false);
   part(door,sphere(.05,10,8),toon('#ffc94d'),.1,1,.5);part(door,box(.16,.1,s.wood[1]-s.wood[0]+.2),toon('#8e5a36'),0,2.05,0);solid(game,.12,2.6,s.wood[1]-s.wood[0],s.x1,1.3,(s.wood[0]+s.wood[1])/2);
   // The caps and the sign fade with the brick when Pip walks behind the wall.
-  for(const x of [s.door[1],s.x1])fadeWith(game,part(game.root,box(.34,.12,.34),toon('#8e5a36'),x,bh+.06,s.z1));
+  for(const x of [s.door[1],s.x1,s.door[0]])fadeWith(game,part(game.root,box(.34,.12,.34),toon('#8e5a36'),x,bh+.06,s.z1));
   fadeWith(game,part(game.root,box(s.x1-s.door[1]+.3,.08,.36),toon('#e8d6c4'),(s.x1+s.door[1])/2,bh+.04,s.z1,false));
+  fadeWith(game,part(game.root,box(s.door[0]-s.x0,.08,.36),toon('#e8d6c4'),(s.x0+s.door[0])/2,bh+.04,s.z1,false));
   fadeWith(game,standingSign(game.root,'STOREROOM',(s.door[1]+s.x1)/2,1.75,s.z1+.17,1.5,'#ffe7c2'));
   // Inside: shelves of stock along the back and left: taped cartons of mixed sizes, binders and paint tins.
   const KRAFT=['#d7a56d','#c98f5a','#e5c07b','#b98552'];
-  for(const [x,z,ry,seed] of [[-9.6,-7.55,0,3],[-7.2,-7.55,0,8]] as const){const sh=group(r,x,0,z,ry),rand=TX.rng(seed);
+  // (The last one is the post rack by the entrance, turned to stand along the hall's left wall.)
+  for(const [x,z,ry,seed] of [[-9.6,-D+.45,0,3],[-7.2,-D+.45,0,8],[-11.7,-D+.45,0,5],[-13.85,-D+.45,0,11],[-W+.45,7.6,Math.PI/2,14]] as const){const sh=group(r,x,0,z,ry),rand=TX.rng(seed);
     part(sh,box(2,1.9,.02),toon('#b98552'),0,.98,-.24);part(sh,box(2,.1,.46),toon('#8e5a36'),0,.05,0);
     for(const y of [.4,1.1,1.8])part(sh,box(2,.06,.5),toon('#c98a55'),0,y,0);for(const dx of [-.97,.97])part(sh,box(.06,2,.5),toon('#8e5a36'),dx,1,0);
     for(const y of [.43,1.13,1.83]){let cx=-.88;while(cx<.78){const kind=rand();
@@ -111,30 +114,36 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
       const w=.26+rand()*.16,h=.2+rand()*.14,d=.3+rand()*.08;if(cx+w>.9)break;const col=KRAFT[Math.floor(rand()*KRAFT.length)];
       part(sh,rbox(w,h,d,.02),toon(col),cx+w/2,y+h/2,0);part(sh,box(w+.004,.004,.06),toon('#e8d6b0'),cx+w/2,y+h+.002,0,false);part(sh,box(.006,.004,d),toon('#7a5a3c'),cx+w/2,y+h+.003,0,false);
       cx+=w+.04;}}
-    solid(game,2,2,.5,x,1,z);}
+    solid(game,2,2,.5,x,1,z,ry);}
 
   // ---- The glass lab (back right): a metal-clad clean room. Slatted metal over the side wall, glass across
   // the front with the metal shutter down in front of it, and a metal door that swings shut.
   const lb=LAB,sideSlats=slatTex();sideSlats.repeat.set(1,1);slab(game,lb.x0,lb.z0,lb.x0,lb.z1,bh,.3,toon('#ffffff',{map:sideSlats}),true,game.root,1.1);
   part(r,box(.34,.1,lb.z1-lb.z0+.2),toon('#c98a55'),lb.x0,bh+.05,(lb.z0+lb.z1)/2);
-  const glass=part(game.root,box(lb.door[0]-lb.x0,2.5,.05),toon('#cfefff',{opacity:.22}),(lb.x0+lb.door[0])/2,1.25,lb.z1-.1,false);glass.userData.noAO=true;
-  solid(game,lb.door[0]-lb.x0,2.6,.2,(lb.x0+lb.door[0])/2,1.3,lb.z1-.02);
-  for(const x of [lb.x0,lb.x0+2.4,lb.x0+4.8,lb.door[0]])part(r,box(.08,2.5,.1),toon('#e9eef5'),x,1.25,lb.z1-.1);part(r,box(lb.door[0]-lb.x0,.08,.14),toon('#e9eef5'),(lb.x0+lb.door[0])/2,2.5,lb.z1-.1);
+  // The glass runs either side of the lab door: from the side wall to the door, and on past it to the hall's wall.
+  for(const [g0,g1] of [[lb.x0,lb.door[0]],[lb.door[1],lb.x1]] as const){
+    const glass=part(game.root,box(g1-g0,2.5,.05),toon('#cfefff',{opacity:.22}),(g0+g1)/2,1.25,lb.z1-.1,false);glass.userData.noAO=true;
+    solid(game,g1-g0,2.6,.2,(g0+g1)/2,1.3,lb.z1-.02);part(r,box(g1-g0,.08,.14),toon('#e9eef5'),(g0+g1)/2,2.5,lb.z1-.1);}
+  for(const x of [lb.x0,lb.x0+2.4,lb.x0+4.8,lb.door[0],lb.door[1],(lb.door[1]+lb.x1)/2])part(r,box(.08,2.5,.1),toon('#e9eef5'),x,1.25,lb.z1-.1);
   // The shutter: slatted metal on the hall side, with a roller box on top and the hatch opening.
   const slats=slatTex(),sh=2.05,shutter=(x0:number,x1:number)=>{const t=slats.clone();t.needsUpdate=true;t.repeat.set((x1-x0)/.6,sh/1.1);
     const m=part(game.root,box(x1-x0,sh,.06),fading(toon('#ffffff',{map:t})),(x0+x1)/2,sh/2,lb.z1+.02);game.occluders.push(m);return m;};
-  shutter(lb.x0,HATCH.x0);shutter(HATCH.x1,lb.door[0]);
+  shutter(lb.x0,HATCH.x0);shutter(HATCH.x1,lb.door[0]);shutter(lb.door[1],lb.x1);
   // Around the hatch: metal above and below it, the hatch opening at beam height.
   const hy0=.95,hy1=1.55;
   part(game.root,box(HATCH.x1-HATCH.x0,hy0,.06),toon('#a9b5c8'),(HATCH.x0+HATCH.x1)/2,hy0/2,lb.z1+.02);part(game.root,box(HATCH.x1-HATCH.x0,sh-hy1,.06),toon('#a9b5c8'),(HATCH.x0+HATCH.x1)/2,(sh+hy1)/2,lb.z1+.02);
   const frame=group(r,(HATCH.x0+HATCH.x1)/2,(hy0+hy1)/2,lb.z1+.06);for(const [w,h,x,y] of [[.72,.06,0,.33],[.72,.06,0,-.33],[.06,.66,-.33,0],[.06,.66,.33,0]] as const)part(frame,box(w,h,.05),toon('#ffc629'),x,y,0);
   const hatchDoor=group(game.root,(HATCH.x0+HATCH.x1)/2,(hy0+hy1)/2,lb.z1+.08);part(hatchDoor,box(HATCH.x1-HATCH.x0,hy1-hy0,.04),toon('#7f8ca3'),0,0,0);part(hatchDoor,box(.2,.05,.05),toon(INK),0,-.2,.03);
-  part(r,rbox(lb.door[0]-lb.x0+.2,.26,.3,.06),toon('#7f8ca3'),(lb.x0+lb.door[0])/2,sh+.1,lb.z1+.04);
+  part(r,rbox(lb.door[0]-lb.x0+.2,.26,.3,.06),toon('#7f8ca3'),(lb.x0+lb.door[0])/2,sh+.1,lb.z1+.04);part(r,rbox(lb.x1-lb.door[1]+.1,.26,.3,.06),toon('#7f8ca3'),(lb.door[1]+lb.x1)/2,sh+.1,lb.z1+.04);
   standingSign(game.root,'HATCH',(HATCH.x0+HATCH.x1)/2,1.82,lb.z1+.135,.62,'#ffc629');
   standingSign(game.root,'GLASS LAB',7.4,1.82,lb.z1+.135,1.4,'#d8ecff');
-  // Inside the lab: benches with glassware in the sunshine, a fume hood.
-  for(const x of [4.2,8]){const b=group(r,x,0,-7.3);part(b,rbox(2.4,.9,.8,.05),toon('#e9eef5'),0,.45,0);part(b,box(2.5,.05,.9),toon(PAPER),0,.92,0);
-    for(let k=0;k<4;k++)part(b,cyl(.07,.09,.22,12),toon(['#bfe6f5','#d8f5c8','#ffe1dc','#e8dcff'][k],{opacity:.7}),-.9+k*.55,1.06,0);solid(game,2.4,1,.8,x,.5,-7.3);}
+  // Inside the lab: benches with glassware in the sunshine along the back wall, and a fume hood on the far wall.
+  const benchZ=-D+.7;
+  for(const x of [4.2,8,12.6]){const b=group(r,x,0,benchZ);part(b,rbox(2.4,.9,.8,.05),toon('#e9eef5'),0,.45,0);part(b,box(2.5,.05,.9),toon(PAPER),0,.92,0);
+    for(let k=0;k<4;k++)part(b,cyl(.07,.09,.22,12),toon(['#bfe6f5','#d8f5c8','#ffe1dc','#e8dcff'][k],{opacity:.7}),-.9+k*.55,1.06,0);solid(game,2.4,1,.8,x,.5,benchZ);}
+  {const hx=W-.5,hz=-6.4,hood=group(r,hx,0,hz,-Math.PI/2);part(hood,rbox(1.8,.9,.8,.05),toon('#dfe3ea'),0,.45,0);part(hood,box(1.9,.05,.9),toon(PAPER),0,.92,0);
+    part(hood,box(1.8,1.1,.06),toon('#cfefff',{opacity:.35}),0,1.5,.3,false);part(hood,rbox(1.9,.9,.85,.05),toon('#dfe3ea'),0,2.5,0);for(const dx of [-.92,.92])part(hood,box(.06,1.1,.8),toon('#c7ccd6'),dx,1.5,0);
+    part(hood,box(1.6,.06,.04),toon('#e5484d'),0,2.05,.43,false);part(hood,cyl(.16,.16,.5,14),toon(STEEL),0,3.2,-.1);solid(game,.85,2.95,1.9,hx,1.48,hz);}
 
   // ---- The quiet room (front right): a copper-mesh screened cage on copper posts, closed all round:
   // mesh on its two hall sides, the hall's own walls lined with the same mesh, and a mesh door.
@@ -145,10 +154,10 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
     const posts=Math.max(2,Math.round(len/1.6)+1);for(let k=0;k<posts;k++){const f=k/(posts-1);part(r,box(.08,mh,.08),glossyToon(COPPER,{spec:.8,size:.96}),x0+(x1-x0)*f,mh/2,z0+(z1-z0)*f);}
     part(r,box(Math.abs(x1-x0)+.08,.06,Math.abs(z1-z0)+.08),glossyToon(COPPER,{spec:.8,size:.96}),(x0+x1)/2,mh,(z0+z1)/2);part(r,box(Math.abs(x1-x0)+.08,.06,Math.abs(z1-z0)+.08),toon(COPPER),(x0+x1)/2,.03,(z0+z1)/2);
     solid(game,Math.max(.1,Math.abs(x1-x0)),2.6,Math.max(.1,Math.abs(z1-z0)),(x0+x1)/2,1.3,(z0+z1)/2);};
-  meshWall(q.x0,q.z0,q.x0,q.z1);meshWall(q.x0,q.z0,q.door[0],q.z0);
+  meshWall(q.x0,q.z0,q.x0,q.z1);meshWall(q.x0,q.z0,q.door[0],q.z0);meshWall(q.door[1],q.z0,q.x1,q.z0);
   // The hall's side wall inside the room is lined too; the front edge (toward the camera) gets a faint lining.
   meshPlane(q.x1-.06,q.z0,q.x1-.06,q.z1,2.6);meshPlane(q.x0,q.z1-.06,q.x1,q.z1-.06,.5,.7);
-  for(const x of [q.x0+1.8,q.x0+3.6])part(r,box(.06,.5,.06),glossyToon(COPPER,{spec:.8,size:.96}),x,.25,q.z1-.06);part(r,box(q.x1-q.x0,.05,.06),glossyToon(COPPER,{spec:.8,size:.96}),(q.x0+q.x1)/2,.5,q.z1-.06);
+  for(let x=q.x0+1.8;x<q.x1-.5;x+=1.8)part(r,box(.06,.5,.06),glossyToon(COPPER,{spec:.8,size:.96}),x,.25,q.z1-.06);part(r,box(q.x1-q.x0,.05,.06),glossyToon(COPPER,{spec:.8,size:.96}),(q.x0+q.x1)/2,.5,q.z1-.06);
 
   // ---- The doors: each room's doorway has a door that swings open as Pip comes near (away from
   // him) and shuts on its spring once he has passed. Something left in the doorway props it open.
@@ -167,8 +176,9 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
     return {id,pivot,body,hinge,closed,sign:id==='store'?-1:1,width};});
   // The sign stands on the mesh wall's copper top rail.
   standingSign(game.root,'QUIET ROOM · SCREENED',7.45,2.465,q.z0,1.9,'#f3d9c2');
-  const chair=group(r,9.9,0,6.6,-2.4);part(chair,rbox(.9,.45,.8,.12),toon('#8b7be8'),0,.3,0);part(chair,rbox(.9,.6,.2,.08),toon('#7a6ad6'),0,.7,-.32);solid(game,.9,.9,.8,9.9,.45,6.6);
-  const lamp=group(r,10.4,0,7.4);part(lamp,cyl(.2,.24,.05,16),toon(INK),0,.03,0);part(lamp,cyl(.025,.025,1.5,8),toon(COPPER),0,.78,0);part(lamp,cyl(.16,.28,.3,16),toon('#fff1d6'),0,1.55,0);
+  // The reading armchair and its lamp in the room's far corner.
+  const cx=W-1.4,cz=D-1.6,chair=group(r,cx,0,cz,-2.4);part(chair,rbox(.9,.45,.8,.12),toon('#8b7be8'),0,.3,0);part(chair,rbox(.9,.6,.2,.08),toon('#7a6ad6'),0,.7,-.32);solid(game,.9,.9,.8,cx,.45,cz,-2.4);
+  const lamp=group(r,W-.6,0,D-.6);part(lamp,cyl(.2,.24,.05,16),toon(INK),0,.03,0);part(lamp,cyl(.025,.025,1.5,8),toon(COPPER),0,.78,0);part(lamp,cyl(.16,.28,.3,16),toon('#fff1d6'),0,1.55,0);
 
   // ---- Tea corner: a counter with the smoking toaster and a kettle.
   const tea=group(r,2.4,0,4.85);part(tea,rbox(2.2,.9,.62,.05),toon('#f4c9c3'),0,.45,0);part(tea,box(2.3,.05,.7),toon(PAPER),0,.92,0);
@@ -188,18 +198,34 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   for(let k=0;k<12;k++){const m=new T.Sprite(new T.SpriteMaterial({map:puff,color:'#9a9dac',transparent:true,opacity:.3,depthWrite:false}));m.scale.set(.6,.6,1);m.userData.noAO=true;m.userData.seed=k;game.root.add(m);smoke.push(m);}
 
   // ---- Back wall between the rooms: the exhibits case and the ladder up to the rooftop hatch.
-  const ex=group(r,-1.6,0,-7.35);part(ex,rbox(2.6,.9,.7,.06),toon('#e9e2d4'),0,.45,0);part(ex,box(2.7,.05,.8),toon('#c98a55'),0,.92,0);
-  const caseGlass=part(game.root,box(2.5,.7,.6),toon('#dff3ff',{opacity:.25}),-1.6,1.3,-7.35,false);caseGlass.userData.noAO=true;
+  const exZ=-D+.65,ex=group(r,-1.6,0,exZ);part(ex,rbox(2.6,.9,.7,.06),toon('#e9e2d4'),0,.45,0);part(ex,box(2.7,.05,.8),toon('#c98a55'),0,.92,0);
+  const caseGlass=part(game.root,box(2.5,.7,.6),toon('#dff3ff',{opacity:.25}),-1.6,1.3,exZ,false);caseGlass.userData.noAO=true;
   const uv=group(ex,-.85,.95,0);part(uv,rbox(.4,.12,.2,.04),toon(INK),0,.06,0);part(uv,cyl(.03,.03,.36,10,'x'),hot('#b9a6ff',2),0,.16,0);
   const xr=group(ex,0,.95,0);part(xr,cyl(.09,.09,.44,14,'x'),toon('#cfe3ef',{opacity:.7}),0,.2,0);part(xr,cyl(.05,.05,.1,10,'x'),toon(DMETAL),-.22,.2,0);part(xr,cyl(.05,.05,.1,10,'x'),toon(DMETAL),.22,.2,0);
   const pig=group(ex,.85,.95,0);part(pig,cyl(.14,.16,.3,16),toon('#6b7385'),0,.15,0);part(pig,cyl(.15,.15,.05,16),toon('#ffd66b'),0,.32,0);
   const warn=part(kit.back,new T.PlaneGeometry(2.8,.5),flat(plaque('UV · X-RAY · GAMMA: exhibits only. Not safe to stand beside.',1200,214,'#ffe1dc','#7a1f22',60)),-1.6,2.05,.18,false);warn.userData.noAO=true;
-  solid(game,2.6,1.7,.7,-1.6,.85,-7.35);
-  const ladder=group(r,.9,0,-7.78);for(const x of [-.25,.25])part(ladder,box(.06,2.9,.06),toon(DMETAL),x,1.45,0);for(let k=0;k<8;k++)part(ladder,box(.5,.04,.05),toon(DMETAL),0,.3+k*.34,0);
+  solid(game,2.6,1.7,.7,-1.6,.85,exZ);
+  const ladder=group(r,.9,0,-D+.22);for(const x of [-.25,.25])part(ladder,box(.06,2.9,.06),toon(DMETAL),x,1.45,0);for(let k=0;k<8;k++)part(ladder,box(.5,.04,.05),toon(DMETAL),0,.3+k*.34,0);
   const roof=part(kit.back,new T.PlaneGeometry(1.2,.3),flat(plaque('ROOF HATCH ↑',512,128,'#fff1c2')),.9,2.75,.18,false);roof.userData.noAO=true;
   // ---- Front: the pod's charging dock by the entrance, and a band chart on the side wall.
   const dock=group(r,POD_HOME.x,0,POD_HOME.z);part(dock,cyl(.75,.8,.05,28),toon('#dff3e6'),0,.025,0);part(dock,new T.TorusGeometry(.72,.03,8,40),toon('#3fae6a'),0,.06,0).rotation.x=Math.PI/2;
   {const tag=part(r,new T.PlaneGeometry(.8,.176),flat(plaque('POD DOCK',512,113,'#d5f2de',INK,44)),POD_HOME.x,.013,POD_HOME.z+.92,false);tag.rotation.x=-Math.PI/2;tag.userData.noAO=true;}
+  // ---- The hall's distribution board, where the storeroom walk turns: a steel cabinet on a plinth with
+  // a breaker window and a conduit into the floor. The desk's mains socket sits on its foot (the lead's
+  // target), so the lead's run is the same however far the hall's walls are.
+  {const bx=-11.15,bz=.6,board=group(r,bx,0,bz,Math.PI/2);part(board,rbox(1.05,.12,.55,.03),toon(DMETAL),0,.06,0);
+    part(board,rbox(1,1.65,.5,.04),toon('#7f8ca3'),0,.94,0);part(board,box(.92,1.5,.02),toon('#95a1b6'),0,.94,.255,false);
+    part(board,box(.6,.16,.02),toon('#2b2d42'),0,1.32,.275,false);for(let k=0;k<6;k++)part(board,box(.05,.08,.03),toon(k===2?'#e5484d':'#eef1f6'),-.22+k*.088,1.32,.29,false);
+    part(board,box(.05,.22,.04),toon(INK),.36,.95,.28,false);part(board,sphere(.035,10,8),hot('#8dffb0',1.4),-.3,1.62,.28);
+    const bolt=canvasTex(128,128,c=>{c.fillStyle='#e5484d';c.beginPath();c.roundRect(4,4,120,120,14);c.fill();c.fillStyle='#fffaf0';c.beginPath();
+      for(const [x,y] of [[72,14],[34,70],[60,70],[48,114],[94,52],[66,52],[80,14]])c.lineTo(x,y);c.closePath();c.fill();});
+    {const m=part(board,new T.PlaneGeometry(.3,.3),flat(bolt),-.2,.62,.268,false);m.userData.noAO=true;}
+    solid(game,.5,1.8,1.05,bx,.9,bz);}
+  // ---- Back wall, left of the exhibits: the two everyday bands on a plinth (an FM radio and a Wi-Fi router).
+  {const px=-3.75,pz=-D+.5,pl=group(r,px,0,pz);part(pl,rbox(1.2,.8,.6,.05),toon('#e9e2d4'),0,.4,0);part(pl,box(1.25,.05,.7),toon('#c98a55'),0,.82,0);
+    const radio=group(pl,-.26,.85,0);part(radio,rbox(.5,.3,.22,.05),toon('#c4553b'),0,.15,0);part(radio,cyl(.08,.08,.02,16,'z'),toon('#f4efe6'),-.1,.15,.115);part(radio,cyl(.006,.006,.5,6),toon(DMETAL),.18,.55,0).rotation.z=-.4;
+    const router=group(pl,.3,.85,0);part(router,rbox(.34,.06,.22,.02),toon('#f4efe6'),0,.03,0);for(const dx of [-.12,0,.12])part(router,cyl(.01,.01,.24,6),toon(INK),dx,.18,-.08);
+    solid(game,1.2,1.2,.6,px,.6,pz);}
   // The notebook chart: it starts empty and fills in, cell by cell, as sends show what each band does
   // at each material (green gets through, amber loses a lot, red stops it).
   const COLS:Material[]=['brick','glass','metal','mesh','smoke'],seen=new Map<string,number>();
@@ -218,8 +244,9 @@ export function dressSpectrum(game:Game,kit:RoomKit):SpectrumRoom{
   wallArt(kit.side,'graph',-.9,1.95,.16,0,.9);wallArt(kit.side,'sun',1.6,1.95,.16,0,.9);
   // ---- Light: a soft pool over the desk (no hanging lamps in the bench view), one per room.
   pointLamp(game.root,-3.5,2.8,3.1,{color:'#fff4e0',intensity:5,distance:6});lampPool(game.root,-3.5,3,2.8,.18);
-  pointLamp(game.root,-7.8,2.4,-5.8,{color:'#ffd9a8',intensity:4,distance:5.5});pointLamp(game.root,6.8,2.5,-5.6,{color:'#eaf6ff',intensity:5,distance:6.5});
-  pointLamp(game.root,8.2,2.4,4.8,{color:'#e8dcff',intensity:4,distance:5.5});pointLamp(game.root,2.4,2.4,3.8,{color:'#ffe2c8',intensity:3,distance:5});
+  pointLamp(game.root,-7.8,2.4,-5.8,{color:'#ffd9a8',intensity:4,distance:5.5});pointLamp(game.root,-12.6,2.4,-6.6,{color:'#ffd9a8',intensity:3.5,distance:5.5});
+  pointLamp(game.root,6.8,2.5,-5.6,{color:'#eaf6ff',intensity:5,distance:6.5});pointLamp(game.root,12.6,2.5,-6.8,{color:'#eaf6ff',intensity:4,distance:6});
+  pointLamp(game.root,8.2,2.4,4.8,{color:'#e8dcff',intensity:4,distance:5.5});pointLamp(game.root,12.6,2.4,6.8,{color:'#e8dcff',intensity:3.5,distance:5.5});pointLamp(game.root,2.4,2.4,3.8,{color:'#ffe2c8',intensity:3,distance:5});
   // When the last message lands, the rainbow stripes glow.
   const lightUp=()=>{stripes.forEach((m,i)=>{m.material=hot(RAINBOW[i],1.6);});glow(game.root,'rgba(255,240,200,1)',6,.25).position.set(1,2,0);};
   return {hatchDoor,smoke,doors,chart:chartApi,lightUp,toaster:{mesh:toasterMesh,body:toastBody,home:toastAt.clone()}};

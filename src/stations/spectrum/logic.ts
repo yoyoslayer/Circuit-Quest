@@ -80,6 +80,10 @@ export const LOSS:Record<Material,Record<Band,number>>={
 export const MATERIAL_NAMES:Record<Material,string>={brick:'brick wall',wood:'wooden door',glass:'glass partition',metal:'metal shutter',hatch:'shutter hatch',mesh:'mesh cage',smoke:'toaster smoke'};
 
 // ---------- the hall (plan coordinates in metres; the room and the bench map draw from these) ----------
+/** The hall's floor (width × depth, m), centred on the origin. The three rooms fill its corners: their
+ *  inner walls (the ones a beam meets) stay put, their outer extents follow the hall's walls. */
+export const HALL_W=30,HALL_D=20;
+const HW=HALL_W/2,HD=HALL_D/2;
 /** The transmitter tower beside the dispatch desk. */
 export const TX:P={x:-.4,z:2.3};
 export const PADS:Record<Pad,P>={store:{x:-8.2,z:-5.8},lab:{x:7,z:-6},quiet:{x:8.2,z:4.8}};
@@ -96,9 +100,9 @@ export const MIRRORS=2;
 export const SMOKE={x:2.4,z:3.4,r:1.3};
 /** Walls as plan rectangles (for colliders and drawing) with the material a beam meets. */
 export interface Wall {id:string;a:P;b:P;mat:Material[];thick:number}
-export const STORE={x0:-11,x1:-4.6,z0:-8,z1:-3.2,door:[-11,-9.4] as [number,number],wood:[-6.4,-5] as [number,number]};
-export const LAB={x0:2,x1:11,z0:-8,z1:-3.2,door:[9.4,11] as [number,number]};
-export const QUIET={x0:5.5,x1:11,z0:1.5,z1:8,door:[9.4,11] as [number,number]};
+export const STORE={x0:-HW,x1:-4.6,z0:-HD,z1:-3.2,door:[-11,-9.4] as [number,number],wood:[-6.4,-5] as [number,number]};
+export const LAB={x0:2,x1:HW,z0:-HD,z1:-3.2,door:[9.4,11] as [number,number]};
+export const QUIET={x0:5.5,x1:HW,z0:1.5,z1:HD,door:[9.4,11] as [number,number]};
 /** Each room's doorway has a door that swings shut on a spring once Pip has passed (unless
  *  something props it open). Shut, it is a wall of its room's material; open, it is an opening. */
 export type DoorId='store'|'lab'|'quiet';
@@ -114,6 +118,8 @@ export const DOOR_IDS=Object.keys(DOORS) as DoorId[];
 export function walls(hatchOpen:boolean,open:DoorsOpen={}):Wall[]{
   const s=STORE,l=LAB,q=QUIET;
   return [
+    // The doorways keep their places; the brick and the metal run on past them to the hall's walls.
+    {id:'store-front-out',a:{x:s.x0,z:s.z1},b:{x:s.door[0],z:s.z1},mat:['brick'],thick:.3},
     {id:'store-front',a:{x:s.door[1],z:s.z1},b:{x:s.x1,z:s.z1},mat:['brick'],thick:.3},
     {id:'store-side-a',a:{x:s.x1,z:s.z0},b:{x:s.x1,z:s.wood[0]},mat:['brick'],thick:.3},
     {id:'store-door',a:{x:s.x1,z:s.wood[0]},b:{x:s.x1,z:s.wood[1]},mat:['wood'],thick:.12},
@@ -124,8 +130,10 @@ export function walls(hatchOpen:boolean,open:DoorsOpen={}):Wall[]{
     {id:'lab-front-a',a:{x:l.x0,z:l.z1},b:{x:HATCH.x0,z:l.z1},mat:['metal','glass'],thick:.16},
     {id:'lab-hatch',a:{x:HATCH.x0,z:l.z1},b:{x:HATCH.x1,z:l.z1},mat:[hatchOpen?'hatch':'metal','glass'],thick:.16},
     {id:'lab-front-b',a:{x:HATCH.x1,z:l.z1},b:{x:l.door[0],z:l.z1},mat:['metal','glass'],thick:.16},
+    {id:'lab-front-out',a:{x:l.door[1],z:l.z1},b:{x:l.x1,z:l.z1},mat:['metal','glass'],thick:.16},
     {id:'quiet-side',a:{x:q.x0,z:q.z0},b:{x:q.x0,z:q.z1},mat:['mesh'],thick:.1},
     {id:'quiet-front',a:{x:q.x0,z:q.z0},b:{x:q.door[0],z:q.z0},mat:['mesh'],thick:.1},
+    {id:'quiet-front-out',a:{x:q.door[1],z:q.z0},b:{x:q.x1,z:q.z0},mat:['mesh'],thick:.1},
     ...DOOR_IDS.filter(d=>!open[d]).map(d=>({id:`${d}-door`,a:DOORS[d].a,b:DOORS[d].b,mat:DOORS[d].mat,thick:.08})),
   ];
 }
@@ -235,7 +243,7 @@ export function bestRoute(job:Job,s:Pick<Setup,'band'|'power'|'hatchOpen'|'mirro
 }
 // ---------- aiming ----------
 /** The hall's outer walls (plan, half sizes): an aimed beam that reaches them has missed. */
-export const HALL={x:11,z:8};
+export const HALL={x:HW,z:HD};
 /** Half the width of a mirror board, and how close a beam must pass the pod's centre to be caught. */
 export const MIRROR_HALF=.78,POD_R=.75;
 /** Where things point (radians). `tx` is the tower's beam heading, atan2(dx, dz). Each mirror's value

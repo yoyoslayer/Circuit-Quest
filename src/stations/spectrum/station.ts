@@ -342,7 +342,7 @@ export class SpectrumDesk implements Station {
     this.map.draw(key,(c,w,h)=>{
       const L=this.game.level,sx=(w-60)/L.width,X=(x:number)=>30+(x+L.width/2)*sx,Z=(z:number)=>28+(z+L.depth/2)*sx;
       c.fillStyle=INK;c.beginPath();c.roundRect(0,0,w,h,26);c.fill();c.fillStyle='#fbf6ec';c.beginPath();c.roundRect(12,12,w-24,h-24,18);c.fill();
-      c.strokeStyle='rgba(43,45,66,.07)';c.lineWidth=2;for(let x=-11;x<=11;x+=1){c.beginPath();c.moveTo(X(x),Z(-8));c.lineTo(X(x),Z(8));c.stroke();}for(let z=-8;z<=8;z+=1){c.beginPath();c.moveTo(X(-11),Z(z));c.lineTo(X(11),Z(z));c.stroke();}
+      c.strokeStyle='rgba(43,45,66,.07)';c.lineWidth=2;const hw=L.width/2,hd=L.depth/2;for(let x=-hw;x<=hw;x+=1){c.beginPath();c.moveTo(X(x),Z(-hd));c.lineTo(X(x),Z(hd));c.stroke();}for(let z=-hd;z<=hd;z+=1){c.beginPath();c.moveTo(X(-hw),Z(z));c.lineTo(X(hw),Z(z));c.stroke();}
       const zone=(o:{x0:number;x1:number;z0:number;z1:number},col:string,name:string)=>{c.fillStyle=col;c.fillRect(X(o.x0),Z(o.z0),(o.x1-o.x0)*sx,(o.z1-o.z0)*sx);c.fillStyle='rgba(43,45,66,.6)';c.font=FONT(44);c.textAlign='center';c.fillText(name,X((o.x0+o.x1)/2),Z(o.z0)+54);};
       zone(STORE,'#f2dcc0','STOREROOM');zone(LAB,'#dcecf8','GLASS LAB');zone({x0:QUIET.x0,x1:QUIET.x1,z0:QUIET.z0,z1:QUIET.z1},'#e6defa','');c.fillStyle='rgba(43,45,66,.6)';c.fillText('QUIET',X(8.25),Z(QUIET.z1)-22);
       // Smoke and the tea counter.

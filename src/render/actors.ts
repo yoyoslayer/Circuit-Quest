@@ -8,17 +8,28 @@ const noRim=new URLSearchParams(location.search).has('norim');
 
 /** Toon plus a hard, stepped view-space highlight: glossy plastic that still reads as toon. */
 const glossy=new Map<string,T.MeshToonMaterial>();
+class GlossyToonMaterial extends T.MeshToonMaterial{
+  constructor(params:T.MeshToonMaterialParameters={},private spec=.9,private edge=.965){
+    super(params);
+    // Material.clone() constructs this class again; keep the shader hook on the instance.
+    // Read parameters through this so copy() can restore non-default highlight settings.
+    this.onBeforeCompile=s=>{if(!noRim)rimShader(s);s.uniforms.specK={value:this.spec};s.uniforms.specEdge={value:this.edge};
+      s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform float specK; uniform float specEdge;').replace('#include <opaque_fragment>',`
+        { vec3 L = normalize(vec3(-.35,.75,.55)); vec3 V = normalize(vViewPosition); vec3 H = normalize(L + V);
+          float s = smoothstep(specEdge, specEdge + .012, dot(normalize(normal), H));
+          outgoingLight = mix(outgoingLight, vec3(1.,.98,.93) * max(1., length(outgoingLight)), s * specK); }
+        #include <opaque_fragment>`);};
+    this.customProgramCacheKey=()=>(noRim?'glossyToon':'glossyToonRim')+this.spec+this.edge;
+  }
+  override copy(source:T.MeshToonMaterial){
+    super.copy(source);
+    if(source instanceof GlossyToonMaterial){this.spec=source.spec;this.edge=source.edge;}
+    return this;
+  }
+}
 export function glossyToon(color:string,{vertexColors=false,spec=.9,size=.965}={}){
   const key=`${color}|${vertexColors}|${spec}|${size}`;let m=glossy.get(key);if(m)return m;
-  m=new T.MeshToonMaterial({color,gradientMap:toonRamp,vertexColors});
-  // The rim goes in first (R5-372): the spec mix chains on the same opaque_fragment anchor after it.
-  m.onBeforeCompile=s=>{if(!noRim)rimShader(s);s.uniforms.specK={value:spec};s.uniforms.specEdge={value:size};
-    s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform float specK; uniform float specEdge;').replace('#include <opaque_fragment>',`
-      { vec3 L = normalize(vec3(-.35,.75,.55)); vec3 V = normalize(vViewPosition); vec3 H = normalize(L + V);
-        float s = smoothstep(specEdge, specEdge + .012, dot(normalize(normal), H));
-        outgoingLight = mix(outgoingLight, vec3(1.,.98,.93) * max(1., length(outgoingLight)), s * specK); }
-      #include <opaque_fragment>`);};
-  m.customProgramCacheKey=()=>(noRim?'glossyToon':'glossyToonRim')+spec+size;glossy.set(key,m);return m;
+  m=new GlossyToonMaterial({color,gradientMap:toonRamp,vertexColors},spec,size);glossy.set(key,m);return m;
 }
 /** HDR unlit colour for bloom (colour * k survives the 1.3 bloom threshold). */
 export function hot(color:string,k=3){const m=new T.MeshBasicMaterial({color});m.color.multiplyScalar(k);m.userData.outlineParameters={visible:false};return m;}

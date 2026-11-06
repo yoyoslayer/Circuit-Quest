@@ -1,0 +1,17 @@
+
+[WebServer] (node:6212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+
+(node:19564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/3] tests\astra-animation.spec.ts:3:1 › coworker faces track Pip in the full toon renderer without extra child meshes
+[2/3] tests\astra-pip-batching.spec.ts:2:1 › Pip batches rigid details while preserving triangles, facial parts and live joints
+tests\astra-pip-batching.spec.ts:2:1 › Pip batches rigid details while preserving triangles, facial parts and live joints
+[{"mode":"nofreeze","meshes":51,"triangles":77380,"protectedParts":51,"face":[true,true,true],"handAttached":true,"hand":[0.37195164269446557,0.9918706794429626,0.3136745320336602],"head":[5.7492480031916615e-8,1.1627962048630243,-0.17987691146170876],"knees":true,"elbows":true},{"mode":"batched","meshes":23,"triangles":77380,"protectedParts":23,"face":[true,true,true],"handAttached":true,"hand":[0.37195164762656374,0.9918706775895226,0.3136745320341903],"head":[6.327092543912666e-8,1.1627962048625644,-0.17987691145728874],"knees":true,"elbows":true}]
+
+[3/3] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+  3 passed (30.7s)

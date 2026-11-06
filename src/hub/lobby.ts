@@ -24,7 +24,8 @@ interface Door {level:Level;at:Point;leaf:T.Group;open:number;vel:number;lamp:T.
 const FROM_KEY='circuit-crew:from';
 const LOCK_IDLE=toon(DMETAL),LOCK_FLASH=toon('#e5484d'),STRIP_ON=hot('#ffe7a0',1.6),STRIP_OFF=toon('#3a3d55');
 const views=new Map<string,T.Texture>();
-const viewOf=(id:Level['id'])=>{let t=views.get(id);if(!t){t=new T.TextureLoader().load(thumbUrl(id));t.colorSpace=T.SRGBColorSpace;views.set(id,t);}return t;};
+// Anisotropic filtering keeps the far end of the corridor sharp at a grazing angle (three clamps it to the GPU's maximum).
+const viewOf=(id:Level['id'])=>{let t=views.get(id);if(!t){t=new T.TextureLoader().load(thumbUrl(id));t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;views.set(id,t);}return t;};
 /** Door slots: seven along the back wall, then two on the left wall near the back corner, then
  *  free-standing arches on the right. The start view (yaw .4) shows the back wall to x≈9.5 and the
  *  left wall to z≈-3; this keeps all nine doors in it and clear of the job card (R5-241). */
@@ -115,13 +116,14 @@ export class Lobby {
     const spill=new T.Mesh(new T.PlaneGeometry(1.9,1.6),new T.MeshBasicMaterial({map:spillTex(),color,transparent:true,opacity:0,depthWrite:false,blending:T.AdditiveBlending}));
     spill.rotation.x=-Math.PI/2;spill.position.set(0,.025,.85);spill.userData.noAO=true;(spill.material as T.Material).userData.outlineParameters={visible:false};f.add(spill);part(f,box(1.9,.04,.5),toon('#c98a55'),0,.02,.15,false);
     // The leaf swings in, into the corridor (never out through Pip), and is gone once it is open.
-    const leaf=group(f,-.84,0,.1);part(leaf,rbox(1.66,2.26,.08,.03),glossyToon('#fffaf0',{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.07);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.1);
-    signPlate(leaf,level.number,.83,1.55,.085,.7,{bg:color,h:80,w:160});
+    // A door-thick panel (14 cm) in the wing's own colour, so it reads as a door rather than a cream card.
+    const leaf=group(f,-.84,0,.1);part(leaf,rbox(1.66,2.26,.14,.04),glossyToon(frame,{spec:.5,size:.97}),.83,1.14,.02);part(leaf,box(1.3,.9,.02),toon(color),.83,1.55,.105);part(leaf,sphere(.05,10,8),toon('#ffc629'),1.5,1.05,.135);
+    signPlate(leaf,level.number,.83,1.55,.12,.7,{bg:color,h:80,w:160});
     signPlate(f,title(level),0,2.56,.16,1.95,{bg:'#fffaf0'});
     let padlock:T.Mesh|undefined;
-    if(locked){signPlate(leaf,'LOCKED',.83,2.1,.085,.9,{bg:'#262A40',fg:'#fffaf0',w:256,h:56});
-      const tape=part(leaf,box(1.8,.09,.012),toon('#ffffff',{map:TX.hazardStripe()}),.83,1.25,.095,false);tape.rotation.z=.5;
-      padlock=part(leaf,rbox(.22,.2,.08,.04),toon(DMETAL),1.2,1.05,.13);part(leaf,new T.TorusGeometry(.07,.018,8,16,Math.PI),toon('#c7ccd6'),1.2,1.15,.13);part(leaf,box(.03,.06,.01),toon(INK),1.2,1.04,.175,false);}
+    if(locked){signPlate(leaf,'LOCKED',.83,2.1,.12,.9,{bg:'#262A40',fg:'#fffaf0',w:256,h:56});
+      const tape=part(leaf,box(1.8,.09,.012),toon('#ffffff',{map:TX.hazardStripe()}),.83,1.25,.13,false);tape.rotation.z=.5;
+      padlock=part(leaf,rbox(.22,.2,.08,.04),toon(DMETAL),1.2,1.05,.165);part(leaf,new T.TorusGeometry(.07,.018,8,16,Math.PI),toon('#c7ccd6'),1.2,1.15,.165);part(leaf,box(.03,.06,.01),toon(INK),1.2,1.04,.21,false);}
     // Medal on the wall beside the door, big enough to read from the atrium.
     if(best){part(f,rbox(.5,.5,.025,.06),toon(best.crewGold?'#e4ad32':INK),1.42,1.6,.012);signPlate(f,best.grade,1.42,1.6,.03,.44,{bg:best.grade==='A'?'#ffc629':'#dfe3ea',w:80,h:80});}
     // The wing lamp: a sconce beside the lintel, below the wall cap, plus light strips down the post

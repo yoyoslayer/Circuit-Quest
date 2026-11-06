@@ -16,7 +16,7 @@ void main(){
 }`;
 const fragment=/* glsl */`
 uniform vec3 uColor;uniform vec2 uSize;uniform float uDepth;uniform float uOpen;uniform float uLocked;uniform float uTime;
-uniform sampler2D uView;uniform float uHasView;
+uniform sampler2D uView;uniform float uHasView;uniform vec2 uCover;
 varying vec3 vPos;varying vec3 vDir;
 void main(){
   vec3 d=normalize(vDir);
@@ -32,7 +32,8 @@ void main(){
   vec3 col;
   if(t==tz){
     // The far end: a glimpse of the destination room, framed and lit.
-    vec2 uv=vec2(h.x/uSize.x+.5,h.y/uSize.y+.5);
+    // Cover-fit: the picture is cropped to the opening's proportions, never squeezed into them.
+    vec2 uv=vec2(.5+h.x/uSize.x*uCover.x,.5+h.y/uSize.y*uCover.y);
     vec3 v=uHasView>.5?texture2D(uView,uv).rgb:mix(wall,vec3(1.),.4);
     col=mix(v*.55,v*1.05,uOpen);
   }else if(t==ty&&d.y<0.){
@@ -71,11 +72,15 @@ export function portal(o:PortalOptions){
   const geo=new T.PlaneGeometry(o.width,o.height);
   const material=new T.ShaderMaterial({vertexShader:vertex,fragmentShader:fragment,uniforms:{
     uCam:{value:new T.Vector3()},uColor:{value:new T.Color(o.color)},uSize:{value:new T.Vector2(o.width,o.height)},uDepth:{value:o.depth??2.6},
-    uOpen:{value:0},uLocked:{value:o.locked?1:0},uTime:{value:0},uView:{value:o.view??null},uHasView:{value:o.view?1:0}}});
+    uOpen:{value:0},uLocked:{value:o.locked?1:0},uTime:{value:0},uView:{value:o.view??null},uHasView:{value:0},uCover:{value:new T.Vector2(1,1)}}});
   material.userData.outlineParameters={visible:false};
   const mesh=new T.Mesh(geo,material);mesh.userData.noAO=true;
   const inv=new T.Matrix4();
   // The camera position in the plane's own space, every frame it is drawn.
   mesh.onBeforeRender=(_r,_s,camera)=>{inv.copy(mesh.matrixWorld).invert();material.uniforms.uCam.value.copy(camera.position).applyMatrix4(inv);};
-  return {mesh,set(open:number,time:number){material.uniforms.uOpen.value=open;material.uniforms.uTime.value=time;}};
+  // The picture is switched on once its image has loaded, with the crop worked out from its real shape.
+  let shown=false;
+  return {mesh,set(open:number,time:number){const u=material.uniforms;u.uOpen.value=open;u.uTime.value=time;
+    const img=o.view?.image as {width?:number;height?:number}|undefined;
+    if(!shown&&img?.width&&img.height){shown=true;const pa=o.width/o.height,ia=img.width/img.height;u.uCover.value.set(Math.min(1,pa/ia),Math.min(1,ia/pa));u.uHasView.value=1;}}};
 }

@@ -32,22 +32,24 @@ function floor(game:Game,x0:number,x1:number,z0:number,z1:number,map:T.Texture,t
 /** Doorway openings in a shell wall: DOOR_HALF is the clear half-width between the door posts, and
  *  DOOR_TOP the underside of the lintel. Pip walks through a gap; the wall above it stays solid. */
 export const DOOR_HALF=.84,DOOR_TOP=2.42,SHELL_THICK=.25;
+/** The stretches of a wall between its openings: [from,to] pairs in world coordinates along the wall. */
+function between(from:number,to:number,openings:number[]){const out:[number,number][]=[];let cur=from;for(const o of [...openings].sort((p,q)=>p-q)){out.push([cur,o-DOOR_HALF]);cur=o+DOOR_HALF;}out.push([cur,to]);return out.filter(([a,b])=>b-a>.01);}
 function shellWall(game:Game,length:number,x:number,z:number,normal:[number,number],h=3,thick=SHELL_THICK,openings:number[]=[]){
   const wall=group(game.root,x,0,z,normal[0]!==0?-Math.PI/2*normal[0]:normal[1]<0?0:Math.PI);
   const face=thick/2,upper=group(wall,0,1.06,0),inside=group(upper,0,-1.06,0);
-  part(wall,box(length,1.06,thick),plain(WALL_LOW),0,.53,0);part(wall,box(length,.16,.07),toon(BASE),0,.08,face+.035);part(wall,box(length,1,.05),toon(WALL_LOW),0,.55,face+.025);
-  part(wall,box(length,.07,.09),toon(RAIL),0,1.06,face+.04);
+  part(wall,box(length,1.06,thick),plain(WALL_LOW),0,.53,0);
+  // Skirting and rail stop at each doorway, so they never cross the opening in front of the portal.
+  const back=normal[0]===0,base=back?x:z,span=between(base-length/2,base+length/2,openings);
+  const trim=(hgt:number,y:number,d:number,zc:number,m:T.Material)=>{for(const [a,b] of span)part(wall,box(b-a,hgt,d),m,(back?1:-1)*((a+b)/2-base),y,zc);};
+  trim(.16,.08,.07,face+.035,toon(BASE));part(wall,box(length,1,.05),toon(WALL_LOW),0,.55,face+.025);trim(.07,1.06,.09,face+.04,toon(RAIL));
   part(inside,box(length,h-1.06,thick),plain(WALL_UP),0,1.06+(h-1.06)/2,0);part(inside,box(length,h-1.05,.02),plain('#ffffff',TX.wallpaper(WALL_UP)),0,1.05+(h-1.05)/2,face+.011);
   part(inside,box(length+.04,.14,thick+.22),toon(CAP),0,h+.07,.02);part(inside,box(length+.06,.04,thick+.26),toon(CAP_DARK),0,h+.16,.02);
   wall.traverse(o=>{o.receiveShadow=false;});
   game.shellWalls.push({group:upper,normal:new T.Vector3(normal[0],0,normal[1]),height:h});
   // Collider: solid between the openings, with a lintel over each one. Openings are world coordinates
   // along the wall (x for the back wall, z for a side wall, whose centre is at z=0).
-  const back=normal[0]===0,base=back?x:z,to=base+length/2;let cur=base-length/2;
-  const piece=(a:number,b:number)=>{if(b-a<=.01)return;if(back)solid(game,b-a,h,thick,(a+b)/2,h/2,z);else solid(game,thick,h,b-a,x,h/2,(a+b)/2);};
-  for(const o of [...openings].sort((p,q)=>p-q)){piece(cur,o-DOOR_HALF);cur=o+DOOR_HALF;
-    const lh=h-DOOR_TOP,ly=DOOR_TOP+lh/2;if(back)solid(game,DOOR_HALF*2,lh,thick,o,ly,z);else solid(game,thick,lh,DOOR_HALF*2,x,ly,o);}
-  piece(cur,to);
+  for(const [a,b] of span){if(back)solid(game,b-a,h,thick,(a+b)/2,h/2,z);else solid(game,thick,h,b-a,x,h/2,(a+b)/2);}
+  for(const o of openings){const lh=h-DOOR_TOP,ly=DOOR_TOP+lh/2;if(back)solid(game,DOOR_HALF*2,lh,thick,o,ly,z);else solid(game,thick,lh,DOOR_HALF*2,x,ly,o);}
   return inside;
 }
 function interiorWall(game:Game,o:Obstacle,upperColor=WALL_UP,lowerColor=WALL_LOW,h=1.35){

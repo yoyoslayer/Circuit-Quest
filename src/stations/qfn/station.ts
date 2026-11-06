@@ -59,7 +59,9 @@ const SHIP_DEAD="No power for the bring-up test: the bench lead isn't plugged in
 export class QfnBench implements Station {
   // width: the full span of the side button rows (TURN, LAYER, VIA on the left; CHECK, SHIP on the right).
   readonly view={distance:5.6,pitch:1.02,lookY:-.1,width:4.6};
-  readonly limits={time:720,damage:1,cost:0};
+  // Time par: 720 s in the 22 x 16 bay; +15 s for the 30 x 20 bay's longer walks (crate 4 m further
+  // out, socket 2 m further back: about 9 m more on the main route at 1.5 s/m, review 6).
+  readonly limits={time:735,damage:1,cost:0};
   readonly stand={x:0,z:-.5};readonly table=new T.Vector3(0,.92,-2.2);readonly facing=Math.PI;
   readonly job:StationJob;
   boardIx=0;design:Design;layer:Layer=1;selected?:string;partsReady=false;active=false;

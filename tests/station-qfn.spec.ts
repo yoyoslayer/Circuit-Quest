@@ -7,11 +7,11 @@ import {BOARDS,REFERENCE} from '../src/stations/qfn/logic';
 const act=(page:Page,name:string,arg?:unknown)=>page.evaluate(([n,a])=>(window as any).__circuitCrew.drive.act(n,a),[name,arg] as const);
 async function ok(page:Page,name:string,arg?:unknown){expect((await act(page,name,arg)).ok,`${name} ${JSON.stringify(arg)??''}`).toBe(true);}
 async function toBench(page:Page){
-  await walk(page,-8.8,2.95,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('parts');
+  await walk(page,-12.8,2.95,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('parts');
   await walk(page,1.3,-.6,.5);await page.keyboard.press('KeyE');await wait(page,.2);
   expect((await snapshot(page)).station.partsReady).toBe(true);
   // SHIP's bring-up test needs the bench lead plugged in at the back wall (R5-079).
-  await plugBench(page,[],[[9,-5],[8.6,-3],[6.2,-2.6],[3.3,0],[1.3,-.4]]);
+  await plugBench(page,[],[[9,-7.4],[9,-5.2],[8.6,-3.2],[6.2,-2.6],[3.3,0],[1.3,-.4]]);
   await walk(page,0,-.5,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);await wait(page,1.2);
 }
 /** SHIP on a board that works runs a short bring-up test on the bench before the next board loads. */

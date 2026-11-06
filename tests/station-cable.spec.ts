@@ -87,15 +87,15 @@ test('robot garage: the bench lead powers PULSE, and the parcel stack is bowled 
 
 test('QFN bench: a crate tossed onto the bench counts, and SHIP needs the bench lead (dead: refused, no mistake)',async({page})=>{
   const errors=await open(page,'qfn');await wait(page,.1);
-  await walk(page,-8.8,2.95,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('parts');
+  await walk(page,-12.8,2.95,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('parts');
   // Lob it from four metres out: it lands, comes to rest, and the bench takes it.
-  await walk(page,-3.7,1.15,.4);await page.keyboard.press('KeyQ');await wait(page,3);
+  await walk(page,-8.8,2.95,.5);await walk(page,-3.7,1.15,.4);await page.keyboard.press('KeyQ');await wait(page,3);
   let s=await station(page);expect(s.partsReady).toBe(true);expect(s.tossed).toBe(true);expect((await bonus(page,0)).ok).toBe(true);
   // At the bench unplugged: SHIP's bring-up test has no power, so it refuses and nothing is counted.
   await walk(page,1.3,-.4,.5);await walk(page,0,-.5,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
   expect((await act(page,'ship')).ok).toBe(false);await expect(page.locator('.station-toast')).toContainText('No power');expect((await station(page)).mistakes).toBe(0);
   await page.keyboard.press('Escape');
-  await plugBench(page,[[1.3,-.4]],[[9,-5],[8.6,-3],[6.2,-2.6],[3.3,0],[1.3,-.4]]);
+  await plugBench(page,[[1.3,-.4]],[[9,-7.4],[9,-5.2],[8.6,-3.2],[6.2,-2.6],[3.3,0],[1.3,-.4]]);
   await walk(page,0,-.5,.4);await page.keyboard.press('KeyE');expect((await snapshot(page)).atBench).toBe(true);
   // Live: SHIP now reaches the test (the scrambled board is sent back; the full three-board run is station-qfn.spec).
   expect((await act(page,'ship')).ok).toBe(true);s=await station(page);expect(s.mistakes).toBe(1);

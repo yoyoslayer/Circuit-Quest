@@ -1,6 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {open,walk,route,wait,snapshot} from './navigation';
-import {plugBench} from './station-lead';
+import {plugBench,lead} from './station-lead';
 
 // Each cabinet is play-tested for three simulated seconds, and the machine is busy: give the specs room.
 test.describe.configure({timeout:300000});
@@ -93,5 +93,12 @@ test('arcade: an LED over its rating never passes; a reliable chain can be tuned
   // Signing off needs a fresh play test, and a position holds two blocks at most.
   expect((await act(page,'signoff')).ok).toBe(false);
   await steps(page,place([47]));expect((await act(page,'pick',47)).ok).toBe(true);expect((await act(page,'slot',0)).ok).toBe(false);
+  // Passed and stamped, then the bench lead is pulled out at the wall: the lever, lamp and stamp all
+  // go off with the power, not only the meter (R6 stations-a-4).
+  await steps(page,[['clear'],['flip'],['power']]);await wait(page,3.4);s=await station(page);expect(s.soakDone).toBe(true);
+  expect(s.controls).toEqual({lever:true,lamp:true,stamp:true});
   await page.keyboard.press('Escape');expect((await snapshot(page)).atBench).toBe(false);
+  const l=await lead(page);await route(page,[[2.9,-1.2],[2.9,-4]]);await walk(page,l.route[l.route.length-1][0],l.route[l.route.length-1][1],.45);
+  await page.keyboard.press('KeyF');await wait(page,.2);const g=await snapshot(page);expect(g.holdingPlug).toBe(true);expect(g.benchLive).toBe(false);
+  expect(g.station.powered).toBe(false);expect(g.station.controls).toEqual({lever:false,lamp:false,stamp:false});
 });

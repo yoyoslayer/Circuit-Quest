@@ -97,6 +97,14 @@ describe('QFN layout rules',()=>{
     const t=[0,1,2,3,4,5].map(chipTemp);for(let i=1;i<t.length;i++){expect(t[i]).toBeLessThan(t[i-1]);if(i>1)expect(t[i-1]-t[i]).toBeLessThan(t[i-2]-t[i-1]);}
     expect(viasNeeded()).toBe(4);expect(chipTemp(4)).toBeLessThanOrEqual(HEAT.limit);expect(chipTemp(3)).toBeGreaterThan(HEAT.limit);
   });
+  it('decoupling: a wired cap keeps its loop while the other cap is still unwired',()=>{
+    // C1 beside the right-hand VDD/GND pins and wired; C2 still loose in its corner, no copper.
+    const b=board('mcu'),d:Design={place:{...ref('mcu').place,C1:{at:[9,4],rot:1},C2:{at:[11,0],rot:0}},traces:[],vias:[]};
+    d.traces.push({layer:1,net:'VDD',cells:[[9,4],[8,4]]},{layer:1,net:'GND',cells:[[9,5],[8,5]]});
+    const r=check(b,d),right=r.loops.find(l=>l.pair[0]==='U1.8')!,left=r.loops.find(l=>l.pair[0]==='U1.1')!;
+    expect(right.cap).toBe('C1');expect(right.loop).toBeLessThanOrEqual(right.max);expect(right.path.length).toBeGreaterThan(1);
+    expect(left.loop).toBe(Infinity);expect(r.notes.join(' ')).not.toMatch(/right-hand/);expect(r.notes.join(' ')).toMatch(/left-hand/);
+  });
   it('a decoupling loop reports the copper it runs along, cap to chip and back',()=>{
     const b=board('mcu'),d=ref('mcu'),l=check(b,d).loops[0];expect(l.path.length).toBeGreaterThan(1);
     // Consecutive cells touch (or are the same cell on the other layer).

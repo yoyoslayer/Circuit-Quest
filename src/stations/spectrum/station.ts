@@ -109,7 +109,7 @@ export class SpectrumDesk implements Station {
       bonuses:[
         // A chaos bonus in the room (R5-079): knock the smoking toaster off the tea counter (the smoke stops).
         {text:'Knock the smoking toaster down',ok:()=>this.toasterDown},
-        {text:'Elegant: least power, fewest mirrors',ok:()=>this.delivered.every(x=>x.verdict.tier===3)},
+        {text:'Elegant: least power, fewest mirrors',ok:()=>this.delivered.length>0&&this.delivered.every(x=>x.verdict.tier===3)},
         {text:'No failed send',ok:()=>this.mistakes===0}]};
     game.root.add(this.root);game.root.add(this.beam);
     this.buildDesk();this.buildHall();this.redraw();freezeBench(this.root,this,game);
@@ -465,7 +465,10 @@ export class SpectrumDesk implements Station {
       ArrowLeft:['turn',-1],ArrowRight:['turn',1],KeyP:['power',next(POWERS,this.power)],KeyH:['hatch'],Enter:['send']};
     const m=map[code];if(!m)return false;this.act(m[0],m[1]);return true;
   }
-  setActive(active:boolean){this.active=active;this.drag=undefined;this.mapHover=false;if(!active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
+  setActive(active:boolean){this.active=active;this.drag=undefined;this.mapHover=false;if(!active&&this.toast)this.toast.hidden=true;if(!active){document.body.style.cursor='';
+      // The room's tower, beam and mirror marks come back as Pip stands up: the win shot leaves the desk
+      // and update() no longer runs to restore them.
+      this.tower.visible=true;this.beam.visible=true;for(const m of this.markMeshes)m.visible=true;if(this.hovered){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}this.shown='';}
   /** The three room doors swing open as Pip comes near (away from him) and shut on their springs after
    *  he passes. Anything left standing in a doorway props that door open, and the open doorway is a
    *  real opening in the link model. */

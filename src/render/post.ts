@@ -18,16 +18,40 @@ export class OutlineRenderPass extends Pass {
  *  too small to see, but each costs a draw call (R5-167). Instanced prop parts are judged per part. */
 export const AO_MIN_RADIUS=.2;
 const tiny=(o:T.Object3D)=>{const g=(o as T.Mesh).geometry as T.BufferGeometry|undefined;if(!g)return false;if(!g.boundingSphere)g.computeBoundingSphere();return g.boundingSphere!.radius*o.matrixWorld.getMaxScaleOnAxis()<AO_MIN_RADIUS;};
+/** How far (view metres) the beauty pass's nearest surface must stand in front of the AO pass's for the
+ *  blend to leave that pixel alone; plus AO_MASK_REL of the view depth. Decals, sign plates and screen
+ *  faces sit within a few mm of what they cover, so they still take that surface's contact shading. */
+export const AO_MASK_GAP=.05,AO_MASK_REL=.002;
+/** Blend shader for toonGTAO: GTAOBlendShader, except that where the scene depth is clearly nearer than
+ *  the AO depth (something the AO pass skipped is in front) it outputs white, i.e. no darkening. */
+export const aoMaskBlend=`
+  uniform float intensity,cameraNear,cameraFar; uniform sampler2D tDiffuse,tSceneDepth,tAODepth; varying vec2 vUv;
+  #include <packing>
+  float aoViewDepth(sampler2D d){ return -perspectiveDepthToViewZ(texture2D(d,vUv).x,cameraNear,cameraFar); }
+  void main(){
+    float s=aoViewDepth(tSceneDepth),a=aoViewDepth(tAODepth);
+    if(a-s>${AO_MASK_GAP.toFixed(3)}+${AO_MASK_REL.toFixed(4)}*s){ gl_FragColor=vec4(1.); return; }
+    vec4 texel=texture2D(tDiffuse,vUv); gl_FragColor=vec4(mix(vec3(1.),texel.rgb,intensity),texel.a);
+  }`;
 /** GTAO that ignores sprites, glow cards, light shafts and see-through glass; they would
  *  otherwise write depth into the AO buffer and cast dark halos. Pip (and the plug in his hand: the
  *  seeOff materials) is skipped too, so the hero stays clean toon instead of greyed (R5-167), and so
  *  are tiny parts (AO_MIN_RADIUS). (Wraps the runtime's private _overrideVisibility, which the
- *  bundled type definitions don't declare.) */
+ *  bundled type definitions don't declare.)
+ *  Hiding them only keeps them out of the AO buffer: the blend still multiplied the whole frame, so the
+ *  crease behind Pip was printed across his body (render-2). The blend now compares the composer's
+ *  scene depth (the read buffer's depthTexture, which has Pip) with the AO pass's depth (which hasn't)
+ *  and skips pixels where a skipped object is in front. No extra draw calls; without a scene depth
+ *  texture it compares the AO depth with itself and blends as before. */
 export function toonGTAO(scene:T.Scene,camera:T.Camera,width:number,height:number){
   const pass=new GTAOPass(scene,camera,width,height),inner=pass as unknown as {_overrideVisibility:()=>void;_visibilityCache:T.Object3D[]};
   const base=inner._overrideVisibility.bind(pass);
   inner._overrideVisibility=()=>{base();scene.traverse(o=>{if(!o.visible)return;const m=(o as T.Mesh).material as T.Material|undefined;
     if((o as T.Sprite).isSprite||o.userData.noAO||(m&&!Array.isArray(m)&&((m.transparent&&m.opacity<.99)||m.blending===T.AdditiveBlending||(m.defines?.SEE_OFF!==undefined&&!m.userData.keepAO)))||((o as T.Mesh).isMesh&&tiny(o))){o.visible=false;inner._visibilityCache.push(o);}});};
+  const blend=pass.blendMaterial,u=blend.uniforms,cam=camera as T.PerspectiveCamera;
+  Object.assign(u,{tSceneDepth:{value:null},tAODepth:{value:null},cameraNear:{value:.1},cameraFar:{value:200}});blend.fragmentShader=aoMaskBlend;blend.needsUpdate=true;
+  const render=pass.render.bind(pass);
+  pass.render=(renderer,write,read,dt,mask)=>{u.tAODepth.value=pass.depthTexture;u.tSceneDepth.value=read.depthTexture??pass.depthTexture;u.cameraNear.value=cam.near;u.cameraFar.value=cam.far;render(renderer,write,read,dt,mask);};
   return pass;
 }
 /** Display-space grade: warm/cool split tone, saturation, contrast, vignette, fine grain. */

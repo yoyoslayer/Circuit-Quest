@@ -30,6 +30,12 @@ function puffMaterial(mesh:T.Mesh,color:string,map=false){
   let m=mesh.userData.smoke as T.MeshBasicMaterial|undefined;if(!m){m=new T.MeshBasicMaterial({transparent:true,depthWrite:false});m.userData.outlineParameters={visible:false};mesh.userData.smoke=m;}
   m.color.set(color);m.opacity=0;const alpha=map?soft():null;if(m.alphaMap!==alpha){m.alphaMap=alpha;m.needsUpdate=true;}mesh.material=m;return m;
 }
+/** Each ring fades its own material on its pooled mesh (render-4): with one shared per colour, a new
+ *  ring took the oldest live ring's nearly-faded opacity, then popped to full when that one died. */
+function ringMaterial(mesh:T.Mesh,color:string){
+  let m=mesh.userData.ring as T.MeshBasicMaterial|undefined;if(!m){m=new T.MeshBasicMaterial({side:T.DoubleSide,transparent:true,depthWrite:false,blending:T.AdditiveBlending});m.userData.outlineParameters={visible:false};mesh.userData.ring=m;}
+  m.color.set(color).multiplyScalar(2);m.opacity=1;mesh.material=m;return m;
+}
 /** Pooled particles: meshes share geometry/materials and shrink out instead of fading. */
 export class Particles {
   private live:Particle[]=[];private pool:T.Mesh[]=[];
@@ -41,7 +47,7 @@ export class Particles {
       if(kind==='confetti'){mesh.geometry=flatSquare;mesh.material=confetti(CONFETTI[i%CONFETTI.length]);velocity=new T.Vector3(r()*7,5+Math.random()*6,r()*7);life=2.4+Math.random();size=.16;}
       else if(kind==='spark'){mesh.geometry=streakGeo;mesh.material=hotFlat(color,2.2,true);velocity=new T.Vector3(r()*10,2.5+Math.random()*5.5,r()*10);life=.3+Math.random()*.35;size=.016;}
       else if(kind==='star'){mesh.geometry=starShape;mesh.material=hotFlat(color,2.4);velocity=new T.Vector3(r()*3,2+Math.random()*2,r()*3);life=.45;size=.35;}
-      else if(kind==='ring'){mesh.geometry=ringGeo;mesh.material=hotFlat(color,2,true);mesh.rotation.set(0,0,0);velocity=new T.Vector3();life=.45;size=.2;}
+      else if(kind==='ring'){mesh.geometry=ringGeo;ringMaterial(mesh,color);mesh.rotation.set(0,0,0);velocity=new T.Vector3();life=.45;size=.2;}
       else if(kind==='flash'){mesh.geometry=starShape;mesh.material=hotFlat(color,3.5,true);velocity=new T.Vector3();life=.18;size=1.4;}
       else if(kind==='puff'){
         // A small, low, short puff (impacts, a popped part): unoutlined, drifting sideways, gone in ~0.6 s,

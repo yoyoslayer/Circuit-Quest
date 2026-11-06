@@ -1,0 +1,15 @@
+
+[WebServer] (node:18484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:25580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/1] tests\astra-pip-batching.spec.ts:2:1 › Pip batches rigid details while preserving triangles, facial parts and live joints
+tests\astra-pip-batching.spec.ts:2:1 › Pip batches rigid details while preserving triangles, facial parts and live joints
+[{"mode":"nofreeze","meshes":51,"triangles":77380,"protectedParts":51,"face":[true,true,true],"handAttached":true,"hand":[0.37195160332803284,0.9918706942251801,0.31367453202928586],"head":[1.1359880883428526e-8,1.1627962048634588,-0.17987691148612409],"knees":true,"elbows":true},{"mode":"batched","meshes":23,"triangles":77380,"protectedParts":23,"face":[true,true,true],"handAttached":true,"hand":[0.3719516066881869,0.9918706929638803,0.3136745320291027],"head":[1.5297785376855043e-8,1.1627962048629663,-0.17987691148507393],"knees":true,"elbows":true}]
+
+  1 passed (24.0s)

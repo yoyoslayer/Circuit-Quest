@@ -1,0 +1,12 @@
+
+> circuit-crew@0.1.0 test
+> vitest run --maxWorkers=1
+
+
+ RUN  v4.1.11 C:/Users/yousi/Circuit-Quest-astra
+
+
+ Test Files  18 passed (18)
+      Tests  173 passed (173)
+   Start at  00:12:03
+   Duration  7.59s (transform 376ms, setup 0ms, import 781ms, tests 4.16s, environment 1ms)

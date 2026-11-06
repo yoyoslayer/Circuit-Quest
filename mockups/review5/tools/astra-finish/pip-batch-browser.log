@@ -1,0 +1,43 @@
+
+[WebServer] (node:17620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+
+(node:24040) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/3] tests\astra-animation.spec.ts:15:1 › a spoiled lunch reaches Pip’s quiet failure pose through real gameplay
+[2/3] tests\astra-pip-batching.spec.ts:2:1 › Pip batches rigid details while preserving triangles, facial parts and live joints
+  1) tests\astra-pip-batching.spec.ts:2:1 › Pip batches rigid details while preserving triangles, facial parts and live joints
+
+    Error: expect(received).toBeCloseTo(expected, precision)
+
+    Expected: -5.623064335578738
+    Received: -5.623058981280726
+
+    Expected precision:    5
+    Expected difference: < 0.000005
+    Received difference:   0.000005354298012072434
+
+      11 |  }
+      12 |  expect(results[1].meshes).toBeLessThan(results[0].meshes*.7);expect(results[1].triangles).toBe(results[0].triangles);
+    > 13 |  for(let i=0;i<3;i++)expect(results[1].hand[i]).toBeCloseTo(results[0].hand[i],5);
+         |                                                 ^
+      14 |  console.log(JSON.stringify(results));await testInfo.attach('pip-mesh-counts',{body:JSON.stringify(results,null,2),contentType:'application/json'});expect(errors).toEqual([]);
+      15 | });
+      16 |
+        at C:\Users\yousi\Circuit-Quest-astra\tests\astra-pip-batching.spec.ts:13:49
+
+    Error Context: test-results\astra\astra-pip-batching-Pip-bat-17e08-acial-parts-and-live-joints\error-context.md
+
+
+
+(node:24464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[3/3] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+  1 failed
+    tests\astra-pip-batching.spec.ts:2:1 › Pip batches rigid details while preserving triangles, facial parts and live joints
+  2 passed (49.8s)

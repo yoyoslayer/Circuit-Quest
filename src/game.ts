@@ -3,7 +3,7 @@ import {connectedGamepad} from './input/gamepad';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRenderer,toon,seeOff,seeThrough,seeProj,seeY,seeClip} from './render/toon';
-import {BLOBC,bangTexture,glyph,cachedTexture,part,cyl,sphere,box,rbox,group,INK} from './render/kit';
+import {freeze,BLOBC,bangTexture,glyph,cachedTexture,part,cyl,sphere,box,rbox,group,INK} from './render/kit';
 import {blob,hoseGeometry,hoseMaterial,Pulses,hot,glossyToon,type Accessory,type Mood} from './render/actors';
 // Plugged-in cable colours: teal (live) and grey-teal (dead), never a colour on the strain ramp (R5-284).
 const GOLD=new T.Color('#3fc9bd'),DULL_GOLD=new T.Color('#8fa8a5');
@@ -243,9 +243,11 @@ export class Game {
     const head=new T.Mesh(new T.SphereGeometry(.3,16,10),toon('#eab387'));head.position.y=1.43;this.avatar.add(head);
     const hat=new T.Mesh(new T.SphereGeometry(.33,16,8,0,Math.PI*2,0,Math.PI/2),toon('#ffc44b'));hat.position.y=1.52;this.avatar.add(hat);
     seeOff(this.avatar);this.root.add(this.avatar);
-    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=/lens/i.test(old.name)?hot('#fff0b8',2):/hat|gloves|boots/i.test(old.name)?glossyToon('#'+old.color.getHexString(),{spec:.6,size:.975}):toon('#'+old.color.getHexString());o.castShadow=true;o.receiveShadow=true;}});seeOff(gltf.scene);this.avatar.add(gltf.scene);
+    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=/lens/i.test(old.name)?hot('#fff0b8',2):/hat|gloves|boots/i.test(old.name)?glossyToon('#'+old.color.getHexString(),{spec:.6,size:.975}):toon('#'+old.color.getHexString());o.castShadow=true;o.receiveShadow=true;}});this.avatar.add(gltf.scene);
       // Parts are grouped by name prefix onto pivots (src/render/pipRig.ts).
-      this.rig=new PipRig(gltf.scene);this.hand=this.rig.hand;},undefined,()=>{document.body.dataset.assetFallback='true';});
+      this.rig=new PipRig(gltf.scene,new URLSearchParams(location.search).has('nofreeze')?undefined:freeze);
+      // Apply occlusion protection after batching so material clones do not prevent merging.
+      seeOff(gltf.scene);this.hand=this.rig.hand;},undefined,()=>{document.body.dataset.assetFallback='true';});
   }
   /** HUD, title, jobs, pause and result screens live in src/ui (see mockups/ui/UI.md). */
   setupUI(){setupGameUI(this);}

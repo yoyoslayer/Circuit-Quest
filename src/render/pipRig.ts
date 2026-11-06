@@ -29,7 +29,7 @@ export class PipRig {
   private wasAir=false;private wasBumped=false;private wasFailed=false;private wasWon=false;
   private previousCarry:PipState['carrying']='none';private previousPlug=false;private lastRawSpeed=0;
   private landingAge=2;private pickupAge=2;private bumpAge=2;private failureAge=2;private celebrationAge=2;
-  constructor(private model:T.Object3D){
+  constructor(private model:T.Object3D,batch?:(root:T.Object3D,keep:(o:T.Object3D)=>boolean)=>unknown){
     model.updateMatrixWorld(true);
     // The GLB wraps its parts in one root node ('Pip'); the parts are that node's children.
     const holder=model.children.length===1&&model.children[0].children.length>1?model.children[0]:model;
@@ -50,6 +50,13 @@ export class PipRig {
     this.head.traverse(o=>{if(/^HeadEye[LR]$/.test(o.name))this.eyes.push(o);if(/^HeadGlint/.test(o.name))this.glints.push(o);});
     for(const e of this.eyes)e.userData.baseY=e.scale.y;
     this.head.traverse(o=>{if(o.name==='HeadMouth'){this.mouth=o;o.userData.base=o.scale.clone();}});
+    if(batch){
+      // Merge only rigid details inside each pivot. Joint groups, the plug attachment,
+      // and facial parts remain separate so their transforms and expressions stay live.
+      const joints=[this.body,this.torso,this.head,this.hat,...this.legs,...this.arms,...this.knees,...this.elbows];
+      const live=new Set<T.Object3D>([...joints,this.hand,...this.eyes,...this.glints,...(this.mouth?[this.mouth]:[])]);
+      for(const joint of joints)batch(joint,o=>live.has(o));
+    }
   }
   update(s:PipState){
     const dt=Math.max(0,Math.min(.1,s.dt)),winning=s.won&&!s.failed,k=1-Math.exp(-dt*14),slow=1-Math.exp(-dt*6),gait=1-Math.exp(-dt*28);

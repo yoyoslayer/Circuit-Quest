@@ -522,3 +522,10 @@ Verified: build, 173 unit tests, Garage fault recovery, Observatory failed-decod
 Gameplay, bench cursors, menus and the controller indicator now choose the first connected controller instead of assuming slot zero. Empty slots and disconnected objects left in the browser list are ignored. When no controller is present, button-edge and menu-stick history resets, allowing fresh presses after reconnection.
 
 Verified: build, 173 unit tests, a real-game device fixture in slot two (movement, Start pause, A Resume, disconnected-object rejection) and rendered smoke pass. Evidence: `mockups/review5/tools/astra-finish/controller-{build,unit,browser}.log`.
+
+
+## 2026-11-06 — Batch rigid Pip details by joint
+
+Pip's rigid details now merge within each moving joint, preserving facial parts, every joint and the cable-hand attachment. Occlusion protection is applied afterward so its per-mesh material clones do not prevent batching. `?nofreeze` retains the unbatched reference. The measured rig drops from 51 meshes to 23 (55% fewer); it retains all 77,380 triangles and the same settled hand position. This measures mesh reduction, not an FPS claim.
+
+Verified: build, 173 unit tests, before/after loaded-asset comparison, real Lunch failure reaction and rendered smoke pass. The comparison verifies triangles, live facial parts, joint/hand parenting and occlusion protection. Twelve presentation captures report zero runtime errors; carry, haul, celebration and failure were visually compared with the previous captures. The initial pose comparison sampled slightly different animation settling; the fixture now fixes the avatar transform and settles the pose before comparing it within 0.5 mm. Evidence: `mockups/review5/tools/astra-finish/pip-batch-{build,unit,browser,final,capture}.log` and the pose metrics. Capture server 4192 stopped.

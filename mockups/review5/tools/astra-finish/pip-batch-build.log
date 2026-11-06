@@ -1,0 +1,18 @@
+
+> circuit-crew@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 89 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                               0.62 kB │ gzip:     0.36 kB
+dist/assets/fredoka-latin-ext-wdth-normal-DlxUVdql.woff2      8.82 kB
+dist/assets/fredoka-hebrew-wdth-normal-bvCbeAMu.woff2        16.79 kB
+dist/assets/fredoka-latin-wdth-normal-tvVNXCOf.woff2         67.82 kB
+dist/assets/index-B5hf7xAQ.css                               51.29 kB │ gzip:    12.00 kB
+dist/assets/three-DMQTsZfk.js                               623.81 kB │ gzip:   158.12 kB
+dist/assets/index-CU4P5pcL.js                               736.28 kB │ gzip:   260.04 kB
+dist/assets/rapier-OnF19VgH.js                            4,334.40 kB │ gzip: 1,644.49 kB
+✓ built in 2.15s

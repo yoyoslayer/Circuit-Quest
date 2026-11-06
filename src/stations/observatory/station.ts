@@ -202,7 +202,7 @@ export class ObservatoryBench implements Station {
 
   // ---------- actions ----------
   act(name:string,arg?:unknown):boolean{
-    const j=this.current(),a=this.game.audio;if(!j)return false;
+    const j=this.current(),a=this.game.audio;if(!j)return false;const previousSetup=JSON.stringify(this.state());
     switch(name){
       case 'pick':{const k=arg as Kind;if(!KINDS.includes(k))return false;
         if(this.held===k){this.held=undefined;a.tone(380,.05,.03,'triangle');break;}this.held=k;a.pop();break;}
@@ -242,6 +242,7 @@ export class ObservatoryBench implements Station {
         if(next?.beacon)this.gust();this.redraw();return true;}
       default:return false;
     }
+    if(['slot','turn','value','clear','rod','orient'].includes(name)&&JSON.stringify(this.state())!==previousSetup&&this.toast)this.toast.hidden=true;
     this.redraw();return true;
   }
   /** A gust over the roof knocks the whip flat (the beacon's polarisation then matters). The whip

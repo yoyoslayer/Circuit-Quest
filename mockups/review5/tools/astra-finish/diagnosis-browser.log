@@ -1,0 +1,14 @@
+
+[WebServer] (node:2192) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+
+(node:14016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/3] tests\smoke.spec.ts:2:1 › loads a rendered playable scene without runtime errors
+[2/3] tests\station-garage.spec.ts:73:1 › robot garage: polarity and place are real choices, PULSE experiments are free of mistakes, and every fault is recoverable
+[3/3] tests\station-observatory.spec.ts:60:1 › signal observatory: a failed decode and a dropped latch are explained, and swapping the part recovers
+  3 passed (1.2m)

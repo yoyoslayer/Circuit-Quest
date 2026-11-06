@@ -83,7 +83,7 @@ test('robot garage: polarity and place are real choices, PULSE experiments are f
   await wait(page,.1);await expect(page.locator('.prompt-pill')).toContainText('Fuse cooling');await expect(page.locator('.prompt-pill kbd')).toHaveCount(0);
   const before=await page.locator('.station-panel').innerText();await wait(page,.6);expect(await page.locator('.station-panel').innerText()).not.toBe(before);
   // Flip it back; the PTC fuse cools and conducts again by itself, and the diode clamps the kick.
-  await steps(page,[['flip','fly']]);await wait(page,2.6);
+  await steps(page,[['flip','fly']]);await expect(page.locator('.station-toast')).toBeHidden();await wait(page,2.6);
   s=await station(page);expect(s.fuse).toBe(true);
   await steps(page,[['pulse'],['test']]);s=await station(page);expect(s.logged[0].tier).toBe(3);
   // Job 2: testing the plain diode fails the brake (a mistake, with the reason), without the reset cue.

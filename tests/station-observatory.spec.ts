@@ -65,8 +65,11 @@ test('signal observatory: a failed decode and a dropped latch are explained, and
   await expect(page.locator('.station-toast')).toContainText('Signal/noise');
   // A slot needs a module first.
   expect((await act(page,'slot','series')).ok).toBe(false);
+  // A valid circuit edit clears the obsolete failure, while a rejected empty slot did not change it.
+  await expect(page.locator('.station-toast')).toContainText('Signal/noise');
+  await steps(page,[['pick','L'],['slot','series']]);await expect(page.locator('.station-toast')).toBeHidden();
   // An LC low-pass decodes reliably, but cheaper parts can do it once the cart is moved.
-  await steps(page,[['pick','L'],['slot','series'],['value',{slot:'series',value:.01}],['pick','C'],['slot','shunt'],['value',{slot:'shunt',value:1e-6}],['route'],['log']]);
+  await steps(page,[['value',{slot:'series',value:.01}],['pick','C'],['slot','shunt'],['value',{slot:'shunt',value:1e-6}],['route'],['log']]);
   s=(await snapshot(page)).station;expect(s.logged[0].tier).toBe(2);
   await expect(page.locator('.station-toast')).toContainText('Cheaper parts');
   // Job 2: an RC low-pass (a resistor can in series) starves the latch.

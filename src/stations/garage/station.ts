@@ -263,7 +263,7 @@ export class GarageBench implements Station {
   act(name:string,arg?:unknown):boolean{
     // Carrying on during the served beat ends it: the passed parts go back to the tray at once.
     if(this.beatSlots)this.beatSlots=undefined;
-    const j=this.current(),a=this.game.audio;if(!j)return false;
+    const j=this.current(),a=this.game.audio;if(!j)return false;const previousSetup=setupKey(this.setup());
     switch(name){
       case 'pick':{const id=arg as PartId;if(!PARTS[id])return false;
         if(this.held===id){this.held=undefined;a.tone(380,.05,.03,'triangle');break;}
@@ -320,6 +320,7 @@ export class GarageBench implements Station {
         this.redraw();return true;}
       default:return false;
     }
+    if(setupKey(this.setup())!==previousSetup&&this.toast)this.toast.hidden=true;
     this.redraw();return true;
   }
   /** Dead short: the PTC fuse trips with a bang and a shower of sparks, then cools and resets itself. */

@@ -508,3 +508,10 @@ Verified: build, 173 unit tests, QFN rejection/repair/undo/shipment, and rendere
 Pausing releases the thumbstick's finger ID and recentres its knob, so a finger still resting on the screen cannot start walking again after Resume. A second finger cannot take over an existing drag. Losing pointer capture also releases the control. The phone regression uses actual Chromium touch events, including two simultaneous fingers, pause/resume with one still held, and a fresh touch afterward.
 
 Verified: production build, 173 unit tests, phone touch regression and rendered smoke pass. The first touch fixture incorrectly ended every active contact while attempting to release only the secondary finger; its active-point sequence was corrected before the passing run. Evidence: `mockups/review5/tools/astra-finish/touch-{build,unit,browser,final}.log`. The phone capture was inspected.
+
+
+## 2026-11-06 — Garage and Observatory diagnosis invalidation
+
+Changing the fitted Garage circuit clears the old pulse/test caption while retaining its stale-capture cue to pulse again. Observatory clears old decode feedback when a can, value, whip or orientation actually changes; rerouting still shows its fresh explanation. Invalid actions leave the relevant old feedback in place. The existing fault-and-recovery routes now assert these distinctions.
+
+Verified: build, 173 unit tests, Garage fault recovery, Observatory failed-decode/latch recovery, and rendered smoke pass. Evidence: `mockups/review5/tools/astra-finish/diagnosis-{build,unit,browser}.log`.

@@ -299,7 +299,10 @@ export class ArcadeBench implements Station {
   private edited(){this.touched=true;if(this.toast)this.toast.hidden=true;this.changed();}
   /** A hovered part that is no longer on show (a hidden LED or slot) drops its hover. */
   private unhover(){if(this.hovered&&!visibleUp(this.hovered.obj)){this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);this.hovered=undefined;}}
-  private powerOff(){this.powered=false;this.changed();}
+  /** Off by any route (the lever, a pop, the bench lead pulled out): the lever, lamp and stamp follow at once. */
+  private powerOff(){this.powered=false;this.changed();this.drawControls();}
+  private controlMats={lampOn:hot('#6dff9a',1.6),lampOff:toon('#5a4a60'),stampOn:hot('#6dff9a',1.1),stampOff:toon('#8a9a8e')};
+  private drawControls(){const m=this.controlMats;this.lever.rotation.x=this.powered?.6:-.6;this.powerLamp.material=this.powered?m.lampOn:m.lampOff;this.signBtn.material=this.soakDone?m.stampOn:m.stampOff;}
   act(name:string,arg?:unknown):boolean{
     const a=this.game.audio,j=this.current();
     if(!j)return false;
@@ -405,8 +408,7 @@ export class ArcadeBench implements Station {
       if(this.held){const at=this.bins.get(this.held)!.position;this.heldMesh=blockMesh(this.held);this.heldMesh.position.set(at.x,.3,at.z);this.heldMesh.scale.setScalar(1.25);
         const ring=part(this.heldMesh,new T.TorusGeometry(.12,.01,8,32),hot(LEMON,1.2),0,-.12,0,false);ring.rotation.x=Math.PI/2;this.binsGroup.add(this.heldMesh);}}
     this.ledGroup.rotation.y=this.setup.reversed?Math.PI:0;
-    this.lever.rotation.x=this.powered?.6:-.6;this.powerLamp.material=this.powered?hot('#6dff9a',1.6):toon('#5a4a60');
-    this.signBtn.material=this.soakDone?hot('#6dff9a',1.1):toon('#8a9a8e');
+    this.drawControls();
     if(j&&!this.tripped)this.marquee.draw(`m${this.index}`,(c,w,h)=>drawMarquee(c,w,h,j.cabinet,false));
     this.unhover();this.drawMeter();this.shown='';this.updatePanel();
   }
@@ -613,7 +615,8 @@ export class ArcadeBench implements Station {
   snapshot(){const j=this.current();return {index:this.index,prizesDown:this.prizesDown,job:j?.id??null,fix:j?best(j)??null:null,rush:this.rush,setup:clone(this.setup),held:this.held??null,powered:this.powered,live:this.live,
     tripped:this.tripped,cooling:+this.cooling.toFixed(2),soak:+this.soak.toFixed(2),soakDone:this.soakDone,verdict:this.verdict?{tier:this.verdict.tier,notes:this.verdict.notes}:null,
     served:this.served,mistakes:this.mistakes,trips:this.trips,spent:this.spent,trayReady:this.trayReady,reading:j?read(j,this.setup):null,
-    heat:{led:this.heat.led,blocks:this.heat.blocks.map(p=>[...p]),across:this.heat.across}};}
+    heat:{led:this.heat.led,blocks:this.heat.blocks.map(p=>[...p]),across:this.heat.across},
+    controls:{lever:this.lever.rotation.x>0,lamp:this.powerLamp.material===this.controlMats.lampOn,stamp:this.signBtn.material===this.controlMats.stampOn}};}
 }
 
 /** Current made visible: small glowing dashes that run along a closed loop on the board while current

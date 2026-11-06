@@ -86,7 +86,12 @@ describe('arcade circuit rules',()=>{
     expect(heatAt(3,5)).toBeGreaterThan(HOUSE.blockPop);
     // The claw as found: its 220 Ω block runs at 1.77× and scorches rather than popping in seconds.
     const r=read(job('claw'),job('claw').start);expect(r.rHeat).toBeGreaterThan(1);expect(r.rHeat).toBeLessThan(HOUSE.blockPop);
-    expect(judge(job('hopper'),s(chain([100],[47]))).problems[0]??'').not.toMatch(/popped/);
+    // The base job: too little resistance is the logic pin's rating, not a block that pops. 147 Ω keeps
+    // every block cool; a lone 47 Ω block scorches (over its rating, short of the pop line).
+    const over=judge(job('hopper'),s(chain([100],[47])));expect(over.tier).toBe(0);expect(over.problems[0]).toMatch(/29\.1 mA is over the logic pin's 20 mA rating/);
+    expect(read(job('hopper'),s(chain([100],[47]))).rHeat).toBeLessThan(1);
+    const lone=read(job('hopper'),s(chain([47])));expect(lone.rHeat).toBeGreaterThan(1);expect(lone.rHeat).toBeLessThan(HOUSE.blockPop);
+    expect(judge(job('hopper'),s(chain([47]))).problems[0]).toMatch(/over the logic pin's 20 mA rating/);
   });
   it('an LED over its rating runs hot; only far past it does it burn out at once',()=>{
     const over=judge(job('bumper'),s(chain([100]))).problems[0];expect(over).toMatch(/1\.5× the LED/);expect(over).toMatch(/dies early/);

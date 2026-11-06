@@ -96,6 +96,7 @@ const endMark=(kind:'+'|'node'|'gnd')=>canvasTex(96,96,c=>{c.clearRect(0,0,96,96
   else if(kind==='node'){c.fillStyle=INK;c.arc(48,48,13,0,7);c.fill();}
   else{c.lineWidth=8;c.moveTo(48,18);c.lineTo(48,40);c.moveTo(22,42);c.lineTo(74,42);c.moveTo(31,57);c.lineTo(65,57);c.moveTo(40,72);c.lineTo(56,72);}
   c.stroke();});
+function visibleUp(o:T.Object3D){let p:T.Object3D|null=o;while(p){if(!p.visible)return false;p=p.parent;}return true;}
 const shuffled=<X,>(a:X[])=>{const b=a.slice();for(let k=b.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[b[k],b[j]]=[b[j],b[k]];}return b;};
 
 export class GarageBench implements Station {
@@ -130,6 +131,9 @@ export class GarageBench implements Station {
   private kickT=-1;private kickV?:Verdict;private kickLoop:Loop|null=null;private kickLong=false;private kickBrake=false;private kickShared=0;private kickTrace?:Trace;private arc=new T.Group();private arcSegs:T.Mesh[]=[];private arcGlow!:T.Sprite;private arcT=0;private arcMax=.6;private arcLight!:T.PointLight;private dizzy=0;private fetBody!:T.Mesh;private fetHot=hot('#ff8a3d',1.25);private fetCold=toon(INK);
   /** The bench beat after a TEST pass (R5-087): the passed board stays fitted until the cycles finish. */
   private beatSlots?:GarageBench['slots'];private beatUntil=0;private pendingDrive=false;private whirrT=0;private headSpin=0;
+  /** The robot's heading on its drive, integrated here, and the seconds it spent pointing well off
+   *  its travel direction (snapshot: the drive must not crab-walk). */
+  private driveYaw=0;private driveSlip=0;
   private scopeCanvas!:HTMLCanvasElement;private scopeTex!:T.CanvasTexture;private scopeKey='';private sweep=1;
   private panel?:HTMLElement;private toast?:HTMLElement;private toastUntil=0;private shown='';
   private bot?:Game['props'][number];private robot:RobotParts;private spin=0;private motorOn=0;private resetFlash=0;private cycleT=-1;private cycleFail=false;private ready=false;
@@ -153,10 +157,12 @@ export class GarageBench implements Station {
   }
   dress(kit:RoomKit){return dressGarage(this.game,kit);}
   current():Job|undefined{return JOBS[this.jobIndex];}
+  /** The job the board is wired for: the current one, or the last one once all have passed. */
+  private boardJob():Job{return this.current()??JOBS[JOBS.length-1];}
   setup():Setup{return {...this.slots,star:this.star};}
   /** Each job the parts come back to the tray lying either way round: reading the band is the job. */
   private rollTray(){for(const id of PART_IDS)this.trayFlip[id]=PARTS[id].polar&&Math.random()<.5;}
-  private long(){return (this.current()?.shared??0)>.1;}
+  private long(){return this.boardJob().shared>.1;}
 
   // ---------- the bench ----------
   private buildBench(){
@@ -261,8 +267,9 @@ export class GarageBench implements Station {
 
   // ---------- actions ----------
   act(name:string,arg?:unknown):boolean{
-    // Carrying on during the served beat ends it: the passed parts go back to the tray at once.
-    if(this.beatSlots)this.beatSlots=undefined;
+    // Carrying on during the served beat ends it: the passed parts go back to the tray at once
+    // (redrawn here, as a refused action returns before the redraw at the end).
+    if(this.beatSlots){this.beatSlots=undefined;this.redraw();}
     const j=this.current(),a=this.game.audio;if(!j)return false;
     switch(name){
       case 'pick':{const id=arg as PartId;if(!PARTS[id])return false;
@@ -349,24 +356,26 @@ export class GarageBench implements Station {
   private startDrive(){
     const b=this.bot;if(!b){this.delivered=true;return;}
     // The test-cycle animation stops before the drive, so its beeps never run under it (R5-096).
-    this.driving=true;this.driveT=0;this.cycleT=-1;this.kickT=-1;this.pendingDrive=false;b.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
+    this.driving=true;this.driveT=0;this.driveSlip=0;this.driveYaw=new T.Euler().setFromQuaternion(new T.Quaternion().copy(b.body.rotation() as T.Quaternion),'YXZ').y;this.cycleT=-1;this.kickT=-1;this.pendingDrive=false;b.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
     if(this.game.atBench)this.game.leaveBench();
     this.say('All three fixes pass. Off it goes on its delivery route!','ok');
   }
 
   // ---------- drawing ----------
+  /** Where each part is drawn this frame (snapshot: the drawing must match the board). */
+  private drawn:Partial<Record<PartId,SlotId>>={};
   redraw(){
-    const slots=this.beatSlots??this.slots;
+    const slots=this.beatSlots??this.slots;this.drawn={};
     for(const id of PART_IDS){const m=this.parts.get(id)!,slot=(Object.keys(slots) as SlotId[]).find(s=>slots[s]?.part===id);
       const body=m.getObjectByName('body')!;
-      if(slot){const f=slots[slot]!;m.position.copy(this.slotAt.get(slot)!.pos);body.rotation.y=f.flipped?Math.PI:0;}
+      if(slot){const f=slots[slot]!;this.drawn[id]=slot;m.position.copy(this.slotAt.get(slot)!.pos);body.rotation.y=f.flipped?Math.PI:0;}
       else{m.position.copy(this.trayAt.get(id)!);body.rotation.y=this.trayFlip[id]?Math.PI:0;}
       if(this.held===id)m.position.y+=.08;}
     // Every socket the part in hand can sit in glows (the choice of place is the player's).
     for(const [id,s] of this.slotAt){const fit=this.slots[id],ok=this.held&&PARTS[this.held].slots.includes(id);(s.pad.material as T.Material)=toon(ok?PAD_HOT:fit?'#2b4a55':PAD_OFF);
       this.marks.get(id)!.visible=!fit;const fb=this.flipBtns.get(id)!;fb.visible=!!fit&&PARTS[fit.part].polar;}
     this.shared.visible=!this.star;this.starWire.visible=this.star;
-    const long=this.long(),brake=jobCoil(this.current()??JOBS[0]).id==='brake';this.gndShort.visible=!long;this.gndLong.visible=long;
+    const long=this.long(),brake=jobCoil(this.boardJob()).id==='brake';this.gndShort.visible=!long;this.gndLong.visible=long;
     this.motorMesh.visible=!brake;this.brakeMesh.visible=brake;setSign(this.coilSign,brake?'BRAKE COIL':'MOTOR','#fffaf0',INK,512,171);setSign(this.flySection,brake?'ACROSS COIL':'ACROSS MOTOR','#fffaf0',INK,512,111);
     setSign(this.routeSign,this.star?'GROUND: STAR':'GROUND: SHARED',this.star?'#b8d6ff':'#ffe7a8',INK,512,190);
     this.scopeKey='';this.shown='';this.updatePanel();
@@ -418,7 +427,8 @@ export class GarageBench implements Station {
   }
   private setupStale(){return !!this.capture&&this.capture.key!==setupKey(this.setup());}
   pointer(e:Pointer){
-    const hits=e.ray.intersectObjects(this.clickables.map(c=>c.obj),true);let found:Clickable|undefined;
+    // Hidden clickables (a flip button beside an empty socket) are not hit.
+    const hits=e.ray.intersectObjects(this.clickables.filter(c=>visibleUp(c.obj)).map(c=>c.obj),true);let found:Clickable|undefined;
     for(const h of hits){let o:T.Object3D|null=h.object;while(o&&!found){found=this.clickables.find(c=>c.obj===o);o=o.parent;}if(found)break;}
     if(this.hovered!==found){if(this.hovered)this.hovered.obj.scale.copy(this.hovered.obj.userData.baseScale);if(found)found.obj.scale.copy(found.obj.userData.baseScale).multiplyScalar(1.1);this.hovered=found;}
     document.body.style.cursor=found&&this.active?'pointer':'';
@@ -441,6 +451,8 @@ export class GarageBench implements Station {
       this.say('Robot on the stand and wired to the bench. Sit at the bench to diagnose it.','ok');this.redraw();}
   }
   private placeOnStand(){const b=this.bot;if(!b)return;b.body.setTranslation({x:STAND.x,y:STAND.y,z:STAND.z},true);b.body.setRotation(new T.Quaternion(),true);b.body.setLinvel({x:0,y:0,z:0},true);b.body.setAngvel({x:0,y:0,z:0},true);b.body.setBodyType(RAPIER.RigidBodyType.Fixed,true);}
+  // Wired to the stand the robot is a fixed body, and Game.nearest() never offers a fixed prop to E
+  // (R6 stations-a-3). Its mesh stays visible, so the cable still wraps around it.
   private init(){this.ready=true;this.bot=this.game.props.find(p=>p.spec.id==='robot');this.parcels=this.game.props.filter(p=>parcelStack.includes(p.spec));this.harness=this.game.root.getObjectByName('garage-harness');
     // The robot prop is a cart physics body; the teal robot model is drawn over it instead.
     if(this.bot)for(const c of this.bot.mesh.children)c.scale.setScalar(0);
@@ -471,8 +483,11 @@ export class GarageBench implements Station {
     if(this.driving&&b){this.driveT+=dt;const d=Math.min(ROUTE_LEN,Math.max(0,(this.driveT-.4)*DRIVE_SPEED));
       let left=d,k=1;while(k<ROUTE.length-1&&left>Math.hypot(ROUTE[k][0]-ROUTE[k-1][0],ROUTE[k][1]-ROUTE[k-1][1])){left-=Math.hypot(ROUTE[k][0]-ROUTE[k-1][0],ROUTE[k][1]-ROUTE[k-1][1]);k++;}
       const [x0,z0]=ROUTE[k-1],[x1,z1]=ROUTE[k],seg=Math.hypot(x1-x0,z1-z0),f=Math.min(1,left/seg),x=x0+(x1-x0)*f,z=z0+(z1-z0)*f;
-      const yaw=-Math.atan2(z1-z0,x1-x0),cur=new T.Euler().setFromQuaternion(new T.Quaternion().copy(b.body.rotation() as T.Quaternion));
-      const turn=Math.atan2(Math.sin(yaw-cur.y),Math.cos(yaw-cur.y)),ny=cur.y+turn*Math.min(1,dt*6);
+      // The model's nose is +x: yaw −atan2(dz,dx) points it down the segment.
+      const yaw=-Math.atan2(z1-z0,x1-x0),turn=Math.atan2(Math.sin(yaw-this.driveYaw),Math.cos(yaw-this.driveYaw));
+      // The nose as drawn (from the body), against the travel direction, while the robot is moving.
+      if(d>0&&d<ROUTE_LEN){const nose=new T.Vector3(1,0,0).applyQuaternion(new T.Quaternion().copy(b.body.rotation() as T.Quaternion));if(nose.x*(x1-x0)/seg+nose.z*(z1-z0)/seg<Math.cos(.6))this.driveSlip+=dt;}
+      const ny=this.driveYaw=this.driveYaw+turn*Math.min(1,dt*6);
       const yy=d<1.2?STAND.y+(.35-STAND.y)*Math.min(1,d/1.2):.35;
       b.body.setNextKinematicTranslation({x,y:yy,z});b.body.setNextKinematicRotation(new T.Quaternion().setFromEuler(new T.Euler(0,ny,0)));
       this.motorOn=d<ROUTE_LEN?1:0;this.whirrT-=dt;if(this.motorOn&&this.whirrT<=0){this.whirrT=.45;this.game.audio.whirr();}
@@ -601,9 +616,11 @@ export class GarageBench implements Station {
       if(g.held===this.bot&&this.bot){const q=this.bot.body.translation();return {key:'E',text:Math.hypot(q.x-STAND.x,q.z-STAND.z)<2.6?'Set the robot on the stand':'Carry the robot'};}
       const by=!g.held&&this.bot&&g.nearest()===this.bot;
       if(by&&!this.onStand)return {key:'E',text:'Pick up the delivery robot'};
+      // On the stand the robot is out of E's reach: say so when nothing else is in reach.
+      const wired=this.onStand&&!g.held&&!!this.bot&&!g.nearest()&&Math.hypot(p.x-this.bot.body.translation().x,p.z-this.bot.body.translation().z)<1.65;
       // The bench only offers E once there is a robot on the stand to work on.
       if(near)return this.onStand?{key:'E',text:'Work at the bench'}:{key:'',text:'Bring the robot to the test stand first'};
-      if(by)return {key:'',text:'The robot is wired to the test stand'};
+      if(wired)return {key:'',text:'The robot is wired to the test stand'};
       return null;}
     const h=this.hoverHint();if(h)return h;
     if(!this.onStand)return {key:'',text:'Fetch the robot first'};
@@ -618,10 +635,15 @@ export class GarageBench implements Station {
   /** The win shot frames Pip with the robot at its dock (R5-077). */
   winFocus(){const q=this.bot?.body.translation();return q?new T.Vector3(q.x,q.y+.4,q.z):new T.Vector3(this.table.x,this.table.y+.5,this.table.z);}
   score(){return {mistakes:this.mistakes,cost:Math.round(this.spent*10)/10};}
+  /** Page coordinates of each flip button's cap (browser tests drive the real pointer with these). */
+  private flipScreens(){const cam=this.game.view.camera,rect=this.game.view.renderer.domElement.getBoundingClientRect(),out:Partial<Record<SlotId,[number,number]>>={};
+    cam.updateMatrixWorld();this.root.updateMatrixWorld(true);
+    for(const [id,b] of this.flipBtns){const v=b.localToWorld(new T.Vector3(0,.06,0)).project(cam);out[id]=[Math.round(rect.left+(v.x+1)/2*rect.width),Math.round(rect.top+(1-v.y)/2*rect.height)];}
+    return out;}
   snapshot(){const j=this.current(),s=this.setup(),v=j?judge(j,s):undefined;
     return {job:this.jobIndex,parcelsBowled:this.parcelsBowled,logged:this.logged.map(l=>({job:l.job,tier:l.verdict.tier,spike:l.verdict.spike,offTime:l.verdict.offTime,parts:l.verdict.parts})),slots:{...this.slots},star:this.star,held:this.held??null,
       order:this.order,trayFlip:{...this.trayFlip},stuck:this.stuck,gndHeat:+this.gndHeat.toFixed(2),gndColor:this.gndMat.color.getHexString(),motorOn:this.motorOn,resetFlash:this.resetFlash,
-      fuse:this.fuse,cooling:this.cooling,onStand:this.onStand,driving:this.driving,delivered:this.delivered,mistakes:this.mistakes,spent:this.spent,scope:this.scopeMode,captures:this.captures,
+      fuse:this.fuse,cooling:this.cooling,onStand:this.onStand,driving:this.driving,delivered:this.delivered,drawn:{...this.drawn},beat:!!this.beatSlots,flipAt:this.flipScreens(),hover:this.hovered?{act:this.hovered.act,arg:this.hovered.arg??null}:null,gndLong:this.gndLong.visible,driveSlip:+this.driveSlip.toFixed(2),mistakes:this.mistakes,spent:this.spent,scope:this.scopeMode,captures:this.captures,
       capture:this.capture?{fault:this.capture.verdict.fault??null,spike:this.capture.verdict.spike,offTime:this.capture.verdict.offTime,dip:this.capture.verdict.dip}:null,
       verdict:v?{tier:v.tier,fault:v.fault??null,spike:v.spike,dip:v.dip,offTime:v.offTime}:null,startDip:j?startDip(j,s):null};}
 }

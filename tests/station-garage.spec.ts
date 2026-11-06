@@ -43,6 +43,10 @@ test('robot garage: catch the kick, clamp it, brake fast, star-ground the contro
   await fit(page,'diode','fly');await steps(page,[['pulse']]);
   s=await station(page);expect(s.capture.fault).toBeNull();expect(s.capture.spike).toBeLessThan(14);
   await steps(page,[['test']]);s=await station(page);expect(s.logged[0].tier).toBe(3);
+  // The served beat keeps the passed diode drawn in its socket; a refused action ends the beat and
+  // the drawing follows the bare board at once (R6 stations-a-2).
+  expect(s.beat).toBe(true);expect(s.drawn).toEqual({diode:'fly'});
+  expect((await act(page,'clear')).ok).toBe(false);s=await station(page);expect(s.beat).toBe(false);expect(s.drawn).toEqual({});
   // 2 · The parking brake: the board is bare again; a plain diode empties the brake coil too slowly.
   expect(s.slots).toEqual({});
   await expect(page.locator('.station-panel')).toContainText('Brake at the line');
@@ -57,12 +61,15 @@ test('robot garage: catch the kick, clamp it, brake fast, star-ground the contro
   // The proof is shown where the failure was: the scope stays on the START trace.
   expect(s.scope).toBe('start');
   // The last pass holds a beat while its five test cycles run (R5-087), then the robot sets off.
-  await steps(page,[['test']]);s=await station(page);expect(s.driving).toBe(false);await wait(page,3.4);s=await station(page);
+  // Job 3's long shared ground stays on show through the beat (R6 stations-a-6).
+  await steps(page,[['test']]);s=await station(page);expect(s.driving).toBe(false);expect(s.gndLong).toBe(true);await wait(page,3.4);s=await station(page);
   expect(s.logged.map((l:{tier:number})=>l.tier)).toEqual([3,3,3]);expect(s.driving).toBe(true);expect((await snapshot(page)).atBench).toBe(false);
   await wait(page,.2);await expect(page.locator('.prompt-pill')).toContainText('Follow the robot');
   // The payoff: the robot drives its route to the dock.
   await wait(page,12);s=await snapshot(page);
   expect(s.station.delivered).toBe(true);expect(s.won).toBe(true);expect(s.station.mistakes).toBe(0);
+  // It drives nose first: only the corners turn it off its travel direction, briefly (R6 stations-a-1).
+  expect(s.station.driveSlip).toBeLessThan(1.2);
   const bot=s.items.find((i:{id:string})=>i.id==='robot');expect(bot.pos.x).toBeLessThan(-7);expect(bot.pos.z).toBeLessThan(-5);
   await expect(page.locator('body')).toHaveAttribute('data-complete','true',{timeout:8000});
   // Two of three: the tidy run skips the room's chaos bonus (earned in station-cable.spec).
@@ -104,7 +111,28 @@ test('robot garage: polarity and place are real choices, PULSE experiments are f
   await fit(page,'diode','fly');await fit(page,'cap','ctrl');await steps(page,[['pulse']]);s=await station(page);expect(s.capture.fault).toBe('start');expect(s.capture.dip).toBeLessThan(.9);
   await expect(page.locator('.station-toast')).toContainText('browned out');
   expect(s.mistakes).toBe(1);
+  // The flip button beside a socket is there only while a polar part sits in it, and the pointer only
+  // finds it then: over the bare board where a hidden one sits, nothing is hovered (R6 stations-a-5).
+  await fit(page,'diode','fly');let on=false;
+  for(let i=0;i<40&&!on;i++){await page.mouse.move(...((await station(page)).flipAt.fly as [number,number]));on=(await station(page)).hover?.act==='flip';if(!on)await page.waitForTimeout(250);}
+  expect(on,'the visible flip button is under the pointer').toBe(true);
+  await steps(page,[['slot','fly']]);await page.mouse.move(...((await station(page)).flipAt.fly as [number,number]),{steps:2});
+  s=await station(page);expect(s.slots.fly).toBeUndefined();expect(s.hover?.act??null).not.toBe('flip');
+  await expect(page.locator('.prompt-pill')).not.toContainText('Flip it round');
   // Stepping back from the bench returns the keys to walking.
   await page.keyboard.press('Escape');expect((await snapshot(page)).atBench).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('robot garage: the robot wired to the test stand stays there: E does not pick it up (R6 stations-a-3)',async({page})=>{
+  const errors=await open(page,'garage');await wait(page,.1);
+  await walk(page,6.4,-4.2,.5);await page.keyboard.press('KeyE');expect((await snapshot(page)).held).toBe('robot');
+  await route(page,[[3.4,-4],[2.5,-4.4]]);await page.keyboard.press('KeyE');await wait(page,.3);
+  expect((await station(page)).onStand).toBe(true);
+  // Behind the bench, in reach of the robot (1.65 m) but outside the bench's own radius.
+  await walk(page,1.9,-4.2,.25);let s=await snapshot(page);
+  expect(Math.hypot(s.player.x-.7,s.player.z+4.45)).toBeLessThan(1.6);
+  await page.keyboard.press('KeyE');await wait(page,.2);s=await snapshot(page);
+  expect(s.held).not.toBe('robot');expect(s.station.onStand).toBe(true);
   expect(errors).toEqual([]);
 });

@@ -536,3 +536,10 @@ Verified: build, 173 unit tests, before/after loaded-asset comparison, real Lunc
 Glossy toon materials now restore their highlight/rim shader hooks when cloned, including their custom highlight strength, edge width and shader cache key. Previously ordinary MeshToonMaterial cloning dropped those hooks when Pip's parts received occlusion protection, flattening the hat, boots and gloves. The material subclass retains the settings through repeated clones without sharing mutable colour state.
 
 Verified: build, 174 unit tests, full-render coworker animation, the 51-to-23 Pip mesh comparison, and rendered smoke pass. A full-quality GPU capture compiled three glossy shader programs with zero runtime errors; its highlights were visually inspected. The first screenshot exceeded the default 30-second software-rendering capture timeout; the shared capture helper's longer timeout succeeded. Capture server 4192 stopped. Evidence: `mockups/review5/tools/astra-finish/glossy-{build,unit,browser,capture}.log` and `tools/astra-animation/glossy.mjs` under that review.
+
+
+## 2026-11-06 — Interrupted controller drags
+
+Unplugging the active controller while holding a bench part now cancels the interaction and hides its cursor. It leaves the part at its committed position. Resuming while A is already held seeds the cursor's button state, so the Resume press does not also become a fresh bench click.
+
+Verified: build, 174 unit tests, the real QFN route with mouse focus-loss cancellation, controller disconnect during a drag, held-A Resume, controller slot-two behavior and rendered smoke pass. Evidence: `mockups/review5/tools/astra-finish/controller-drag-{build,unit,browser}.log`.

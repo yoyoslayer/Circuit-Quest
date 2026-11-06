@@ -296,7 +296,14 @@ export class Game {
   }
   begin(){if(this.running)return;const ui=gameUI(this);if(ui?.beforeBegin())return;this.running=true;this.survey=false;this.audio.start();ui?.started();}
   /** Gamepad buttons are read every frame so Start/A also work on the intro card and while paused. */
-  pollPad(dt=1/60){const pad=connectedGamepad();if(!pad){this.padHeld=[];return;}
+  pollPad(dt=1/60){const pad=connectedGamepad();if(!pad){
+      this.padHeld=[];
+      if(this.padCursor){
+        if(this.padCursor.down&&this.atBench){this.station?.setActive(false);if(!this.paused&&!this.won)this.station?.setActive(true);}
+        this.padCursor.down=false;this.padCursor.el.hidden=true;
+      }
+      return;
+    }
     const bench=this.atBench&&this.running&&!this.paused&&!this.won;if(bench)this.padBench(pad,dt);
     pad.buttons.forEach((b,i)=>{const pressed=b.pressed&&!this.padHeld[i];this.padHeld[i]=b.pressed;if(!pressed)return;
       if(!this.running){if(i===0||i===9)this.begin();return;}if(this.won){if(i===0)location.reload();return;}
@@ -328,7 +335,7 @@ export class Game {
     // Copy bench notes into pause before deactivating the station. Deactivation cancels
     // an unfinished stroke/drag without committing it; resuming starts a fresh interaction.
     if(this.atBench)this.station?.setActive(!this.paused);
-    if(this.padCursor){this.padCursor.down=false;this.padCursor.el.hidden=true;}
+    if(this.padCursor){this.padCursor.down=!this.paused&&!!connectedGamepad()?.buttons[0]?.pressed;this.padCursor.el.hidden=true;}
     this.audio.strain(0);}
   nearest(){const pos=this.player.translation();return this.props.filter(p=>p.mesh.visible&&p.spec.kind!=='glass'&&!p.spec.id?.startsWith('pin-')&&(!this.lunch||this.lunch.canGrab(p.body.translation()))&&distance(pos,p.body.translation())<1.65&&Math.abs(pos.y-p.body.translation().y)<1.8).sort((a,b)=>this.reach(pos,a)-this.reach(pos,b))[0];}
   /** Job items (anything with an id) in reach always win over clutter that got pushed along. The

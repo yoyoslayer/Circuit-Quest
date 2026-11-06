@@ -157,7 +157,18 @@ test('QFN bench: losing focus cancels an unfinished drag without moving the part
  expect((await snapshot(page)).station.design.place.C1).toEqual(before);
  await page.mouse.move(20,20);await page.mouse.up();expect((await snapshot(page)).station.design.place.C1).toEqual(before);
  const planted=(await snapshot(page)).player;
- await page.evaluate(()=>{const pad={axes:[1,1,1,1],buttons:Array.from({length:17},()=>({pressed:false,value:0})),connected:true,index:0,id:'test pad',mapping:'standard',timestamp:0};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[pad]});});
+ await page.evaluate(()=>{const pad={axes:[1,1,1,1],buttons:Array.from({length:17},()=>({pressed:false,value:0})),connected:true,index:0,id:'test pad',mapping:'standard',timestamp:0};(window as any).__testPad=pad;Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[pad]});});
  await wait(page,.7);const now=(await snapshot(page)).player;expect(Math.hypot(now.x-planted.x,now.z-planted.z)).toBeLessThan(.05);
  await page.getByRole('button',{name:'Pause',exact:true}).click();await page.locator('.bench-notes summary').focus();await page.keyboard.press('Space');await expect(page.locator('.bench-notes p')).toBeVisible();
+ // Disconnecting with A held cancels that controller's unfinished drag.
+ await page.keyboard.press('Escape');const target=(await snapshot(page)).station.bodies.C1;
+ await page.evaluate(([x,y])=>{const g=(window as any).__game,p=(window as any).__testPad;p.axes=[0,0,0,0];p.buttons[0].pressed=false;g.pollPad();g.padCursor.x=x;g.padCursor.y=y;p.buttons[0].pressed=true;g.pollPad();},target);
+ expect((await snapshot(page)).station.drag).not.toBeNull();
+ await page.evaluate(()=>{(window as any).__testPad.connected=false;(window as any).__game.pollPad();});
+ expect((await snapshot(page)).station.drag).toBeNull();await expect(page.locator('.pad-cursor')).toBeHidden();expect((await snapshot(page)).station.design.place.C1).toEqual(before);
+ // A used to resume must not double as a new click on the part beneath the cursor.
+ await page.evaluate(()=>{const p=(window as any).__testPad;p.connected=true;p.buttons[0].pressed=false;(window as any).__game.pollPad();});
+ await page.getByRole('button',{name:'Pause',exact:true}).click();await page.evaluate(()=>(window as any).__testPad.buttons[0].pressed=true);
+ await expect.poll(async()=>(await snapshot(page)).paused).toBe(false);await wait(page,.2);expect((await snapshot(page)).station.drag).toBeNull();expect((await snapshot(page)).station.design.place.C1).toEqual(before);
+ await page.evaluate(()=>{(window as any).__testPad.buttons[0].pressed=false;(window as any).__game.pollPad();});
 });

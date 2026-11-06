@@ -102,7 +102,8 @@ const shuffled=<X,>(a:X[])=>{const b=a.slice();for(let k=b.length-1;k>0;k--){con
 export class GarageBench implements Station {
   readonly view={distance:6.8,pitch:.86,lookY:.4,width:4.4};
   // Time: about 1.5× a slow first-time clean run (carry the robot, read three asks, a few PULSEs each).
-  readonly limits={time:240,damage:1,cost:Math.ceil(JOBS.reduce((n,j)=>n+(cheapest(j)?.cost??0),0)*1.25*10)/10};
+  // +3 s since review 6: the robot's dock leg is 2 m longer in the 30 × 20 room (1.5 s a metre).
+  readonly limits={time:243,damage:1,cost:Math.ceil(JOBS.reduce((n,j)=>n+(cheapest(j)?.cost??0),0)*1.25*10)/10};
   readonly stand={x:0,z:-1.55};readonly table=new T.Vector3(0,1,-2.45);readonly facing=Math.PI;
   slots:Partial<Record<SlotId,Fit>>={};star=false;held?:PartId;fuse=true;cooling=0;scopeMode:'stop'|'start'='stop';
   jobIndex=0;logged:{job:string;verdict:Verdict}[]=[];mistakes=0;spent=0;onStand=false;driving=false;driveT=0;delivered=false;active=false;

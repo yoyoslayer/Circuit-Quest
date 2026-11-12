@@ -13,7 +13,7 @@ Scope: milestones M0–M5 in `docs/BUILD_PLAN.md`. How to play and develop: `REA
 | M4 Juice | Done | Sounds, particles, shake, squash/stretch, coworker reactions |
 | M5 Lunch Rush | Done | Intended solution + 9 rule tests in `tests/lunch-*.spec.ts` |
 
-Verification on the last commit (2026-11-06): tsc, `npm test` (199 unit tests) and the full browser suite (93 tests) pass.
+Verification (2026-11-12): tsc and `npm test` (199 unit tests) pass on the last commit. The full browser suite (93 tests) passed on the Pip and outline commit; after the coworker clothes, the coworker, layout and smoke specs (16 tests) were re-run and pass.
 and `npm run smoke` passes (see below for the latest browser-suite count). Browser tests run twice in a row with
 identical results (simulation is deterministic in `?manual` mode).
 

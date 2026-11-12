@@ -480,6 +480,34 @@ Open questions for the product owner:
 - **Roofs.** Rooms are open-topped dioramas so the orbit and survey cameras can see in. A ceiling would hide the
   floor from every angle above eye level. The current choice is no roof, with walls that fold away.
 
+## Review 7: Pip rebuilt, ink that thins with distance (2026-11-12)
+
+Product-owner feedback: a "black glow" round Pip, a rough look, a weird mouth, shoulders that were just
+circles, and straps that read as ties.
+
+- **Pip is a new model** (`tools/create_assets.py`, `npm run assets`, needs Blender 5.x).
+  - Orange work shirt, blue bib overalls with buttons and pockets, tool belt with a pouch and a coil of cable,
+    white mitts, brown boots, hair under a hard hat with a headlamp band.
+  - The clothes are shells peeled off the body they sit on, so the overalls, belt, pockets and hair follow its
+    curve. The old straps were flat bars floating off the chest.
+  - Arms and legs are two segments each with a ball at every joint, so elbows and knees bend without a gap.
+    The old limbs were one ellipsoid with a glove or boot swinging off the end, and a ring on each shoulder.
+  - The mouth is a smile arc. It widens at a win, flattens under strain, turns over into a frown at a fail, and
+    swaps for an open mouth in the air (`src/render/pipRig.ts`).
+  - Pip takes no shadows (he still casts them): the shadow map's grain on a round body read as a dirty surface.
+  - His ink lines are a deep shade of each part's own colour, and small face marks carry none.
+- **Ink outline** (`src/render/outlineEffect.ts`, a patched copy of three's OutlineEffect).
+  - The line has a width in the world (`INK_WORLD`, 1.7 cm), so it thins with distance. It is clamped between a
+    0.8 px hairline and the old maximum (`?ink=`); `?inkw=` sets the world width.
+  - The stock effect drew one screen width everywhere, 1.8 times thicker sideways than up and down on a wide
+    screen, so a far-off model wore a heavy dark ring.
+  - The offset now uses the true view-space normal. The stock one ignored instance transforms and squashed
+    parts, so lines on instanced props slid about as the camera moved.
+- **Sharper on high-density screens.** Full quality renders up to 2 device pixels per CSS pixel (it was 1.5).
+  The adaptive quality steps still drop it to 1.5, then 1, on a slow machine.
+- Tools: `node tools/pip-shot.mjs <outDir>` takes close-ups of Pip from four sides, a play-distance shot and the
+  title screen.
+
 ## Performance
 
 Host: Radeon RX 9060 XT, 1440 × 900. `THROTTLE=4 node tools/perf.mjs` emulates a

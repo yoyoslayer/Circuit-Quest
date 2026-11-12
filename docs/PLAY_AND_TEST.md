@@ -42,7 +42,8 @@ card), X grabs, B is the cable, Y throws, Start pauses.
 ## Look tuning (URL parameters)
 
 Add these to the address to compare looks:
-- `?ink=0.005`: the outline thickness (0.0035 by default).
+- `?ink=0.005`: the thickest the outline gets close up, as a share of the screen height (0.0035 by default).
+- `?inkw=0.03`: the outline width in the world, in metres (0.017 by default). It thins with distance.
 - `?benchfill=0.9`: how much of the screen a station bench fills (0.86 by default).
 - `?lowfx`: the cheap rendering path.
 

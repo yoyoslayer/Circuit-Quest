@@ -1,6 +1,6 @@
 // Procedural rig for Pip (tools/create_assets.py). The GLB's parts are grouped by name prefix
-// onto pivots: a body root that bobs, hips -> torso -> shoulders/head -> hat, and hip pivots for
-// the legs. Every pose is a target that the joints ease toward, so transitions blend smoothly.
+// onto pivots: a body root that bobs, hips -> torso -> shoulders -> elbows, head -> hat, and hip
+// pivots with knees for the legs. The pivots sit on the model's joint balls (listed in that script). Every pose is a target that the joints ease toward, so transitions blend smoothly.
 import * as T from 'three';
 
 export interface PipState {
@@ -27,7 +27,7 @@ export class PipRig {
   /** Attachment point in Pip's right glove, for a held plug. */
   hand=new T.Group();
   private phase=0;private blinkAt=2;private idleTime=0;private idleLook=0;private hatTilt=new T.Vector2();private hatVel=new T.Vector2();private lastSpeed=0;private spd=0;private sway=0;
-  private eyes:T.Object3D[]=[];private glints:T.Object3D[]=[];private eyeScale=1;private mouth?:T.Object3D;private face=new T.Vector2(1,1);
+  private eyes:T.Object3D[]=[];private glints:T.Object3D[]=[];private eyeScale=1;private mouth?:T.Object3D;private mouthOpen?:T.Object3D;private smile=1;private face=new T.Vector2(1,1);
   private wasAir=false;private wasBumped=false;private wasFailed=false;private wasWon=false;
   private previousCarry:PipState['carrying']='none';private previousPlug=false;private sinceFast=9;private stillFor=0;
   /** Pip is mid-stumble (a bump or a hard stop), for tests. */
@@ -41,19 +41,19 @@ export class PipRig {
     const take=(g:Joint,prefixes:string[])=>{for(const o of all)if(o.parent===holder&&prefixes.some(p=>o.name.startsWith(p)))g.attach(o);};
     const joint=(parent:T.Object3D,x:number,y:number,z=0)=>{const g=new T.Group();g.position.set(x,y,z);parent.add(g);g.updateMatrixWorld(true);return g;};
     this.body=joint(model,0,0);
-    this.legs=[joint(this.body,-.17,.62),joint(this.body,.17,.62)];
+    this.legs=[joint(this.body,-.15,.6),joint(this.body,.15,.6)];
     this.torso=joint(this.body,0,.62);
     this.head=joint(this.torso,0,.58);this.hat=joint(this.head,0,.3);
-    this.arms=[joint(this.torso,-.43,.48),joint(this.torso,.43,.48)];
-    this.knees=[joint(this.legs[0],0,-.3),joint(this.legs[1],0,-.3)];this.elbows=[joint(this.arms[0],-.01,-.17),joint(this.arms[1],.01,-.17)];
+    this.arms=[joint(this.torso,-.305,.39),joint(this.torso,.305,.39)];
+    this.knees=[joint(this.legs[0],0,-.3),joint(this.legs[1],0,-.3)];this.elbows=[joint(this.arms[0],-.03,-.165),joint(this.arms[1],.03,-.165)];
     // Attach from the most specific group outward so each part lands on exactly one pivot.
     take(this.hat,['Helmet']);take(this.head,['Head']);
-    take(this.knees[0],['BootL','LegLCuff']);take(this.knees[1],['BootR','LegRCuff']);take(this.legs[0],['LegL']);take(this.legs[1],['LegR']);
-    take(this.elbows[0],['GloveL','ArmLCuff']);take(this.elbows[1],['GloveR','ArmRCuff']);take(this.arms[0],['ArmL']);take(this.arms[1],['ArmR']);take(this.torso,['Torso']);
-    this.hand.position.set(.04,-.33,.04);this.elbows[1].add(this.hand);
+    take(this.knees[0],['BootL','ShinL']);take(this.knees[1],['BootR','ShinR']);take(this.legs[0],['LegL']);take(this.legs[1],['LegR']);
+    take(this.elbows[0],['GloveL','ForeL']);take(this.elbows[1],['GloveR','ForeR']);take(this.arms[0],['ArmL']);take(this.arms[1],['ArmR']);take(this.torso,['Torso']);
+    this.hand.position.set(.03,-.22,.03);this.elbows[1].add(this.hand);
     this.head.traverse(o=>{if(/^HeadEye[LR]$/.test(o.name))this.eyes.push(o);if(/^HeadGlint/.test(o.name))this.glints.push(o);});
     for(const e of this.eyes)e.userData.baseY=e.scale.y;
-    this.head.traverse(o=>{if(o.name==='HeadMouth'){this.mouth=o;o.userData.base=o.scale.clone();}});
+    this.head.traverse(o=>{if(o.name==='HeadMouth'){this.mouth=o;o.userData.base=o.scale.clone();}if(o.name==='HeadMouthOpen'){this.mouthOpen=o;o.visible=false;}});
   }
   update(s:PipState){
     const dt=Math.max(0,Math.min(.1,s.dt)),winning=s.won&&!s.failed,k=1-Math.exp(-dt*14),slow=1-Math.exp(-dt*6),gait=1-Math.exp(-dt*28);
@@ -141,7 +141,11 @@ export class PipRig {
     // after a slingshot, happy arcs and a big grin at the win (x: eyes, y: mouth scale).
     const fx=s.failed?.65:winning?.35:flung>=0||air?1.3:pull>.5?.55:1-tired*.15,fy=s.failed?.65:winning?1.45:flung>=0||air?1.3:pull>.5?.6:1;this.face.x+=(fx-this.face.x)*k;this.face.y+=(fy-this.face.y)*k;
     for(const e of this.eyes)e.scale.y=e.userData.baseY*this.eyeScale*this.face.x;for(const g of this.glints)g.visible=this.eyeScale>.5&&this.face.x>.5;
-    if(this.mouth){const b=this.mouth.userData.base as T.Vector3,open=flung>=0||air;this.mouth.scale.set(b.x*(open?.9:this.face.y),b.y*(open?2.1:pull>.5?.5:1),b.z);}
+    if(this.mouth){const b=this.mouth.userData.base as T.Vector3,open=flung>=0||air;
+      // With a separate open mouth (the model has one), the smile only widens, flattens, or turns over into a frown at a fail.
+      if(this.mouthOpen){this.smile+=((s.failed?-.75:pull>.5?.45:winning?1.2:1)-this.smile)*k;this.mouthOpen.visible=open;this.mouth.visible=!open;
+        const curve=Math.abs(this.smile)<.12?(this.smile<0?-.12:.12):this.smile;this.mouth.scale.set(b.x*(s.failed?.8:winning?1.25:pull>.5?.8:1),b.y*curve,b.z);}
+      else this.mouth.scale.set(b.x*(open?.9:this.face.y),b.y*(open?2.1:pull>.5?.5:1),b.z);}
     // The hard hat sits on a spring: it tips against acceleration and bounces on landing.
     const accel=dt>0?(this.spd-this.lastSpeed)/dt:0;this.lastSpeed=this.spd;
     // Small integration steps keep the hat spring stable even during software-rendered frames.

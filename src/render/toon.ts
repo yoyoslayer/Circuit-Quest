@@ -1,5 +1,6 @@
 import * as T from 'three';
-import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
+import type { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
+import { OutlineEffect as InkEffect } from './outlineEffect';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -7,6 +8,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { OutlineRenderPass, toonGTAO, GradeShader } from './post';
 
 export const INK = '#2b2d42';
+/** Ink line width in the world (m): about 1.3 px at the play camera, capped close up (render/outlineEffect.ts). */
+export const INK_WORLD = .017;
 // Soft-cel ramp: three readable bands whose edges are blended over a few texels, so forms read
 // rounded instead of posterised (?hardcel restores the original 3-step ramp).
 const hard=new URLSearchParams(location.search).has('hardcel');
@@ -151,7 +154,8 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   // Automated tests (?manual) and ?lowfx skip the expensive passes; software rendering can't afford them.
   const params=new URLSearchParams(location.search),low=params.has('lowfx')||(params.has('manual')&&!params.has('fullfx'));
   // Re-read on every resize (render-5): browser zoom or a move to another monitor changes it mid-session.
-  let pixelRatio=Math.min(devicePixelRatio,1.5);
+  // Full quality draws up to 2 device pixels per CSS pixel, so a high-density laptop screen is not upscaled and soft.
+  let pixelRatio=Math.min(devicePixelRatio,2);
   const renderer = new T.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(pixelRatio);
   renderer.shadowMap.enabled = true;
@@ -161,7 +165,9 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   // Ink outline (R5-375, DR-56): linear [.035,.037,.072] shows as about #34364c (luma ≤ 70), 2–3 px.
   // Thin ink (review 6): .0035 is about 2 px at 1080p. The old .0055 hull read as a dark glow round
   // every model and threw fins off box corners that slid about with the camera. ?ink= overrides it for tuning.
-  const effect = new OutlineEffect(renderer,{defaultThickness:Number(params.get('ink')??.0035),defaultColor:[.035,.037,.072]});
+  // The line is INK_WORLD metres wide in the world, so it thins with distance instead of ringing far-off models in
+  // black; ?ink= caps it close up (a share of the screen height) and ?inkw= sets the world width, for tuning.
+  const effect = new InkEffect(renderer,{defaultThickness:Number(params.get('ink')??.0035),defaultWorld:Number(params.get('inkw')??INK_WORLD),defaultMinPixels:.8,defaultColor:[.035,.037,.072]}) as unknown as OutlineEffect;
   const scene = new T.Scene();
   const hemi = new T.HemisphereLight('#dbe6ff','#b08a6a',.7);const ambient=new T.AmbientLight('#fff4e6',.12);scene.add(hemi,ambient);
   const sun = new T.DirectionalLight('#ffe2b8',1.75); sun.position.set(-11,21,13); sun.castShadow=true;
@@ -183,12 +189,12 @@ export function createRenderer(canvas:HTMLCanvasElement) {
   const grade=new ShaderPass(GradeShader);
   composer.addPass(ao);composer.addPass(bloom);composer.addPass(new OutputPass());composer.addPass(grade);
   // ?lowfx (or a slow machine, see Game.adaptQuality) drops the expensive passes.
-  // Quality 2: everything; 1: no AO; 0: no AO or bloom and a lower pixel ratio.
+  // Quality 2: everything, up to 2x pixel ratio; 1: no AO, up to 1.5x; 0: no AO or bloom, 1x.
   let quality:0|1|2=2;
   const setQuality=(level:0|1|2)=>{quality=level;ao.enabled=level>=2;bloom.enabled=level>=1;resize();};
   const getQuality=()=>quality;
   const resize = () => {
-    pixelRatio=Math.min(devicePixelRatio,1.5);const pr=quality===0?Math.min(pixelRatio,1):pixelRatio;
+    pixelRatio=Math.min(devicePixelRatio,quality===2?2:1.5);const pr=quality===0?Math.min(pixelRatio,1):pixelRatio;
     if(renderer.getPixelRatio()!==pr){renderer.setPixelRatio(pr);composer.setPixelRatio(pr);}
     renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); grade.uniforms.resolution.value.set(innerWidth*pr,innerHeight*pr); };
   addEventListener('resize',resize); resize();

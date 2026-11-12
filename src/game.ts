@@ -244,7 +244,13 @@ export class Game {
     const head=new T.Mesh(new T.SphereGeometry(.3,16,10),toon('#eab387'));head.position.y=1.43;this.avatar.add(head);
     const hat=new T.Mesh(new T.SphereGeometry(.33,16,8,0,Math.PI*2,0,Math.PI/2),toon('#ffc44b'));hat.position.y=1.52;this.avatar.add(hat);
     seeOff(this.avatar);this.root.add(this.avatar);
-    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=/lens/i.test(old.name)?hot('#fff0b8',2):/hat|gloves|boots/i.test(old.name)?glossyToon('#'+old.color.getHexString(),{spec:.6,size:.975}):toon('#'+old.color.getHexString());o.castShadow=true;o.receiveShadow=true;}});seeOff(gltf.scene);this.avatar.add(gltf.scene);
+    new GLTFLoader().load('/models/pip.glb',gltf=>{this.avatar.clear();gltf.scene.traverse(o=>{if(o instanceof T.Mesh){const old=o.material as T.MeshStandardMaterial;o.material=/lens/i.test(old.name)?hot('#fff0b8',2):/hat|gloves|boots|eyes/i.test(old.name)?glossyToon('#'+old.color.getHexString(),{spec:.6,size:.975}):toon('#'+old.color.getHexString());o.castShadow=true;o.receiveShadow=false;}});seeOff(gltf.scene);
+      // Pip casts shadows but takes none: the shadow map's grain on his round body read as a rough, dirty surface.
+      // Hero ink: each part's line is a deep shade of its own colour, softer than black on a face seen close up;
+      // the small face marks and studs carry no line at all. (seeOff gave every part its own material.)
+      gltf.scene.traverse(o=>{if(!(o instanceof T.Mesh))return;const m=o.material as T.MeshToonMaterial;
+        m.userData.outlineParameters=/Glint|Cheek|Brow|Mouth|EarIn|Lens|Button|Toe|Fringe/.test(o.name+' '+(o.parent?.name??''))?{visible:false}:{color:m.color.clone().multiplyScalar(.3).lerp(new T.Color(.035,.037,.072),.35).toArray()};});
+      this.avatar.add(gltf.scene);
       // Parts are grouped by name prefix onto pivots (src/render/pipRig.ts).
       this.rig=new PipRig(gltf.scene);this.hand=this.rig.hand;},undefined,()=>{document.body.dataset.assetFallback='true';});
   }

@@ -38,21 +38,57 @@ export function hot(color:string,k=3){const m=new T.MeshBasicMaterial({color});m
 export type Mood='calm'|'alarm'|'sleepy'|'happy';
 export type Accessory='tuft'|'headphones'|'glasses'|'tie'|'mug'|'bun'|'cap'|'sprout';
 const shadeHex=(hex:string,l:number)=>{const c=new T.Color(hex);c.offsetHSL(0,0,l);return '#'+c.getHexString();};
+/** The coworker body: a capsule of this radius standing on the floor, its end caps centred at these heights. */
+const BLOB_R=.33,BLOB_LOW=.375,BLOB_HIGH=.725;
+/** A band of clothing round the body from height y0 to y1, standing `grow` metres off it and tucked in at the top. */
+function wrap(y0:number,y1:number,grow:number){
+  const pts:T.Vector2[]=[],R=BLOB_R+grow,steps=18;
+  for(let i=0;i<=steps;i++){const y=y0+(y1-y0)*i/steps;
+    if(y<BLOB_LOW){const a=Math.asin(Math.max(-1,(y-BLOB_LOW)/BLOB_R));pts.push(new T.Vector2(Math.max(0,R*Math.cos(a)),BLOB_LOW+R*Math.sin(a)));}
+    else if(y>BLOB_HIGH){const a=Math.asin(Math.min(1,(y-BLOB_HIGH)/BLOB_R));pts.push(new T.Vector2(R*Math.cos(a),BLOB_HIGH+R*Math.sin(a)));}
+    else pts.push(new T.Vector2(R,y));}
+  const top=pts[pts.length-1];pts.push(new T.Vector2(top.x-grow*.4,top.y+grow*.8),new T.Vector2(top.x-grow-.01,top.y+grow*.8));
+  return new T.LatheGeometry(pts,40);
+}
 /** Builds a blob's parts, then bakes them into one vertex-coloured mesh (one draw call). */
 function buildBlob(color:string,mood:Mood,acc:Accessory[]):T.BufferGeometry{
   const parts:{g:T.BufferGeometry;c:string;m:T.Matrix4;head:boolean}[]=[];
   const add=(g:T.BufferGeometry,c:string,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{parts.push({g,c,head:y>.64,m:new T.Matrix4().compose(new T.Vector3(x,y,z),new T.Quaternion().setFromEuler(new T.Euler(rx,ry,rz)),new T.Vector3(sx,sy,sz))});};
   const dark=shadeHex(color,-.12),alarm=mood==='alarm';
-  add(new T.CapsuleGeometry(.33,.35,12,36),color,0,.55,0,0,0,0,1,1,.96);
+  // Parts added inside body() never turn with the head, however high they sit (a raised hand).
+  const body=(fn:()=>void)=>{const n=parts.length;fn();for(let i=n;i<parts.length;i++)parts[i].head=false;};
+  // Each coworker keeps one outfit across moods: it is picked from their colour and accessories.
+  const pick=[...color,...acc.join('')].reduce((n,ch)=>n+ch.charCodeAt(0),0);
+  const shirt=['#f7f3ea','#dbe7f8','#fde4d2','#e2f2e0','#f3e3f5'][pick%5],slacks=['#5d6c9c','#8f6b4d','#6f7f99','#4d7a8c'][pick%4],shoe=['#3a3d55','#6e4526'][pick%2];
+  add(new T.CapsuleGeometry(BLOB_R,.35,12,36),color,0,.55,0,0,0,0,1,1,.96);
+  // Office clothes wrap the lower body: slacks, a tucked-in shirt with a collar, and shoes.
+  add(wrap(0,.31,.017),slacks,0,0,0,0,0,0,1,1,.96);
+  add(wrap(.285,.585,.012),shirt,0,0,0,0,0,0,1,1,.96);
+  add(new T.TorusGeometry(BLOB_R+.016,.014,8,40),shadeHex(slacks,-.08),0,.305,0,Math.PI/2,0,0,1,.96,1);
+  const front=(BLOB_R+.012)*.96;
+  for(const s of [-1,1]){
+    // Collar: two small wings that meet in a V under the chin.
+    add(new T.BoxGeometry(.085,.04,.02),shadeHex(shirt,.04),s*.045,.572,front+.002,0,s*.14,s*.62);
+    add(new T.SphereGeometry(1,16,10),shoe,s*.13,.05,.13,0,-s*.12,0,.1,.055,.15);
+  }
+  if(!acc.includes('tie')){
+    for(const y of [.49,.4])add(new T.SphereGeometry(.014,8,6),shadeHex(shirt,-.3),0,y,front+.004);
+    // About half of them wear a pass on a lanyard.
+    if(pick%2){add(new T.BoxGeometry(.014,.13,.008),'#e5484d',.13,.5,front-.006,0,.38,0);add(new T.BoxGeometry(.075,.095,.012),'#fffaf0',.13,.4,front-.004,0,.38,0);add(new T.BoxGeometry(.075,.026,.014),'#3f7fd6',.13,.432,front-.004,0,.38,0);}
+  }
   for(const s of [-1,1]){
     add(new T.SphereGeometry(alarm?.105:.088,24,16),'#ffffff',s*.105,.8,.285);
     add(new T.SphereGeometry(alarm?.03:.045,16,12),INK,s*.105,.8,.365);
     add(new T.SphereGeometry(.015,6,4),'#ffffff',s*.105+.02,.82,.405);
     if(mood==='sleepy')add(new T.SphereGeometry(.094,14,8,0,Math.PI*2,0,Math.PI/2),color,s*.105,.8,.29,.35,0,0,1.06,1.06,1.06);
     add(new T.SphereGeometry(.05,10,6),'#ff9fb4',s*.2,.68,.265,0,0,0,1,.6,.35);
-    add(new T.CapsuleGeometry(.07,.14,6,16),color,s*.35,.44,.02,0,0,s*(alarm?-2.3:.35));
+    // Sleeved arms with a hand in the coworker's own colour: down by the side, or thrown up and out in alarm.
+    body(()=>{const [x,y,tilt]=alarm?[.41,.6,-.65]:[.36,.43,.3],reach=.15;
+      add(new T.CapsuleGeometry(.068,.15,6,16),shirt,s*x,y,.02,0,0,s*tilt);
+      const up=alarm?1:-1;add(new T.SphereGeometry(.078,16,12),color,s*(x-up*Math.sin(tilt)*reach),y+up*Math.cos(tilt)*reach,.03);});
   }
-  if(mood==='happy'||mood==='calm'){const k=mood==='happy'?1:.7;add(new T.TorusGeometry(.055,.014,6,14,Math.PI),INK,0,.7,.318,0,0,Math.PI,k,mood==='happy'?1:.6,1);}
+  if(mood==='happy'||mood==='calm'){const k=mood==='happy'?1:.75;add(new T.TorusGeometry(.062,.016,8,18,Math.PI),INK,0,.705,.316,0,0,Math.PI,k,mood==='happy'?1:.6,1);}
+  if(mood==='sleepy')add(new T.CapsuleGeometry(.012,.05,4,8),INK,0,.685,.322,0,0,Math.PI/2);
   if(alarm)add(new T.TorusGeometry(.035,.014,6,14),INK,0,.67,.325,0,0,0,1,1.3,1);
   for(const a of acc){
     if(a==='tuft')for(const [x,z,r] of [[0,0,0],[-.07,.03,.5],[.07,.02,-.5]])add(new T.ConeGeometry(.06,.2,8),dark,x,1.1,z,0,0,r);
@@ -60,7 +96,7 @@ function buildBlob(color:string,mood:Mood,acc:Accessory[]):T.BufferGeometry{
     if(a==='sprout'){add(new T.CylinderGeometry(.012,.012,.16,6),'#4caf50',0,1.13,0);add(new T.SphereGeometry(.07,10,6),'#6cc58a',.06,1.22,0,0,0,-.4,1.3,.45,.8);}
     if(a==='headphones'){add(new T.TorusGeometry(.35,.035,8,24,Math.PI),'#3a3d55',0,.8,0);for(const s of [-1,1])add(new T.CylinderGeometry(.1,.1,.08,16),'#e5484d',s*.35,.8,0,0,0,Math.PI/2);}
     if(a==='glasses'){for(const s of [-1,1])add(new T.TorusGeometry(.1,.016,6,18),INK,s*.105,.8,.37);add(new T.BoxGeometry(.06,.016,.016),INK,0,.81,.38);}
-    if(a==='tie'){add(new T.BoxGeometry(.08,.22,.03),'#e5484d',0,.44,.325,-.15);add(new T.BoxGeometry(.1,.06,.04),'#c53a3f',0,.57,.318);}
+    if(a==='tie'){add(new T.BoxGeometry(.08,.22,.03),'#e5484d',0,.44,.338,-.04);add(new T.BoxGeometry(.1,.06,.04),'#c53a3f',0,.56,.336);}
     if(a==='cap'){add(new T.SphereGeometry(.34,16,8,0,Math.PI*2,0,Math.PI/2),'#3f7fd6',0,.93,0,0,0,0,1,.7,1);add(new T.CylinderGeometry(.2,.2,.03,16),'#3f7fd6',0,.95,.28,0,0,0,1,1,.7);}
     if(a==='mug'){add(new T.CylinderGeometry(.075,.065,.16,12),'#fffaf0',.34,.55,.2);add(new T.TorusGeometry(.04,.012,6,10),'#fffaf0',.42,.55,.2,0,Math.PI/2);add(new T.CylinderGeometry(.062,.062,.01,12),'#6b4a2e',.34,.63,.2);}
   }

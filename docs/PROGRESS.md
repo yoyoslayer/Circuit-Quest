@@ -480,7 +480,7 @@ Open questions for the product owner:
 - **Roofs.** Rooms are open-topped dioramas so the orbit and survey cameras can see in. A ceiling would hide the
   floor from every angle above eye level. The current choice is no roof, with walls that fold away.
 
-## Review 7: Pip rebuilt, ink that thins with distance (2026-11-12)
+## Review 7: Pip rebuilt, coworkers dressed, ink that thins with distance (2026-11-12)
 
 Product-owner feedback: a "black glow" round Pip, a rough look, a weird mouth, shoulders that were just
 circles, and straps that read as ties.
@@ -496,6 +496,11 @@ circles, and straps that read as ties.
     swaps for an open mouth in the air (`src/render/pipRig.ts`).
   - Pip takes no shadows (he still casts them): the shadow map's grain on a round body read as a dirty surface.
   - His ink lines are a deep shade of each part's own colour, and small face marks carry none.
+- **Coworkers wear office clothes** (`src/render/actors.ts`). They are still one baked mesh each.
+  - Slacks, a tucked-in shirt with a collar and buttons, shoes, and sleeved arms ending in a hand of their own colour.
+    About half wear a pass on a lanyard. The outfit is picked from the coworker's colour and accessories, so the
+    calm and startled versions match.
+  - Startled, the arms go up and out. Sleepy coworkers have a mouth.
 - **Ink outline** (`src/render/outlineEffect.ts`, a patched copy of three's OutlineEffect).
   - The line has a width in the world (`INK_WORLD`, 1.7 cm), so it thins with distance. It is clamped between a
     0.8 px hairline and the old maximum (`?ink=`); `?inkw=` sets the world width.
